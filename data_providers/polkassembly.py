@@ -96,8 +96,19 @@ class PolkassemblyProvider(DataProvider):
         return datetime.datetime.strptime(datetime_string, '%Y-%m-%dT%H:%M:%S.%fZ')
 
 
-    """## Transform Treasury Proposals"""
-    def transform_treasury_proposals(self, treasury_df, referendums_df, digits, denomination_factor, ticker, treasury_url, referenda_url):
+    """Transform Treasury Proposals
+
+    Transforming Referenda currently is based on the assumption that the 
+    referenda data is already fetched. 
+    
+    This function will merge the treasury data with the referenda data and
+    transform it to match the columns of the Google Spreadsheet. We will also
+    add the USD values for the requestedAmount and the latest price of the
+    token at the time of the last status change.    
+    Assumptions:
+    - referendums_df has all the referenda data that need to be merged with the treasury data
+    """
+    def _transform_treasury_proposals(self, treasury_df, referendums_df):
 
         treasury_transformed = treasury_df.merge(referendums_df, left_on="ref_num", right_on="post_id", how='left', suffixes=('_treasury', '_referendum'))
 
@@ -106,22 +117,18 @@ class PolkassemblyProvider(DataProvider):
         # Build columns
         treasury_transformed["propose_time"] = treasury_transformed["timeline_treasury"].apply(self._map_propose_time)
         treasury_transformed["last_update"] = pd.to_datetime(treasury_transformed["status_history_treasury"].apply(lambda x: x[-1]["timestamp"] if len(x) > 0 else None)) # better timeline
-        treasury_transformed["DOT"] = (pd.to_numeric(treasury_transformed["requestedAmount"]) / denomination_factor)
+        treasury_transformed["DOT"] = (pd.to_numeric(treasury_transformed["requestedAmount"]) / self.network_info.denomination_factor)
         treasury_transformed["USD_propose_time"] = treasury_transformed.apply(self._determine_usd_price_factory("propose_time"), axis=1)
         treasury_transformed["USD_last_update"] = treasury_transformed.apply(self._determine_usd_price_factory("last_update"), axis=1)
         treasury_transformed["Status"] = treasury_transformed["status_treasury"]
-        treasury_transformed["ref_url"] = treasury_transformed["ref_num"].apply(lambda x:f'=HYPERLINK("{referenda_url}{x}", {x})')
-        treasury_transformed["url"] = treasury_transformed["id"].apply(lambda x:f'=HYPERLINK("{treasury_url}{x}", {x})')
 
         # Replace the 'Track' column with the mapping from IDs to Origin names
-        treasury_transformed["Track"] = treasury_transformed["track_no_referendum"].map(PolkassemblyProvider.id_to_origin_mapping)
+        treasury_transformed["Track"] = treasury_transformed["track_no_referendum"].map(PolkassemblyProvider._id_to_origin_mapping)
 
         # Finalize df
         treasury_transformed = treasury_transformed.set_index("id")
-        treasury_transformed = treasury_transformed[["url", "ref_url", "title_treasury", "propose_time", "last_update", "Status", "DOT", "USD_propose_time", "USD_last_update", "Track"]]
-        treasury_transformed
-
-
+        treasury_transformed = treasury_transformed[["ref_num", "title_treasury", "propose_time", "last_update", "Status", "DOT", "USD_propose_time", "USD_last_update", "Track"]]
+        return treasury_transformed
 
     def fetch_treasury_proposals(self, page_size=10):
         def map_type(timeline, treasury_num):
@@ -134,10 +141,12 @@ class PolkassemblyProvider(DataProvider):
 
             return pd.Series([timeline[0]["index"], timeline[1]["index"]])
 
-        treasury_df = self._fetch('treasury_proposals', page_size)
+        df = self._fetch('treasury_proposals', page_size)
+        df[["ref_num", "treasury_num"]] = df.apply(lambda row: map_type(row["timeline"], row["post_id"]), axis=1)
 
-        treasury_df[["ref_num", "treasury_num"]] = treasury_df.apply(lambda row: map_type(row["timeline"], row["post_id"]), axis=1)
-
+        referenda_df = pd.DataFrame(columns=["post_id", "timeline", "status_history", "status", "requestedAmount", "track_no"])
+        df = self._transform_treasury_proposals(df, referenda_df)
+        return df
         
     def _fetch(self, proposal_type, page_size=10, track_status="All"):
         # Docs: https://documenter.getpostman.com/view/764953/2s93JxqLoH#0fa6d3c3-b9ee-428c-8f1c-85374edfd7de
