@@ -35,21 +35,39 @@ class SubsquareProvider(DataProvider):
 
         def _determineDOTAmount(row):
             known_zero_value_proposals = [
+                "0x0000", # system.remark
+                "0x0002", # system.setCode
                 "0x1503", # referenda.cancel
+                "0x1504", # referenda.kill
+                "0x1703", # whitelist.dispatchWhitelistedCallWithPreimage
+                "0x2200", # bounties.proposeBounty
                 "0x2201", # bounties.approveBounty
+                "0x2202", # bounties.proposeCurator
+                "0x2204", # bounties.acceptCurator
+                "0x4603", # registrar.swap
                 "0x6300", # xcmPallet.send
             ]
 
-            if "treasuryInfo" in row:
-                return row["treasuryInfo"]["amount"]
+            should_inspect_proposals = [
+                "0x1a00", # utility.batch 
+                "0x1a02", # utility.batchAll
+                "0x1a04", # utility.forceBatch
+                "0x0a00", # preimage.notePreimage
+                "0x0a02", # preimage.requestPreimage
+            ]
+
+            if "treasuryInfo" in row["onchainData"]:
+                return row["onchainData"]["treasuryInfo"]["amount"]
             elif "treasuryBounties" in row: # accepting a new bounty
                 return 0
-            elif len(row["proposal"]) == 0: # no existing preimage
+            elif len(row["onchainData"]["proposal"]) == 0: # no existing preimage
                 return 0
-            elif row["proposal"]["callIndex"] in known_zero_value_proposals:
+            elif row["onchainData"]["proposal"]["callIndex"] in known_zero_value_proposals:
                 return 0
+            elif row["onchainData"]["proposal"]["callIndex"] in should_inspect_proposals:
+                raise ValueError(f"{row["onchainData"]["proposal"]} not implemented")
             else:
-                self._logger.info(f"Unknown proposal type: {row['proposal']}")
+                self._logger.info(f"Unknown proposal type: {row["onchainData"]['proposal']}")
                 return 0
 
         def _determineOrigin(row):
@@ -71,7 +89,7 @@ class SubsquareProvider(DataProvider):
         df["latest_status_change"] = pd.to_datetime(df["latest_status_change"])
 
         df["status"] = df["state"].apply(lambda x: x["name"])
-        df[self.network_info.ticker] = pd.to_numeric(df["onchainData"].apply(lambda x:self.price_service.apply_denomination(_determineDOTAmount(x))))
+        df[self.network_info.ticker] = pd.to_numeric(df.apply(lambda x:self.price_service.apply_denomination(_determineDOTAmount(x)), axis=1))
         df["USD_proposal_time"] = df.apply(self._determine_usd_price_factory("proposal_time"), axis=1)
         df["USD_latest"] = df.apply(self._determine_usd_price_factory("latest_status_change"), axis=1)        
         df["tally.ayes"] = df.apply(lambda x: self.price_service.apply_denomination(x["onchainData"]["tally"]["ayes"]), axis=1)
@@ -83,22 +101,26 @@ class SubsquareProvider(DataProvider):
 
         return df
 
-
     def fetch_treasury_proposals(self, num_referenda=10):
         return self._fetch('treasury/proposals', num_referenda)
 
-    def _fetch(self, proposal_type, num_referenda):
-        base_url = f"https://{self.network_info.name}.subsquare.io/api/gov2/{proposal_type}?" #<-- referendums, treasury/proposals
+    def _fetch(self, proposal_type, num_items):
+        #base_url = f"https://{self.network_info.name}.subsquare.io/api/gov2/{proposal_type}?" #<-- referendums, treasury/proposals
+        if proposal_type == "referendums":
+            base_url = "https://polkadot.subsquare.io/_next/data/trrsQec9V4m7mgsk7Vg0w/referenda.json?"
+        else:
+            raise ValueError(f"Unknown proposal type: {proposal_type}")
 
         all_items = []
         page = 1
 
         while True:
             url = f"{base_url}&page={page}"
+            self._logger.debug(f"Fetching from {url}")
             response = requests.get(url)
             if response.status_code == 200:
                 data = response.json()
-                items = data['items']
+                items = data["pageProps"]["posts"]['items']
                 if not items:
                     break
                 all_items.extend(items)
@@ -106,7 +128,7 @@ class SubsquareProvider(DataProvider):
 
                 self._logger.debug(f"Fetched {len(all_items)} items")
 
-                if len(all_items) >= num_referenda:
+                if len(all_items) >= num_items:
                     break
             else:
                 message = f"While fetching {proposal_type}, we received error: {response.status_code} {response.reason}"

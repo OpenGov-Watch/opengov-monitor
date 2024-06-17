@@ -12,6 +12,9 @@ import datetime
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
+logging.getLogger("yfinance").setLevel(logging.INFO)
+logging.getLogger("urllib3").setLevel(logging.INFO)
+logging.getLogger("peewee").setLevel(logging.INFO)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -39,7 +42,7 @@ def main():
   # network = "kusama"
   explorer = "subsquare"
   spreadsheet_id = "14jhH_zdDivhGqOzDyCGiTlH_s-WcPLRoXqwAsQvfNMw" # Monitoring DEV
-  referenda_to_fetch = 1000
+  referenda_to_fetch = 10
   treasury_proposals_to_fetch = 0
 
   network_info = NetworkInfo(network, explorer)
