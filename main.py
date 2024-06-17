@@ -57,6 +57,17 @@ def connect_to_gspread():
 
 
 def update_worksheet(gc, name, df, spreadsheet_id):
+
+  # copy the df to avoid modifying the original
+  df = df.copy()
+
+  def _format_date(timestamp):
+    if pd.isnull(timestamp):
+        raise Exception("implement a warning or contract around this method")
+    return (timestamp.date()-datetime.date(1900,1,1)).days # days since 1900-01-01
+
+
+  # The credentialed user email needs to have access to the Google Sheet
   spreadsheet = gc.open_by_key(spreadsheet_id)
   # load the data
   worksheet = spreadsheet.worksheet(name)
@@ -86,16 +97,26 @@ def update_worksheet(gc, name, df, spreadsheet_id):
   if sheet_df is None:
     raise SystemExit(-1)
 
+  # prepare the spreadsheet for index matching
   sheet_df["id"] = sheet_df["url"].apply(extract_id) # we extract the index from the hyperlink to perform key matching later
   sheet_df.set_index("id", inplace=True)
+
+
+  # transformations to be compatible with the Google Sheets API
+  df["created"] = df["created"].apply(_format_date)
+  df["last_status_change"] = df["last_status_change"].apply(_format_date)
+
 
   # build deltas
   df.index = df.index.astype(str) # coerce numerical indexes into strings to allow comparison
   update_df = df[df.index.isin(sheet_df.index)]
   append_df = df[~df.index.isin(sheet_df.index)]
 
+
+  # make sure columns can be converted to json
+  sheet_df["USD_latest"] = sheet_df["USD_latest"].astype("object").fillna("")
+
   # Update the cells with new values
-  sheet_df.fillna('', inplace=True) # make sure we can update
   sheet_df.update(update_df)
   data_to_update = sheet_df.values.tolist()
   worksheet.update(data_to_update, range, raw=False)
@@ -105,7 +126,8 @@ def update_worksheet(gc, name, df, spreadsheet_id):
     worksheet.append_rows(append_df.fillna('').values.tolist(), value_input_option='USER_ENTERED')
 
   # Update Filter
-  requests = [{
+  def _filterRequest():
+    return {
       "setBasicFilter": {
           "filter": {
               "range": {
@@ -114,9 +136,11 @@ def update_worksheet(gc, name, df, spreadsheet_id):
                   "startColumnIndex": 0,
               }
           }
-      },
-  },
-  {
+        }
+      }
+
+  def _sortRequest():
+    return {
       "sortRange": {
           "range": {
               "sheetId": worksheet.id,
@@ -131,7 +155,12 @@ def update_worksheet(gc, name, df, spreadsheet_id):
               }
           ]
       }
-  }]
+  }
+
+  requests = []
+  requests.append(_filterRequest())
+  requests.append(_sortRequest())
+
   spreadsheet.batch_update({"requests": requests})
 
   spreadsheet.client.session.close()
@@ -150,7 +179,7 @@ def main():
   network = "polkadot"
   # network = "kusama"
   explorer = "subsquare"
-  spreadsheet_id = "Monitoring DEV"
+  spreadsheet_id = "14jhH_zdDivhGqOzDyCGiTlH_s-WcPLRoXqwAsQvfNMw" # Monitoring DEV
   referenda_to_fetch = 10
   treasury_proposals_to_fetch = 0
 

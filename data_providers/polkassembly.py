@@ -2,7 +2,6 @@ from .data_provider import DataProvider
 import requests
 import pandas as pd
 import datetime
-from utils import format_date
 
 class PolkassemblyProvider(DataProvider):
     # Define your ID to Origin mapping
@@ -50,7 +49,7 @@ class PolkassemblyProvider(DataProvider):
     def _transform_referenda(self, df):
 
         df = df.copy() # avoid weeping and gnashing of teeth
-        df["requestedAmount"].fillna(0, inplace=True) # replace empty amounts with 0
+        df.fillna({"requestedAmount": 0}, inplace=True) # replace empty amounts with 0
         df.rename(columns={"post_id": "id"}, inplace=True)
 
         # Build columns
@@ -66,9 +65,6 @@ class PolkassemblyProvider(DataProvider):
         # Replace the 'Track' column with the mapping from IDs to Origin names
         df["Track"] = df["track_no"].map(PolkassemblyProvider._id_to_origin_mapping)
 
-        # stringify to allow Google Spreadsheet write
-        df["created"] = df["created"].apply(format_date)
-        df["last_status_change"] = df["last_status_change"].apply(format_date)
 
         # More filtering
         df = df.set_index("id")
@@ -108,9 +104,8 @@ class PolkassemblyProvider(DataProvider):
         treasury_transformed.rename(columns={"treasury_num": "id"}, inplace=True)
 
         # Build columns
-        treasury_transformed["propose_time"] = treasury_transformed["timeline_treasury"].apply(self._map_propose_time).apply(format_date)
-        treasury_transformed["last_status_change"] = pd.to_datetime(treasury_transformed["status_history_treasury"].apply(lambda x: x[-1]["timestamp"] if len(x) > 0 else None)) # better timeline
-        treasury_transformed["last_update"] = treasury_transformed["last_status_change"].apply(format_date)
+        treasury_transformed["propose_time"] = treasury_transformed["timeline_treasury"].apply(self._map_propose_time)
+        treasury_transformed["last_update"] = pd.to_datetime(treasury_transformed["status_history_treasury"].apply(lambda x: x[-1]["timestamp"] if len(x) > 0 else None)) # better timeline
         treasury_transformed["DOT"] = (pd.to_numeric(treasury_transformed["requestedAmount"]) / denomination_factor)
         treasury_transformed["USD_propose_time"] = treasury_transformed.apply(self._determine_usd_price_factory("propose_time"), axis=1)
         treasury_transformed["USD_last_update"] = treasury_transformed.apply(self._determine_usd_price_factory("last_update"), axis=1)
