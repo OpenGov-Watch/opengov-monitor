@@ -11,6 +11,8 @@ import pandas as pd
 import datetime
 import logging
 
+logging.basicConfig(level=logging.DEBUG)
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
@@ -37,12 +39,13 @@ def main():
   # network = "kusama"
   explorer = "subsquare"
   spreadsheet_id = "14jhH_zdDivhGqOzDyCGiTlH_s-WcPLRoXqwAsQvfNMw" # Monitoring DEV
-  referenda_to_fetch = 10
-  treasury_proposals_to_fetch = 10
+  referenda_to_fetch = 1000
+  treasury_proposals_to_fetch = 0
 
   network_info = NetworkInfo(network, explorer)
   price_service = PriceService(network_info)
-  provider = PolkassemblyProvider(network_info, price_service)
+  #provider = PolkassemblyProvider(network_info, price_service)
+  provider = SubsquareProvider(network_info, price_service)
   spreadsheet_sink = SpreadsheetSink("credentials.json")
   spreadsheet_sink.connect_to_gspread()
 

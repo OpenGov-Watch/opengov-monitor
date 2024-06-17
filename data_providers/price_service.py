@@ -39,6 +39,8 @@ class PriceService:
 
   def apply_denomination(self, value):
       if isinstance(value, str):
+          if value.startswith("0x"):
+              return int(value, 16)/self.network_info.denomination_factor
           return value[:-self.network_info.digits] if len(value) >= self.network_info.digits else "" # cut the digits after the decimal from the string
       elif isinstance (value, (int)):
           return value/self.network_info.denomination_factor

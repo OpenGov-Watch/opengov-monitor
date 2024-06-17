@@ -23,13 +23,13 @@ class PolkassemblyProvider(DataProvider):
         34: 'Big Spender'
     }
 
-
     def __init__(self, network_info, price_service):
         self.network_info = network_info
         self.price_service = price_service
 
-    def fetch_referenda(self, page_size=10):
-        df = self._fetch('referendums_v2', page_size)
+    # Output columns: ['url', 'title', 'Status', 'DOT', 'USD_proposal_time', 'Track', 'tally.ayes', 'tally.nays', 'created', 'last_status_change', 'USD_latest']
+    def fetch_referenda(self, num_referenda=10):
+        df = self._fetch('referendums_v2', num_referenda)
         df = self._transform_referenda(df)
         return df
         
@@ -41,7 +41,7 @@ class PolkassemblyProvider(DataProvider):
     ['id', 'status', 'status_history', 'track_no', 'requestedAmount', 'tally.ayes', 'tally.nays']
 
     The output columns are:
-    ['url', 'title', 'Status', 'DOT', 'USD_proposal_time', 'Track', 'tally.ayes', 'tally.nays', 'created', 'last_status_change', 'USD_latest']
+    (id)['title', 'Status', 'DOT', 'USD_proposal_time', 'Track', 'tally.ayes', 'tally.nays', 'created', 'last_status_change', 'USD_latest']
 
     The indes is called 'id' and contains the post_id.
 
@@ -56,7 +56,7 @@ class PolkassemblyProvider(DataProvider):
         df["created"] = pd.to_datetime(df["status_history"].apply(lambda x: x[0]["timestamp"] if len(x) > 0 else None)).dt.tz_convert(None)
         df["last_status_change"] = pd.to_datetime(df["status_history"].apply(lambda x: x[-1]["timestamp"] if len(x) > 0 else None)).dt.tz_convert(None)
         df[self.network_info.ticker] = pd.to_numeric(df["requestedAmount"].apply(self.price_service.apply_denomination))
-        df["USD_proposal_time"] = df.apply(self._determine_usd_price_factory("created",self.network_info.ticker), axis=1)
+        df["USD_proposal_time"] = df.apply(self._determine_usd_price_factory("created"), axis=1)
         df["USD_latest"] = df.apply(self._determine_usd_price_factory("last_status_change", "status"), axis=1)
         df["Status"] = df["status"]
         df["tally.ayes"] = pd.to_numeric(df["tally.ayes"]) / self.network_info.denomination_factor
@@ -70,20 +70,6 @@ class PolkassemblyProvider(DataProvider):
         df = df.set_index("id")
         df = df[["title", "Status", "DOT", "USD_proposal_time", "Track", "tally.ayes", "tally.nays", "created", "last_status_change", "USD_latest"]]
         return df
-
-    def _determine_usd_price_factory(self, date_column, status_column=None):
-        def determine_usd_price(row):
-            statuses_where_i_want_to_get_the_historic_price = ["Executed"]
-            if (status_column is not None) and row[status_column] in statuses_where_i_want_to_get_the_historic_price:
-                executed_date = row[date_column]
-                conversion_rate = self.price_service.get_historic_price(executed_date)
-                return row[self.price_service.ticker] * conversion_rate
-            else:
-                if self.price_service.current_price is None:
-                    raise ValueError("Current price not available. Call get_current_price() first.")
-                return row[self.network_info.ticker] * self.price_service.current_price
-
-        return determine_usd_price
 
     def _map_propose_time(self, timeline):
         if timeline[0]["type"] == "TreasuryProposal":
@@ -100,7 +86,7 @@ class PolkassemblyProvider(DataProvider):
 
     Transforming Referenda currently is based on the assumption that the 
     referenda data is already fetched. 
-    
+
     This function will merge the treasury data with the referenda data and
     transform it to match the columns of the Google Spreadsheet. We will also
     add the USD values for the requestedAmount and the latest price of the
@@ -110,26 +96,27 @@ class PolkassemblyProvider(DataProvider):
     """
     def _transform_treasury_proposals(self, treasury_df, referendums_df):
 
-        treasury_transformed = treasury_df.merge(referendums_df, left_on="ref_num", right_on="post_id", how='left', suffixes=('_treasury', '_referendum'))
+        df = treasury_df.merge(referendums_df, left_on="ref_num", right_on="post_id", how='left', suffixes=('_treasury', '_referendum'))
 
-        treasury_transformed.rename(columns={"treasury_num": "id"}, inplace=True)
+        df.rename(columns={"treasury_num": "id"}, inplace=True)
 
         # Build columns
-        treasury_transformed["propose_time"] = treasury_transformed["timeline_treasury"].apply(self._map_propose_time)
-        treasury_transformed["last_update"] = pd.to_datetime(treasury_transformed["status_history_treasury"].apply(lambda x: x[-1]["timestamp"] if len(x) > 0 else None)) # better timeline
-        treasury_transformed["DOT"] = (pd.to_numeric(treasury_transformed["requestedAmount"]) / self.network_info.denomination_factor)
-        treasury_transformed["USD_propose_time"] = treasury_transformed.apply(self._determine_usd_price_factory("propose_time"), axis=1)
-        treasury_transformed["USD_last_update"] = treasury_transformed.apply(self._determine_usd_price_factory("last_update"), axis=1)
-        treasury_transformed["Status"] = treasury_transformed["status_treasury"]
+        df["propose_time"] = df["timeline_treasury"].apply(self._map_propose_time)
+        df["last_update"] = pd.to_datetime(df["status_history_treasury"].apply(lambda x: x[-1]["timestamp"] if len(x) > 0 else None)) # better timeline
+        df["DOT"] = (pd.to_numeric(df["requestedAmount"]) / self.network_info.denomination_factor)
+        df["USD_propose_time"] = df.apply(self._determine_usd_price_factory("propose_time"), axis=1)
+        df["USD_last_update"] = df.apply(self._determine_usd_price_factory("last_update"), axis=1)
+        df["Status"] = df["status_treasury"]
 
         # Replace the 'Track' column with the mapping from IDs to Origin names
-        treasury_transformed["Track"] = treasury_transformed["track_no_referendum"].map(PolkassemblyProvider._id_to_origin_mapping)
+        df["Track"] = df["track_no_referendum"].map(PolkassemblyProvider._id_to_origin_mapping)
 
         # Finalize df
-        treasury_transformed = treasury_transformed.set_index("id")
-        treasury_transformed = treasury_transformed[["ref_num", "title_treasury", "propose_time", "last_update", "Status", "DOT", "USD_propose_time", "USD_last_update", "Track"]]
-        return treasury_transformed
+        df = df.set_index("id")
+        df = df[["ref_num", "title_treasury", "propose_time", "last_update", "Status", "DOT", "USD_propose_time", "USD_last_update", "Track"]]
+        return df
 
+    # Output columns: ['url', 'ref_url', 'title', 'propose_time', 'last_update', 'Status', 'DOT', 'USD_propose_time', 'USD_last_update', 'Track']
     def fetch_treasury_proposals(self, page_size=10):
         def map_type(timeline, treasury_num):
             if timeline[0]["type"] == "TreasuryProposal":

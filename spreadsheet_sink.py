@@ -74,8 +74,8 @@ class SpreadsheetSink:
         sheet_df.set_index("id", inplace=True)
 
         # transformations to be compatible with the Google Sheets API
-        df["created"] = df["created"].apply(self._format_date)
-        df["last_status_change"] = df["last_status_change"].apply(self._format_date)
+        df["proposal_time"] = df["proposal_time"].apply(self._format_date)
+        df["latest_status_change"] = df["latest_status_change"].apply(self._format_date)
 
         # build deltas
         df.index = df.index.astype(str)  # coerce numerical indexes into strings to allow comparison
