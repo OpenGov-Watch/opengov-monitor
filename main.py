@@ -15,6 +15,7 @@ logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("yfinance").setLevel(logging.INFO)
 logging.getLogger("urllib3").setLevel(logging.INFO)
 logging.getLogger("peewee").setLevel(logging.INFO)
+logging.getLogger("google").setLevel(logging.INFO)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -42,8 +43,17 @@ def main():
   # network = "kusama"
   explorer = "subsquare"
   spreadsheet_id = "14jhH_zdDivhGqOzDyCGiTlH_s-WcPLRoXqwAsQvfNMw" # Monitoring DEV
-  referenda_to_fetch = 10
-  treasury_proposals_to_fetch = 0
+  
+  # set ´first_run` to True to ignore some sanity checks and allow the spreadsheet to be empty initially
+  first_run = True
+  just_read = True
+
+  if first_run:
+    referenda_to_fetch = 1e6
+    treasury_proposals_to_fetch = 0#1e6
+  else:
+    referenda_to_fetch = 100 if not just_read else 0
+    treasury_proposals_to_fetch = 0 if not just_read else 0
 
   network_info = NetworkInfo(network, explorer)
   price_service = PriceService(network_info)
@@ -63,7 +73,7 @@ def main():
   referenda_df = transform_referenda(referenda_df, network_info)
 
   logger.debug("Updating Referenda worksheet")
-  spreadsheet_sink.update_worksheet(spreadsheet_id, "Referenda", referenda_df)
+  spreadsheet_sink.update_worksheet(spreadsheet_id, "Referenda", referenda_df, first_run)
 
   # Fetch and sink treasury proposals
 
@@ -72,7 +82,7 @@ def main():
     treasury_df = provider.fetch_treasury_proposals(treasury_proposals_to_fetch)
 
     logger.debug("Updating Treasury worksheet")
-    spreadsheet_sink.update_worksheet(spreadsheet_id, "Treasury", treasury_df)
+    spreadsheet_sink.update_worksheet(spreadsheet_id, "Treasury", treasury_df, first_run)
 
 
 
