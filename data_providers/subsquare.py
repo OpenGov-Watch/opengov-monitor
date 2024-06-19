@@ -235,7 +235,8 @@ class SubsquareProvider(DataProvider):
                 filename,
                 # columns with serialized json will be converted to objects
                 converters={
-                    "onchainData": json.loads
+                    "onchainData": json.loads,
+                    "state": json.loads
                 } 
             )
         except FileNotFoundError:
@@ -246,6 +247,7 @@ class SubsquareProvider(DataProvider):
         # store the df into a file, converting the onchainData to json
         df_persisted = df.copy()
         df_persisted["onchainData"] = df_persisted["onchainData"].apply(json.dumps)
+        df_persisted["state"] = df_persisted["state"].apply(json.dumps)
         # drop index
         df_persisted.to_csv(filename, index=False)
 

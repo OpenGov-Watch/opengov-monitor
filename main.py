@@ -45,15 +45,15 @@ def main():
   spreadsheet_id = "14jhH_zdDivhGqOzDyCGiTlH_s-WcPLRoXqwAsQvfNMw" # Monitoring DEV
   
   # set ´first_run` to True to ignore some sanity checks and allow the spreadsheet to be empty initially
-  first_run = True
+  first_run = False
   just_read = True
 
   if first_run:
     referenda_to_fetch = 1e6
-    treasury_proposals_to_fetch = 0#1e6
+    treasury_proposals_to_fetch = 1e6
   else:
     referenda_to_fetch = 100 if not just_read else 0
-    treasury_proposals_to_fetch = 0 if not just_read else 0
+    treasury_proposals_to_fetch = 100 if not just_read else 0
 
   network_info = NetworkInfo(network, explorer)
   price_service = PriceService(network_info)
