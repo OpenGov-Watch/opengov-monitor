@@ -12,24 +12,6 @@ class SubsquareProvider(DataProvider):
         self.price_service = price_service
         self._logger = logging.getLogger(__name__)
 
-    def _fetch_and_update_persisted_data(self, df_updates, filename, index_col):
-        try:
-            df_persisted = pd.read_csv(
-                filename,
-                converters={"onchainData": json.loads} # columns with serialized json will be converted to objects
-            )
-        except FileNotFoundError:
-            df_persisted = pd.DataFrame()
-        # merge the new referenda with the old ones. Use referendumIndex as the key and overwrite the old data
-        df = pd.concat([df_persisted, df_updates], ignore_index=True)
-        df.drop_duplicates(subset=[index_col], keep="last", inplace=True)
-        # store the df into a file, converting the onchainData to json
-        df_persisted = df.copy().applymap(json.dumps)
-        # drop index
-        df_persisted.to_csv(filename, index=False)
-
-        return df
-
     def fetch_referenda(self, referenda_to_update=10):
 
         # fetch the updates
@@ -62,7 +44,6 @@ class SubsquareProvider(DataProvider):
 
         df = self._transform_referenda(df)
         return df
-
 
     # Out: ['title', 'Status', 'DOT', 'USD_proposal_time', 'Track', 'tally.ayes', 'tally.nays', 'propose_time', 'last_status_change', 'USD_latest']
     def _transform_referenda(self, df):
@@ -166,7 +147,6 @@ class SubsquareProvider(DataProvider):
                 self._logger.info(f"Unknown proposal type: {proposal}")
                 return 0
 
-
         # returns the network-token-denominated value of the proposal
         def _determineDOTAmount(row) -> float:
             if "treasuryInfo" in row["onchainData"]:
@@ -177,7 +157,7 @@ class SubsquareProvider(DataProvider):
             else:
                 return _get_proposal_value(row["onchainData"]["proposal"], row["proposal_time"])
 
-        def _determineOrigin(row):
+        def _determineTrack(row):
             if "origins" in row["info"]["origin"]:
                 return row["info"]["origin"]["origins"]
             elif "system" in row["info"]["origin"] and row["info"]["origin"]["system"]["root"] == None:
@@ -201,7 +181,7 @@ class SubsquareProvider(DataProvider):
         df["USD_latest"] = df.apply(self._determine_usd_price_factory("latest_status_change"), axis=1)        
         df["tally.ayes"] = df.apply(lambda x: self.price_service.apply_denomination(x["onchainData"]["tally"]["ayes"]), axis=1)
         df["tally.nays"] = df.apply(lambda x: self.price_service.apply_denomination(x["onchainData"]["tally"]["nays"]), axis=1)
-        df["track"] = df["onchainData"].apply(_determineOrigin)
+        df["track"] = df["onchainData"].apply(_determineTrack)
 
         df.set_index("id", inplace=True)
         df = df[["title", "status", "DOT", "USD_proposal_time", "track", "tally.ayes", "tally.nays", "proposal_time", "latest_status_change", "USD_latest"]]
@@ -248,3 +228,27 @@ class SubsquareProvider(DataProvider):
         else:
             message = f"While fetching {url}, we received error: {response.status_code} {response.reason}"
             raise SystemExit(message)
+    
+    def _fetch_and_update_persisted_data(self, df_updates, filename, index_col):
+        try:
+            df_persisted = pd.read_csv(
+                filename,
+                # columns with serialized json will be converted to objects
+                converters={
+                    "onchainData": json.loads
+                } 
+            )
+        except FileNotFoundError:
+            df_persisted = pd.DataFrame()
+        # merge the new referenda with the old ones. Use referendumIndex as the key and overwrite the old data
+        df = pd.concat([df_persisted, df_updates], ignore_index=True)
+        df.drop_duplicates(subset=[index_col], keep="last", inplace=True)
+        # store the df into a file, converting the onchainData to json
+        df_persisted = df.copy()
+        df_persisted["onchainData"] = df_persisted["onchainData"].apply(json.dumps)
+        # drop index
+        df_persisted.to_csv(filename, index=False)
+
+        return df
+
+
