@@ -16,9 +16,11 @@ class SubsquareProvider(DataProvider):
 
         # fetch the updates
         # base_url = "https://polkadot.subsquare.io/_next/data/trrsQec9V4m7mgsk7Vg0w/referenda.json?"
-        base_url = f"https://{self.network_info.name}.subsquare.io/api/gov2/referendums" #<-- referendums, treasury/proposals
+        base_url = f"https://{self.network_info.name}.subsquare.io/api/gov2/referendums"
 
         df_updates = self._fetchList(base_url, referenda_to_update)
+
+        # load details
 
         # for batch referenda, we need to fetch the individual referenda to inspect the proposal
         needs_detail_call_indices = [
@@ -39,7 +41,7 @@ class SubsquareProvider(DataProvider):
         df_updates = pd.concat([df_updates, df_replacements], ignore_index=True)
         df_updates.drop_duplicates(subset=["referendumIndex"], keep="last", inplace=True)
 
-        df = self._fetch_and_update_persisted_data(df_updates, "referenda.csv", "referendumIndex")
+        df = self._fetch_and_update_persisted_data(df_updates, "data/referenda.csv", "referendumIndex", ["state", "onchainData"])
 
 
         df = self._transform_referenda(df)
@@ -78,6 +80,8 @@ class SubsquareProvider(DataProvider):
             else:
                 raise ValueError(f"Unknown asset kind: {asset_kind}")
                 
+        def _get_latest_status_change(state) -> pd.Timestamp:
+            return pd.to_datetime(state["indexer"]["blockTime"]*1e6)
         # return the value of the proposal denominated in the network's token
         def _get_proposal_value(proposal, timestamp) -> float:
             known_zero_value_proposals = [
@@ -173,7 +177,7 @@ class SubsquareProvider(DataProvider):
         }, inplace=True)
 
         df["proposal_time"] = pd.to_datetime(df["proposal_time"]).dt.tz_localize(None)
-        df["latest_status_change"] = pd.to_datetime(df["latest_status_change"]).dt.tz_localize(None)
+        df["latest_status_change"] = pd.to_datetime(df["state"].apply(lambda x: x["indexer"]["blockTime"]*1e6)).dt.tz_localize(None)
 
         df["status"] = df["state"].apply(lambda x: x["name"])
         df[self.network_info.ticker] = pd.to_numeric(df.apply(lambda x:_determineDOTAmount(x), axis=1))
@@ -188,8 +192,43 @@ class SubsquareProvider(DataProvider):
 
         return df
 
-    def fetch_treasury_proposals(self, num_referenda=10):
-        return self._fetchList('treasury/proposals', num_referenda)
+    def fetch_treasury_proposals(self, proposals_to_update=10):
+        #return self._fetchList('', num_referenda)
+    
+        base_url = f"https://{self.network_info.name}.subsquare.io/api/treasury/proposals"
+        df_updates = self._fetchList(base_url, proposals_to_update)
+        pi = 3
+
+    def fetch_child_bounties(self, child_bounties_to_update=10):
+        base_url = f"https://{self.network_info.name}-api.dotreasury.com/child-bounties" #&page_size=100
+        df_updates = self._fetchList(base_url, child_bounties_to_update)
+        df = self._fetch_and_update_persisted_data(df_updates, "data/child_bounties.csv", "index", ["state"])
+
+        df = self._transform_child_bounties(df)
+
+        return df
+    
+    def _transform_child_bounties(self, df):
+        df = df.copy()
+
+        df.rename(columns={
+            "index": "id",
+        }, inplace=True)
+
+        df["status"] = df["state"].apply(lambda x: x["state"])
+        df["DOT"] = df["value"] / self.network_info.denomination_factor
+        # drop the columns ["blockHash"]
+        #df.drop(columns=["blockHash"], inplace=True)
+        df["proposal_time"] = pd.to_datetime(df["indexer"].apply(lambda x: x["blockTime"])*1e6)
+        df["latest_status_change"] = pd.to_datetime(df["state"].apply(lambda x: x["indexer"]["blockTime"])*1e6)
+        df["USD_proposal_time"] = df.apply(self._determine_usd_price_factory("proposal_time"), axis=1)
+        df["USD_latest"] = df.apply(self._determine_usd_price_factory("latest_status_change"), axis=1)        
+
+
+        df.set_index("id", inplace=True)
+        df = df[["parentBountyId", "status", "description", "DOT", "USD_proposal_time", "beneficiary", "proposal_time", "latest_status_change", "USD_latest"]]
+
+        return df
 
     def _fetchList(self, base_url, num_items):
 
@@ -197,7 +236,7 @@ class SubsquareProvider(DataProvider):
         page = 1
 
         while True:
-            url = f"{base_url}?page={page}"
+            url = f"{base_url}?page={page}&page_size=100"
             self._logger.debug(f"Fetching from {url}")
             response = requests.get(url)
             if response.status_code == 200:
@@ -229,15 +268,17 @@ class SubsquareProvider(DataProvider):
             message = f"While fetching {url}, we received error: {response.status_code} {response.reason}"
             raise SystemExit(message)
     
-    def _fetch_and_update_persisted_data(self, df_updates, filename, index_col):
+    def _fetch_and_update_persisted_data(self, df_updates, filename, index_col, jsonize_columns=[]):
+
+        converter_map = {}
+        for col in jsonize_columns:
+            converter_map[col] = json.loads
+
         try:
             df_persisted = pd.read_csv(
                 filename,
                 # columns with serialized json will be converted to objects
-                converters={
-                    "onchainData": json.loads,
-                    "state": json.loads
-                } 
+                converters=converter_map
             )
         except FileNotFoundError:
             df_persisted = pd.DataFrame()
@@ -246,8 +287,8 @@ class SubsquareProvider(DataProvider):
         df.drop_duplicates(subset=[index_col], keep="last", inplace=True)
         # store the df into a file, converting the onchainData to json
         df_persisted = df.copy()
-        df_persisted["onchainData"] = df_persisted["onchainData"].apply(json.dumps)
-        df_persisted["state"] = df_persisted["state"].apply(json.dumps)
+        for col in jsonize_columns:
+            df_persisted[col] = df_persisted[col].apply(json.dumps)
         # drop index
         df_persisted.to_csv(filename, index=False)
 

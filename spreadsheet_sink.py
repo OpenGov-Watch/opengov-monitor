@@ -73,15 +73,17 @@ class SpreadsheetSink:
                 logging.warn(e)
 
         if sheet_df is None:
-            raise SystemExit(-1)
+            raise Exception("The spreadsheet is not in the expected format. Most likely the first row doesn't match")
 
         # prepare the spreadsheet for index matching
         sheet_df["id"] = sheet_df["url"].apply(self._extract_id)  # we extract the index from the hyperlink to perform key matching later
         sheet_df.set_index("id", inplace=True)
 
         # transformations to be compatible with the Google Sheets API
-        df["proposal_time"] = df["proposal_time"].apply(self._format_date)
-        df["latest_status_change"] = df["latest_status_change"].apply(self._format_date)
+        if "proposal_time" in df.columns:
+            df["proposal_time"] = df["proposal_time"].apply(self._format_date)
+        if "latest_status_change" in df.columns:
+            df["latest_status_change"] = df["latest_status_change"].apply(self._format_date)
 
         # build deltas
         df.index = df.index.astype(str)  # coerce numerical indexes into strings to allow comparison
@@ -89,7 +91,10 @@ class SpreadsheetSink:
         append_df = df[~df.index.isin(sheet_df.index)]
 
         # make sure columns can be converted to json
-        sheet_df["USD_latest"] = sheet_df["USD_latest"].astype("object").fillna("")
+        columns_to_convert = ["DOT", "USD_proposal_time", "tally.ayes", "tally.nays", "tally.turnout", "tally.total", "proposal_time", "latest_status_change", "USD_latest"]
+        for column in columns_to_convert:
+            if column in sheet_df.columns:
+                sheet_df[column] = sheet_df[column].astype("object").fillna("")
 
         # Update the cells with new values
         sheet_df.update(update_df)
@@ -147,6 +152,10 @@ class SpreadsheetSink:
 
     # Define the function to extract ID
     def _extract_id(self, input_string):
+        # we use non-linked integer IDs to compensate for missing API data
+        # just pretend we did not get anything and handle it in the outer function
+        if isinstance(input_string, int):
+            return None
         # Regular expression to match the ID at the end of the string
         match = re.search(r',\s(\d+)\)$', input_string)
         # Extract and return the ID if a match is found
