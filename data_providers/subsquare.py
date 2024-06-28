@@ -214,7 +214,7 @@ class SubsquareProvider(DataProvider):
     def fetch_child_bounties(self, child_bounties_to_update=10):
         base_url = f"https://{self.network_info.name}-api.dotreasury.com/child-bounties" #&page_size=100
         df_updates = self._fetchList(base_url, child_bounties_to_update)
-        df = self._fetch_and_update_persisted_data(df_updates, "data/child_bounties.csv", "index", ["state"])
+        df = self._fetch_and_update_persisted_data(df_updates, "data/child_bounties.csv", "index", ["state", "indexer"])
 
         df = self._transform_child_bounties(df)
 
