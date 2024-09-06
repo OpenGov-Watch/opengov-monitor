@@ -3,6 +3,7 @@ import datetime
 import requests
 from .network_info import NetworkInfo
 from enum import Enum
+import logging
 
 class AssetKind(Enum):
     INVALID = 0
@@ -10,9 +11,11 @@ class AssetKind(Enum):
     KSM = 2
     USDT = 3
     USDC = 4
+    DED = 5
 
 class PriceService:
   def __init__(self, network_info):
+    self._logger = logging.getLogger(__name__)
     self.network_info = network_info
     if network_info.name == "polkadot":
       self.pair_start_date = '2020-08-20'
@@ -32,11 +35,11 @@ class PriceService:
     data = yf.download(pair, self.pair_start_date, self._today)
     return data
 
-  def _get_current_price(self, network):
-    url = f'https://api.coingecko.com/api/v3/simple/price?ids={network}&vs_currencies=usd'
+  def _get_current_price(self, ticker):
+    url = f'https://api.coingecko.com/api/v3/simple/price?ids={ticker}&vs_currencies=usd'
     response = requests.get(url)
     data = response.json()
-    self.current_price = data[network]['usd']
+    self.current_price = data[ticker]['usd']
     return self.current_price
 
   def get_historic_price(self, date):
@@ -48,19 +51,30 @@ class PriceService:
   # performs a conversion into the network's token value & denomination!
   def get_historic_network_token_value(self, input_asset: AssetKind, input_amount: float, date) -> float:
     input_amount = self.apply_denomination(input_amount, input_asset)
+
+    if input_asset.name == self.network_info.ticker:
+       return input_amount
+
     if input_asset == AssetKind.USDT or input_asset == AssetKind.USDC:
       price = self.get_historic_price(date)      
       return input_amount / price
-    assert input_asset.name == self.network_info.ticker
-    return input_amount
+    
+    # in all other cases, it is another asset.
+    # Let's convert by calculating the ASSET->USD->NETWORK_TOKEN value
+    self._logger.warn("historic prices for non-native assets not yet implemented")
+    return 0
 
+  # returns the human-readable value with the denomination applied
   def apply_denomination(self, value, asset_kind: AssetKind = None) -> float:
       if asset_kind is None:
-          digits = self.network_info.digits
-          denomination_factor = self.network_info.denomination_factor
+        digits = self.network_info.digits
+        denomination_factor = self.network_info.denomination_factor
       elif asset_kind == AssetKind.USDT or asset_kind == AssetKind.USDC:
-          digits = 6
-          denomination_factor = 10**digits
+        digits = 6
+        denomination_factor = 10**digits
+      elif asset_kind == AssetKind.DED:
+        digits = 10
+        denomination_factor = 10**digits
       else:
           raise Exception(f"pls implement me. asset_kind {asset_kind}, type {type(asset_kind)}")
 

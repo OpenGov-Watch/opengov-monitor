@@ -67,14 +67,23 @@ class SubsquareProvider(DataProvider):
                     return AssetKind.USDC
                 elif general_index == 1984:
                     return AssetKind.USDT
+                elif general_index == 30:
+                    return AssetKind.DED
                 else:
-                    self._logger.debug(f"Unknown AssetHub asset kind: {asset_kind}")
+                    self._logger.warn(f"Unknown asset kind: {asset_kind}")
                     return AssetKind.INVALID
             elif "v4" in asset_kind:
                 parachain = asset_kind["v4"]["location"]["interior"]["x1"][0]["parachain"]
                 assert parachain >= 1000 and parachain < 2000
                 if asset_kind["v4"]["assetId"]["parents"] == 1 and asset_kind["v4"]["assetId"]["interior"]["here"] == None:
                     return AssetKind.DOT
+                interior = asset_kind["v4"]["assetId"]["interior"]
+                assert interior["x2"][0]["palletInstance"] == 50
+                general_index = interior["x2"][1]["generalIndex"]
+                if general_index == 1337:
+                    return AssetKind.USDC
+                elif general_index == 1984:
+                    return AssetKind.USDT
                 else:
                     raise ValueError(f"Unknown asset kind: {asset_kind}")
             else:

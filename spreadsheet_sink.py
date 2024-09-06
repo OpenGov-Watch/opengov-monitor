@@ -12,7 +12,6 @@ class SpreadsheetSink:
         self.credentials_file = credentials_file
 
     def connect_to_gspread(self):
-        # Use the JSON key you just downloaded
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
         creds = Credentials.from_service_account_file(self.credentials_file, scopes=scope)
         self._gc = gspread.authorize(creds)

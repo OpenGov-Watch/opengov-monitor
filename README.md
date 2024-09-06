@@ -9,8 +9,8 @@ Original file is located at
 This script fetches Treasury proposals from Polkassembly and updates them on a Google Spreadsheet.
 
 ## Instructions
-1. to make this file yours, click **File -> Save a copy in Drive** (you only need to do this once), then work with the copied file
-2. create a Google spreadsheet in the same folder as the Colab file, give it a name. Copy the header titles from the [existing monitoring sheet](https://opengov.watch/monitoring)
+1. Create a service account: https://developers.google.com/workspace/guides/create-credentials
+2. Create a Google spreadsheet. The sheet has to have the name "Referenda". Copy the header titles from the [existing monitoring sheet](https://opengov.watch/monitoring)
 3. in the first code block, do the following:
   - set the `network` (lower caps, only `polkadot` or `kusama`)
   - set the `spreadsheet_name` to the one you created in step 2

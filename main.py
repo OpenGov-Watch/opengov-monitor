@@ -48,12 +48,12 @@ def main():
   network = "polkadot"
   # network = "kusama"
   explorer = "subsquare"
-  spreadsheet_id = "14jhH_zdDivhGqOzDyCGiTlH_s-WcPLRoXqwAsQvfNMw" # Monitoring DEV
+  spreadsheet_id = "1GbN9XoQRNb04wx5mIyRUArUeBo3LhFG1Bi8a0FdFSyg" # Monitoring DEV
   
   # set ´first_run` to True to ignore some sanity checks and allow the spreadsheet to be empty initially
   referenda_to_fetch = 1e6
   treasury_proposals_to_fetch = 0
-  child_bounties_to_fetch = 1e6
+  child_bounties_to_fetch = 0
     
 
   network_info = NetworkInfo(network, explorer)
