@@ -48,7 +48,7 @@ def main():
   network = "polkadot"
   # network = "kusama"
   explorer = "subsquare"
-  spreadsheet_id = "1GbN9XoQRNb04wx5mIyRUArUeBo3LhFG1Bi8a0FdFSyg" # Monitoring DEV
+  spreadsheet_id = "1mwEjgwIGQqtBqTOuGFhs9BX6-gf9Yi0blP2636WdssY"
   
   # set ´first_run` to True to ignore some sanity checks and allow the spreadsheet to be empty initially
   referenda_to_fetch = 1e6

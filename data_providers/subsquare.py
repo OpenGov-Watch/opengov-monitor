@@ -218,7 +218,6 @@ class SubsquareProvider(DataProvider):
     
         base_url = f"https://{self.network_info.name}.subsquare.io/api/treasury/proposals"
         df_updates = self._fetchList(base_url, proposals_to_update)
-        pi = 3
 
     def fetch_child_bounties(self, child_bounties_to_update=10):
         base_url = f"https://{self.network_info.name}-api.dotreasury.com/child-bounties" #&page_size=100
