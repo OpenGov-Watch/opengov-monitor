@@ -1,7 +1,18 @@
 steps:
+# Build the container image
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build', '-t', 'gcr.io/quixotic-folio-440816-u4/opengov-monitor', '.']
+# Push the container image to Container Registry
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'gcr.io/quixotic-folio-440816-u4/opengov-monitor']
+# Deploy container image to Cloud Run
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  entrypoint: gcloud
+  args: ['run', 'deploy', 'SERVICE_NAME', '--image', 'gcr.io/quixotic-folio-440816-u4/opengov-monitor', '--region', 'SERVICE_REGION']
 images:
-- 'gcr.io/quixotic-folio-440816-u4/opengov-monitor'
+- gcr.io/quixotic-folio-440816-u4/opengov-monitor
 options:
   logging: CLOUD_LOGGING_ONLY
+
+
+
