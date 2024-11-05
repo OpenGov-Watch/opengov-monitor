@@ -3,3 +3,5 @@ steps:
   args: ['build', '-t', 'gcr.io/quixotic-folio-440816-u4/opengov-monitor', '.']
 images:
 - 'gcr.io/quixotic-folio-440816-u4/opengov-monitor'
+options:
+  logging: CLOUD_LOGGING_ONLY
