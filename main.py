@@ -2,6 +2,7 @@ from data_providers.subsquare import SubsquareProvider
 from data_providers.price_service import PriceService
 from data_providers.network_info import NetworkInfo
 from spreadsheet_sink import SpreadsheetSink
+import json
 
 import os
 from flask import Flask
@@ -46,7 +47,12 @@ def main():
   network = "polkadot"
   # network = "kusama"
   explorer = "subsquare"
-  spreadsheet_id = "1mwEjgwIGQqtBqTOuGFhs9BX6-gf9Yi0blP2636WdssY"
+  spreadsheet_id = os.environ.get('OPENGOV_MONITOR_SPREADSHEET_ID')
+  assert spreadsheet_id is not None, "Please set the OPENGOV_MONITOR_SPREADSHEET_ID environment variable"
+
+  credentials_string = os.environ.get('OPENGOV_MONITOR_CREDENTIALS', open("credentials.json").read())
+  assert credentials_string is not None, "Please set the OPENGOV_MONITOR_CREDENTIALS environment variable"
+  credentials_json = json.loads(credentials_string)
   
   # set ´first_run` to True to ignore some sanity checks and allow the spreadsheet to be empty initially
   referenda_to_fetch = 1e6
@@ -58,7 +64,7 @@ def main():
   price_service = PriceService(network_info)
   #provider = PolkassemblyProvider(network_info, price_service)
   provider = SubsquareProvider(network_info, price_service)
-  spreadsheet_sink = SpreadsheetSink("credentials.json")
+  spreadsheet_sink = SpreadsheetSink(credentials_json)
   spreadsheet_sink.connect_to_gspread()
 
   # Fetch Data

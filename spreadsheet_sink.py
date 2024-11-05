@@ -9,11 +9,11 @@ pd.set_option('future.no_silent_downcasting', True)
 class SpreadsheetSink:
 
     def __init__(self, credentials_file):
-        self.credentials_file = credentials_file
+        self.credentials = credentials_file
 
     def connect_to_gspread(self):
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-        creds = Credentials.from_service_account_file(self.credentials_file, scopes=scope)
+        creds = Credentials.from_service_account_info(self.credentials, scopes=scope)
         self._gc = gspread.authorize(creds)
         self._logger = logging.getLogger(__name__)
         
