@@ -3,3 +3,4 @@ pandas
 yfinance
 google-api-python-client
 gspread
+flask

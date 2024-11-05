@@ -1,16 +1,13 @@
 from data_providers.subsquare import SubsquareProvider
-from data_providers.polkassembly import PolkassemblyProvider
 from data_providers.price_service import PriceService
 from data_providers.network_info import NetworkInfo
 from spreadsheet_sink import SpreadsheetSink
 
-# -*- coding: utf-8 -*-
-## Imports"""
+import os
+from flask import Flask
+app = Flask(__name__)
 
-import pandas as pd
-import datetime
 import logging
-
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("yfinance").setLevel(logging.INFO)
 logging.getLogger("urllib3").setLevel(logging.INFO)
@@ -41,6 +38,7 @@ def transform_child_bounties(df, network_info):
   df = df[["url"] + [col for col in df.columns if col != "url"]]
   return df
 
+@app.route("/")
 def main():
   # Preconditions
 
@@ -95,4 +93,4 @@ def main():
     spreadsheet_sink.update_worksheet(spreadsheet_id, "Child Bounties", child_bounties_df, allow_empty_first_row=True)
 
 if __name__ == "__main__":
-    main()
+  app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
