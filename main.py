@@ -99,9 +99,11 @@ def main():
       logger.debug("Updating Child Bounties worksheet")
       spreadsheet_sink.update_worksheet(spreadsheet_id, "Child Bounties", child_bounties_df, allow_empty_first_row=True)
 
+    return "ok"
+
   except Exception as e:
     logger.error(f"An error occurred: {e}", exc_info=True)
-    return f"An error occurred: {e}"
+    return f"error"
 
 if __name__ == "__main__":
   app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
