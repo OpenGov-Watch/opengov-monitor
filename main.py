@@ -48,11 +48,17 @@ def main():
     network = "polkadot"
     # network = "kusama"
     explorer = "subsquare"
-    spreadsheet_id = os.environ.get('OPENGOV_MONITOR_SPREADSHEET_ID', "1TdAAQogfMEKAKX1FNRj6W0exVIjPySw0yHrf397wU-Q")
+    spreadsheet_id = os.environ.get('OPENGOV_MONITOR_SPREADSHEET_ID')
+    if spreadsheet_id is None:
+      logger.error("OPENGOV_MONITOR_SPREADSHEET_ID environment variable not set. Defaulting to test spreadsheet.")
+      spreadsheet_id = "1TdAAQogfMEKAKX1FNRj6W0exVIjPySw0yHrf397wU-Q"
     assert spreadsheet_id is not None, "Please set the OPENGOV_MONITOR_SPREADSHEET_ID environment variable"
 
-    credentials_string = os.environ.get('OPENGOV_MONITOR_CREDENTIALS', open("credentials.json").read())
-    assert credentials_string is not None, "Please set the OPENGOV_MONITOR_CREDENTIALS environment variable"
+    credentials_string = os.environ.get('OPENGOV_MONITOR_CREDENTIALS')
+    if credentials_string is None:
+      logger.error("OPENGOV_MONITOR_CREDENTIALS environment variable not set. Trying to read from file.")
+      credentials_string = open("credentials.json").read()
+    assert credentials_string is not None, "Please configure the OPENGOV_MONITOR_CREDENTIALS environment variable or provide a credentials.json file"
     credentials_json = json.loads(credentials_string)
     
     # set ´first_run` to True to ignore some sanity checks and allow the spreadsheet to be empty initially
