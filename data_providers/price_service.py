@@ -46,7 +46,7 @@ class PriceService:
     if self._historic_prices_df is None:
       raise ValueError("Historic prices not available. Call get_historic_price() first.")
     closest_date = self._historic_prices_df.index.get_indexer([date], method='nearest')[0]
-    return self._historic_prices_df.iloc[closest_date]['Close']
+    return self._historic_prices_df.iloc[closest_date]['Close'].iloc[0]
 
   # performs a conversion into the network's token value & denomination!
   def get_historic_network_token_value(self, input_asset: AssetKind, input_amount: float, date) -> float:

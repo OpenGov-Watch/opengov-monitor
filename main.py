@@ -41,62 +41,67 @@ def transform_child_bounties(df, network_info):
 
 @app.route("/")
 def main():
-  # Preconditions
+  try:
+    # Preconditions
 
-  ## Parameters
-  network = "polkadot"
-  # network = "kusama"
-  explorer = "subsquare"
-  spreadsheet_id = os.environ.get('OPENGOV_MONITOR_SPREADSHEET_ID')
-  assert spreadsheet_id is not None, "Please set the OPENGOV_MONITOR_SPREADSHEET_ID environment variable"
+    ## Parameters
+    network = "polkadot"
+    # network = "kusama"
+    explorer = "subsquare"
+    spreadsheet_id = os.environ.get('OPENGOV_MONITOR_SPREADSHEET_ID', "1TdAAQogfMEKAKX1FNRj6W0exVIjPySw0yHrf397wU-Q")
+    assert spreadsheet_id is not None, "Please set the OPENGOV_MONITOR_SPREADSHEET_ID environment variable"
 
-  credentials_string = os.environ.get('OPENGOV_MONITOR_CREDENTIALS') #open("credentials.json").read()
-  assert credentials_string is not None, "Please set the OPENGOV_MONITOR_CREDENTIALS environment variable"
-  credentials_json = json.loads(credentials_string)
-  
-  # set ´first_run` to True to ignore some sanity checks and allow the spreadsheet to be empty initially
-  referenda_to_fetch = 1e6
-  treasury_proposals_to_fetch = 0
-  child_bounties_to_fetch = 0
+    credentials_string = os.environ.get('OPENGOV_MONITOR_CREDENTIALS', open("credentials.json").read())
+    assert credentials_string is not None, "Please set the OPENGOV_MONITOR_CREDENTIALS environment variable"
+    credentials_json = json.loads(credentials_string)
     
+    # set ´first_run` to True to ignore some sanity checks and allow the spreadsheet to be empty initially
+    referenda_to_fetch = 1e6
+    treasury_proposals_to_fetch = 0
+    child_bounties_to_fetch = 0
+      
 
-  network_info = NetworkInfo(network, explorer)
-  price_service = PriceService(network_info)
-  #provider = PolkassemblyProvider(network_info, price_service)
-  provider = SubsquareProvider(network_info, price_service)
-  spreadsheet_sink = SpreadsheetSink(credentials_json)
-  spreadsheet_sink.connect_to_gspread()
+    network_info = NetworkInfo(network, explorer)
+    price_service = PriceService(network_info)
+    #provider = PolkassemblyProvider(network_info, price_service)
+    provider = SubsquareProvider(network_info, price_service)
+    spreadsheet_sink = SpreadsheetSink(credentials_json)
+    spreadsheet_sink.connect_to_gspread()
 
-  # Fetch Data
-  ## Prices  
-  logging.debug("Fetching prices")
-  price_service.load_prices()
+    # Fetch Data
+    ## Prices  
+    logging.debug("Fetching prices")
+    price_service.load_prices()
 
-  # Fetch and sink referenda
-  if referenda_to_fetch > 0:   
-    logging.debug("Fetching referenda")
-    referenda_df = provider.fetch_referenda(referenda_to_fetch)
-    referenda_df = transform_referenda(referenda_df, network_info)
+    # Fetch and sink referenda
+    if referenda_to_fetch > 0:   
+      logging.debug("Fetching referenda")
+      referenda_df = provider.fetch_referenda(referenda_to_fetch)
+      referenda_df = transform_referenda(referenda_df, network_info)
 
-    logger.debug("Updating Referenda worksheet")
-    spreadsheet_sink.update_worksheet(spreadsheet_id, "Referenda", referenda_df, allow_empty_first_row=True)
+      logger.debug("Updating Referenda worksheet")
+      spreadsheet_sink.update_worksheet(spreadsheet_id, "Referenda", referenda_df, allow_empty_first_row=True)
 
-  # Fetch and sink treasury proposals
-  if treasury_proposals_to_fetch > 0:
-    logging.debug("Fetching treasury proposals")
-    treasury_df = provider.fetch_treasury_proposals(treasury_proposals_to_fetch)
+    # Fetch and sink treasury proposals
+    if treasury_proposals_to_fetch > 0:
+      logging.debug("Fetching treasury proposals")
+      treasury_df = provider.fetch_treasury_proposals(treasury_proposals_to_fetch)
 
-    logger.debug("Updating Treasury worksheet")
-    spreadsheet_sink.update_worksheet(spreadsheet_id, "Treasury", treasury_df)
+      logger.debug("Updating Treasury worksheet")
+      spreadsheet_sink.update_worksheet(spreadsheet_id, "Treasury", treasury_df)
 
-  # Fetch and sink child bounties
-  if child_bounties_to_fetch > 0:
-    logging.debug("Fetching child bounties")
-    child_bounties_df = provider.fetch_child_bounties(child_bounties_to_fetch)
-    child_bounties_df = transform_child_bounties(child_bounties_df, network_info)
+    # Fetch and sink child bounties
+    if child_bounties_to_fetch > 0:
+      logging.debug("Fetching child bounties")
+      child_bounties_df = provider.fetch_child_bounties(child_bounties_to_fetch)
+      child_bounties_df = transform_child_bounties(child_bounties_df, network_info)
 
-    logger.debug("Updating Child Bounties worksheet")
-    spreadsheet_sink.update_worksheet(spreadsheet_id, "Child Bounties", child_bounties_df, allow_empty_first_row=True)
+      logger.debug("Updating Child Bounties worksheet")
+      spreadsheet_sink.update_worksheet(spreadsheet_id, "Child Bounties", child_bounties_df, allow_empty_first_row=True)
+
+  except Exception as e:
+    logger.error(f"An error occurred: {e}", exc_info=True)
+    return f"An error occurred: {e}"
 
 if __name__ == "__main__":
   app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))

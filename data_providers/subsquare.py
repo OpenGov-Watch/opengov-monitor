@@ -164,11 +164,16 @@ class SubsquareProvider(DataProvider):
         def _determineDOTAmount(row) -> float:
             if "treasuryInfo" in row["onchainData"]:
                 value = row["onchainData"]["treasuryInfo"]["amount"]
-                return self.price_service.apply_denomination(value)
+                result = self.price_service.apply_denomination(value)
             elif "treasuryBounties" in row: # accepting a new bounty
-                return 0
+                result = 0
             else:
-                return _get_proposal_value(row["onchainData"]["proposal"], row["proposal_time"])
+                result = _get_proposal_value(row["onchainData"]["proposal"], row["proposal_time"])
+            
+            if not isinstance(result, (int, float)):
+                raise ValueError(f"Expected a number, got {result} of type {type(result)}")
+            return result
+
 
         def _determineTrack(row):
             if "origins" in row["info"]["origin"]:
@@ -197,8 +202,8 @@ class SubsquareProvider(DataProvider):
             "referendumIndex": "id"    
         }, inplace=True)
 
-        df["proposal_time"] = pd.to_datetime(df["proposal_time"]).dt.tz_localize(None)
-        df["latest_status_change"] = pd.to_datetime(df["state"].apply(lambda x: x["indexer"]["blockTime"]*1e6)).dt.tz_localize(None)
+        df["proposal_time"] = pd.to_datetime(df["proposal_time"], utc=True)
+        df["latest_status_change"] = pd.to_datetime(df["state"].apply(lambda x: x["indexer"]["blockTime"]*1e6), utc=True)
 
         df["status"] = df["state"].apply(_get_status)
         df[self.network_info.ticker] = pd.to_numeric(df.apply(lambda x:_determineDOTAmount(x), axis=1))
