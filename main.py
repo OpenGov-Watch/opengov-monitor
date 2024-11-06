@@ -48,6 +48,10 @@ def main():
     network = "polkadot"
     # network = "kusama"
     explorer = "subsquare"
+
+    env_var_names = list(os.environ.keys())
+    logger.debug(f"Environment variable names: {env_var_names}")
+
     spreadsheet_id = os.environ.get('OPENGOV_MONITOR_SPREADSHEET_ID')
     if spreadsheet_id is None:
       logger.error("OPENGOV_MONITOR_SPREADSHEET_ID environment variable not set. Defaulting to test spreadsheet.")
