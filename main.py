@@ -50,7 +50,7 @@ def main():
   spreadsheet_id = os.environ.get('OPENGOV_MONITOR_SPREADSHEET_ID')
   assert spreadsheet_id is not None, "Please set the OPENGOV_MONITOR_SPREADSHEET_ID environment variable"
 
-  credentials_string = os.environ.get('OPENGOV_MONITOR_CREDENTIALS', open("credentials.json").read())
+  credentials_string = os.environ.get('OPENGOV_MONITOR_CREDENTIALS') #open("credentials.json").read()
   assert credentials_string is not None, "Please set the OPENGOV_MONITOR_CREDENTIALS environment variable"
   credentials_json = json.loads(credentials_string)
   
