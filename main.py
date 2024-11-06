@@ -46,6 +46,7 @@ def main():
 
     ## Parameters
     network = "polkadot"
+    default_spreadsheet_id = "1TdAAQogfMEKAKX1FNRj6W0exVIjPySw0yHrf397wU-Q"
     # network = "kusama"
     explorer = "subsquare"
 
@@ -55,7 +56,7 @@ def main():
     spreadsheet_id = os.environ.get('OPENGOV_MONITOR_SPREADSHEET_ID')
     if spreadsheet_id is None:
       logger.error("OPENGOV_MONITOR_SPREADSHEET_ID environment variable not set. Defaulting to test spreadsheet.")
-      spreadsheet_id = "1TdAAQogfMEKAKX1FNRj6W0exVIjPySw0yHrf397wU-Q"
+      spreadsheet_id = default_spreadsheet_id
     assert spreadsheet_id is not None, "Please set the OPENGOV_MONITOR_SPREADSHEET_ID environment variable"
 
     credentials_string = os.environ.get('OPENGOV_MONITOR_CREDENTIALS')
