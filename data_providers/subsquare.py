@@ -290,6 +290,9 @@ class SubsquareProvider(DataProvider):
     
     def _fetch_and_update_persisted_data(self, df_updates, filename, index_col, jsonize_columns=[]):
 
+        # we skip this code for now, since it is not yet adapted for the cloud
+        return df_updates
+
         converter_map = {}
         for col in jsonize_columns:
             converter_map[col] = json.loads
