@@ -1,8 +1,7 @@
 # Monitoring Updater
 
-
 ## Summary
-This script fetches Treasury proposals from Polkassembly and updates them on a Google Spreadsheet.
+This app fetches Treasury proposals from Polkassembly and updates them on a Google Spreadsheet.
 
 ## Instructions
 
@@ -51,9 +50,9 @@ This script fetches Treasury proposals from Polkassembly and updates them on a G
     - Select the service account you created earlier.
 
 ## Notes
-- Data is fetched from Polkassembly.
+- Data is fetched from Subsquare.
 - USD prices of executed proposals are calculated to the exchange rate of the day of the last status change.
-- Not every referendum gets a DOT value assigned from Polkassembly. E.g. Bounties are not counted, since the money is not spent. We also see proposals without value where we don't have an explanation yet, e.g. 465
+- Not every referendum gets a DOT value assigned from Subsquare. E.g. Bounties are not counted, since the money is not spent. We also see proposals without value where we don't have an explanation yet, e.g. 465
 
 ## Trouble Shooting
 - Check the cloud logs here: https://console.cloud.google.com/logs/

@@ -92,29 +92,56 @@ class SubsquareProvider(DataProvider):
         def _get_latest_status_change(state) -> pd.Timestamp:
             return pd.to_datetime(state["indexer"]["blockTime"]*1e6)
         # return the value of the proposal denominated in the network's token
-        def _get_proposal_value(proposal, timestamp) -> float:
+        def _get_proposal_value(proposal, timestamp, ref_id) -> float:
+            # we use this map to emit warnings of proposals we haven't seen on OpenGov before. Those that are known to be zero-value (because they are not Treasury-related) are excluded
             known_zero_value_proposals = [
                 "0x0000", # system.remark
+                "0x0007", # system.remarkWithEvent
                 "0x0002", # system.setCode
+                "0x0509", # balances.forceAdjustTotalIssuance
+                "0x0a00", # preimage.notePreimage <- lol 828
+                "0x0a02", # preimage.requestPreimage <- eh 74
+                "0x1300", # treasury.proposeSpend <- omg 1108
+                "0x1302", # treasury.approveProposal <- wtf 351
                 "0x1503", # referenda.cancel
                 "0x1504", # referenda.kill
                 "0x1703", # whitelist.dispatchWhitelistedCallWithPreimage
+                "0x1c00", # identity.addRegistrar
                 "0x2200", # bounties.proposeBounty
                 "0x2201", # bounties.approveBounty
                 "0x2202", # bounties.proposeCurator
+                "0x2203", # bounties.unassignCurator
                 "0x2204", # bounties.acceptCurator
+                "0x2207", # bounties.closeBounty
+                "0x270b", # nominationPools.setConfigs
+                "0x3303", # configuration.setMaxCodeSize
+                "0x3800", # paras.forceSetCurrentCode
+                "0x3c07", # hrmp.forceOpenHrmpChannel
                 "0x4603", # registrar.swap
+                "0x4602", # registrar.deregister
+                "0x4700", # slots.forceLease
+                "0x4701", # slots.clearAllLeases
+                "0x4800", # auctions.newAuction
                 "0x6300", # xcmPallet.send
+                "0x6500", # assetRate.create
+                "0x6501", # assetRate.update
+                "0x6502", # assetRate.remove
             ]
 
             batch_proposals = [
                 "0x1a00", # utility.batch 
                 "0x1a02", # utility.batchAll
                 "0x1a04", # utility.forceBatch
+                "0x0104", # scheduler.scheduleAfter
             ]
 
             should_inspect_proposal = [
-                
+                "0x0102", # scheduler.scheduleNamed
+                "0x0103", # scheduler.cancelNamed
+                "0x0502", # balances.forceTransfer
+                "0x0508", # balances.forceSetBalance
+                "0x6300", # xcmPallet.send
+
             ]
 
             # get call index
@@ -136,12 +163,16 @@ class SubsquareProvider(DataProvider):
                 return 0
             elif call_index in batch_proposals:
                 value = 0
-                for call in args[0]["value"]:
-                    # if you get an exception here, make sure you requested the details on this callIndex
-                    value += _get_proposal_value(call, timestamp)
+                if call_index == "0x0104": # scheduler.scheduleAfter
+                    call = proposal["args"][3]["value"]
+                    value += _get_proposal_value(call, timestamp, ref_id)
+                else: # batch calls
+                    for call in args[0]["value"]:
+                        # if you get an exception here, make sure you requested the details on this callIndex
+                        value += _get_proposal_value(call, timestamp, ref_id)
                 return value
             elif call_index in should_inspect_proposal:
-                raise ValueError(f"{proposal} not implemented")
+                raise ValueError(f"Ref {ref_id}: {proposal} not implemented")
             elif call_index == "0x1305": # treasury.spend
                 assert args is not None, "we should always have the details of the call"
                 assert args[0]["name"] == "assetKind"
@@ -156,6 +187,19 @@ class SubsquareProvider(DataProvider):
                     return self.price_service.get_historic_network_token_value(assetKind, amount, timestamp)
 
                 return self.price_service.apply_denomination(amount)
+            elif call_index == "0x1a03": # utility.dispatchAs
+                income_neutral_dispatches = [
+                    832, # Fellowship Subtreasury 2m
+                    1104, # Stablecoin conversion campaign
+                    546, # Starlay drama
+                    457, # Stablecoin conversion campaign
+                    231, # Fellowship Stablecoin Conversion Campaign
+                ]
+
+                if ref_id in income_neutral_dispatches:
+                    return 0
+                # in other cases we have to look at the call
+                raise ValueError(f"ref {ref_id}: {proposal} not implemented")
             else:
                 self._logger.info(f"Unknown proposal type: {proposal}")
                 return 0
@@ -168,7 +212,7 @@ class SubsquareProvider(DataProvider):
             elif "treasuryBounties" in row: # accepting a new bounty
                 result = 0
             else:
-                result = _get_proposal_value(row["onchainData"]["proposal"], row["proposal_time"])
+                result = _get_proposal_value(row["onchainData"]["proposal"], row["proposal_time"], row["id"])
             
             if not isinstance(result, (int, float)):
                 raise ValueError(f"Expected a number, got {result} of type {type(result)}")
