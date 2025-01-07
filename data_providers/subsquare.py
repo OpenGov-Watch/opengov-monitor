@@ -69,6 +69,8 @@ class SubsquareProvider(DataProvider):
                     return AssetKind.USDT
                 elif general_index == 30:
                     return AssetKind.DED
+                elif general_index == 19840000000000:
+                    return AssetKind.INVALID # rolleyes emoji
                 else:
                     self._logger.warn(f"Unknown asset kind: {asset_kind}")
                     return AssetKind.INVALID
@@ -98,6 +100,7 @@ class SubsquareProvider(DataProvider):
                 "0x0000", # system.remark
                 "0x0007", # system.remarkWithEvent
                 "0x0002", # system.setCode
+                "0x0508", # balances.forceSetBalance <- 1042 burn the treasury
                 "0x0509", # balances.forceAdjustTotalIssuance
                 "0x0a00", # preimage.notePreimage <- lol 828
                 "0x0a02", # preimage.requestPreimage <- eh 74
@@ -129,19 +132,15 @@ class SubsquareProvider(DataProvider):
             ]
 
             batch_proposals = [
+                "0x0102", # scheduler.scheduleNamed
+                "0x0104", # scheduler.scheduleAfter
                 "0x1a00", # utility.batch 
                 "0x1a02", # utility.batchAll
                 "0x1a04", # utility.forceBatch
-                "0x0104", # scheduler.scheduleAfter
             ]
 
             should_inspect_proposal = [
-                "0x0102", # scheduler.scheduleNamed
-                "0x0103", # scheduler.cancelNamed
-                "0x0502", # balances.forceTransfer
-                "0x0508", # balances.forceSetBalance
                 "0x6300", # xcmPallet.send
-
             ]
 
             # get call index
@@ -163,7 +162,10 @@ class SubsquareProvider(DataProvider):
                 return 0
             elif call_index in batch_proposals:
                 value = 0
-                if call_index == "0x0104": # scheduler.scheduleAfter
+                if call_index == "0x0102": # scheduler.scheduleNamed
+                    call = proposal["args"][4]["value"]
+                    value += _get_proposal_value(call, timestamp, ref_id)
+                elif call_index == "0x0104": # scheduler.scheduleAfter
                     call = proposal["args"][3]["value"]
                     value += _get_proposal_value(call, timestamp, ref_id)
                 else: # batch calls
@@ -173,6 +175,13 @@ class SubsquareProvider(DataProvider):
                 return value
             elif call_index in should_inspect_proposal:
                 raise ValueError(f"Ref {ref_id}: {proposal} not implemented")
+            elif call_index == "0x0502": # balances.forceTransfer
+                assert args is not None, "we should always have the details of the call"
+                assert args[0]["name"] == "source"
+                source = args[0]["value"]["id"]
+                assert source == "13UVJyLnbVp9RBZYFwFGyDvVd1y27Tt8tkntv6Q7JVPhFsTB"
+                amount = args[2]["value"]
+                return self.price_service.apply_denomination(amount)
             elif call_index == "0x1305": # treasury.spend
                 assert args is not None, "we should always have the details of the call"
                 assert args[0]["name"] == "assetKind"
@@ -200,8 +209,12 @@ class SubsquareProvider(DataProvider):
                     return 0
                 # in other cases we have to look at the call
                 raise ValueError(f"ref {ref_id}: {proposal} not implemented")
+            elif call_index == "0x0103": # scheduler.cancelNamed
+                if ref_id == 56: # cancel aution
+                    return 0
+                raise ValueError(f"ref {ref_id}: {proposal} not implemented")
             else:
-                self._logger.info(f"Unknown proposal type: {proposal}")
+                self._logger.info(f"ref {ref_id}: Unknown proposal type: {proposal}")
                 return 0
 
         # returns the network-token-denominated value of the proposal
