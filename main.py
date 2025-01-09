@@ -66,9 +66,9 @@ def main():
     credentials_json = json.loads(credentials_string)
     
     # set ´first_run` to True to ignore some sanity checks and allow the spreadsheet to be empty initially
-    referenda_to_fetch = 1e6
+    referenda_to_fetch = 0
     treasury_proposals_to_fetch = 0
-    child_bounties_to_fetch = 0
+    child_bounties_to_fetch = 1e6
       
 
     network_info = NetworkInfo(network, explorer)

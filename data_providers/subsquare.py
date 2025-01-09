@@ -301,8 +301,8 @@ class SubsquareProvider(DataProvider):
         df["DOT"] = df["value"] / self.network_info.denomination_factor
         # drop the columns ["blockHash"]
         #df.drop(columns=["blockHash"], inplace=True)
-        df["proposal_time"] = pd.to_datetime(df["indexer"].apply(lambda x: x["blockTime"])*1e6)
-        df["latest_status_change"] = pd.to_datetime(df["state"].apply(lambda x: x["indexer"]["blockTime"])*1e6)
+        df["proposal_time"] = pd.to_datetime(df["indexer"].apply(lambda x: x["blockTime"])*1e6, utc=True)
+        df["latest_status_change"] = pd.to_datetime(df["state"].apply(lambda x: x["indexer"]["blockTime"])*1e6, utc=True)
         df["USD_proposal_time"] = df.apply(self._determine_usd_price_factory("proposal_time"), axis=1)
         df["USD_latest"] = df.apply(self._determine_usd_price_factory("latest_status_change"), axis=1)        
 
