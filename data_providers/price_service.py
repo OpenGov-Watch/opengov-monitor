@@ -4,6 +4,7 @@ import requests
 from .network_info import NetworkInfo
 from enum import Enum
 import logging
+import pandas as pd
 
 class AssetKind(Enum):
     INVALID = 0
@@ -33,6 +34,7 @@ class PriceService:
 
   def _fetch_historic_prices(self, pair):
     data = yf.download(pair, self.pair_start_date, self._today)
+    data.index = pd.to_datetime(data.index, utc=True)
     return data
 
   def _get_current_price(self, ticker):
