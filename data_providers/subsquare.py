@@ -3,7 +3,8 @@ import requests
 import pandas as pd
 import logging
 import json
-from .price_service import AssetKind
+from .asset_kind import AssetKind
+from .asssets_bag import AssetsBag
 
 class SubsquareProvider(DataProvider):
 
@@ -59,7 +60,7 @@ class SubsquareProvider(DataProvider):
                 assert parachain >= 1000 and parachain < 2000, "parachain is not a system chain"
                 concrete = asset_kind["v3"]["assetId"]["concrete"]
                 if  "here" in concrete["interior"]:
-                    return AssetKind[self.network_info.ticker]
+                    return self.network_info.native_asset
                 
                 assert concrete["interior"]["x2"][0]["palletInstance"] == 50
                 general_index = concrete["interior"]["x2"][1]["generalIndex"]
@@ -94,7 +95,7 @@ class SubsquareProvider(DataProvider):
         def _get_latest_status_change(state) -> pd.Timestamp:
             return pd.to_datetime(state["indexer"]["blockTime"]*1e6)
         # return the value of the proposal denominated in the network's token
-        def _get_proposal_value(proposal, timestamp, ref_id) -> float:
+        def _build_bag_from_call_value(bag, call, timestamp, ref_id):
             # we use this map to emit warnings of proposals we haven't seen on OpenGov before. Those that are known to be zero-value (because they are not Treasury-related) are excluded
             known_zero_value_proposals = [
                 "0x0000", # system.remark
@@ -145,57 +146,51 @@ class SubsquareProvider(DataProvider):
 
             # get call index
             call_index = None
-            if len(proposal) > 0:
-                if "call" in proposal:
-                    call_index = proposal["call"]["callIndex"]
-                    args = proposal["call"]["args"]
-                else:
-                    call_index = proposal["callIndex"]
-                    if "args" in proposal:
-                        args = proposal["args"]
-                    else:
-                        args = None
-            else: # no preimage
-                return 0
+            if len(call) == 0: # no preimage
+                return
+            
+            if "call" in call:
+                call = call["call"]
+
+            call_index = call["callIndex"]
+            args = call.get("args", None)
+
 
             if call_index in known_zero_value_proposals:
-                return 0
+                return
             elif call_index in batch_proposals:
-                value = 0
                 if call_index == "0x0102": # scheduler.scheduleNamed
-                    call = proposal["args"][4]["value"]
-                    value += _get_proposal_value(call, timestamp, ref_id)
+                    call = args[4]["value"]
+                    _build_bag_from_call_value(bag, call, timestamp, ref_id)
                 elif call_index == "0x0104": # scheduler.scheduleAfter
-                    call = proposal["args"][3]["value"]
-                    value += _get_proposal_value(call, timestamp, ref_id)
+                    call = args[3]["value"]
+                    _build_bag_from_call_value(bag, call, timestamp, ref_id)
                 else: # batch calls
                     for call in args[0]["value"]:
                         # if you get an exception here, make sure you requested the details on this callIndex
-                        value += _get_proposal_value(call, timestamp, ref_id)
-                return value
+                        _build_bag_from_call_value(bag, call, timestamp, ref_id)
             elif call_index in should_inspect_proposal:
-                raise ValueError(f"Ref {ref_id}: {proposal} not implemented")
+                raise ValueError(f"Ref {ref_id}: {call} not implemented")
             elif call_index == "0x0502": # balances.forceTransfer
                 assert args is not None, "we should always have the details of the call"
                 assert args[0]["name"] == "source"
                 source = args[0]["value"]["id"]
                 assert source == "13UVJyLnbVp9RBZYFwFGyDvVd1y27Tt8tkntv6Q7JVPhFsTB"
                 amount = args[2]["value"]
-                return self.price_service.apply_denomination(amount)
+                amount = self.network_info.apply_denomination(amount, self.network_info.native_asset)
+                bag.add_asset(self.network_info.native_asset, amount)
             elif call_index == "0x1305": # treasury.spend
                 assert args is not None, "we should always have the details of the call"
                 assert args[0]["name"] == "assetKind"
                 assetKind = _get_XCM_asset_kind(args[0]["value"])
                 if assetKind == AssetKind.INVALID:
-                    return 0
+                    return
                 
                 assert args[1]["name"] == "amount"
                 amount = args[1]["value"]
-    
-                if assetKind.name != self.network_info.ticker:
-                    return self.price_service.get_historic_network_token_value(assetKind, amount, timestamp)
 
-                return self.price_service.apply_denomination(amount)
+                amount = self.network_info.apply_denomination(amount, assetKind)
+                bag.add_asset(assetKind, amount)    
             elif call_index == "0x1a03": # utility.dispatchAs
                 income_neutral_dispatches = [
                     832, # Fellowship Subtreasury 2m
@@ -206,32 +201,31 @@ class SubsquareProvider(DataProvider):
                 ]
 
                 if ref_id in income_neutral_dispatches:
-                    return 0
+                    return
                 # in other cases we have to look at the call
-                raise ValueError(f"ref {ref_id}: {proposal} not implemented")
+                raise ValueError(f"ref {ref_id}: {call} not implemented")
             elif call_index == "0x0103": # scheduler.cancelNamed
-                if ref_id == 56: # cancel aution
-                    return 0
-                raise ValueError(f"ref {ref_id}: {proposal} not implemented")
+                if ref_id == 56: # cancel auction
+                    return
+                raise ValueError(f"ref {ref_id}: {call} not implemented")
             else:
-                self._logger.info(f"ref {ref_id}: Unknown proposal type: {proposal}")
-                return 0
+                self._logger.info(f"ref {ref_id}: Unknown proposal type: {call}")
+                return
 
-        # returns the network-token-denominated value of the proposal
-        def _determineDOTAmount(row) -> float:
+        def _bag_from_data(row) -> AssetsBag:
+            bag = AssetsBag()
+
             if "treasuryInfo" in row["onchainData"]:
-                value = row["onchainData"]["treasuryInfo"]["amount"]
-                result = self.price_service.apply_denomination(value)
+                amount = row["onchainData"]["treasuryInfo"]["amount"]
+                amount = self.network_info.apply_denomination(amount, self.network_info.native_asset)
+                bag.add_asset(self.network_info.native_asset, amount)
             elif "treasuryBounties" in row: # accepting a new bounty
-                result = 0
+                pass
             else:
-                result = _get_proposal_value(row["onchainData"]["proposal"], row["proposal_time"], row["id"])
+                _build_bag_from_call_value(bag, row["onchainData"]["proposal"], row["proposal_time"], row["id"])
             
-            if not isinstance(result, (int, float)):
-                raise ValueError(f"Expected a number, got {result} of type {type(result)}")
-            return result
-
-
+            return bag
+        
         def _determineTrack(row):
             if "origins" in row["info"]["origin"]:
                 return row["info"]["origin"]["origins"]
@@ -263,15 +257,22 @@ class SubsquareProvider(DataProvider):
         df["latest_status_change"] = pd.to_datetime(df["state"].apply(lambda x: x["indexer"]["blockTime"]*1e6), utc=True)
 
         df["status"] = df["state"].apply(_get_status)
-        df[self.network_info.ticker] = pd.to_numeric(df.apply(lambda x:_determineDOTAmount(x), axis=1))
-        df["USD_proposal_time"] = df.apply(self._determine_usd_price_factory("proposal_time"), axis=1)
-        df["USD_latest"] = df.apply(self._determine_usd_price_factory("latest_status_change"), axis=1)        
-        df["tally.ayes"] = df.apply(lambda x: self.price_service.apply_denomination(x["onchainData"]["tally"]["ayes"]), axis=1)
-        df["tally.nays"] = df.apply(lambda x: self.price_service.apply_denomination(x["onchainData"]["tally"]["nays"]), axis=1)
+
+        df["bag"] = df.apply(_bag_from_data, axis=1)
+        native_asset_name = self.network_info.native_asset.name
+        df[f"{native_asset_name}_proposal_time"] = df.apply(self._get_value_converter(self.network_info.native_asset, "proposal_time"), axis=1)
+        df[f"{native_asset_name}_latest"] = df.apply(self._get_value_converter(self.network_info.native_asset, "latest_status_change"), axis=1)
+        df["USD_proposal_time"] = df.apply(self._get_value_converter(AssetKind.USDC, "proposal_time"), axis=1)
+        df["USD_latest"] = df.apply(self._get_value_converter(AssetKind.USDC, "latest_status_change"), axis=1)        
+        df[f"{native_asset_name}_component"] = df["bag"].apply(lambda x: x.get_amount(self.network_info.native_asset))
+        df[f"USDC_component"] = df["bag"].apply(lambda x: x.get_amount(AssetKind.USDC))
+        df[f"USDT_component"] = df["bag"].apply(lambda x: x.get_amount(AssetKind.USDT))
+        df["tally.ayes"] = df.apply(lambda x: self.network_info.apply_denomination(x["onchainData"]["tally"]["ayes"]), axis=1)
+        df["tally.nays"] = df.apply(lambda x: self.network_info.apply_denomination(x["onchainData"]["tally"]["nays"]), axis=1)
         df["track"] = df["onchainData"].apply(_determineTrack)
 
         df.set_index("id", inplace=True)
-        df = df[["title", "status", "DOT", "USD_proposal_time", "track", "tally.ayes", "tally.nays", "proposal_time", "latest_status_change", "USD_latest"]]
+        df = df[["title", "status", f"{native_asset_name}_proposal_time", "USD_proposal_time", "track", "tally.ayes", "tally.nays", "proposal_time", "latest_status_change", f"{native_asset_name}_latest", "USD_latest", f"{native_asset_name}_component", "USDC_component", "USDT_component"]]
 
         return df
 
@@ -298,14 +299,12 @@ class SubsquareProvider(DataProvider):
         }, inplace=True)
 
         df["status"] = df["state"].apply(lambda x: x["state"])
-        df["DOT"] = df["value"] / self.network_info.denomination_factor
-        # drop the columns ["blockHash"]
-        #df.drop(columns=["blockHash"], inplace=True)
+        df[self.network_info.native_asset.name] = df["value"].apply(self.network_info.apply_denomination)
+        df["bag"] = df.apply(lambda x: AssetsBag({self.network_info.native_asset: x[self.network_info.native_asset.name]}), axis=1)
         df["proposal_time"] = pd.to_datetime(df["indexer"].apply(lambda x: x["blockTime"])*1e6, utc=True)
         df["latest_status_change"] = pd.to_datetime(df["state"].apply(lambda x: x["indexer"]["blockTime"])*1e6, utc=True)
-        df["USD_proposal_time"] = df.apply(self._determine_usd_price_factory("proposal_time"), axis=1)
-        df["USD_latest"] = df.apply(self._determine_usd_price_factory("latest_status_change"), axis=1)        
-
+        df["USD_proposal_time"] = df.apply(self._get_value_converter(AssetKind.USDC, "proposal_time"), axis=1)
+        df["USD_latest"] = df.apply(self._get_value_converter(AssetKind.USDC, "latest_status_change"), axis=1)        
 
         df.set_index("id", inplace=True)
         df = df[["parentBountyId", "status", "description", "DOT", "USD_proposal_time", "beneficiary", "proposal_time", "latest_status_change", "USD_latest"]]
@@ -380,3 +379,32 @@ class SubsquareProvider(DataProvider):
         return df
 
 
+    def _get_value_converter(self, target_asset: AssetKind, date_key, status_key=None):
+        """
+        Factory method to create a function that determines the USD price of a row.
+        If a status_key is provided, it will be used to determine if the current price instead of the historic price.
+        - If the status is an end status, the historic price of the date will be used.
+        - If the status is not an end status, the current price will be used.
+        If no status_key is provided, the historic price of the date will be used.
+
+        Parameters:
+        date_column (str): The name of the column that contains the date.
+        status_column (str): The name of the column that contains the status. Default is None.
+
+        Returns:
+        function: A function that determines the USD price of a row.
+        """
+
+        # assumes that the ticker is present as key in the row
+        # assumes that row["bag"] is already calculated
+        def convert_value(row):
+            historic_value_statuses = ["Executed", "TimedOut", "Approved", "Cancelled", "Rejected"]
+            date = None
+            if (status_key is None) or row[status_key] in historic_value_statuses:
+                # use the historic price
+                date = row[date_key]
+            bag: AssetsBag = row["bag"]
+            value = bag.get_total_value(self.price_service, target_asset, date)
+            return value
+
+        return convert_value

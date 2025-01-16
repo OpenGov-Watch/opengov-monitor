@@ -46,7 +46,7 @@ def main():
 
     ## Parameters
     network = "polkadot"
-    default_spreadsheet_id = "1D_6Nuuv2iVNHyO563VNkyKENuezBRovJWXOEQZSU07k"
+    default_spreadsheet_id = "1yFm17tk87y2xqV9-VGCsz_s9IabCcgtz7ZbBIYrcBAs"
     explorer = "subsquare"
 
     env_var_names = list(os.environ.keys())

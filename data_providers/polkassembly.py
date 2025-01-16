@@ -55,7 +55,7 @@ class PolkassemblyProvider(DataProvider):
         # Build columns
         df["created"] = pd.to_datetime(df["status_history"].apply(lambda x: x[0]["timestamp"] if len(x) > 0 else None)).dt.tz_convert(None)
         df["last_status_change"] = pd.to_datetime(df["status_history"].apply(lambda x: x[-1]["timestamp"] if len(x) > 0 else None)).dt.tz_convert(None)
-        df[self.network_info.ticker] = pd.to_numeric(df["requestedAmount"].apply(self.price_service.apply_denomination))
+        df[self.network_info.native_asset.name] = pd.to_numeric(df["requestedAmount"].apply(self.network_info.apply_denomination))
         df["USD_proposal_time"] = df.apply(self._determine_usd_price_factory("created"), axis=1)
         df["USD_latest"] = df.apply(self._determine_usd_price_factory("last_status_change", "status"), axis=1)
         df["Status"] = df["status"]
