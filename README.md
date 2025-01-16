@@ -1,5 +1,10 @@
 # Monitoring Updater
 
+  python -m venv .venv
+  ./.venv/Scripts/activate
+  pip install -r ./requirements.txt
+
+
 ## Summary
 This app fetches Treasury proposals from Polkassembly and updates them on a Google Spreadsheet.
 
