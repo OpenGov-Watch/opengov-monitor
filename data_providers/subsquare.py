@@ -299,10 +299,13 @@ class SubsquareProvider(DataProvider):
             "state": "status",
         }, inplace=True)
 
+        # https://polkadot.subsquare.io/api/treasury/child-bounties
+        # https://polkadot.subsquare.io/api/treasury/child-bounties/1234
+
         df[self.network_info.native_asset.name] = df["onchainData"].apply(lambda x:self.network_info.apply_denomination(x["value"]))
         df["bag"] = df.apply(lambda x: AssetsBag({self.network_info.native_asset: x[self.network_info.native_asset.name]}), axis=1)
-        df["proposal_time"] = pd.to_datetime(df["indexer"].apply(lambda x: x["blockTime"]*1e6), utc=True)
-        df["latest_status_change"] = pd.to_datetime(df["indexer"].apply(lambda x: x["blockTime"]*1e6), utc=True)
+        df["proposal_time"] =        pd.to_datetime(df["onchainData"].apply(lambda x: x["timeline"][0]["indexer"]["blockTime"]*1e6), utc=True)
+        df["latest_status_change"] = pd.to_datetime(df["onchainData"].apply(lambda x: x["timeline"][-1]["indexer"]["blockTime"]*1e6), utc=True)
         df["USD_proposal_time"] = df.apply(self._get_value_converter(AssetKind.USDC, "proposal_time"), axis=1)
         df["USD_latest"] = df.apply(self._get_value_converter(AssetKind.USDC, "latest_status_change"), axis=1)        
         df["description"] = df["onchainData"].apply(lambda x: x["description"])
