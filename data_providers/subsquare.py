@@ -283,7 +283,7 @@ class SubsquareProvider(DataProvider):
         df_updates = self._fetchList(base_url, proposals_to_update)
 
     def fetch_child_bounties(self, child_bounties_to_update=10):
-        base_url = f"https://{self.network_info.name}-api.dotreasury.com/child-bounties" #&page_size=100
+        base_url = f"https://{self.network_info.name}.subsquare.io/api/treasury/child-bounties" #&page_size=100
         df_updates = self._fetchList(base_url, child_bounties_to_update)
         df = self._fetch_and_update_persisted_data(df_updates, "data/child_bounties.csv", "index", ["state", "indexer"])
 
@@ -296,16 +296,17 @@ class SubsquareProvider(DataProvider):
 
         df.rename(columns={
             "index": "id",
+            "state": "status",
         }, inplace=True)
 
-        df["status"] = df["state"].apply(lambda x: x["state"])
-        df[self.network_info.native_asset.name] = df["value"].apply(self.network_info.apply_denomination)
+        df[self.network_info.native_asset.name] = df["onchainData"].apply(lambda x:self.network_info.apply_denomination(x["value"]))
         df["bag"] = df.apply(lambda x: AssetsBag({self.network_info.native_asset: x[self.network_info.native_asset.name]}), axis=1)
-        df["proposal_time"] = pd.to_datetime(df["indexer"].apply(lambda x: x["blockTime"])*1e6, utc=True)
-        df["latest_status_change"] = pd.to_datetime(df["state"].apply(lambda x: x["indexer"]["blockTime"])*1e6, utc=True)
+        df["proposal_time"] = pd.to_datetime(df["indexer"].apply(lambda x: x["blockTime"]*1e6), utc=True)
+        df["latest_status_change"] = pd.to_datetime(df["indexer"].apply(lambda x: x["blockTime"]*1e6), utc=True)
         df["USD_proposal_time"] = df.apply(self._get_value_converter(AssetKind.USDC, "proposal_time"), axis=1)
         df["USD_latest"] = df.apply(self._get_value_converter(AssetKind.USDC, "latest_status_change"), axis=1)        
-
+        df["description"] = df["onchainData"].apply(lambda x: x["description"])
+        df["beneficiary"] = df["onchainData"].apply(lambda x: x["address"])    
         df.set_index("id", inplace=True)
         df = df[["parentBountyId", "status", "description", "DOT", "USD_proposal_time", "beneficiary", "proposal_time", "latest_status_change", "USD_latest"]]
 
