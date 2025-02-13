@@ -15,10 +15,12 @@ class SubsquareProvider(DataProvider):
 
     def fetch_referenda(self, referenda_to_update=10):
 
+
         # fetch the updates
         # base_url = "https://polkadot.subsquare.io/_next/data/trrsQec9V4m7mgsk7Vg0w/referenda.json?"
         base_url = f"https://{self.network_info.name}.subsquare.io/api/gov2/referendums"
 
+        logging.debug("Fetching referenda list")
         df_updates = self._fetchList(base_url, referenda_to_update)
 
         # load details
@@ -31,6 +33,8 @@ class SubsquareProvider(DataProvider):
             "0x1305", # treasury.spend
             "0x6300", # xcmPallet.send
         ]
+
+        logging.debug("Fetching referenda details")
         replacements = []
         for index, row in df_updates.iterrows():
             # if we have a preimage and it is within the set of batch call indexes, we need to fetch the individual referenda
@@ -42,9 +46,10 @@ class SubsquareProvider(DataProvider):
         df_updates = pd.concat([df_updates, df_replacements], ignore_index=True)
         df_updates.drop_duplicates(subset=["referendumIndex"], keep="last", inplace=True)
 
+        logging.debug("Updating persisted ref data")
         df = self._fetch_and_update_persisted_data(df_updates, "data/referenda.csv", "referendumIndex", ["state", "onchainData"])
 
-
+        logging.debug("Transforming referenda")
         df = self._transform_referenda(df)
         return df
 

@@ -85,7 +85,6 @@ def main():
 
     # Fetch and sink referenda
     if referenda_to_fetch > 0:   
-      logging.debug("Fetching referenda")
       referenda_df = provider.fetch_referenda(referenda_to_fetch)
       referenda_df = transform_referenda(referenda_df, network_info)
 
