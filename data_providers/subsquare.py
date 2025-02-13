@@ -29,6 +29,7 @@ class SubsquareProvider(DataProvider):
         needs_detail_call_indices = [
             "0x1a00", # utility.batch
             "0x1a02", # utility.batchAll
+            "0x1a03", # utility.dispatchAs
             "0x1a04", # utility.forceBatch
             "0x1305", # treasury.spend
             "0x6300", # xcmPallet.send
@@ -36,12 +37,17 @@ class SubsquareProvider(DataProvider):
 
         logging.debug("Fetching referenda details")
         replacements = []
+        detail_items = 0
         for index, row in df_updates.iterrows():
             # if we have a preimage and it is within the set of batch call indexes, we need to fetch the individual referenda
             if len(row["onchainData"]["proposal"]) > 0 and row["onchainData"]["proposal"]["callIndex"] in needs_detail_call_indices:
                 url = f"{base_url}/{row['referendumIndex']}.json"
                 referendum = self._fetchItem(url)
                 replacements.append(referendum)
+
+                detail_items += 1
+                if detail_items % 10 == 0:
+                    logging.debug(f"Fetched {detail_items} detail items")
         df_replacements = pd.DataFrame(replacements)
         df_updates = pd.concat([df_updates, df_replacements], ignore_index=True)
         df_updates.drop_duplicates(subset=["referendumIndex"], keep="last", inplace=True)
@@ -112,6 +118,7 @@ class SubsquareProvider(DataProvider):
                 "0x0a02", # preimage.requestPreimage <- eh 74
                 "0x1300", # treasury.proposeSpend <- omg 1108
                 "0x1302", # treasury.approveProposal <- wtf 351
+                "0x1500", # referenda.submit
                 "0x1503", # referenda.cancel
                 "0x1504", # referenda.kill
                 "0x1703", # whitelist.dispatchWhitelistedCallWithPreimage
@@ -126,8 +133,10 @@ class SubsquareProvider(DataProvider):
                 "0x3303", # configuration.setMaxCodeSize
                 "0x3800", # paras.forceSetCurrentCode
                 "0x3c07", # hrmp.forceOpenHrmpChannel
-                "0x4603", # registrar.swap
+                "0x3801", # paras.forceSetCurrentHead
                 "0x4602", # registrar.deregister
+                "0x4603", # registrar.swap
+                "0x4604", # registrar.removeLock
                 "0x4700", # slots.forceLease
                 "0x4701", # slots.clearAllLeases
                 "0x4800", # auctions.newAuction
@@ -142,6 +151,7 @@ class SubsquareProvider(DataProvider):
                 "0x0104", # scheduler.scheduleAfter
                 "0x1a00", # utility.batch 
                 "0x1a02", # utility.batchAll
+                "0x1a03", # utility.dispatchAs
                 "0x1a04", # utility.forceBatch
             ]
 
@@ -166,6 +176,9 @@ class SubsquareProvider(DataProvider):
             elif call_index in batch_proposals:
                 if call_index == "0x0102": # scheduler.scheduleNamed
                     call = args[4]["value"]
+                    _build_bag_from_call_value(bag, call, timestamp, ref_id)
+                elif call_index == "0x0103": # scheduler.dispatchAs
+                    call = args[1]["value"]
                     _build_bag_from_call_value(bag, call, timestamp, ref_id)
                 elif call_index == "0x0104": # scheduler.scheduleAfter
                     call = args[3]["value"]
@@ -220,15 +233,21 @@ class SubsquareProvider(DataProvider):
         def _bag_from_data(row) -> AssetsBag:
             bag = AssetsBag()
 
-            if "treasuryInfo" in row["onchainData"]:
-                amount = row["onchainData"]["treasuryInfo"]["amount"]
-                amount = self.network_info.apply_denomination(amount, self.network_info.native_asset)
-                bag.add_asset(self.network_info.native_asset, amount)
-            elif "treasuryBounties" in row: # accepting a new bounty
-                pass
-            else:
-                _build_bag_from_call_value(bag, row["onchainData"]["proposal"], row["proposal_time"], row["id"])
-            
+            try:
+
+                if "treasuryInfo" in row["onchainData"]:
+                    amount = row["onchainData"]["treasuryInfo"]["amount"]
+                    amount = self.network_info.apply_denomination(amount, self.network_info.native_asset)
+                    bag.add_asset(self.network_info.native_asset, amount)
+                elif "treasuryBounties" in row: # accepting a new bounty
+                    pass
+                else:
+                    _build_bag_from_call_value(bag, row["onchainData"]["proposal"], row["proposal_time"], row["id"])
+            except Exception as e:
+                if row['id'] != 1424:
+                    self._logger.error(f"Error processing row {row['id']}: {e}")
+                bag.set_nan()
+
             return bag
         
         def _determineTrack(row):

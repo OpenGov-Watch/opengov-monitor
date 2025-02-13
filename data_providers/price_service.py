@@ -33,6 +33,10 @@ class PriceService:
     ticker = self.network_info.name
     url = f'https://api.coingecko.com/api/v3/simple/price?ids={ticker}&vs_currencies=usd'
     response = requests.get(url)
+    
+    if response.status_code != 200:
+      raise ValueError(f"Failed to fetch current price from CoinGecko: {response.status_code} - {response.text}")
+    
     data = response.json()
     self.current_price = data[ticker]['usd']
 
