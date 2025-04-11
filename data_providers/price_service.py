@@ -44,6 +44,10 @@ class PriceService:
     if self._historic_prices_df is None:
       raise ValueError("Historic prices not available. Call get_historic_price() first.")
     closest_date = self._historic_prices_df.index.get_indexer([date], method='nearest')[0]
+
+    if closest_date == -1:
+      raise ValueError(f"No historic price found for date {date}")
+
     return self._historic_prices_df.iloc[closest_date]['Close'].iloc[0]
 
   '''

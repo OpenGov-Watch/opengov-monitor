@@ -65,8 +65,7 @@ def main():
     assert credentials_string is not None, "Please configure the OPENGOV_MONITOR_CREDENTIALS environment variable or provide a credentials.json file"
     credentials_json = json.loads(credentials_string)
     
-    # set ´first_run` to True to ignore some sanity checks and allow the spreadsheet to be empty initially
-    referenda_to_fetch = 300
+    referenda_to_fetch = 100
     treasury_proposals_to_fetch = 0
     child_bounties_to_fetch = 300
       
@@ -115,4 +114,8 @@ def main():
     return f"error"
 
 if __name__ == "__main__":
-  app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "run":
+        main()
+    else:
+        app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))

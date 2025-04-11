@@ -146,7 +146,7 @@ class SubsquareProvider(DataProvider):
                 "0x6502", # assetRate.remove
             ]
 
-            batch_proposals = [
+            wrapped_proposals = [
                 "0x0102", # scheduler.scheduleNamed
                 "0x0104", # scheduler.scheduleAfter
                 "0x1a00", # utility.batch 
@@ -173,7 +173,7 @@ class SubsquareProvider(DataProvider):
 
             if call_index in known_zero_value_proposals:
                 return
-            elif call_index in batch_proposals:
+            elif call_index in wrapped_proposals:
                 if call_index == "0x0102": # scheduler.scheduleNamed
                     call = args[4]["value"]
                     _build_bag_from_call_value(bag, call, timestamp, ref_id)
@@ -182,6 +182,9 @@ class SubsquareProvider(DataProvider):
                     _build_bag_from_call_value(bag, call, timestamp, ref_id)
                 elif call_index == "0x0104": # scheduler.scheduleAfter
                     call = args[3]["value"]
+                    _build_bag_from_call_value(bag, call, timestamp, ref_id)
+                elif call_index == "0x1a03": # utility.dispatchAs
+                    call = args[1]["value"]
                     _build_bag_from_call_value(bag, call, timestamp, ref_id)
                 else: # batch calls
                     for call in args[0]["value"]:
@@ -426,13 +429,17 @@ class SubsquareProvider(DataProvider):
         # assumes that the ticker is present as key in the row
         # assumes that row["bag"] is already calculated
         def convert_value(row):
-            historic_value_statuses = ["Executed", "TimedOut", "Approved", "Cancelled", "Rejected"]
-            date = None
-            if (status_key is None) or row[status_key] in historic_value_statuses:
-                # use the historic price
-                date = row[date_key]
-            bag: AssetsBag = row["bag"]
-            value = bag.get_total_value(self.price_service, target_asset, date)
-            return value
+            try:
+                historic_value_statuses = ["Executed", "TimedOut", "Approved", "Cancelled", "Rejected"]
+                date = None
+                if (status_key is None) or row[status_key] in historic_value_statuses:
+                    # use the historic price
+                    date = row[date_key]
+                bag: AssetsBag = row["bag"]
+                value = bag.get_total_value(self.price_service, target_asset, date)
+                return value
+            except Exception as e:
+                self._logger.error(f"Error converting value for row {row}: {e}")
+                return float('nan')
 
         return convert_value
