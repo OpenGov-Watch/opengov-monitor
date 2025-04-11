@@ -1,7 +1,7 @@
 from data_providers.subsquare import SubsquareProvider
 from data_providers.price_service import PriceService
 from data_providers.network_info import NetworkInfo
-from spreadsheet_sink import SpreadsheetSink
+from data_sinks import SpreadsheetSink
 import json
 import yaml
 
@@ -79,7 +79,7 @@ def main():
     #provider = PolkassemblyProvider(network_info, price_service)
     provider = SubsquareProvider(network_info, price_service)
     spreadsheet_sink = SpreadsheetSink(credentials_json)
-    spreadsheet_sink.connect_to_gspread()
+    spreadsheet_sink.connect()
 
     # Fetch Data
     ## Prices  
