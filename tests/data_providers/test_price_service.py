@@ -8,7 +8,7 @@ from utils.denomination import AssetKind
 
 @pytest.fixture
 def network_info():
-    return NetworkInfo("polkadot", "subsquare")
+    return NetworkInfo("polkadot")
 
 @pytest.fixture
 def price_service(network_info):

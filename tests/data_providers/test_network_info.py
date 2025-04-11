@@ -6,7 +6,7 @@ from utils.denomination import AssetKind
 def test_network_info_initialization():
     """Test NetworkInfo initialization for different networks."""
     # Test Polkadot
-    polkadot_info = NetworkInfo("polkadot", "subsquare")
+    polkadot_info = NetworkInfo("polkadot")
     assert polkadot_info.name == "polkadot"
     assert polkadot_info.native_asset == AssetKind.DOT
     assert polkadot_info.chain_name == "polkadot"
@@ -15,7 +15,7 @@ def test_network_info_initialization():
     assert polkadot_info.child_bounty_url == "https://polkadot.subsquare.io/treasury/child-bounties/"
 
     # Test Kusama
-    kusama_info = NetworkInfo("kusama", "subsquare")
+    kusama_info = NetworkInfo("kusama")
     assert kusama_info.name == "kusama"
     assert kusama_info.native_asset == AssetKind.KSM
     assert kusama_info.chain_name == "kusama"
@@ -25,7 +25,7 @@ def test_network_info_initialization():
 
 def test_apply_denomination():
     """Test denomination application for different assets."""
-    info = NetworkInfo("polkadot", "subsquare")
+    info = NetworkInfo("polkadot")
     
     # Test DOT denomination (10 digits)
     assert info.apply_denomination(10000000000) == 1.0  # 1 DOT
@@ -39,4 +39,4 @@ def test_apply_denomination():
 def test_invalid_network():
     """Test handling of invalid network names."""
     with pytest.raises(ValueError, match="Unsupported network"):
-        NetworkInfo("invalid", "subsquare") 
+        NetworkInfo("invalid") 

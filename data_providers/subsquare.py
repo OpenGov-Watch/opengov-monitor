@@ -6,6 +6,7 @@ import json
 from utils.denomination import AssetKind
 from .assets_bag import AssetsBag
 from typing import Optional, Dict, Any, List, Union
+from utils.http_client import HttpClient
 
 class SubsquareProvider(DataProvider):
 
@@ -13,6 +14,7 @@ class SubsquareProvider(DataProvider):
         self.network_info = network_info
         self.price_service = price_service
         self._logger = logging.getLogger(__name__)
+        self._http_client = HttpClient.from_config(logger=self._logger)
 
     def fetch_referenda(self, referenda_to_update=10):
 
@@ -413,42 +415,23 @@ class SubsquareProvider(DataProvider):
         return df
 
     def _fetchList(self, base_url, num_items):
-
-        all_items = []
-        page = 1
-
-        while True:
-            url = f"{base_url}?page={page}&page_size=100"
-            self._logger.debug(f"Fetching from {url}")
-            response = requests.get(url)
-            if response.status_code == 200:
-                data = response.json()
-                items = data['items']
-                if not items:
-                    break
-                all_items.extend(items)
-                page += 1
-
-                self._logger.debug(f"Fetched {len(all_items)} items")
-
-                if len(all_items) >= num_items:
-                    break
-            else:
-                message = f"While fetching {base_url}, we received error: {response.status_code} {response.reason}"
-                raise SystemExit(message)
-                break
-
-        df = pd.DataFrame(all_items)
-        return df
-    
-    def _fetchItem(self, url):
-        response = requests.get(url)
-        if response.status_code == 200:
+        """Fetch a list of items from the API."""
+        try:
+            response = self._http_client.get(base_url)
             data = response.json()
-            return data
-        else:
-            message = f"While fetching {url}, we received error: {response.status_code} {response.reason}"
-            raise SystemExit(message)
+            return pd.DataFrame(data)
+        except Exception as e:
+            self._logger.error(f"Error fetching list from {base_url}: {str(e)}")
+            raise
+
+    def _fetchItem(self, url):
+        """Fetch a single item from the API."""
+        try:
+            response = self._http_client.get(url)
+            return response.json()
+        except Exception as e:
+            self._logger.error(f"Error fetching item from {url}: {str(e)}")
+            raise
     
     def _fetch_and_update_persisted_data(self, df_updates, filename, index_col, jsonize_columns=[]):
 

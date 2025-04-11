@@ -46,7 +46,6 @@ def main():
         ## Parameters
         network = "polkadot"
         default_spreadsheet_id = "1yFm17tk87y2xqV9-VGCsz_s9IabCcgtz7ZbBIYrcBAs"
-        explorer = "subsquare"
 
         # Load configuration from YAML file
         with open('config.yaml', 'r') as file:
@@ -72,7 +71,7 @@ def main():
         assert credentials_string is not None, "Please configure the OPENGOV_MONITOR_CREDENTIALS environment variable or provide a credentials.json file"
         credentials_json = json.loads(credentials_string)
         
-        network_info = NetworkInfo(network, explorer)
+        network_info = NetworkInfo(network)
         price_service = PriceService(network_info)
         provider = SubsquareProvider(network_info, price_service)
         spreadsheet_sink = SpreadsheetSink(credentials_json)

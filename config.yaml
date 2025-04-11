@@ -7,4 +7,10 @@ logging:
   enable_file_logging: true
   log_dir: "logs"
   max_file_size_mb: 10
-  backup_count: 5 
+  backup_count: 5
+
+http_client:
+  max_retries: 3
+  timeout_seconds: 60
+  backoff_factor: 0.5
+  retry_statuses: [408, 429, 500, 502, 503, 504] 

@@ -2,14 +2,36 @@ from typing import Optional, Union
 from utils.denomination import AssetKind, apply_denomination
 
 class NetworkInfo:
+    """Network-specific information and configuration.
+    
+    This class provides network-specific information and utilities for different
+    blockchain networks (e.g., Polkadot, Kusama). It handles:
+    - Network name and properties
+    - Asset denominations and conversions
+    - Network-specific URLs for various services
+    - Asset type mappings
+    
+    Usage:
+        network_info = NetworkInfo("polkadot")  # Initialize for Polkadot network
+        amount = network_info.apply_denomination(10000000000, AssetKind.DOT)  # Convert to human-readable
+    """
+
     SUPPORTED_NETWORKS = ["polkadot", "kusama"]
 
-    def __init__(self, network: str = "polkadot", explorer: str = "subsquare"):
-        if network not in self.SUPPORTED_NETWORKS:
-            raise ValueError(f"Unsupported network: {network}")
+    def __init__(self, network_name: str):
+        """Initialize network information.
+        
+        Args:
+            network_name: Name of the network (e.g., "polkadot", "kusama")
+            
+        Raises:
+            ValueError: If the network name is not supported
+        """
+        if network_name not in self.SUPPORTED_NETWORKS:
+            raise ValueError(f"Unsupported network: {network_name}")
 
-        self.name = network
-        if network == "polkadot":
+        self.name = network_name
+        if network_name == "polkadot":
             self.digits = 10
             self.native_asset = AssetKind.DOT
         else:
@@ -18,14 +40,9 @@ class NetworkInfo:
 
         self.denomination_factor = 10**self.digits
 
-        if explorer == "polkassembly":
-            self.treasury_url = f"https://{network}.polkassembly.io/treasury/"
-            self.child_bounty_url = f"https://{network}.polkassembly.io/bounties/"
-        else:
-            self.treasury_url = f"https://{network}.subsquare.io/treasury/proposals/"
-            self.child_bounty_url = f"https://{network}.subsquare.io/treasury/child-bounties/"
-
-        self.referenda_url = f"https://{network}.{explorer}.io/referenda/"
+        self.treasury_url = f"https://{network_name}.subsquare.io/treasury/proposals/"
+        self.child_bounty_url = f"https://{network_name}.subsquare.io/treasury/child-bounties/"
+        self.referenda_url = f"https://{network_name}.subsquare.io/referenda/"
 
     @property
     def chain_name(self) -> str:

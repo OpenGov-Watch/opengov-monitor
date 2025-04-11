@@ -1,12 +1,38 @@
-# Monitoring Updater
+# OpenGov Monitor
 
-  python -m venv .venv
-  ./.venv/Scripts/activate
-  pip install -r ./requirements.txt
+This app fetches Treasury proposals, referenda, and child bounties from Subsquare and updates them on a Google Spreadsheet.
 
+## Features
 
-## Summary
-This app fetches Treasury proposals from Polkassembly and updates them on a Google Spreadsheet.
+- Fetches data from Subsquare API
+- Updates Google Spreadsheet with latest data
+- Supports Polkadot and Kusama networks
+- Handles retries and error cases gracefully
+- Provides detailed logging
+
+## Configuration
+
+The app uses the following environment variables:
+- `OPENGOV_MONITOR_SPREADSHEET_ID`: The ID of the Google Spreadsheet to update
+- `OPENGOV_MONITOR_CREDENTIALS`: JSON string containing Google API credentials
+
+Alternatively, you can provide a `credentials.json` file in the root directory.
+
+## Running the App
+
+1. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+2. Set up environment variables or provide credentials.json
+
+3. Run the app:
+```bash
+python main.py
+```
+
+The app will start a Flask server and begin fetching and updating data.
 
 ## Instructions
 
