@@ -1,0 +1,35 @@
+{
+  "include": [
+    "data_providers",
+    "data_sinks",
+    "utils",
+    "logging_config",
+    "*.py"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    ".venv"
+  ],
+  "typeCheckingMode": "strict",
+  "reportMissingParameterType": true,
+  "reportUndefinedVariable": true,
+  "reportMissingTypeStubs": false,
+  "pythonVersion": "3.11",
+  "reportGeneralTypeIssues": true,
+  "reportOptionalMemberAccess": true,
+  "reportOptionalSubscript": true,
+  "reportOptionalCall": true,
+  "reportOptionalIterable": true,
+  "reportOptionalOperand": true,
+  "reportOptionalContextManager": true,
+  "reportOptionalClass": true,
+  "reportPrivateUsage": true,
+  "reportUnusedImport": true,
+  "reportUnusedClass": true,
+  "reportUnusedFunction": true,
+  "reportUnusedVariable": true,
+  "reportDuplicateImport": true,
+  "reportWildcardImportFromLibrary": true,
+  "reportUnnecessaryTypeIgnoreComment": true
+} 
