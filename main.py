@@ -3,6 +3,7 @@ from data_providers.price_service import PriceService
 from data_providers.network_info import NetworkInfo
 from spreadsheet_sink import SpreadsheetSink
 import json
+import yaml
 
 import os
 from flask import Flask
@@ -49,6 +50,14 @@ def main():
     default_spreadsheet_id = "1yFm17tk87y2xqV9-VGCsz_s9IabCcgtz7ZbBIYrcBAs"
     explorer = "subsquare"
 
+    # Load configuration from YAML file
+    with open('config.yaml', 'r') as file:
+        config = yaml.safe_load(file)
+    
+    referenda_to_fetch = config['fetch_limits']['referenda']
+    treasury_proposals_to_fetch = config['fetch_limits']['treasury_proposals']
+    child_bounties_to_fetch = config['fetch_limits']['child_bounties']
+
     env_var_names = list(os.environ.keys())
     logger.debug(f"Environment variable names: {env_var_names}")
 
@@ -65,11 +74,6 @@ def main():
     assert credentials_string is not None, "Please configure the OPENGOV_MONITOR_CREDENTIALS environment variable or provide a credentials.json file"
     credentials_json = json.loads(credentials_string)
     
-    referenda_to_fetch = 100000
-    treasury_proposals_to_fetch = 0
-    child_bounties_to_fetch = 3000000
-      
-
     network_info = NetworkInfo(network, explorer)
     price_service = PriceService(network_info)
     #provider = PolkassemblyProvider(network_info, price_service)

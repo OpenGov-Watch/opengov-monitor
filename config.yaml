@@ -1,0 +1,4 @@
+fetch_limits:
+  referenda: 0
+  treasury_proposals: 0
+  child_bounties: 3000000 

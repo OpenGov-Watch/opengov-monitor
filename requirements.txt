@@ -4,3 +4,4 @@ yfinance
 google-api-python-client
 gspread
 flask
+pyyaml

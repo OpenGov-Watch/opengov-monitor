@@ -57,6 +57,10 @@ class SubsquareProvider(DataProvider):
 
         logging.debug("Transforming referenda")
         df = self._transform_referenda(df)
+        
+        # Add continuity check
+        self._log_continuity_check(df, "referenda")
+        
         return df
 
     # Out: ['title', 'Status', 'DOT', 'USD_proposal_time', 'Track', 'tally.ayes', 'tally.nays', 'propose_time', 'last_status_change', 'USD_latest']
@@ -308,6 +312,11 @@ class SubsquareProvider(DataProvider):
     
         base_url = f"https://{self.network_info.name}.subsquare.io/api/treasury/proposals"
         df_updates = self._fetchList(base_url, proposals_to_update)
+        
+        # Add continuity check
+        self._log_continuity_check(df_updates, "treasury proposals", "index")
+        
+        return df_updates
 
     def fetch_child_bounties(self, child_bounties_to_update=10):
         base_url = f"https://{self.network_info.name}.subsquare.io/api/treasury/child-bounties" #&page_size=100
@@ -315,9 +324,67 @@ class SubsquareProvider(DataProvider):
         df = self._fetch_and_update_persisted_data(df_updates, "data/child_bounties.csv", "index", ["state", "indexer"])
 
         df = self._transform_child_bounties(df)
-
+        
+        # Replace existing check with new helper method
+        self._log_continuity_check(df, "child bounties")
+        
         return df
-    
+
+    def check_continuous_ids(self, df, id_field=None):
+        """
+        Checks if the IDs are continuous and returns any gaps found.
+        
+        Args:
+            df: DataFrame with IDs either as index or in a column
+            id_field: Optional name of column containing IDs. If None, uses index
+            
+        Returns:
+            tuple: (is_continuous: bool, gaps: list of missing IDs)
+        """
+        # Get all IDs as a sorted list
+        if id_field is not None:
+            ids = sorted(df[id_field].tolist())
+        else:
+            ids = sorted(df.index.tolist())
+        
+        if not ids:
+            return True, []
+        
+        # Create a set of expected IDs from min to max
+        expected_ids = set(range(min(ids), max(ids) + 1))
+        
+        # Find missing IDs
+        actual_ids = set(ids)
+        gaps = sorted(list(expected_ids - actual_ids))
+        
+        is_continuous = len(gaps) == 0
+        
+        return is_continuous, gaps
+
+    def _log_continuity_check(self, df, data_type, id_field=None):
+        """
+        Helper method to perform and log continuity check results
+        
+        Args:
+            df: DataFrame to check
+            data_type: String describing the type of data (e.g., "referenda", "treasury proposals")
+            id_field: Optional name of column containing IDs. If None, uses index
+        """
+        is_continuous, gaps = self.check_continuous_ids(df, id_field)
+        if not is_continuous:
+            self._logger.warning(f"Found gaps in {data_type} IDs: {gaps}")
+            if len(gaps) <= 10:
+                self._logger.warning(f"Missing IDs: {gaps}")
+            else:
+                self._logger.warning(f"First 10 missing IDs: {gaps[:10]}...")
+                self._logger.warning(f"Total number of gaps: {len(gaps)}")
+
+        # Log min and max IDs fetched
+        ids = df[id_field] if id_field else df.index
+        min_id = ids.min()
+        max_id = ids.max()
+        self._logger.info(f"Fetched {data_type} from ID {min_id} to {max_id}")
+
     def _transform_child_bounties(self, df):
         df = df.copy()
 
