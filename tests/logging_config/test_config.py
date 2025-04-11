@@ -1,3 +1,4 @@
+"""Tests for logging configuration."""
 import os
 import tempfile
 import logging
@@ -5,6 +6,7 @@ import json
 from pathlib import Path
 import pytest
 from logging_config.config import setup_logging, load_config
+from utils.config import Config
 
 @pytest.fixture
 def temp_config_file():
@@ -25,17 +27,24 @@ def temp_log_dir():
     with tempfile.TemporaryDirectory() as temp_dir:
         yield temp_dir
 
+@pytest.fixture(autouse=True)
+def clear_config_instance():
+    """Clear Config singleton instance before each test."""
+    Config._instance = None
+    yield
+    Config._instance = None
+
 def test_load_config(temp_config_file):
     """Test loading configuration from YAML file."""
     # Set the config file path
     os.environ['CONFIG_FILE'] = temp_config_file
     config = load_config()
-    assert config['logging']['enable_file_logging'] is True
-    assert config['logging']['log_dir'] == "test_logs"
-    assert config['logging']['max_file_size_mb'] == 1
-    assert config['logging']['backup_count'] == 2
+    assert config['enable_file_logging'] is True
+    assert config['log_dir'] == "test_logs"
+    assert config['max_file_size_mb'] == 1
+    assert config['backup_count'] == 2
 
-def test_logging_with_extra_fields(temp_log_dir, temp_config_file):
+def test_logging_with_extra_fields(temp_log_dir):
     """Test logging with extra fields."""
     # Create config file in temp directory
     config_path = Path(temp_log_dir) / 'config.yaml'
@@ -54,8 +63,7 @@ logging:
     
     try:
         # Test logging with extra fields
-        test_extra = {"test_field": "test_value", "number": 123}
-        logger.debug_with_extra("Test message", extra=test_extra)
+        logger.debug("Test message", extra={"test_field": "test_value", "number": 123})
         
         # Verify log file was created
         log_files = list(Path(temp_log_dir).glob('*.log'))
@@ -73,7 +81,7 @@ logging:
             handler.close()
             logger.removeHandler(handler)
 
-def test_log_rotation(temp_log_dir, temp_config_file):
+def test_log_rotation(temp_log_dir):
     """Test log file rotation."""
     # Create config file in temp directory
     config_path = Path(temp_log_dir) / 'config.yaml'
@@ -108,7 +116,7 @@ logging:
             handler.close()
             logger.removeHandler(handler)
 
-def test_disable_file_logging(temp_log_dir, temp_config_file):
+def test_disable_file_logging(temp_log_dir):
     """Test disabling file logging."""
     # Create config file in temp directory
     config_path = Path(temp_log_dir) / 'config.yaml'
@@ -136,7 +144,7 @@ logging:
             handler.close()
             logger.removeHandler(handler)
 
-def test_log_levels(temp_log_dir, temp_config_file):
+def test_log_levels(temp_log_dir):
     """Test that log levels are properly set."""
     # Create config file in temp directory
     config_path = Path(temp_log_dir) / 'config.yaml'
@@ -166,7 +174,7 @@ logging:
             handler.close()
             logger.removeHandler(handler)
 
-def test_json_serialization(temp_log_dir, temp_config_file):
+def test_json_serialization(temp_log_dir):
     """Test that extra fields are properly JSON serialized."""
     # Create config file in temp directory
     config_path = Path(temp_log_dir) / 'config.yaml'
@@ -188,7 +196,7 @@ logging:
             "dict": {"key": "value"},
             "timestamp": "2024-04-11T12:00:00"
         }
-        logger.debug_with_extra("Complex data test", extra=complex_data)
+        logger.debug("Complex data test", extra=complex_data)
         
         # Verify log file content
         log_files = list(Path(temp_log_dir).glob('*.log'))

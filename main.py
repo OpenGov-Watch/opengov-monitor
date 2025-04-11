@@ -6,7 +6,8 @@ import json
 import yaml
 import os
 from flask import Flask
-from logging_config import setup_logging
+from logging_config.config import setup_logging
+from utils.config import Config
 
 # Setup logging before creating the Flask app
 logger = setup_logging()
@@ -34,7 +35,15 @@ def transform_child_bounties(df, network_info):
 
 @app.route("/")
 def main():
+    """Main entry point."""
     try:
+        # Set up logging
+        setup_logging()
+        logger = logging.getLogger(__name__)
+        
+        # Load configuration
+        config = Config.get_instance()
+        
         # Preconditions
         ## Parameters
         network = "polkadot"

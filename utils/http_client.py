@@ -4,7 +4,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import logging
-import yaml
+from .config import Config
 
 class HttpClientError(Exception):
     """Base exception for HTTP client errors."""
@@ -33,10 +33,9 @@ class HttpClient:
         Returns:
             HttpClient instance configured from file
         """
-        with open(config_path, 'r') as f:
-            config = yaml.safe_load(f)
+        config = Config.get_instance(config_path)
+        http_config = config.get_section('http_client')
         
-        http_config = config.get('http_client', {})
         return cls(
             max_retries=http_config.get('max_retries', 3),
             timeout=http_config.get('timeout_seconds', 60),
