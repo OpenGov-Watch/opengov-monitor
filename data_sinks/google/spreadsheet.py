@@ -145,6 +145,11 @@ class SpreadsheetSink:
 
     def _apply_updates(self, worksheet, sheet_df, update_df, append_df, range_string):
         """Apply updates and appends to the worksheet."""
+        # Convert numeric columns to float64
+        for col in update_df.columns:
+            if pd.api.types.is_numeric_dtype(sheet_df[col]):
+                update_df[col] = pd.to_numeric(update_df[col], errors='coerce')
+        
         sheet_df.update(update_df)
         data_to_update = sheet_df.values.tolist()
         worksheet.update(data_to_update, range_string, raw=False)
