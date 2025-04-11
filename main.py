@@ -8,6 +8,8 @@ import os
 from flask import Flask
 from logging_config.config import setup_logging
 from utils.config import Config
+import logging
+import pandas as pd
 
 # Setup logging before creating the Flask app
 logger = setup_logging()
@@ -37,10 +39,6 @@ def transform_child_bounties(df, network_info):
 def main():
     """Main entry point."""
     try:
-        # Set up logging
-        setup_logging()
-        logger = logging.getLogger(__name__)
-        
         # Load configuration
         config = Config.get_instance()
         
@@ -89,6 +87,9 @@ def main():
         if referenda_to_fetch > 0:   
             referenda_df = provider.fetch_referenda(referenda_to_fetch)
             referenda_df = transform_referenda(referenda_df, network_info)
+            # Ensure DataFrame type
+            if not isinstance(referenda_df, pd.DataFrame):
+                referenda_df = pd.DataFrame(referenda_df)
 
             logger.debug("Updating Referenda worksheet")
             spreadsheet_sink.update_worksheet(spreadsheet_id, "Referenda", referenda_df, allow_empty_first_row=True)
@@ -97,6 +98,9 @@ def main():
         if treasury_proposals_to_fetch > 0:
             logger.debug("Fetching treasury proposals")
             treasury_df = provider.fetch_treasury_proposals(treasury_proposals_to_fetch)
+            # Ensure DataFrame type
+            if not isinstance(treasury_df, pd.DataFrame):
+                treasury_df = pd.DataFrame(treasury_df)
 
             logger.debug("Updating Treasury worksheet")
             spreadsheet_sink.update_worksheet(spreadsheet_id, "Treasury", treasury_df)
@@ -106,6 +110,9 @@ def main():
             logger.debug("Fetching child bounties")
             child_bounties_df = provider.fetch_child_bounties(child_bounties_to_fetch)
             child_bounties_df = transform_child_bounties(child_bounties_df, network_info)
+            # Ensure DataFrame type
+            if not isinstance(child_bounties_df, pd.DataFrame):
+                child_bounties_df = pd.DataFrame(child_bounties_df)
 
             logger.debug("Updating Child Bounties worksheet")
             spreadsheet_sink.update_worksheet(spreadsheet_id, "Child Bounties", child_bounties_df, allow_empty_first_row=True)

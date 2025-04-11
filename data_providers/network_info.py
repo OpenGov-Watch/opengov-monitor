@@ -1,8 +1,13 @@
-from .asset_kind import AssetKind
-from utils.denomination import apply_denomination
+from typing import Optional, Union
+from utils.denomination import AssetKind, apply_denomination
 
 class NetworkInfo:
-    def __init__(self, network = "polkadot", explorer = "subsquare"):
+    SUPPORTED_NETWORKS = ["polkadot", "kusama"]
+
+    def __init__(self, network: str = "polkadot", explorer: str = "subsquare"):
+        if network not in self.SUPPORTED_NETWORKS:
+            raise ValueError(f"Unsupported network: {network}")
+
         self.name = network
         if network == "polkadot":
             self.digits = 10
@@ -22,13 +27,22 @@ class NetworkInfo:
 
         self.referenda_url = f"https://{network}.{explorer}.io/referenda/"
 
+    @property
+    def chain_name(self) -> str:
+        """Return the chain name for use in URLs."""
+        return self.name
+
     # returns the human-readable value with the denomination applied
     # if no asset_kind is provided, it will use the network's native token
-    def apply_denomination(self, value, asset_kind: AssetKind = None) -> float:
+    def apply_denomination(self, value: Union[int, float], asset_kind: Optional[AssetKind] = None) -> float:
         """
         Apply denomination to a value using the network's configuration.
         
-        This is a wrapper around utils.denomination.apply_denomination that uses
-        the network's default digits when asset_kind is None.
+        Args:
+            value: The value to apply denomination to
+            asset_kind: Optional asset kind to use for denomination. If None, uses network's native token.
+            
+        Returns:
+            The value with denomination applied
         """
         return apply_denomination(value, asset_kind, default_digits=self.digits)

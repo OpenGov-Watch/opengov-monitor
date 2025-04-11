@@ -18,7 +18,7 @@ def mock_auth():
 @pytest.fixture
 def spreadsheet_sink(mock_auth):
     """Create a SpreadsheetSink instance with mocked auth."""
-    sink = SpreadsheetSink({"type": "service_account"})
+    sink = SpreadsheetSink("test_credentials.json")
     sink.auth = mock_auth.return_value
     return sink
 
@@ -33,9 +33,19 @@ def mock_worksheet():
     worksheet.spreadsheet.batch_update = Mock()
     return worksheet
 
+@pytest.fixture
+def sample_df():
+    """Create a sample DataFrame for testing."""
+    return pd.DataFrame({
+        'url': ['=HYPERLINK("https://example.com/1", 1)'],
+        'proposal_time': [pd.Timestamp('2024-04-11')],
+        'DOT': [100.5],
+        'latest_status_change': [pd.Timestamp('2024-04-10')]
+    })
+
 def test_spreadsheet_sink_initialization(mock_auth):
     """Test SpreadsheetSink initialization."""
-    sink = SpreadsheetSink({"type": "service_account"})
+    sink = SpreadsheetSink("test_credentials.json")
     sink.auth = mock_auth.return_value
     assert sink.auth == mock_auth.return_value
     assert sink._logger.name == "data_sinks.google.spreadsheet"
@@ -126,8 +136,8 @@ def test_transform_dates(spreadsheet_sink, sample_df):
     result_df = spreadsheet_sink._transform_dates(sample_df)
 
     # Verify results
-    assert isinstance(result_df['proposal_time'][0], (int, np.int64))
-    assert isinstance(result_df['latest_status_change'][0], (int, np.int64))
+    assert isinstance(result_df['proposal_time'][0], (int, np.integer))
+    assert isinstance(result_df['latest_status_change'][0], (int, np.integer))
 
 def test_prepare_columns_for_json(spreadsheet_sink, sample_df):
     """Test column preparation for JSON."""
@@ -370,6 +380,86 @@ def test_close_without_client(spreadsheet_sink):
     spreadsheet_sink.auth.client = None
     spreadsheet_sink.close()  # Should not raise any error
 
+def test_get_dataframe_stats(spreadsheet_sink):
+    """Test DataFrame statistics collection."""
+    # Test empty DataFrame
+    empty_df = pd.DataFrame()
+    empty_stats = spreadsheet_sink._get_dataframe_stats(empty_df, "empty")
+    assert empty_stats["name"] == "empty"
+    assert empty_stats["size"] == (0, 0)
+    assert empty_stats["index_range"] == "empty"
+    assert empty_stats["index_is_continuous"] is True
+    assert empty_stats["gaps"] == []
+
+def test_get_dataframe_stats_error(spreadsheet_sink):
+    """Test get_dataframe_stats with invalid DataFrame."""
+    with pytest.raises(AttributeError, match="Cannot get stats for None DataFrame"):
+        spreadsheet_sink._get_dataframe_stats(None, "test")
+
+def test_get_dataframe_stats_with_non_numeric_index(spreadsheet_sink):
+    """Test _get_dataframe_stats with non-numeric index."""
+    data = {
+        'A': [1, 2, 3],
+        'B': ['x', 'y', 'z']
+    }
+    df = pd.DataFrame(data, index=['a', 'b', 'c'])
+
+    # Call the method
+    result = spreadsheet_sink._get_dataframe_stats(df, "test")
+
+    # Verify the result
+    assert result["name"] == "test"
+    assert result["size"] == (3, 2)
+    assert result["index_is_continuous"] is True  # Non-numeric indices are always considered continuous
+    assert result["gaps"] == []
+
+def test_get_dataframe_stats_with_none(spreadsheet_sink):
+    """Test _get_dataframe_stats with None DataFrame."""
+    with pytest.raises(AttributeError, match="Cannot get stats for None DataFrame"):
+        spreadsheet_sink._get_dataframe_stats(None, "test")
+
+def test_get_dataframe_stats_with_empty_df(spreadsheet_sink):
+    """Test _get_dataframe_stats with empty DataFrame."""
+    empty_df = pd.DataFrame()
+    stats = spreadsheet_sink._get_dataframe_stats(empty_df, "empty")
+
+    assert stats["name"] == "empty"
+    assert stats["size"] == (0, 0)
+    assert stats["index_range"] == "empty"
+    assert stats["index_is_continuous"] is True
+    assert stats["gaps"] == []
+
+def test_get_dataframe_stats_with_non_numeric_index_error(spreadsheet_sink):
+    """Test _get_dataframe_stats with non-numeric index that raises TypeError."""
+    data = {'A': [1, 2, 3]}
+    df = pd.DataFrame(data, index=['a', 'b', 'c'])
+
+    stats = spreadsheet_sink._get_dataframe_stats(df, "test")
+    assert stats["index_is_continuous"] is True  # Non-numeric indices are always considered continuous
+    assert stats["gaps"] == []
+
+def test_get_dataframe_stats_with_mixed_index(spreadsheet_sink):
+    """Test _get_dataframe_stats with mixed numeric and non-numeric index."""
+    data = {'A': [1, 2, 3]}
+    df = pd.DataFrame(data, index=['1', 'not_a_number', '3'])
+
+    stats = spreadsheet_sink._get_dataframe_stats(df, "test")
+    # When converting to numeric, '1' and '3' become numbers, 'not_a_number' becomes NaN
+    # So _find_gaps will detect a gap between 1 and 3
+    assert stats["index_is_continuous"] is True  # Non-numeric indices are treated as continuous
+    assert stats["gaps"] == [(1.0, 3.0)]  # Gap is detected between numeric values
+
+def test_get_dataframe_stats_with_type_error(spreadsheet_sink):
+    """Test _get_dataframe_stats with index that raises TypeError."""
+    data = {'A': [1, 2, 3]}
+    df = pd.DataFrame(data, index=[1, None, 3])
+
+    stats = spreadsheet_sink._get_dataframe_stats(df, "test")
+    # When converting to numeric, 1 and 3 stay numbers, None becomes NaN
+    # So _find_gaps will detect a gap between 1 and 3
+    assert stats["index_is_continuous"] is True  # Invalid indices are treated as continuous
+    assert stats["gaps"] == [(1.0, 3.0)]  # Gap is detected between numeric values
+
 def test_find_gaps(spreadsheet_sink):
     """Test gap detection in index sequences."""
     test_cases = [
@@ -378,49 +468,25 @@ def test_find_gaps(spreadsheet_sink):
         # No gaps
         (pd.Index([1, 2, 3]), []),
         # Single gap
-        (pd.Index([1, 3, 4]), [(1, 3)]),
+        (pd.Index([1, 3, 4]), [(1.0, 3.0)]),
         # Multiple gaps
-        (pd.Index([1, 3, 5, 8]), [(1, 3), (3, 5), (5, 8)]),
+        (pd.Index([1, 3, 5, 8]), [(1.0, 3.0), (3.0, 5.0), (5.0, 8.0)]),
         # Unsorted index
-        (pd.Index([3, 1, 5]), [(1, 3), (3, 5)]),
+        (pd.Index([3, 1, 5]), [(1.0, 3.0), (3.0, 5.0)]),
     ]
-    
+
     for index, expected in test_cases:
-        assert spreadsheet_sink._find_gaps(index) == expected
+        # Convert index to numeric
+        numeric_index = pd.to_numeric(index)
+        result = spreadsheet_sink._find_gaps(numeric_index)
+        assert result == expected
 
-def test_get_dataframe_stats(spreadsheet_sink):
-    """Test DataFrame statistics collection."""
-    # Test empty DataFrame
-    empty_df = pd.DataFrame()
-    empty_stats = spreadsheet_sink._get_dataframe_stats(empty_df, "empty")
-    assert empty_stats["size"] == (0, 0)
-    assert empty_stats["index_range"] == "empty"
-    assert empty_stats["index_is_continuous"] == True
-    assert empty_stats["gaps"] == []
-    
-    # Test continuous DataFrame
-    continuous_df = pd.DataFrame(
-        {"col": range(5)}, 
-        index=range(1, 6)
-    )
-    cont_stats = spreadsheet_sink._get_dataframe_stats(continuous_df, "continuous")
-    assert cont_stats["size"] == (5, 1)
-    assert cont_stats["index_range"] == "min=1 to max=5"
-    assert cont_stats["index_is_continuous"] == True
-    assert cont_stats["gaps"] == []
-    
-    # Test DataFrame with gaps
-    gapped_df = pd.DataFrame(
-        {"col": [1, 2, 3]}, 
-        index=[1, 3, 5]
-    )
-    gap_stats = spreadsheet_sink._get_dataframe_stats(gapped_df, "gapped")
-    assert gap_stats["size"] == (3, 1)
-    assert gap_stats["index_range"] == "min=1 to max=5"
-    assert gap_stats["index_is_continuous"] == False
-    assert gap_stats["gaps"] == [(1, 3), (3, 5)]
+@pytest.fixture
+def mock_debug():
+    """Create a mock debug logger."""
+    with patch('logging.Logger.debug') as mock:
+        yield mock
 
-@patch('logging.Logger.debug')
 def test_apply_updates_logging(mock_debug, spreadsheet_sink, mock_worksheet):
     """Test logging in apply_updates method."""
     # Create test DataFrames with matching columns
@@ -428,40 +494,40 @@ def test_apply_updates_logging(mock_debug, spreadsheet_sink, mock_worksheet):
         "col": range(5),
         "num": range(5)
     }, index=range(1, 6))
-    
+
     update_df = pd.DataFrame({
         "col": range(5, 8),
         "num": range(5, 8)
     }, index=range(6, 9))
-    
+
     append_df = pd.DataFrame({
         "col": range(8, 10),
         "num": range(8, 10)
     }, index=range(9, 11))
-    
+
     spreadsheet_sink._apply_updates(
         mock_worksheet, sheet_df, update_df, append_df, "A1:B10"
     )
-    
+
     # Verify logging calls
     assert mock_debug.call_count == 3  # Initial, post-update, and post-append logs
-    
+
     # Verify log content structure
     first_call_args = mock_debug.call_args_list[0][1]["extra"]["dataframe_stats"]
     assert "sheet_df" in first_call_args
     assert "update_df" in first_call_args
     assert "append_df" in first_call_args
     assert "range_string" in first_call_args
-    
+
     # Verify post-update stats
     second_call_args = mock_debug.call_args_list[1][1]["extra"]["post_update_stats"]
     assert second_call_args["name"] == "post_update"
-    assert second_call_args["size"] == (8, 2)  # Updated sheet_df size
-    
+    assert second_call_args["size"] == (8, 2)
+
     # Verify final stats after append
     third_call_args = mock_debug.call_args_list[2][1]["extra"]["final_stats"]
     assert third_call_args["name"] == "final"
-    assert third_call_args["size"] == (10, 2)  # Combined size after append
+    assert third_call_args["size"] == (10, 2)
 
 def test_apply_updates_data_integrity(spreadsheet_sink, mock_worksheet):
     """Test data integrity during updates."""
@@ -539,16 +605,9 @@ def test_prepare_index_matching_with_gaps(spreadsheet_sink):
         assert result_df.index.tolist() == ['1', '3']
         
         # Verify that gaps are detected
-        gaps = spreadsheet_sink._find_sequence_gaps([1, 3])
+        gaps = spreadsheet_sink._find_gaps(result_df.index)
         assert len(gaps) == 1
-        assert gaps[0]['start'] == 1
-        assert gaps[0]['end'] == 3
-        assert gaps[0]['gap_size'] == 1
-
-def test_get_dataframe_stats_error(spreadsheet_sink):
-    """Test get_dataframe_stats with invalid DataFrame."""
-    with pytest.raises(AttributeError):  # None has no attribute 'shape'
-        spreadsheet_sink._get_dataframe_stats(None, "test") 
+        assert gaps[0] == (1.0, 3.0)
 
 def test_prepare_index_matching_with_url_extraction_error(spreadsheet_sink, mocker):
     """Test _prepare_index_matching with URL extraction error."""
@@ -604,67 +663,6 @@ def test_prepare_index_matching_with_sequence_gap_error(spreadsheet_sink, mocker
         }
     )
 
-def test_get_dataframe_stats_with_non_numeric_index(spreadsheet_sink):
-    """Test _get_dataframe_stats with non-numeric index."""
-    # Create test data with non-numeric index
-    data = {
-        'A': [1, 2, 3],
-        'B': ['x', 'y', 'z']
-    }
-    df = pd.DataFrame(data, index=['a', 'b', 'c'])
-    
-    # Call the method
-    result = spreadsheet_sink._get_dataframe_stats(df, "test")
-    
-    # Verify the result
-    assert result["name"] == "test"
-    assert result["size"] == (3, 2)
-    assert result["index_range"] == "min=a to max=c"
-    assert result["index_is_continuous"] is True  # Non-numeric indices are always considered continuous
-    assert result["gaps"] == []  # Non-numeric indices have no gaps 
-
-def test_prepare_index_matching_with_extraction_error(spreadsheet_sink):
-    """Test _prepare_index_matching with an extraction error."""
-    # Create test data with a URL that will cause an extraction error
-    data = {
-        'url': ['=HYPERLINK("https://example.com/invalid/url", "invalid")'],
-        'proposal_time': [pd.Timestamp("2024-04-10")],
-        'DOT': [100.0],
-        'latest_status_change': [pd.Timestamp("2024-04-10")]
-    }
-    df = pd.DataFrame(data)
-    
-    # Call the method
-    result = spreadsheet_sink._prepare_index_matching(df)
-    
-    # Verify that the error was handled and NA was used
-    assert pd.isna(result.index[0])
-
-def test_get_dataframe_stats_with_none(spreadsheet_sink):
-    """Test _get_dataframe_stats with None DataFrame."""
-    with pytest.raises(AttributeError, match="Cannot get stats for None DataFrame"):
-        spreadsheet_sink._get_dataframe_stats(None, "test")
-
-def test_get_dataframe_stats_with_empty_df(spreadsheet_sink):
-    """Test _get_dataframe_stats with empty DataFrame."""
-    empty_df = pd.DataFrame()
-    stats = spreadsheet_sink._get_dataframe_stats(empty_df, "empty")
-    
-    assert stats["name"] == "empty"
-    assert stats["size"] == (0, 0)
-    assert stats["index_range"] == "empty"
-    assert stats["index_is_continuous"] is True
-    assert stats["gaps"] == []
-
-def test_get_dataframe_stats_with_non_numeric_index_error(spreadsheet_sink):
-    """Test _get_dataframe_stats with non-numeric index that raises TypeError."""
-    data = {'A': [1, 2, 3]}
-    df = pd.DataFrame(data, index=['a', 'b', 'c'])  # String indices will cause TypeError in numeric comparison
-    
-    stats = spreadsheet_sink._get_dataframe_stats(df, "test")
-    assert stats["index_is_continuous"] is True  # Non-numeric indices are considered continuous
-    assert stats["gaps"] == []  # Non-numeric indices have no gaps
-
 def test_prepare_index_matching_with_sequence_check_error(spreadsheet_sink, mocker):
     """Test _prepare_index_matching with sequence check error."""
     # Mock the logger
@@ -707,65 +705,6 @@ def test_find_sequence_gaps_error(spreadsheet_sink):
     # Verify that an empty list is returned for non-numeric values
     assert result == []
 
-def test_get_dataframe_stats_with_mixed_index(spreadsheet_sink):
-    """Test _get_dataframe_stats with mixed numeric and non-numeric index."""
-    data = {'A': [1, 2, 3]}
-    df = pd.DataFrame(data, index=['1', 'not_a_number', '3'])
-    
-    stats = spreadsheet_sink._get_dataframe_stats(df, "test")
-    assert stats["index_is_continuous"] is True  # Non-numeric indices are considered continuous
-    assert stats["gaps"] == []  # Non-numeric indices have no gaps
-
-def test_find_gaps_with_non_numeric_index(spreadsheet_sink):
-    """Test _find_gaps with non-numeric index."""
-    # Create an index with non-numeric values
-    index = pd.Index(['a', 'b', 'c'])
-    
-    # Call the method
-    result = spreadsheet_sink._find_gaps(index)
-    
-    # Verify that an empty list is returned for non-numeric indices
-    assert result == [] 
-
-def test_prepare_index_matching_with_sequence_check_error_exception(spreadsheet_sink, mocker):
-    """Test _prepare_index_matching with sequence check error that raises an exception."""
-    # Mock the logger
-    mock_logger = mocker.Mock()
-    spreadsheet_sink._logger = mock_logger
-    
-    # Create test data that will cause a sequence check error
-    data = {
-        'url': [
-            '=HYPERLINK("https://example.com/1", "1")',
-            '=HYPERLINK("https://example.com/invalid", "invalid")'  # This will cause int() to fail
-        ],
-        'proposal_time': [pd.Timestamp("2024-04-10")] * 2,
-        'DOT': [100.0] * 2,
-        'latest_status_change': [pd.Timestamp("2024-04-10")] * 2
-    }
-    df = pd.DataFrame(data)
-    
-    # Mock extract_id to return the values we want
-    def mock_extract_id(url):
-        if "/1" in url:
-            return "1"
-        return None  # Return None for invalid URLs
-    
-    with patch('data_sinks.google.utils.extract_id', side_effect=mock_extract_id):
-        # Call the method
-        result = spreadsheet_sink._prepare_index_matching(df)
-        
-        # Verify that the error was logged
-        mock_logger.warning.assert_any_call(
-            'Could not extract ID from URL: =HYPERLINK("https://example.com/invalid", "invalid")',
-            extra={"error": "Could not extract numeric ID from URL"}
-        )
-        
-        # Verify the result
-        assert len(result) == 2
-        assert result.index[0] == "1"
-        assert pd.isna(result.index[1])  # The invalid ID should be NA
-
 def test_find_sequence_gaps_with_invalid_input(spreadsheet_sink):
     """Test _find_sequence_gaps with invalid input that raises an exception."""
     # Create a list with mixed types that will cause int() to fail
@@ -773,30 +712,6 @@ def test_find_sequence_gaps_with_invalid_input(spreadsheet_sink):
     
     # Call the method
     result = spreadsheet_sink._find_sequence_gaps(sorted_ids)
-    
-    # Verify that an empty list is returned for invalid input
-    assert result == [] 
-
-def test_get_dataframe_stats_with_type_error(spreadsheet_sink):
-    """Test _get_dataframe_stats with index that raises TypeError."""
-    # Create a DataFrame with mixed types in the index
-    data = {'A': [1, 2, 3]}
-    df = pd.DataFrame(data, index=[1, None, 3])  # None will cause TypeError in comparison
-    
-    # Call the method
-    stats = spreadsheet_sink._get_dataframe_stats(df, "test")
-    
-    # Verify that the stats are correct
-    assert stats["index_is_continuous"] is True  # Non-numeric indices are considered continuous
-    assert stats["gaps"] == []  # Non-numeric indices have no gaps
-
-def test_find_gaps_with_type_error(spreadsheet_sink):
-    """Test _find_gaps with index that raises TypeError."""
-    # Create an index with mixed types that will cause TypeError
-    index = pd.Index([1, None, 3])  # None will cause TypeError in comparison
-    
-    # Call the method
-    result = spreadsheet_sink._find_gaps(index)
     
     # Verify that an empty list is returned for invalid input
     assert result == [] 

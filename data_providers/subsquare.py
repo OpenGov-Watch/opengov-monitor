@@ -3,8 +3,9 @@ import requests
 import pandas as pd
 import logging
 import json
-from .asset_kind import AssetKind
-from .asssets_bag import AssetsBag
+from utils.denomination import AssetKind
+from .assets_bag import AssetsBag
+from typing import Optional, Dict, Any, List, Union
 
 class SubsquareProvider(DataProvider):
 
@@ -39,15 +40,17 @@ class SubsquareProvider(DataProvider):
         replacements = []
         detail_items = 0
         for index, row in df_updates.iterrows():
-            # if we have a preimage and it is within the set of batch call indexes, we need to fetch the individual referenda
-            if len(row["onchainData"]["proposal"]) > 0 and row["onchainData"]["proposal"]["callIndex"] in needs_detail_call_indices:
-                url = f"{base_url}/{row['referendumIndex']}.json"
-                referendum = self._fetchItem(url)
-                replacements.append(referendum)
+            onchain_data = row.get("onchainData", {})
+            if isinstance(onchain_data, dict):
+                proposal = onchain_data.get("proposal", {})
+                if isinstance(proposal, dict) and proposal.get("callIndex") in needs_detail_call_indices:
+                    url = f"{base_url}/{row['referendumIndex']}.json"
+                    referendum = self._fetchItem(url)
+                    replacements.append(referendum)
 
-                detail_items += 1
-                if detail_items % 10 == 0:
-                    logging.debug(f"Fetched {detail_items} detail items")
+                    detail_items += 1
+                    if detail_items % 10 == 0:
+                        logging.debug(f"Fetched {detail_items} detail items")
         df_replacements = pd.DataFrame(replacements)
         df_updates = pd.concat([df_updates, df_replacements], ignore_index=True)
         df_updates.drop_duplicates(subset=["referendumIndex"], keep="last", inplace=True)
@@ -67,11 +70,11 @@ class SubsquareProvider(DataProvider):
     def _transform_referenda(self, df):
         df = df.copy()
 
-        def _get_XCM_asset_kind(asset_kind) -> AssetKind:
+        def _get_XCM_asset_kind(asset_kind: Dict[str, Any]) -> Optional[AssetKind]:
             if "v3" in asset_kind:
                 parachain = asset_kind["v3"]["location"]["interior"]["x1"]["parachain"]
                 if parachain >= 3000:
-                    return AssetKind.INVALID
+                    return None
                 assert parachain >= 1000 and parachain < 2000, "parachain is not a system chain"
                 concrete = asset_kind["v3"]["assetId"]["concrete"]
                 if  "here" in concrete["interior"]:
@@ -86,10 +89,10 @@ class SubsquareProvider(DataProvider):
                 elif general_index == 30:
                     return AssetKind.DED
                 elif general_index == 19840000000000:
-                    return AssetKind.INVALID # rolleyes emoji
+                    return None # rolleyes emoji
                 else:
                     self._logger.warn(f"Unknown asset kind: {asset_kind}")
-                    return AssetKind.INVALID
+                    return None
             elif "v4" in asset_kind:
                 parachain = asset_kind["v4"]["location"]["interior"]["x1"][0]["parachain"]
                 assert parachain >= 1000 and parachain < 2000
@@ -208,7 +211,7 @@ class SubsquareProvider(DataProvider):
                 assert args is not None, "we should always have the details of the call"
                 assert args[0]["name"] == "assetKind"
                 assetKind = _get_XCM_asset_kind(args[0]["value"])
-                if assetKind == AssetKind.INVALID:
+                if assetKind == None:
                     return
                 
                 assert args[1]["name"] == "amount"
@@ -330,31 +333,31 @@ class SubsquareProvider(DataProvider):
         
         return df
 
-    def check_continuous_ids(self, df, id_field=None):
+    def check_continuous_ids(self, df: pd.DataFrame, id_field: Optional[str] = None) -> tuple[bool, List[int]]:
         """
-        Checks if the IDs are continuous and returns any gaps found.
+        Check if the IDs in the DataFrame are continuous.
         
         Args:
-            df: DataFrame with IDs either as index or in a column
+            df: DataFrame to check
             id_field: Optional name of column containing IDs. If None, uses index
             
         Returns:
-            tuple: (is_continuous: bool, gaps: list of missing IDs)
+            tuple[bool, List[int]]: (is_continuous, list_of_gaps)
         """
-        # Get all IDs as a sorted list
-        if id_field is not None:
-            ids = sorted(df[id_field].tolist())
-        else:
-            ids = sorted(df.index.tolist())
-        
-        if not ids:
+        ids = df[id_field] if id_field else df.index
+        if not isinstance(ids, pd.Series):
+            ids = pd.Series(ids)
+            
+        if len(ids) == 0:
             return True, []
         
         # Create a set of expected IDs from min to max
-        expected_ids = set(range(min(ids), max(ids) + 1))
+        min_id = int(ids.min())
+        max_id = int(ids.max())
+        expected_ids = set(range(min_id, max_id + 1))
         
         # Find missing IDs
-        actual_ids = set(ids)
+        actual_ids = set(ids.astype(int))
         gaps = sorted(list(expected_ids - actual_ids))
         
         is_continuous = len(gaps) == 0

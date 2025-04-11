@@ -1,4 +1,4 @@
-from .asset_kind import AssetKind
+from utils.denomination import AssetKind
 from .price_service import PriceService
 
 class AssetsBag:
@@ -23,8 +23,14 @@ class AssetsBag:
     def set_nan(self):
         self._nan = True
 
-    def get_amount(self, asset: AssetKind) -> float:
+    def get_asset_amount(self, asset: AssetKind) -> float:
         return self._assets.get(asset, 0)
+
+    def get_all_assets(self) -> dict[AssetKind, float]:
+        return self._assets.copy()
+
+    def clear(self):
+        self._assets.clear()
 
     def get_total_value(self, price_service: PriceService, target_asset: AssetKind, date=None) -> float:
         if self._nan:

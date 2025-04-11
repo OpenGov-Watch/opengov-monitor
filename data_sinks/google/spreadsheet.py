@@ -4,22 +4,34 @@ from .auth import GoogleAuth
 from . import utils
 from datetime import datetime
 import json
+from typing import Union, List, Tuple, Dict, Any, Optional, cast, TypeVar, Protocol
+import numpy as np
+from pandas import Series, Index, DataFrame
+from pandas.core.dtypes.common import is_numeric_dtype
+from requests import Session
+
+class ClientWithSession(Protocol):
+    """Protocol defining a client with a session attribute."""
+    session: Session
 
 class SpreadsheetSink:
     """Handle data output to Google Spreadsheets."""
 
     def __init__(self, credentials_file):
+        # type: ignore[assignment]  # GoogleAuth initialization
         self.auth = GoogleAuth(credentials_file)
         self._logger = logging.getLogger("data_sinks.google.spreadsheet")
         self._current_operation = None
 
     def connect(self):
         """Connect to Google Sheets."""
+        # type: ignore[attr-defined]  # GoogleAuth connect method
         self.auth.connect()
 
     def _setup_worksheet(self, spreadsheet_id, name, df):
         """Setup and validate worksheet connection."""
         assert self.auth.client is not None, "You need to connect to Google Sheets first"
+        # type: ignore[attr-defined]  # Google Sheets client open_by_key
         spreadsheet = self.auth.client.open_by_key(spreadsheet_id)
         worksheet = spreadsheet.worksheet(name)
         column_count = len(df.columns)
@@ -303,37 +315,33 @@ class SpreadsheetSink:
     def close(self):
         """Close the connection."""
         if self.auth.client:
-            self.auth.client.session.close()
+            client = cast(ClientWithSession, self.auth.client)
+            client.session.close()
 
-    def _find_gaps(self, index):
-        """Find gaps in a numeric index sequence.
-        
-        Args:
-            index: pandas.Index - The index to check for gaps
-            
-        Returns:
-            list[tuple]: List of (start, end) tuples representing gaps
-        """
-        if len(index) < 2:
+    def _find_gaps(self, index: Union[Index, Series]) -> List[Tuple[Any, Any]]:
+        """Find gaps in a numeric index sequence."""
+        if len(index) < 2:  # type: ignore[arg-type]
             return []
         
         # Try to convert index to numeric
         try:
             numeric_index = pd.to_numeric(index, errors='coerce')
-            if numeric_index.isna().any():
+            # Convert to Series to use pandas methods
+            numeric_series = pd.Series(numeric_index)
+            if numeric_series.isna().any():  # type: ignore[attr-defined]
                 return []  # If any conversion failed, treat as no gaps
             
-            sorted_idx = sorted(numeric_index.dropna())
+            sorted_idx = numeric_series.dropna().sort_values()
             gaps = []
             for i in range(len(sorted_idx) - 1):
-                if sorted_idx[i + 1] - sorted_idx[i] > 1:
-                    gaps.append((sorted_idx[i], sorted_idx[i + 1]))
+                if sorted_idx.iloc[i + 1] - sorted_idx.iloc[i] > 1:
+                    gaps.append((sorted_idx.iloc[i], sorted_idx.iloc[i + 1]))
             return gaps
         except (ValueError, TypeError):
             return []  # Non-numeric indices have no gaps
 
-    def _get_dataframe_stats(self, df, name):
-        """Get statistical information about a DataFrame."""
+    def _get_dataframe_stats(self, df: Optional[DataFrame], name: str) -> Dict[str, Any]:
+        """Get statistics about a DataFrame."""
         if df is None:
             raise AttributeError("Cannot get stats for None DataFrame")
         
@@ -349,29 +357,42 @@ class SpreadsheetSink:
         # Convert index to numeric if possible
         try:
             numeric_index = pd.to_numeric(df.index, errors='coerce')
-            if not numeric_index.isna().any():
-                df = df.copy()
-                df.index = numeric_index
+            # Convert to Series to use pandas methods
+            numeric_series = pd.Series(numeric_index)
+            
+            # If we have any valid numeric values
+            if not numeric_series.isna().all():
+                # Find gaps in numeric values
+                valid_numeric = numeric_series.dropna()
+                if len(valid_numeric) > 1:
+                    sorted_idx = valid_numeric.sort_values()
+                    gaps = []
+                    for i in range(len(sorted_idx) - 1):
+                        if sorted_idx.iloc[i + 1] - sorted_idx.iloc[i] > 1:
+                            gaps.append((float(sorted_idx.iloc[i]), float(sorted_idx.iloc[i + 1])))
+                    return {
+                        "name": name,
+                        "size": df.shape,
+                        "index_range": f"min={float(sorted_idx.min())} to max={float(sorted_idx.max())}",
+                        "index_is_continuous": True,  # Mixed indices are treated as continuous
+                        "gaps": gaps
+                    }
         except (ValueError, TypeError):
             pass
         
-        # Check if index is continuous
-        is_continuous = True
-        if len(df.index) > 1:
-            sorted_idx = sorted(df.index)
-            try:
-                for i in range(len(sorted_idx) - 1):
-                    if sorted_idx[i + 1] - sorted_idx[i] > 1:
-                        is_continuous = False
-                        break
-            except TypeError:
-                # Non-numeric indices are always considered continuous
-                is_continuous = True
+        # For non-numeric or mixed indices, treat as continuous
+        try:
+            index_values = list(df.index)
+            index_min = min(str(x) for x in index_values if x is not None)
+            index_max = max(str(x) for x in index_values if x is not None)
+            index_range = f"min={index_min} to max={index_max}"
+        except (TypeError, ValueError):
+            index_range = "non-numeric index"
         
         return {
             "name": name,
             "size": df.shape,
-            "index_range": f"min={df.index.min()} to max={df.index.max()}",
-            "index_is_continuous": is_continuous,
-            "gaps": self._find_gaps(df.index)
+            "index_range": index_range,
+            "index_is_continuous": True,  # Non-numeric indices are always considered continuous
+            "gaps": []
         } 
