@@ -17,6 +17,11 @@ def test_auth_initialization_with_invalid_credentials():
     with pytest.raises(AttributeError):
         GoogleAuth("not a dict")
 
+def test_auth_initialization_with_missing_type():
+    """Test GoogleAuth initialization with missing type field."""
+    with pytest.raises(AttributeError, match="Credentials must contain 'type' field"):
+        GoogleAuth({})  # Dictionary without 'type' field
+
 def test_auth_connect(sample_credentials):
     """Test the connect method."""
     with patch('data_sinks.google.auth.Credentials.from_service_account_info') as mock_creds, \

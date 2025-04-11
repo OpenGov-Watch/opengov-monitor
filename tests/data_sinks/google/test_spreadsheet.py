@@ -231,4 +231,71 @@ def test_update_worksheet(spreadsheet_sink, mock_worksheet, sample_df):
         mock_json.assert_called_once()
         mock_deltas.assert_called_once()
         mock_updates.assert_called_once()
-        mock_formatting.assert_called_once() 
+        mock_formatting.assert_called_once()
+
+def test_connect(spreadsheet_sink):
+    """Test the connect method."""
+    spreadsheet_sink.connect()
+    spreadsheet_sink.auth.connect.assert_called_once()
+
+def test_load_sheet_data_value_error(spreadsheet_sink, mock_worksheet, sample_df):
+    """Test load_sheet_data with ValueError."""
+    # Mock worksheet data with wrong number of columns
+    mock_data = [['col1']]  # Only one column when we expect more
+    mock_worksheet.get.return_value = mock_data
+
+    # Test loading with ValueError
+    with pytest.raises(ValueError):
+        spreadsheet_sink._load_sheet_data(
+            mock_worksheet, "A2:D100", sample_df.columns, False
+        )
+
+def test_load_sheet_data_empty_not_allowed(spreadsheet_sink, mock_worksheet, sample_df):
+    """Test load_sheet_data with empty data not allowed."""
+    # Mock empty worksheet data
+    mock_worksheet.get.return_value = [[]]
+
+    # Test loading with empty data not allowed
+    with pytest.raises(SystemExit):
+        spreadsheet_sink._load_sheet_data(
+            mock_worksheet, "A2:D100", sample_df.columns, False
+        )
+
+def test_apply_updates_with_append(spreadsheet_sink, mock_worksheet, sample_df):
+    """Test apply_updates with data to append."""
+    sheet_df = pd.DataFrame(index=["1"])
+    update_df = pd.DataFrame()
+    append_df = sample_df.copy()
+    
+    # Test applying updates with append
+    spreadsheet_sink._apply_updates(
+        mock_worksheet, sheet_df, update_df, append_df, "A2:D100"
+    )
+    
+    # Verify calls
+    mock_worksheet.update.assert_called_once()
+    mock_worksheet.append_rows.assert_called_once()
+
+def test_update_worksheet_invalid_format(spreadsheet_sink, mock_worksheet, sample_df):
+    """Test update_worksheet with invalid format."""
+    with patch.object(spreadsheet_sink, '_load_sheet_data', return_value=None):
+        with pytest.raises(ValueError, match="The spreadsheet is not in the expected format"):
+            spreadsheet_sink.update_worksheet("spreadsheet_id", "sheet1", sample_df, False)
+
+def test_close(spreadsheet_sink):
+    """Test the close method."""
+    # Setup mock client with session
+    mock_client = Mock()
+    mock_client.session = Mock()
+    spreadsheet_sink.auth.client = mock_client
+
+    # Test close
+    spreadsheet_sink.close()
+    
+    # Verify session was closed
+    mock_client.session.close.assert_called_once()
+
+def test_close_without_client(spreadsheet_sink):
+    """Test the close method when no client exists."""
+    spreadsheet_sink.auth.client = None
+    spreadsheet_sink.close()  # Should not raise any error 
