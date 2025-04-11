@@ -1,4 +1,5 @@
 from .asset_kind import AssetKind
+from utils.denomination import apply_denomination
 
 class NetworkInfo:
     def __init__(self, network = "polkadot", explorer = "subsquare"):
@@ -24,26 +25,10 @@ class NetworkInfo:
     # returns the human-readable value with the denomination applied
     # if no asset_kind is provided, it will use the network's native token
     def apply_denomination(self, value, asset_kind: AssetKind = None) -> float:
-        if asset_kind is None:
-            digits = self.digits
-        elif asset_kind == AssetKind.DOT:
-            digits = 10
-        elif asset_kind == AssetKind.KSM:
-            digits = 12
-        elif asset_kind == AssetKind.USDT or asset_kind == AssetKind.USDC:
-            digits = 6
-        elif asset_kind == AssetKind.DED:
-            digits = 10
-        else:
-            raise Exception(f"pls implement me. asset_kind {asset_kind}, type {type(asset_kind)}")
-
-        denomination_factor = 10**digits
-
-        if isinstance(value, str):
-            if value.startswith("0x"):
-                return int(value, 16)/denomination_factor
-            return int(value,10)/denomination_factor
-        elif isinstance (value, (int)) or isinstance(value, float):
-            return value/denomination_factor
-        else:
-            raise Exception(f"pls implement me. value {value}, type {type(value)}")
+        """
+        Apply denomination to a value using the network's configuration.
+        
+        This is a wrapper around utils.denomination.apply_denomination that uses
+        the network's default digits when asset_kind is None.
+        """
+        return apply_denomination(value, asset_kind, default_digits=self.digits)
