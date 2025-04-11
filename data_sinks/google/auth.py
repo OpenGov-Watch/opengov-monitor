@@ -6,6 +6,10 @@ class GoogleAuth:
     """Handle Google Sheets authentication."""
     
     def __init__(self, credentials_file):
+        if not isinstance(credentials_file, dict):
+            raise AttributeError("Credentials must be a dictionary")
+        if "type" not in credentials_file:
+            raise AttributeError("Credentials must contain 'type' field")
         self.credentials = credentials_file
         self._gc = None
         self._logger = logging.getLogger(__name__)

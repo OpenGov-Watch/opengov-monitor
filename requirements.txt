@@ -5,3 +5,6 @@ google-api-python-client
 gspread
 flask
 pyyaml
+pytest
+pytest-mock
+pytest-cov

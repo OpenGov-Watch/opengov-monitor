@@ -72,7 +72,8 @@ class SpreadsheetSink:
         df = df.copy()
         for column in columns_to_convert:
             if column in df.columns:
-                df[column] = df[column].astype("object").fillna("")
+                # Convert to string first to ensure object type
+                df[column] = df[column].astype(str).astype("object")
         return df
 
     def _process_deltas(self, df, sheet_df):
