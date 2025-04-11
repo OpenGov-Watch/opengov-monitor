@@ -33,63 +33,84 @@ class SpreadsheetSink:
         """Load and validate sheet data."""
         try:
             data = worksheet.get(range_string, value_render_option="FORMULA")
-            sheet_df = pd.DataFrame(data, columns=df_columns)
-        except ValueError as e:
-            if len(data) == 1 and len(data[0]) == 0:
+            
+            # Handle empty data case
+            if not data or (len(data) == 1 and len(data[0]) == 0):
                 if allow_empty_first_row:
-                    logging.info("No data found in the specified range. Initializing an empty DataFrame.")
+                    self._logger.info("No data found in the specified range. Initializing an empty DataFrame.")
                     return pd.DataFrame(columns=df_columns)
                 else:
-                    logging.error("Empty first row found in the sheet. Use allow_empty_first_row=True to allow this.")
+                    self._logger.error("Empty first row found in the sheet.")
                     raise SystemExit(-1)
-            else:
-                logging.warning(f"expected column count in sheet: {len(df_columns)}")
-                logging.warning(f"actual columns in first row: {len(data[0])}")
-                logging.warning(e)
-                raise
-
-        return sheet_df
+            
+            # Validate column count
+            if len(data[0]) != len(df_columns):
+                self._logger.error(f"Column count mismatch. Expected {len(df_columns)}, got {len(data[0])}")
+                raise ValueError(f"Column count mismatch in sheet data. Expected {len(df_columns)} columns.")
+            
+            sheet_df = pd.DataFrame(data, columns=df_columns)
+            return sheet_df
+            
+        except Exception as e:
+            self._logger.error("Error loading sheet data", extra={"error": str(e)})
+            raise
 
     def _find_sequence_gaps(self, sorted_ids):
         """Find gaps in ID sequence."""
-        gaps = []
-        for i in range(len(sorted_ids) - 1):
-            if sorted_ids[i + 1] - sorted_ids[i] > 1:
-                gaps.append({
-                    "start": sorted_ids[i],
-                    "end": sorted_ids[i + 1],
-                    "gap_size": sorted_ids[i + 1] - sorted_ids[i] - 1
-                })
-        return gaps
+        try:
+            # Convert all IDs to integers
+            numeric_ids = [int(id) for id in sorted_ids]
+            gaps = []
+            for i in range(len(numeric_ids) - 1):
+                if numeric_ids[i + 1] - numeric_ids[i] > 1:
+                    gaps.append({
+                        "start": numeric_ids[i],
+                        "end": numeric_ids[i + 1],
+                        "gap_size": numeric_ids[i + 1] - numeric_ids[i] - 1
+                    })
+            return gaps
+        except (ValueError, TypeError):
+            return []  # Return empty list for non-numeric IDs
 
     def _prepare_index_matching(self, sheet_df):
-        """Prepare sheet DataFrame for index matching."""
+        """Extract IDs from URLs and set them as index."""
         sheet_df = sheet_df.copy()
+        original_urls = sheet_df['url'].tolist()
+        extracted_ids = []
         
-        # Log the ID extraction process
-        self._logger.debug("Starting ID extraction from URLs")
-        original_urls = sheet_df["url"].tolist()
-        sheet_df["id"] = sheet_df["url"].apply(utils.extract_id)
+        for url in original_urls:
+            try:
+                id_value = utils.extract_id(url)
+                if id_value is None:
+                    self._logger.warning(
+                        f"Could not extract ID from URL: {url}",
+                        extra={"error": "Could not extract numeric ID from URL"}
+                    )
+                    id_value = pd.NA  # Use pandas NA for missing values
+                extracted_ids.append(id_value)
+            except Exception as e:
+                self._logger.warning(
+                    f"Could not extract ID from URL: {url}",
+                    extra={"error": str(e)}
+                )
+                extracted_ids.append(pd.NA)  # Use pandas NA for errors
         
-        # Check for any ID extraction issues
-        extracted_ids = sheet_df["id"].tolist()
+        sheet_df["id"] = extracted_ids
         self._logger.info(f"Extracted {len(extracted_ids)} IDs from {len(original_urls)} URLs")
         
-        # Log any potential ID issues
-        if None in extracted_ids or '' in extracted_ids:
-            self._logger.warning("Found empty or null IDs during extraction", 
-                               extra={"problematic_urls": [url for url, id in zip(original_urls, extracted_ids) 
-                                                         if not id]})
-
         # Check for ID sequence gaps
-        sorted_ids = sorted([int(id) for id in extracted_ids if str(id).isdigit()])
-        if sorted_ids:
-            gaps = self._find_sequence_gaps(sorted_ids)
-            if gaps:
-                self._logger.warning("Found gaps in ID sequence", 
-                                   extra={"gaps": gaps, 
-                                         "operation": self._current_operation})
-
+        try:
+            numeric_ids = [int(id) for id in extracted_ids if pd.notna(id) and str(id).isdigit()]
+            if numeric_ids:
+                sorted_ids = sorted(numeric_ids)
+                gaps = self._find_sequence_gaps(sorted_ids)
+                if gaps:
+                    self._logger.warning("Found gaps in ID sequence", 
+                                       extra={"gaps": gaps, 
+                                             "operation": self._current_operation})
+        except Exception as e:
+            self._logger.warning("Error checking for ID sequence gaps", extra={"error": str(e)})
+        
         sheet_df.set_index("id", inplace=True)
         return sheet_df
 
@@ -144,21 +165,70 @@ class SpreadsheetSink:
         return update_df, append_df
 
     def _apply_updates(self, worksheet, sheet_df, update_df, append_df, range_string):
-        """Apply updates and appends to the worksheet."""
-        # Convert numeric columns to float64
-        for col in update_df.columns:
-            if pd.api.types.is_numeric_dtype(sheet_df[col]):
-                update_df[col] = pd.to_numeric(update_df[col], errors='coerce')
+        """Apply updates and appends to the worksheet.
         
-        sheet_df.update(update_df)
+        Updates are applied as full row replacements - if a row exists in update_df, it completely
+        replaces the corresponding row in sheet_df, including setting any columns not present in
+        update_df to NaN. This ensures consistent behavior between updates and new rows.
+        
+        Args:
+            worksheet: The Google Sheets worksheet to update
+            sheet_df: DataFrame containing current sheet data
+            update_df: DataFrame containing rows to update or add
+            append_df: DataFrame containing rows to append
+            range_string: The range in the worksheet to update (e.g., "A2:D100")
+        """
+        # Collect stats for all DataFrames
+        stats = {
+            "sheet_df": self._get_dataframe_stats(sheet_df, "sheet"),
+            "update_df": self._get_dataframe_stats(update_df, "update"),
+            "append_df": self._get_dataframe_stats(append_df, "append"),
+            "range_string": range_string
+        }
+        
+        self._logger.debug("DataFrame analysis before update", extra={"dataframe_stats": stats})
+        
+        # Handle updates
+        if not update_df.empty:
+            # Convert numeric columns to float64
+            for col in update_df.columns:
+                if col in sheet_df.columns and pd.api.types.is_numeric_dtype(sheet_df[col]):
+                    update_df[col] = pd.to_numeric(update_df[col], errors='coerce')
+            
+            # Update rows - full row replacement for matching indices
+            for idx in update_df.index:
+                if idx in sheet_df.index:
+                    # Replace entire row with update data
+                    sheet_df.loc[idx] = update_df.loc[idx]
+                else:
+                    # Add new row
+                    sheet_df.loc[idx] = update_df.loc[idx]
+        
+        # Always update the worksheet with current sheet_df data
         data_to_update = sheet_df.values.tolist()
         worksheet.update(data_to_update, range_string, raw=False)
-
+        
+        # Log stats after update
+        post_update_stats = self._get_dataframe_stats(sheet_df, "post_update")
+        self._logger.debug("DataFrame analysis after update", extra={"post_update_stats": post_update_stats})
+        
+        # Handle appends
         if not append_df.empty:
+            # Convert numeric columns in append_df
+            for col in append_df.columns:
+                if col in sheet_df.columns and pd.api.types.is_numeric_dtype(sheet_df[col]):
+                    append_df[col] = pd.to_numeric(append_df[col], errors='coerce')
+            
+            # Append new rows
             worksheet.append_rows(
                 append_df.fillna('').values.tolist(),
                 value_input_option='USER_ENTERED'
             )
+            
+            # Log final stats after append
+            final_df = pd.concat([sheet_df, append_df])
+            final_stats = self._get_dataframe_stats(final_df, "final")
+            self._logger.debug("DataFrame analysis after append", extra={"final_stats": final_stats})
 
     def _apply_formatting(self, worksheet):
         """Apply filter and sort to the worksheet."""
@@ -233,4 +303,75 @@ class SpreadsheetSink:
     def close(self):
         """Close the connection."""
         if self.auth.client:
-            self.auth.client.session.close() 
+            self.auth.client.session.close()
+
+    def _find_gaps(self, index):
+        """Find gaps in a numeric index sequence.
+        
+        Args:
+            index: pandas.Index - The index to check for gaps
+            
+        Returns:
+            list[tuple]: List of (start, end) tuples representing gaps
+        """
+        if len(index) < 2:
+            return []
+        
+        # Try to convert index to numeric
+        try:
+            numeric_index = pd.to_numeric(index, errors='coerce')
+            if numeric_index.isna().any():
+                return []  # If any conversion failed, treat as no gaps
+            
+            sorted_idx = sorted(numeric_index.dropna())
+            gaps = []
+            for i in range(len(sorted_idx) - 1):
+                if sorted_idx[i + 1] - sorted_idx[i] > 1:
+                    gaps.append((sorted_idx[i], sorted_idx[i + 1]))
+            return gaps
+        except (ValueError, TypeError):
+            return []  # Non-numeric indices have no gaps
+
+    def _get_dataframe_stats(self, df, name):
+        """Get statistical information about a DataFrame."""
+        if df is None:
+            raise AttributeError("Cannot get stats for None DataFrame")
+        
+        if df.empty:
+            return {
+                "name": name,
+                "size": (0, 0),
+                "index_range": "empty",
+                "index_is_continuous": True,
+                "gaps": []
+            }
+        
+        # Convert index to numeric if possible
+        try:
+            numeric_index = pd.to_numeric(df.index, errors='coerce')
+            if not numeric_index.isna().any():
+                df = df.copy()
+                df.index = numeric_index
+        except (ValueError, TypeError):
+            pass
+        
+        # Check if index is continuous
+        is_continuous = True
+        if len(df.index) > 1:
+            sorted_idx = sorted(df.index)
+            try:
+                for i in range(len(sorted_idx) - 1):
+                    if sorted_idx[i + 1] - sorted_idx[i] > 1:
+                        is_continuous = False
+                        break
+            except TypeError:
+                # Non-numeric indices are always considered continuous
+                is_continuous = True
+        
+        return {
+            "name": name,
+            "size": df.shape,
+            "index_range": f"min={df.index.min()} to max={df.index.max()}",
+            "index_is_continuous": is_continuous,
+            "gaps": self._find_gaps(df.index)
+        } 

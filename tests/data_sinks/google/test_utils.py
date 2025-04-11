@@ -1,53 +1,79 @@
 import pytest
 import pandas as pd
-from datetime import datetime
-from data_sinks.google import utils
+from datetime import datetime, date
+from data_sinks.google.utils import (
+    format_date, extract_id, create_filter_request, create_sort_request
+)
 
-def test_format_date():
-    """Test the format_date function with various inputs."""
-    # Test valid date
-    timestamp = pd.Timestamp('2024-04-11')
-    result = utils.format_date(timestamp)
-    expected = (timestamp.date() - datetime(1900, 1, 1).date()).days
+def test_format_date_valid():
+    """Test format_date with valid timestamp."""
+    # Test with pandas Timestamp
+    timestamp = pd.Timestamp("2024-04-11")
+    result = format_date(timestamp)
+    expected = (date(2024, 4, 11) - date(1900, 1, 1)).days
     assert result == expected
 
-    # Test null date
+    # Test with datetime
+    dt = datetime(2024, 4, 11)
+    result = format_date(pd.Timestamp(dt))
+    assert result == expected
+
+def test_format_date_null():
+    """Test format_date with null timestamp."""
     with pytest.raises(ValueError, match="Timestamp cannot be null when formatting date"):
-        utils.format_date(pd.NaT)
+        format_date(pd.NaT)
 
-def test_extract_id():
-    """Test the extract_id function with various inputs."""
-    # Test valid hyperlink
-    url = '=HYPERLINK("https://example.com/123", 123)'
-    assert utils.extract_id(url) == "123"
+def test_extract_id_valid():
+    """Test extract_id with valid input."""
+    # Test with valid hyperlink
+    input_str = '=HYPERLINK("https://example.com/1", 123)'
+    assert extract_id(input_str) == "123"
 
-    # Test integer input
-    assert utils.extract_id(42) is None
+    # Test with different format but valid
+    input_str = 'Something, 456)'
+    assert extract_id(input_str) == "456"
 
-    # Test invalid format
-    assert utils.extract_id("not a hyperlink") is None
+def test_extract_id_invalid():
+    """Test extract_id with invalid input."""
+    # Test with integer
+    assert extract_id(42) is None
 
-    # Test empty string
-    assert utils.extract_id("") is None
+    # Test with invalid string format
+    assert extract_id("no numbers here") is None
+    assert extract_id("123 not at end") is None
+    assert extract_id("") is None
 
 def test_create_filter_request():
-    """Test the create_filter_request function."""
-    worksheet_id = "test-worksheet-id"
-    result = utils.create_filter_request(worksheet_id)
+    """Test create_filter_request."""
+    worksheet_id = "test-id"
+    result = create_filter_request(worksheet_id)
     
-    assert result["setBasicFilter"]["filter"]["range"]["sheetId"] == worksheet_id
-    assert result["setBasicFilter"]["filter"]["range"]["startRowIndex"] == 0
-    assert result["setBasicFilter"]["filter"]["range"]["startColumnIndex"] == 0
+    assert "setBasicFilter" in result
+    assert "filter" in result["setBasicFilter"]
+    assert "range" in result["setBasicFilter"]["filter"]
+    
+    range_config = result["setBasicFilter"]["filter"]["range"]
+    assert range_config["sheetId"] == worksheet_id
+    assert range_config["startRowIndex"] == 0
+    assert range_config["startColumnIndex"] == 0
 
 def test_create_sort_request():
-    """Test the create_sort_request function."""
-    worksheet_id = "test-worksheet-id"
+    """Test create_sort_request."""
+    worksheet_id = "test-id"
     col_count = 5
-    result = utils.create_sort_request(worksheet_id, col_count)
+    result = create_sort_request(worksheet_id, col_count)
     
-    assert result["sortRange"]["range"]["sheetId"] == worksheet_id
-    assert result["sortRange"]["range"]["endColumnIndex"] == col_count
-    assert result["sortRange"]["range"]["startRowIndex"] == 1
-    assert result["sortRange"]["range"]["startColumnIndex"] == 0
-    assert result["sortRange"]["sortSpecs"][0]["dimensionIndex"] == 0
-    assert result["sortRange"]["sortSpecs"][0]["sortOrder"] == "DESCENDING" 
+    assert "sortRange" in result
+    assert "range" in result["sortRange"]
+    assert "sortSpecs" in result["sortRange"]
+    
+    range_config = result["sortRange"]["range"]
+    assert range_config["sheetId"] == worksheet_id
+    assert range_config["startRowIndex"] == 1
+    assert range_config["startColumnIndex"] == 0
+    assert range_config["endColumnIndex"] == col_count
+    
+    sort_specs = result["sortRange"]["sortSpecs"]
+    assert len(sort_specs) == 1
+    assert sort_specs[0]["dimensionIndex"] == 0
+    assert sort_specs[0]["sortOrder"] == "DESCENDING" 
