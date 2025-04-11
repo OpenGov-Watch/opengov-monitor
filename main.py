@@ -65,9 +65,9 @@ def main():
     assert credentials_string is not None, "Please configure the OPENGOV_MONITOR_CREDENTIALS environment variable or provide a credentials.json file"
     credentials_json = json.loads(credentials_string)
     
-    referenda_to_fetch = 100
+    referenda_to_fetch = 100000
     treasury_proposals_to_fetch = 0
-    child_bounties_to_fetch = 300
+    child_bounties_to_fetch = 3000000
       
 
     network_info = NetworkInfo(network, explorer)
@@ -106,6 +106,9 @@ def main():
 
       logger.debug("Updating Child Bounties worksheet")
       spreadsheet_sink.update_worksheet(spreadsheet_id, "Child Bounties", child_bounties_df, allow_empty_first_row=True)
+
+    logger.info(f"Referenda data updated. View at: https://docs.google.com/spreadsheets/d/{spreadsheet_id}/edit#gid=0")
+
 
     return "ok"
 
