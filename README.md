@@ -62,3 +62,27 @@ This app fetches Treasury proposals from Polkassembly and updates them on a Goog
 ## Trouble Shooting
 - Check the cloud logs here: https://console.cloud.google.com/logs/
 - Make sure column A is formatted a whole number. If it isn't future updates won't work. Make it a whole number by setting `Format->Number->Automatic`.
+
+## Logging Configuration
+The application uses a comprehensive logging system that can be configured via `config.yaml`:
+
+```yaml
+logging:
+  enable_file_logging: true  # Toggle file logging
+  log_dir: "logs"           # Directory for log files
+  max_file_size_mb: 10      # Maximum size of each log file in MB
+  backup_count: 5           # Number of backup files to keep
+```
+
+Features:
+- Logs to both console and file (file logging can be disabled)
+- Captures detailed extra information in JSON format
+- Rotates log files based on configured size and backup count
+- Logs are stored in the configured `log_dir`
+- All extra fields passed to loggers are automatically JSON-serialized and included in the output
+- Log levels are set to DEBUG for application logs and INFO for third-party libraries
+
+Example log format:
+```
+2024-04-11 14:30:00 - spreadsheet - DEBUG - Processing spreadsheet | Extra: {"gaps": [...], "urls": [...]}
+```

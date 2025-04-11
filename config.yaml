@@ -1,4 +1,10 @@
 fetch_limits:
   referenda: 0
   treasury_proposals: 0
-  child_bounties: 3000000 
+  child_bounties: 3000000
+
+logging:
+  enable_file_logging: true
+  log_dir: "logs"
+  max_file_size_mb: 10
+  backup_count: 5 
