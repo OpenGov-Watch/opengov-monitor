@@ -246,7 +246,6 @@ class SubsquareProvider(DataProvider):
             bag = AssetsBag()
 
             try:
-
                 if "treasuryInfo" in row["onchainData"]:
                     amount = row["onchainData"]["treasuryInfo"]["amount"]
                     amount = self.network_info.apply_denomination(amount, self.network_info.native_asset)
@@ -254,7 +253,20 @@ class SubsquareProvider(DataProvider):
                 elif "treasuryBounties" in row: # accepting a new bounty
                     pass
                 else:
-                    _build_bag_from_call_value(bag, row["onchainData"]["proposal"], row["proposal_time"], row["id"])
+                    
+                    ref_id = row["id"]
+
+                    zero_value_proposals = []
+                    if self.network_info.name == "polkadot":
+                        zero_value_proposals = [
+                            1424, # Parallel Hack Recovery attempt
+                        ]
+
+                    if ref_id in zero_value_proposals:
+                        bag.set_nan()
+                        return bag
+
+                    _build_bag_from_call_value(bag, row["onchainData"]["proposal"], row["proposal_time"], ref_id)
             except Exception as e:
                 if row['id'] != 1424:
                     self._logger.error(f"Error processing row {row['id']}: {e}")
@@ -299,10 +311,10 @@ class SubsquareProvider(DataProvider):
         df[f"{native_asset_name}_proposal_time"] = df.apply(self._get_value_converter(self.network_info.native_asset, "proposal_time"), axis=1)
         df[f"{native_asset_name}_latest"] = df.apply(self._get_value_converter(self.network_info.native_asset, "latest_status_change"), axis=1)
         df["USD_proposal_time"] = df.apply(self._get_value_converter(AssetKind.USDC, "proposal_time"), axis=1)
-        df["USD_latest"] = df.apply(self._get_value_converter(AssetKind.USDC, "latest_status_change"), axis=1)        
-        df[f"{native_asset_name}_component"] = df["bag"].apply(lambda x: x.get_amount(self.network_info.native_asset))
-        df[f"USDC_component"] = df["bag"].apply(lambda x: x.get_amount(AssetKind.USDC))
-        df[f"USDT_component"] = df["bag"].apply(lambda x: x.get_amount(AssetKind.USDT))
+        df["USD_latest"] = df.apply(self._get_value_converter(AssetKind.USDC, "latest_status_change"), axis=1) 
+        df[f"{native_asset_name}_component"] = df["bag"].apply(lambda bag: bag.get_asset_amount(self.network_info.native_asset))
+        df[f"USDC_component"] = df["bag"].apply(lambda bag: bag.get_asset_amount(AssetKind.USDC))
+        df[f"USDT_component"] = df["bag"].apply(lambda bag: bag.get_asset_amount(AssetKind.USDT))
         df["tally.ayes"] = df.apply(lambda x: self.network_info.apply_denomination(x["onchainData"]["tally"]["ayes"]), axis=1)
         df["tally.nays"] = df.apply(lambda x: self.network_info.apply_denomination(x["onchainData"]["tally"]["nays"]), axis=1)
         df["track"] = df["onchainData"].apply(_determineTrack)
@@ -414,21 +426,55 @@ class SubsquareProvider(DataProvider):
 
         return df
 
-    def _fetchList(self, base_url, num_items):
-        """Fetch a list of items from the API."""
+    def _fetchList(self, base_url, items_to_fetch):
+        """Fetch a list of items from the API.
+        
+        Args:
+            base_url: Base URL for the API endpoint
+            items_to_fetch: Number of items to fetch
+            
+        Returns:
+            DataFrame containing the fetched items
+        """
         try:
-            response = self._http_client.get(base_url)
-            data = response.json()
-            return pd.DataFrame(data)
+            # Calculate number of pages needed using configured page size
+            page_size = self._http_client.page_size
+            pages_needed = (items_to_fetch + page_size - 1) // page_size
+            
+            # Fetch data from all required pages
+            all_data = []
+            for page in range(1, pages_needed + 1):
+                url = f"{base_url}?page={page}&pageSize={page_size}"
+                self._logger.debug(f"Fetching page {page} from {url}")
+                response = self._http_client.get(url)
+                # Response is already parsed JSON from HttpClient
+                all_data.extend(response['items'])
+                
+                # Break if we've fetched all available items
+                if len(all_data) >= items_to_fetch or page >= response['total'] / page_size:
+                    break
+            
+            # Trim to requested number of items
+            all_data = all_data[:items_to_fetch]
+            
+            # Convert to DataFrame
+            return pd.DataFrame(all_data)
         except Exception as e:
             self._logger.error(f"Error fetching list from {base_url}: {str(e)}")
             raise
 
     def _fetchItem(self, url):
-        """Fetch a single item from the API."""
+        """Fetch a single item from the API.
+        
+        Args:
+            url: URL for the API endpoint
+            
+        Returns:
+            Dictionary containing the item data
+        """
         try:
-            response = self._http_client.get(url)
-            return response.json()
+            # Response is already parsed JSON from HttpClient
+            return self._http_client.get(url)
         except Exception as e:
             self._logger.error(f"Error fetching item from {url}: {str(e)}")
             raise

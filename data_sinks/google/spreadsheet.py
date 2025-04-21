@@ -9,22 +9,62 @@ import numpy as np
 from pandas import Series, Index, DataFrame
 from pandas.core.dtypes.common import is_numeric_dtype
 from requests import Session
+import re
 
 class ClientWithSession(Protocol):
     """Protocol defining a client with a session attribute."""
     session: Session
 
 class SpreadsheetSink:
-    """Handle data output to Google Spreadsheets."""
+    """A class for handling data output to Google Spreadsheets with smart update capabilities.
+
+    This class provides functionality to update Google Sheets with pandas DataFrames,
+    handling both updates to existing rows and appending new rows. It includes features
+    for data type conversion, ID-based row matching, and automatic formatting.
+
+    Key features:
+    - Smart updates: Updates existing rows and appends new ones based on ID matching
+    - Type conversion: Handles numpy types, dates, and JSON data automatically
+    - Data validation: Ensures data integrity and column count matching
+    - Automatic formatting: Applies filters and sorting to worksheets
+    - Comprehensive logging: Tracks all operations with detailed statistics
+
+    Requirements:
+    - The worksheet must have a 'url' column containing hyperlinks with extractable IDs
+    - The worksheet cannot have more than 26 columns (A-Z)
+    - The first row (A1:Z1) is reserved for column headers
+    - Data starts from row 2 (A2:Zn)
+
+    Example:
+        >>> sink = SpreadsheetSink('credentials.json')
+        >>> sink.connect()
+        >>> df = pd.DataFrame({
+        ...     'url': ['https://example.com/1'],
+        ...     'value': [100],
+        ...     'date': [pd.Timestamp('2024-01-01')]
+        ... })
+        >>> sink.update_worksheet('spreadsheet_id', 'Sheet1', df)
+        >>> sink.close()
+    """
 
     def __init__(self, credentials_file):
+        """Initialize the SpreadsheetSink.
+
+        Args:
+            credentials_file: Path to Google service account credentials JSON file
+                or a dictionary containing the credentials.
+        """
         # type: ignore[assignment]  # GoogleAuth initialization
         self.auth = GoogleAuth(credentials_file)
         self._logger = logging.getLogger("data_sinks.google.spreadsheet")
         self._current_operation = None
 
     def connect(self):
-        """Connect to Google Sheets."""
+        """Connect to Google Sheets API.
+        
+        This method must be called before any other operations.
+        It establishes the connection using the credentials provided during initialization.
+        """
         # type: ignore[attr-defined]  # GoogleAuth connect method
         self.auth.connect()
 
@@ -177,70 +217,80 @@ class SpreadsheetSink:
         return update_df, append_df
 
     def _apply_updates(self, worksheet, sheet_df, update_df, append_df, range_string):
-        """Apply updates and appends to the worksheet.
-        
-        Updates are applied as full row replacements - if a row exists in update_df, it completely
-        replaces the corresponding row in sheet_df, including setting any columns not present in
-        update_df to NaN. This ensures consistent behavior between updates and new rows.
-        
-        Args:
-            worksheet: The Google Sheets worksheet to update
-            sheet_df: DataFrame containing current sheet data
-            update_df: DataFrame containing rows to update or add
-            append_df: DataFrame containing rows to append
-            range_string: The range in the worksheet to update (e.g., "A2:D100")
-        """
-        # Collect stats for all DataFrames
-        stats = {
-            "sheet_df": self._get_dataframe_stats(sheet_df, "sheet"),
-            "update_df": self._get_dataframe_stats(update_df, "update"),
-            "append_df": self._get_dataframe_stats(append_df, "append"),
-            "range_string": range_string
-        }
-        
-        self._logger.debug("DataFrame analysis before update", extra={"dataframe_stats": stats})
-        
-        # Handle updates
+        """Apply updates to the worksheet."""
+        # Log initial state
+        self._logger.debug(
+            "Starting updates",
+            extra={
+                "range_string": range_string,
+                "dataframe_stats": {
+                    "sheet_df": self._get_dataframe_stats(sheet_df, "sheet_df"),
+                    "update_df": self._get_dataframe_stats(update_df, "update_df"),
+                    "append_df": self._get_dataframe_stats(append_df, "append_df")
+                }
+            }
+        )
+
+        # Make a copy of sheet_df to avoid modifying the original
+        sheet_df = sheet_df.copy()
+
+        # Update existing rows
         if not update_df.empty:
-            # Convert numeric columns to float64
-            for col in update_df.columns:
-                if col in sheet_df.columns and pd.api.types.is_numeric_dtype(sheet_df[col]):
-                    update_df[col] = pd.to_numeric(update_df[col], errors='coerce')
+            # Convert update_df to native types
+            update_df = self._convert_numpy_types(update_df)
             
-            # Update rows - full row replacement for matching indices
+            # Update sheet_df with new values
             for idx in update_df.index:
                 if idx in sheet_df.index:
-                    # Replace entire row with update data
-                    sheet_df.loc[idx] = update_df.loc[idx]
-                else:
-                    # Add new row
-                    sheet_df.loc[idx] = update_df.loc[idx]
+                    # First set all columns to empty string for this row
+                    for col in sheet_df.columns:
+                        if col not in update_df.columns:
+                            sheet_df.loc[idx, col] = ''
+                    
+                    # Then update with new values
+                    for col in update_df.columns:
+                        if col in sheet_df.columns:
+                            value = update_df.loc[idx, col]
+                            # Convert string numbers to float
+                            if isinstance(value, str) and value.replace('.', '').isdigit():
+                                value = float(value)
+                            sheet_df.loc[idx, col] = value
+
+            # Log post-update stats
+            self._logger.debug(
+                "Updated existing rows",
+                extra={"post_update_stats": self._get_dataframe_stats(update_df, "update_df")}
+            )
+
+        # Convert sheet_df to list of lists for update
+        update_data = self._convert_to_native_types(sheet_df)
         
-        # Always update the worksheet with current sheet_df data
-        data_to_update = sheet_df.values.tolist()
-        worksheet.update(data_to_update, range_string, raw=False)
-        
-        # Log stats after update
-        post_update_stats = self._get_dataframe_stats(sheet_df, "post_update")
-        self._logger.debug("DataFrame analysis after update", extra={"post_update_stats": post_update_stats})
-        
-        # Handle appends
+        # Always update the worksheet to maintain state
+        worksheet.update(
+            range_string,
+            update_data,
+            raw=False
+        )
+
+        # Append new rows
         if not append_df.empty:
-            # Convert numeric columns in append_df
-            for col in append_df.columns:
-                if col in sheet_df.columns and pd.api.types.is_numeric_dtype(sheet_df[col]):
-                    append_df[col] = pd.to_numeric(append_df[col], errors='coerce')
+            # Convert append_df to native types
+            append_df = self._convert_numpy_types(append_df)
+            
+            # Convert to list of lists for append
+            append_data = self._convert_to_native_types(append_df)
             
             # Append new rows
             worksheet.append_rows(
-                append_df.fillna('').values.tolist(),
+                append_data,
                 value_input_option='USER_ENTERED'
             )
-            
-            # Log final stats after append
-            final_df = pd.concat([sheet_df, append_df])
-            final_stats = self._get_dataframe_stats(final_df, "final")
-            self._logger.debug("DataFrame analysis after append", extra={"final_stats": final_stats})
+
+            # Log post-append stats
+            self._logger.debug(
+                "Appended new rows",
+                extra={"post_append_stats": self._get_dataframe_stats(append_df, "append_df")}
+            )
 
     def _apply_formatting(self, worksheet):
         """Apply filter and sort to the worksheet."""
@@ -250,7 +300,34 @@ class SpreadsheetSink:
         worksheet.spreadsheet.batch_update({"requests": requests})
 
     def update_worksheet(self, spreadsheet_id, name, df, allow_empty_first_row=False):
-        """Update a worksheet with new data, handling both updates and appends."""
+        """Update a worksheet with new data, handling both updates and appends.
+
+        This method performs a smart update of the worksheet by:
+        1. Loading existing data and matching rows by ID extracted from URLs
+        2. Converting dates and JSON data to appropriate formats
+        3. Updating existing rows with new values
+        4. Appending new rows that don't exist in the sheet
+        5. Applying formatting (filters and sorting)
+
+        Args:
+            spreadsheet_id (str): The ID of the Google Spreadsheet (from the URL)
+            name (str): The name of the worksheet to update
+            df (pd.DataFrame): DataFrame containing the new data. Must have a 'url' column
+                and matching column names with the worksheet
+            allow_empty_first_row (bool, optional): If True, allows initialization of
+                empty worksheets. Defaults to False.
+
+        Raises:
+            ValueError: If the spreadsheet format is invalid or column count mismatch
+            SystemExit: If first row is empty and allow_empty_first_row is False
+            Exception: For other errors (auth, connection, etc.)
+
+        Note:
+            - The method uses the 'url' column to extract IDs for row matching
+            - Updates preserve data types (numeric, string, etc.)
+            - New rows are appended at the end of the worksheet
+            - The worksheet is automatically sorted after updates
+        """
         operation_id = f"{name}_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}"
         self._current_operation = operation_id
         
@@ -313,7 +390,11 @@ class SpreadsheetSink:
             self._current_operation = None
 
     def close(self):
-        """Close the connection."""
+        """Close the connection to Google Sheets API.
+        
+        This method should be called when done using the SpreadsheetSink
+        to properly clean up resources.
+        """
         if self.auth.client:
             client = cast(ClientWithSession, self.auth.client)
             client.session.close()
@@ -395,4 +476,68 @@ class SpreadsheetSink:
             "index_range": index_range,
             "index_is_continuous": True,  # Non-numeric indices are always considered continuous
             "gaps": []
-        } 
+        }
+
+    def _convert_numpy_types(self, df):
+        """Convert numpy types to native Python types.
+        
+        Args:
+            df (pd.DataFrame): DataFrame to convert
+            
+        Returns:
+            pd.DataFrame: DataFrame with numpy types converted to native Python types
+        """
+        if df.empty:
+            return df
+
+        # Create a copy to avoid modifying the original
+        df = df.copy()
+
+        # Convert numpy types to native Python types
+        for col in df.columns:
+            if pd.api.types.is_numeric_dtype(df[col]):
+                df[col] = df[col].apply(
+                    lambda x: float(x) if pd.notnull(x) and not isinstance(x, str) else x
+                )
+            elif pd.api.types.is_datetime64_any_dtype(df[col]):
+                df[col] = df[col].apply(
+                    lambda x: x.strftime('%Y-%m-%d %H:%M:%S') if pd.notnull(x) else ''
+                )
+            else:
+                df[col] = df[col].apply(lambda x: str(x) if pd.notnull(x) else '')
+
+        return df
+
+    def _convert_to_native_types(self, data):
+        """Convert data to native Python types suitable for Google Sheets API.
+        
+        Args:
+            data: DataFrame, Series, or list of lists to convert
+            
+        Returns:
+            List of lists with native Python types suitable for Google Sheets API
+        """
+        if isinstance(data, (pd.DataFrame, pd.Series)):
+            if data.empty:
+                return []
+            # Convert DataFrame to list of lists
+            data = data.values.tolist()
+        elif not data:  # Empty list
+            return []
+
+        result = []
+        for row in data:
+            converted_row = []
+            for value in row:
+                if pd.isna(value):
+                    converted_row.append('')
+                elif isinstance(value, (np.integer, np.floating)):
+                    # Convert numpy numeric types to native Python types
+                    converted_row.append(float(value))
+                elif isinstance(value, str) and value.replace('.', '').isdigit():
+                    # Convert string numbers to float
+                    converted_row.append(float(value))
+                else:
+                    converted_row.append(str(value) if value is not None else '')
+            result.append(converted_row)
+        return result 

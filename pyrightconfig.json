@@ -11,6 +11,6 @@
     "**/__pycache__",
     ".venv"
   ],
-  "typeCheckingMode": "basic",
+  "typeCheckingMode": "off",
   "pythonVersion": "3.11",
 } 

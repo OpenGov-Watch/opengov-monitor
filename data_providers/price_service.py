@@ -1,11 +1,11 @@
 import yfinance as yf
 import datetime
-import requests
 from .network_info import NetworkInfo
 import logging
 import pandas as pd
 from utils.denomination import AssetKind
 from typing import Optional, Union, cast
+from utils.http_client import HttpClient
 
 '''
 PriceService provides price information for the network's native token against USD.
@@ -52,6 +52,7 @@ class PriceService:
         self._today = datetime.datetime.now().strftime("%Y-%m-%d")
         self._historic_prices_df: Optional[pd.DataFrame] = None
         self.current_price: Optional[float] = None
+        self._http_client = HttpClient.from_config(logger=self._logger)
 
     def load_prices(self) -> None:
         """Load current and historical prices from external sources.
@@ -72,12 +73,7 @@ class PriceService:
         # current price
         ticker = self.network_info.name
         url = f'https://api.coingecko.com/api/v3/simple/price?ids={ticker}&vs_currencies=usd'
-        response = requests.get(url)
-        
-        if response.status_code != 200:
-            raise ValueError(f"Failed to fetch current price from CoinGecko: {response.status_code} - {response.text}")
-        
-        data = response.json()
+        data = self._http_client.get(url)
         self.current_price = float(data[ticker]['usd'])
 
     def _get_historic_price(self, date: Union[datetime.datetime, pd.Timestamp]) -> float:

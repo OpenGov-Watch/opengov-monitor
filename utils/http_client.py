@@ -1,10 +1,11 @@
 """HTTP client with retry and error handling capabilities."""
-from typing import Optional, Any, Dict
+from typing import Optional, Any, Dict, List
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import logging
 from .config import Config
+import yaml
 
 class HttpClientError(Exception):
     """Base exception for HTTP client errors."""
@@ -34,99 +35,96 @@ class HttpClient:
     - timeout_seconds: Request timeout in seconds (default: 60)
     - backoff_factor: Exponential backoff factor (default: 0.5)
     - retry_statuses: List of HTTP status codes to retry on (default: [408, 429, 500, 502, 503, 504])
+    - page_size: Number of items to return per request (default: 10)
     """
     
     @classmethod
-    def from_config(cls, config_path: str = "config.yaml", logger: Optional[logging.Logger] = None) -> 'HttpClient':
-        """
-        Create HttpClient instance from config file.
+    def from_config(cls, logger: Optional[logging.Logger] = None) -> 'HttpClient':
+        """Create an HttpClient instance from configuration.
         
         Args:
-            config_path: Path to config file
-            logger: Optional logger instance
+            logger: Optional logger instance for warning messages
             
         Returns:
-            HttpClient instance configured from file
+            HttpClient instance with configured settings
         """
-        config = Config.get_instance(config_path)
-        http_config = config.get_section('http_client')
-        
-        # Log warning if using default values
-        if not http_config:
+        try:
+            with open('config.yaml', 'r') as f:
+                config = yaml.safe_load(f)
+        except FileNotFoundError:
             if logger:
-                logger.warning("No HTTP client configuration found in config file. Using default values.")
-            return cls(logger=logger)
-        
-        # Log warning if any default values are used
-        defaults = {
-            'max_retries': 3,
-            'timeout_seconds': 60,
-            'backoff_factor': 0.5,
-            'retry_statuses': [408, 429, 500, 502, 503, 504]
-        }
-        for key, default in defaults.items():
-            if key not in http_config:
-                if logger:
-                    logger.warning(f"Using default value for {key}: {default}")
-        
+                logger.warning("No config.yaml found, using default HTTP client settings")
+            return cls(
+                max_retries=3,
+                timeout_seconds=60,
+                backoff_factor=0.5,
+                retry_statuses=[408, 429, 500, 502, 503, 504],
+                page_size=10
+            )
+
+        http_config = config.get('http_client', {})
+        if not http_config and logger:
+            logger.warning("No http_client configuration found in config.yaml, using default settings")
+
         return cls(
-            max_retries=http_config.get('max_retries', defaults['max_retries']),
-            timeout=http_config.get('timeout_seconds', defaults['timeout_seconds']),
-            backoff_factor=http_config.get('backoff_factor', defaults['backoff_factor']),
-            retry_statuses=http_config.get('retry_statuses', defaults['retry_statuses']),
-            logger=logger
+            max_retries=http_config.get('max_retries', 3),
+            timeout_seconds=http_config.get('timeout_seconds', 60),
+            backoff_factor=http_config.get('backoff_factor', 0.5),
+            retry_statuses=http_config.get('retry_statuses', [408, 429, 500, 502, 503, 504]),
+            page_size=http_config.get('page_size', 10)
         )
     
-    def __init__(self, 
-                 max_retries: int = 3,
-                 backoff_factor: float = 0.5,
-                 retry_statuses: Optional[list[int]] = None,
-                 timeout: int = 60,
-                 logger: Optional[logging.Logger] = None):
+    def __init__(self, max_retries: int = 3, timeout_seconds: int = 60, backoff_factor: float = 0.5, 
+                 retry_statuses: List[int] = [408, 429, 500, 502, 503, 504], page_size: int = 10):
         """
         Initialize HTTP client with retry settings.
         
         Args:
             max_retries: Maximum number of retries for failed requests
+            timeout_seconds: Request timeout in seconds
             backoff_factor: Factor to apply between retries (exponential backoff)
             retry_statuses: List of HTTP status codes to retry on
-            timeout: Request timeout in seconds
-            logger: Logger instance to use
+            page_size: Number of items to return per request
         """
-        self.logger = logger or logging.getLogger(__name__)
-        self.timeout = timeout
+        self.logger = logging.getLogger(__name__)
         self.max_retries = max_retries
-        
-        if retry_statuses is None:
-            retry_statuses = [408, 429, 500, 502, 503, 504]
-            
-        retry_strategy = Retry(
-            total=max_retries,
-            backoff_factor=backoff_factor,
-            status_forcelist=retry_statuses,
-            allowed_methods=["GET"],  # Only retry GET requests
-            raise_on_status=True,  # Raise exceptions for HTTP errors
-            raise_on_redirect=True,  # Raise exceptions for redirects
-            respect_retry_after_header=True,  # Honor Retry-After headers
-            # Retry on connection errors and timeouts
-            connect=max_retries,
-            read=max_retries
-        )
-        
-        self.session = requests.Session()
-        adapter = HTTPAdapter(max_retries=retry_strategy)
-        self.session.mount("http://", adapter)
-        self.session.mount("https://", adapter)
+        self.timeout_seconds = timeout_seconds
+        self.backoff_factor = backoff_factor
+        self.retry_statuses = retry_statuses
+        self.page_size = page_size
+        self.session = self._create_session()
         
         self.logger.info(
             "Initialized HTTP client",
             extra={
                 "max_retries": max_retries,
-                "timeout": timeout,
+                "timeout_seconds": timeout_seconds,
                 "backoff_factor": backoff_factor,
-                "retry_statuses": retry_statuses
+                "retry_statuses": retry_statuses,
+                "page_size": page_size
             }
         )
+    
+    def _create_session(self):
+        retry_strategy = Retry(
+            total=self.max_retries,
+            backoff_factor=self.backoff_factor,
+            status_forcelist=self.retry_statuses,
+            allowed_methods=["GET"],  # Only retry GET requests
+            raise_on_status=True,  # Raise exceptions for HTTP errors
+            raise_on_redirect=True,  # Raise exceptions for redirects
+            respect_retry_after_header=True,  # Honor Retry-After headers
+            # Retry on connection errors and timeouts
+            connect=self.max_retries,
+            read=self.max_retries
+        )
+        
+        session = requests.Session()
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        
+        return session
     
     def get(self, url: str, params: Optional[Dict] = None) -> Any:
         """
@@ -146,7 +144,7 @@ class HttpClient:
         retries = 0
         while True:
             try:
-                response = self.session.get(url, params=params, timeout=self.timeout)
+                response = self.session.get(url, params=params, timeout=self.timeout_seconds)
                 response.raise_for_status()
                 return response.json()
                 

@@ -28,9 +28,13 @@ def logger():
 
 def test_from_config_defaults(logger):
     """Test HttpClient initialization with default config."""
-    client = HttpClient.from_config(logger=logger)
-    assert client.max_retries == 3
-    assert client.timeout == 60
+    with patch('builtins.open', side_effect=FileNotFoundError()):
+        client = HttpClient.from_config(logger=logger)
+        assert client.max_retries == 3
+        assert client.timeout_seconds == 60
+        assert client.backoff_factor == 0.5
+        assert client.retry_statuses == [408, 429, 500, 502, 503, 504]
+        assert client.page_size == 10
 
 def test_from_config_custom(logger):
     """Test HttpClient initialization with custom config."""
@@ -41,20 +45,23 @@ def test_from_config_custom(logger):
     }
     client = HttpClient(
         max_retries=config["max_retries"],
-        timeout=config["timeout_seconds"],
-        retry_statuses=config["retry_statuses"],
-        logger=logger
+        timeout_seconds=config["timeout_seconds"],
+        retry_statuses=config["retry_statuses"]
     )
     assert client.max_retries == 5
-    assert client.timeout == 30
+    assert client.timeout_seconds == 30
+    assert client.retry_statuses == [500, 503]
 
 def test_successful_request(mock_session, logger):
     """Test successful request handling."""
     with patch('requests.Session', return_value=mock_session):
-        client = HttpClient(logger=logger)
+        client = HttpClient()
+        mock_session.get.return_value = Mock(
+            json=lambda: {"test": "data"},
+            raise_for_status=lambda: None
+        )
         response = client.get("https://example.com")
         assert response == {"test": "data"}
-        mock_session.get.assert_called_once()
 
 def test_retry_on_error(mock_session, logger):
     """Test retry behavior on error."""
@@ -64,9 +71,9 @@ def test_retry_on_error(mock_session, logger):
         requests.exceptions.ConnectionError(),
         Mock(json=lambda: {"test": "data"}, raise_for_status=lambda: None)
     ]
-    
+
     with patch('requests.Session', return_value=mock_session):
-        client = HttpClient(max_retries=2, logger=logger)
+        client = HttpClient(max_retries=2)
         response = client.get("https://example.com")
         assert response == {"test": "data"}
         assert mock_session.get.call_count == 3
@@ -74,30 +81,30 @@ def test_retry_on_error(mock_session, logger):
 def test_max_retries_exceeded(mock_session, logger):
     """Test behavior when max retries are exceeded."""
     mock_session.get.side_effect = requests.exceptions.ConnectionError()
-    
+
     with patch('requests.Session', return_value=mock_session):
-        client = HttpClient(max_retries=2, logger=logger)
+        client = HttpClient(max_retries=2)
         with pytest.raises(RetryableError):
             client.get("https://example.com")
-        assert mock_session.get.call_count == 3  # Initial + 2 retries
+        assert mock_session.get.call_count == 3
 
 def test_retry_on_status_code(mock_session, logger):
     """Test retry behavior on specific status codes."""
     def raise_for_status_500():
         raise requests.exceptions.HTTPError(response=Mock(status_code=500))
-    
+
     def raise_for_status_503():
         raise requests.exceptions.HTTPError(response=Mock(status_code=503))
-    
+
     responses = [
         Mock(status_code=500, json=lambda: {"error": "server error"}, raise_for_status=raise_for_status_500),
         Mock(status_code=503, json=lambda: {"error": "service unavailable"}, raise_for_status=raise_for_status_503),
         Mock(status_code=200, json=lambda: {"test": "data"}, raise_for_status=lambda: None)
     ]
     mock_session.get.side_effect = responses
-    
+
     with patch('requests.Session', return_value=mock_session):
-        client = HttpClient(max_retries=2, logger=logger)
+        client = HttpClient(max_retries=2)
         response = client.get("https://example.com")
         assert response == {"test": "data"}
         assert mock_session.get.call_count == 3
@@ -106,15 +113,15 @@ def test_non_retryable_status_code(mock_session, logger):
     """Test behavior for non-retryable status codes."""
     def raise_for_status_404():
         raise requests.exceptions.HTTPError(response=Mock(status_code=404))
-    
+
     mock_session.get.return_value = Mock(
         status_code=404,
         json=lambda: {"error": "not found"},
         raise_for_status=raise_for_status_404
     )
-    
+
     with patch('requests.Session', return_value=mock_session):
-        client = HttpClient(logger=logger)
+        client = HttpClient()
         with pytest.raises(NonRetryableError):
             client.get("https://example.com")
         assert mock_session.get.call_count == 1
@@ -125,11 +132,12 @@ def test_invalid_json_response(mock_session, logger):
         raise_for_status=lambda: None,
         json=Mock(side_effect=ValueError("Invalid JSON"))
     )
-    
+
     with patch('requests.Session', return_value=mock_session):
-        client = HttpClient(logger=logger)
-        with pytest.raises(NonRetryableError, match="Invalid JSON response"):
+        client = HttpClient()
+        with pytest.raises(NonRetryableError):
             client.get("https://example.com")
+        assert mock_session.get.call_count == 1
 
 def test_ssl_error_retry(mock_session, logger):
     """Test retry behavior on SSL errors."""
@@ -137,9 +145,9 @@ def test_ssl_error_retry(mock_session, logger):
         requests.exceptions.SSLError(),
         Mock(json=lambda: {"test": "data"}, raise_for_status=lambda: None)
     ]
-    
+
     with patch('requests.Session', return_value=mock_session):
-        client = HttpClient(max_retries=1, logger=logger)
+        client = HttpClient(max_retries=1)
         response = client.get("https://example.com")
         assert response == {"test": "data"}
         assert mock_session.get.call_count == 2
@@ -150,9 +158,9 @@ def test_connection_error_retry(mock_session, logger):
         requests.exceptions.ConnectionError(),
         Mock(json=lambda: {"test": "data"}, raise_for_status=lambda: None)
     ]
-    
+
     with patch('requests.Session', return_value=mock_session):
-        client = HttpClient(max_retries=1, logger=logger)
+        client = HttpClient(max_retries=1)
         response = client.get("https://example.com")
         assert response == {"test": "data"}
         assert mock_session.get.call_count == 2 

@@ -232,7 +232,7 @@ def test_apply_updates(spreadsheet_sink, mock_worksheet, sample_df, mocker):
     expected_sheet_data = {
         'A': [4, 5, 3],  # First two rows updated
         'B': ['a', 'b', 'z'],  # First two rows updated
-        'C': [np.nan, np.nan, 30]  # C set to NaN for updated rows
+        'C': ['', '', 30]  # C set to empty string for updated rows
     }
     expected_sheet_df = pd.DataFrame(expected_sheet_data, index=[1, 2, 3])
     
@@ -246,8 +246,8 @@ def test_apply_updates(spreadsheet_sink, mock_worksheet, sample_df, mocker):
     for actual_row, expected_row in zip(actual_data, expected_sheet_df.values.tolist()):
         assert len(actual_row) == len(expected_row)
         for actual_val, expected_val in zip(actual_row, expected_row):
-            if pd.isna(expected_val):
-                assert pd.isna(actual_val)
+            if expected_val == '':  # Changed from pd.isna to check for empty string
+                assert actual_val == ''
             else:
                 assert actual_val == expected_val
     
@@ -489,45 +489,81 @@ def mock_debug():
 
 def test_apply_updates_logging(mock_debug, spreadsheet_sink, mock_worksheet):
     """Test logging in apply_updates method."""
-    # Create test DataFrames with matching columns
+    # Create test DataFrames with numeric and string data
     sheet_df = pd.DataFrame({
-        "col": range(5),
-        "num": range(5)
-    }, index=range(1, 6))
+        "url": ["=HYPERLINK(\"https://example.com/1\", \"1\")", "=HYPERLINK(\"https://example.com/2\", \"2\")"],
+        "value": [1.0, 2.0],
+        "text": ["a", "b"]
+    })
+    sheet_df = spreadsheet_sink._prepare_index_matching(sheet_df)  # This sets the index
 
     update_df = pd.DataFrame({
-        "col": range(5, 8),
-        "num": range(5, 8)
-    }, index=range(6, 9))
+        "url": ["=HYPERLINK(\"https://example.com/1\", \"1\")"],
+        "value": [3.0],
+        "text": ["c"]
+    })
+    update_df = spreadsheet_sink._prepare_index_matching(update_df)
 
     append_df = pd.DataFrame({
-        "col": range(8, 10),
-        "num": range(8, 10)
-    }, index=range(9, 11))
+        "url": ["=HYPERLINK(\"https://example.com/3\", \"3\")"],
+        "value": [4.0],
+        "text": ["d"]
+    })
+    append_df = spreadsheet_sink._prepare_index_matching(append_df)
 
+    # Call the method
     spreadsheet_sink._apply_updates(
-        mock_worksheet, sheet_df, update_df, append_df, "A1:B10"
+        mock_worksheet, sheet_df, update_df, append_df, "A2:C10"
     )
 
     # Verify logging calls
     assert mock_debug.call_count == 3  # Initial, post-update, and post-append logs
 
-    # Verify log content structure
-    first_call_args = mock_debug.call_args_list[0][1]["extra"]["dataframe_stats"]
-    assert "sheet_df" in first_call_args
-    assert "update_df" in first_call_args
-    assert "append_df" in first_call_args
-    assert "range_string" in first_call_args
+    # Verify initial log content structure
+    first_call = mock_debug.call_args_list[0]
+    assert first_call[0][0] == "Starting updates"
+    first_call_extra = first_call[1]["extra"]
+    
+    # Check range string
+    assert first_call_extra["range_string"] == "A2:C10"
+    
+    # Check dataframe stats structure
+    stats = first_call_extra["dataframe_stats"]
+    assert all(key in stats for key in ["sheet_df", "update_df", "append_df"])
+    
+    # Verify sheet_df stats
+    sheet_stats = stats["sheet_df"]
+    assert sheet_stats["name"] == "sheet_df"
+    assert sheet_stats["size"] == (2, 3)  # 2 rows, 3 columns
+    assert "index_range" in sheet_stats
+    assert "index_is_continuous" in sheet_stats
+    assert isinstance(sheet_stats["gaps"], list)
+    
+    # Verify update_df stats
+    update_stats = stats["update_df"]
+    assert update_stats["name"] == "update_df"
+    assert update_stats["size"] == (1, 3)  # 1 row, 3 columns
+    
+    # Verify append_df stats
+    append_stats = stats["append_df"]
+    assert append_stats["name"] == "append_df"
+    assert append_stats["size"] == (1, 3)  # 1 row, 3 columns
 
-    # Verify post-update stats
-    second_call_args = mock_debug.call_args_list[1][1]["extra"]["post_update_stats"]
-    assert second_call_args["name"] == "post_update"
-    assert second_call_args["size"] == (8, 2)
+    # Verify post-update log
+    second_call = mock_debug.call_args_list[1]
+    assert second_call[0][0] == "Updated existing rows"
+    assert "post_update_stats" in second_call[1]["extra"]
+    update_stats = second_call[1]["extra"]["post_update_stats"]
+    assert update_stats["name"] == "update_df"
+    assert update_stats["size"] == (1, 3)
 
-    # Verify final stats after append
-    third_call_args = mock_debug.call_args_list[2][1]["extra"]["final_stats"]
-    assert third_call_args["name"] == "final"
-    assert third_call_args["size"] == (10, 2)
+    # Verify post-append log
+    third_call = mock_debug.call_args_list[2]
+    assert third_call[0][0] == "Appended new rows"
+    assert "post_append_stats" in third_call[1]["extra"]
+    append_stats = third_call[1]["extra"]["post_append_stats"]
+    assert append_stats["name"] == "append_df"
+    assert append_stats["size"] == (1, 3)
 
 def test_apply_updates_data_integrity(spreadsheet_sink, mock_worksheet):
     """Test data integrity during updates."""
@@ -715,3 +751,131 @@ def test_find_sequence_gaps_with_invalid_input(spreadsheet_sink):
     
     # Verify that an empty list is returned for invalid input
     assert result == [] 
+
+def test_numpy_type_conversion():
+    """Test conversion of numpy types to native Python types."""
+    test_data = [
+        ['=HYPERLINK("https://test.com/1", 1)',
+         'Test Title',
+         'Deciding',
+         np.float64(20.0),  # numpy float64
+         np.int64(100),     # numpy int64
+         '',                # empty string
+         np.nan            # numpy NaN
+        ]
+    ]
+    
+    sink = SpreadsheetSink({
+        "type": "service_account",
+        "project_id": "test-project",
+        "private_key_id": "test-key-id",
+        "private_key": "test-key",
+        "client_email": "test@test.com",
+        "client_id": "test-client-id",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/test%40test.com"
+    })
+    
+    converted_data = sink._convert_to_native_types(test_data)
+    
+    # Check type conversions
+    assert isinstance(converted_data[0][3], float)
+    assert isinstance(converted_data[0][4], int)
+    assert converted_data[0][5] == ''
+    assert converted_data[0][6] == ''  # NaN should be converted to empty string
+    
+    # Check values are preserved
+    assert converted_data[0][3] == 20.0
+    assert converted_data[0][4] == 100
+
+def test_worksheet_update_with_numpy_types():
+    """Test worksheet update with numpy data types."""
+    mock_worksheet = MagicMock()
+    mock_spreadsheet = MagicMock()
+    mock_worksheet.spreadsheet = mock_spreadsheet
+
+    test_df = pd.DataFrame({
+        'value': [np.float64(20.0), np.int64(100)],
+        'text': ['a', 'b']
+    })
+
+    sink = SpreadsheetSink({
+        "type": "service_account",
+        "project_id": "test-project",
+        "private_key_id": "test-key-id",
+        "private_key": "test-key",
+        "client_email": "test@test.com",
+        "client_id": "test-client-id",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/test%40test.com"
+    })
+
+    sink._apply_updates(
+        mock_worksheet,
+        test_df,
+        pd.DataFrame(),
+        pd.DataFrame(),
+        'A1:B2'
+    )
+
+    # Check that update was called with converted types
+    update_calls = mock_worksheet.update.call_args_list
+    assert len(update_calls) == 1
+
+    # Get the actual data passed to update
+    actual_data = update_calls[0][0][0]
+
+    # Verify types are native Python types
+    assert isinstance(actual_data[0][0], (int, float))  # Numeric value
+    assert isinstance(actual_data[0][1], str)  # Text value
+    assert isinstance(actual_data[1][0], (int, float))  # Numeric value
+    assert isinstance(actual_data[1][1], str)  # Text value
+
+def test_worksheet_append_with_numpy_types():
+    """Test worksheet append with numpy data types."""
+    mock_worksheet = MagicMock()
+    mock_spreadsheet = MagicMock()
+    mock_worksheet.spreadsheet = mock_spreadsheet
+
+    test_df = pd.DataFrame({
+        'value': [np.float64(20.0), np.int64(100)],
+        'text': ['a', 'b']
+    })
+
+    sink = SpreadsheetSink({
+        "type": "service_account",
+        "project_id": "test-project",
+        "private_key_id": "test-key-id",
+        "private_key": "test-key",
+        "client_email": "test@test.com",
+        "client_id": "test-client-id",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/test%40test.com"
+    })
+
+    sink._apply_updates(
+        mock_worksheet,
+        pd.DataFrame(),
+        pd.DataFrame(),
+        test_df,
+        'A1:B2'
+    )
+
+    # Check that append_rows was called with converted types
+    append_calls = mock_worksheet.append_rows.call_args_list
+    assert len(append_calls) == 1
+
+    # Get the actual data passed to append_rows
+    actual_data = append_calls[0][0][0]
+
+    # Verify types are native Python types
+    assert isinstance(actual_data[0][0], (int, float))  # Numeric value
+    assert isinstance(actual_data[0][1], str)  # Text value
+    assert isinstance(actual_data[1][0], (int, float))  # Numeric value
+    assert isinstance(actual_data[1][1], str)  # Text value 
