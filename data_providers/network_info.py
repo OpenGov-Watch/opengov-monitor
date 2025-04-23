@@ -41,9 +41,13 @@ class NetworkInfo:
 
         if isinstance(value, str):
             if value.startswith("0x"):
-                return int(value, 16)/denomination_factor
-            return int(value,10)/denomination_factor
-        elif isinstance (value, (int)) or isinstance(value, float):
-            return value/denomination_factor
+                return int(value, 16) / denomination_factor
+            try:
+                # Handle scientific notation or other float-like strings
+                return float(value) / denomination_factor
+            except ValueError:
+                raise Exception(f"Invalid string value: {value}")
+        elif isinstance(value, (int, float)):
+            return value / denomination_factor
         else:
             raise Exception(f"pls implement me. value {value}, type {type(value)}")
