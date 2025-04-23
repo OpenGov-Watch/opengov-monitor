@@ -204,7 +204,8 @@ class SpreadsheetSink:
                     # Add new row
                     sheet_df.loc[idx] = update_df.loc[idx]
         
-        # Always update the worksheet with current sheet_df data
+        # Replace NaN values with empty strings to ensure JSON compliance
+        sheet_df.fillna('', inplace=True)
         data_to_update = sheet_df.values.tolist()
         worksheet.update(data_to_update, range_string, raw=False)
         
@@ -374,4 +375,4 @@ class SpreadsheetSink:
             "index_range": f"min={df.index.min()} to max={df.index.max()}",
             "index_is_continuous": is_continuous,
             "gaps": self._find_gaps(df.index)
-        } 
+        }
