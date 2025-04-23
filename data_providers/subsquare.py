@@ -112,7 +112,7 @@ class SubsquareProvider(DataProvider):
         # return the value of the proposal denominated in the network's token
         def _build_bag_from_call_value(bag, call, timestamp, ref_id):
             # we use this map to emit warnings of proposals we haven't seen on OpenGov before. Those that are known to be zero-value (because they are not Treasury-related) are excluded
-            known_zero_value_proposals = [
+            known_zero_value_call_indices = [
                 "0x0000", # system.remark
                 "0x0007", # system.remarkWithEvent
                 "0x0002", # system.setCode
@@ -175,7 +175,7 @@ class SubsquareProvider(DataProvider):
             args = call.get("args", None)
 
 
-            if call_index in known_zero_value_proposals:
+            if call_index in known_zero_value_call_indices:
                 return
             elif call_index in wrapped_proposals:
                 if call_index == "0x0102": # scheduler.scheduleNamed
@@ -240,8 +240,13 @@ class SubsquareProvider(DataProvider):
         def _bag_from_data(row) -> AssetsBag:
             bag = AssetsBag()
 
-            try:
+            known_zero_value_proposals = {
+                "polkadot": [
+                    1424, # Parallel Hack Recovery Attempt
+                ]
+            }
 
+            try:
                 if "treasuryInfo" in row["onchainData"]:
                     amount = row["onchainData"]["treasuryInfo"]["amount"]
                     amount = self.network_info.apply_denomination(amount, self.network_info.native_asset)
@@ -249,7 +254,12 @@ class SubsquareProvider(DataProvider):
                 elif "treasuryBounties" in row: # accepting a new bounty
                     pass
                 else:
-                    _build_bag_from_call_value(bag, row["onchainData"]["proposal"], row["proposal_time"], row["id"])
+                    ref_id = row["id"]
+                    if ref_id in known_zero_value_proposals[self.network_info.name]:
+                        bag.set_nan()
+                        return bag
+
+                    _build_bag_from_call_value(bag, row["onchainData"]["proposal"], row["proposal_time"], ref_id)
             except Exception as e:
                 if row['id'] != 1424:
                     self._logger.error(f"Error processing row {row['id']}: {e}")
