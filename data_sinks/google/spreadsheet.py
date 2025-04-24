@@ -125,15 +125,19 @@ class SpreadsheetSink:
     def _prepare_columns_for_json(self, df):
         """Prepare columns for JSON conversion."""
         columns_to_convert = [
-            "DOT", "USD_proposal_time", "tally.ayes", "tally.nays",
+            # TODO: this should consider the native asset of the network, which might also be KSM
+            "DOT_proposal_time", "USD_proposal_time", "tally.ayes", "tally.nays",
             "tally.turnout", "tally.total", "proposal_time",
-            "latest_status_change", "USD_latest"
+            "latest_status_change", "DOT_latest", "USD_latest",
+            "DOT_component", "USDC_component", "USDT_component",
         ]
         df = df.copy()
         for column in columns_to_convert:
             if column in df.columns:
                 # Convert to string first to ensure object type
                 df[column] = df[column].astype(str).astype("object")
+                # Replace NaN values with empty strings
+                df[column] = df[column].replace({pd.NA: "", "nan": ""})
         return df
 
     def _process_deltas(self, df, sheet_df):

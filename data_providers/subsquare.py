@@ -128,7 +128,7 @@ class SubsquareProvider(DataProvider):
                 "0x1703", # whitelist.dispatchWhitelistedCallWithPreimage
                 "0x1c00", # identity.addRegistrar
                 "0x2200", # bounties.proposeBounty
-                "0x2201", # bounties.approveBounty
+                "0x2201", # bounties.approveBounty <-- the amount to be given to the bounty is not part of the call data at proposal time
                 "0x2202", # bounties.proposeCurator
                 "0x2203", # bounties.unassignCurator
                 "0x2204", # bounties.acceptCurator
@@ -240,6 +240,8 @@ class SubsquareProvider(DataProvider):
         def _bag_from_data(row) -> AssetsBag:
             bag = AssetsBag()
 
+            # for some proposals, it would be too troublesome to write the deep packet inspection
+            # so we just set the bag to NaN
             known_zero_value_proposals = {
                 "polkadot": [
                     1424, # Parallel Hack Recovery Attempt

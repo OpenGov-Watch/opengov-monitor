@@ -24,6 +24,9 @@ class AssetsBag:
         self._nan = True
 
     def get_amount(self, asset: AssetKind) -> float:
+        if self._nan:
+            return float('nan')
+
         return self._assets.get(asset, 0)
 
     def get_total_value(self, price_service: PriceService, target_asset: AssetKind, date=None) -> float:
