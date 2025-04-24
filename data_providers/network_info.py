@@ -6,9 +6,11 @@ class NetworkInfo:
         if network == "polkadot":
             self.digits = 10
             self.native_asset = AssetKind.DOT
+            self.treasury_address = "13UVJyLnbVp9RBZYFwFGyDvVd1y27Tt8tkntv6Q7JVPhFsTB"
         else:
             self.digits = 12
             self.native_asset = AssetKind.KSM
+            self.treasury_address = "F3opxRbN5ZbjJNU511Kj2TLuzFcDq9BGduA9TgiECafpg29"
 
         self.denomination_factor = 10**self.digits
 

@@ -106,7 +106,17 @@ class SubsquareProvider(DataProvider):
                     raise ValueError(f"Unknown asset kind: {asset_kind}")
             else:
                 raise ValueError(f"Unknown asset kind: {asset_kind}")
-                
+
+        def _get_XCM_asset_value(assets) -> float:
+            if "v3" in assets:
+                raw_value = assets["v3"][0]["fun"]["fungible"]
+            elif "v4" in assets:
+                raw_value = assets["v4"][0]["fun"]["fungible"]
+            else:
+                raise ValueError(f"Unknown asset kind: {assets}")
+            value = self.network_info.apply_denomination(raw_value, self.network_info.native_asset)
+            return value
+
         def _get_latest_status_change(state) -> pd.Timestamp:
             return pd.to_datetime(state["indexer"]["blockTime"]*1e6)
         # return the value of the proposal denominated in the network's token
@@ -174,67 +184,90 @@ class SubsquareProvider(DataProvider):
             call_index = call["callIndex"]
             args = call.get("args", None)
 
+            try:
 
-            if call_index in known_zero_value_call_indices:
-                return
-            elif call_index in wrapped_proposals:
-                if call_index == "0x0102": # scheduler.scheduleNamed
-                    call = args[4]["value"]
-                    _build_bag_from_call_value(bag, call, timestamp, ref_id)
-                elif call_index == "0x0103": # scheduler.dispatchAs
-                    call = args[1]["value"]
-                    _build_bag_from_call_value(bag, call, timestamp, ref_id)
-                elif call_index == "0x0104": # scheduler.scheduleAfter
-                    call = args[3]["value"]
-                    _build_bag_from_call_value(bag, call, timestamp, ref_id)
-                elif call_index == "0x1a03": # utility.dispatchAs
-                    call = args[1]["value"]
-                    _build_bag_from_call_value(bag, call, timestamp, ref_id)
-                else: # batch calls
-                    for call in args[0]["value"]:
-                        # if you get an exception here, make sure you requested the details on this callIndex
-                        _build_bag_from_call_value(bag, call, timestamp, ref_id)
-            elif call_index in should_inspect_proposal:
-                raise ValueError(f"Ref {ref_id}: {call} not implemented")
-            elif call_index == "0x0502": # balances.forceTransfer
-                assert args is not None, "we should always have the details of the call"
-                assert args[0]["name"] == "source"
-                source = args[0]["value"]["id"]
-                assert source == "13UVJyLnbVp9RBZYFwFGyDvVd1y27Tt8tkntv6Q7JVPhFsTB"
-                amount = args[2]["value"]
-                amount = self.network_info.apply_denomination(amount, self.network_info.native_asset)
-                bag.add_asset(self.network_info.native_asset, amount)
-            elif call_index == "0x1305": # treasury.spend
-                assert args is not None, "we should always have the details of the call"
-                assert args[0]["name"] == "assetKind"
-                assetKind = _get_XCM_asset_kind(args[0]["value"])
-                if assetKind == AssetKind.INVALID:
+                if call_index in known_zero_value_call_indices:
                     return
-                
-                assert args[1]["name"] == "amount"
-                amount = args[1]["value"]
+                elif call_index in wrapped_proposals:
+                    if call_index == "0x0102": # scheduler.scheduleNamed
+                        inner_call = args[4]["value"]
+                        _build_bag_from_call_value(bag, inner_call, timestamp, ref_id)
+                    elif call_index == "0x0103": # scheduler.dispatchAs
+                        inner_call = args[1]["value"]
+                        _build_bag_from_call_value(bag, inner_call, timestamp, ref_id)
+                    elif call_index == "0x0104": # scheduler.scheduleAfter
+                        inner_call = args[3]["value"]
+                        _build_bag_from_call_value(bag, inner_call, timestamp, ref_id)
+                    elif call_index == "0x1a03": # utility.dispatchAs
+                        
+                        # let's make sure the caller is the treasury
+                        try:
+                            dispatch_source = args[0]["value"]["system"]["signed"]
+                        except KeyError:
+                            self._logger.warning(f"Ref {ref_id}: dispatchAs call does not have a signed source")
+                            return
+                        
+                        if dispatch_source != self.network_info.treasury_address:
+                            self._logger.warning(f"Ref {ref_id}: dispatchAs call does not have a treasury source")
+                            return
 
-                amount = self.network_info.apply_denomination(amount, assetKind)
-                bag.add_asset(assetKind, amount)    
-            elif call_index == "0x1a03": # utility.dispatchAs
-                income_neutral_dispatches = [
-                    832, # Fellowship Subtreasury 2m
-                    1104, # Stablecoin conversion campaign
-                    546, # Starlay drama
-                    457, # Stablecoin conversion campaign
-                    231, # Fellowship Stablecoin Conversion Campaign
-                ]
+                        """
+                        income_neutral_dispatches = [
+                            832, # Fellowship Subtreasury 2m - showing 0
+                            1104, # Stablecoin conversion campaign - wrong value
+                            457, # Stablecoin conversion campaign
+                            231, # Fellowship Stablecoin Conversion Campaign
+                        ]
+                        if ref_id in income_neutral_dispatches:
+                            return
+                        """
+                            
+                        inner_call = args[1]["value"]
+                        _build_bag_from_call_value(bag, inner_call, timestamp, ref_id)
+                    else: # batch calls
+                        for inner_call in args[0]["value"]:
+                            # if you get an exception here, make sure you requested the details on this callIndex
+                            _build_bag_from_call_value(bag, inner_call, timestamp, ref_id)
+                elif call_index in should_inspect_proposal:
+                    raise ValueError(f"Ref {ref_id}: {inner_call} not implemented")
+                elif call_index == "0x0502": # balances.forceTransfer
+                    assert args is not None, "we should always have the details of the call"
+                    assert args[0]["name"] == "source"
+                    source = args[0]["value"]["id"]
+                    assert source == self.network_info.treasury_address
+                    amount = args[2]["value"]
+                    amount = self.network_info.apply_denomination(amount, self.network_info.native_asset)
+                    bag.add_asset(self.network_info.native_asset, amount)
+                elif call_index == "0x1305": # treasury.spend
+                    assert args is not None, "we should always have the details of the call"
+                    assert args[0]["name"] == "assetKind"
+                    assetKind = _get_XCM_asset_kind(args[0]["value"])
+                    if assetKind == AssetKind.INVALID:
+                        return
+                    
+                    assert args[1]["name"] == "amount"
+                    amount = args[1]["value"]
 
-                if ref_id in income_neutral_dispatches:
+                    amount = self.network_info.apply_denomination(amount, assetKind)
+                    bag.add_asset(assetKind, amount)    
+                elif call_index == "0x0103": # scheduler.cancelNamed
+                    if ref_id == 56: # cancel auction
+                        return
+                    raise ValueError(f"ref {ref_id}: {call} not implemented")
+                elif call_index == "0x6308": # xcmPallet.limitedReserveTransferAssets"
+                        assets = args[2]["value"]
+                        value = _get_XCM_asset_value(assets)
+                        bag.add_asset(self.network_info.native_asset, value)
+                elif call_index == "0x6309": # xcmPallet.limitedTeleportAssets
+                        assets = args[2]["value"]
+                        value = _get_XCM_asset_value(assets)
+                        bag.add_asset(self.network_info.native_asset, value)
+                        return
+                else:
+                    self._logger.warning(f"ref {ref_id}: Unknown proposal type: {call}")
                     return
-                # in other cases we have to look at the call
-                raise ValueError(f"ref {ref_id}: {call} not implemented")
-            elif call_index == "0x0103": # scheduler.cancelNamed
-                if ref_id == 56: # cancel auction
-                    return
-                raise ValueError(f"ref {ref_id}: {call} not implemented")
-            else:
-                self._logger.info(f"ref {ref_id}: Unknown proposal type: {call}")
+            except Exception as e:
+                self._logger.warning(f"ref {ref_id}: Error processing call: {e}\n{call}")
                 return
 
         def _bag_from_data(row) -> AssetsBag:
@@ -244,6 +277,7 @@ class SubsquareProvider(DataProvider):
             # so we just set the bag to NaN
             known_zero_value_proposals = {
                 "polkadot": [
+                    546, # Starlay Hack Recovery Attempt
                     1424, # Parallel Hack Recovery Attempt
                 ]
             }

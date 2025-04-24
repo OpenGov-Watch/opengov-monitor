@@ -7,6 +7,7 @@ class AssetsBag:
         self._nan = False
 
     def add_asset(self, asset: AssetKind, amount: float):
+        assert isinstance(amount, float)
         if asset in self._assets:
             self._assets[asset] += amount
         else:
