@@ -16,12 +16,12 @@ class NetworkInfo:
 
         if explorer == "polkassembly":
             self.treasury_url = f"https://{network}.polkassembly.io/treasury/"
-            self.treasury_spends_url = f"https://{network}.polkassembly.io/treasury/spends/"
+            self.treasury_spends_url = f"https://{network}.subsquare.io/treasury/spends/"
             self.child_bounty_url = f"https://{network}.polkassembly.io/bounties/"
             self.fellowship_treasury_spend_url = f"https://collectives.subsquare.io/fellowship/treasury/spends/"
         else:
             self.treasury_url = f"https://{network}.subsquare.io/treasury/proposals/"
-            self.treasury_spends_url = f"https://{network}.polkassembly.io/treasury/spends/"
+            self.treasury_spends_url = f"https://{network}.subsquare.io/treasury/spends/"
             self.child_bounty_url = f"https://{network}.subsquare.io/treasury/child-bounties/"
             self.fellowship_treasury_spend_url = f"https://collectives.subsquare.io/fellowship/treasury/spends/"
 
