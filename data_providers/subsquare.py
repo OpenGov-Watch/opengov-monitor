@@ -52,9 +52,6 @@ class SubsquareProvider(DataProvider):
         df_updates = pd.concat([df_updates, df_replacements], ignore_index=True)
         df_updates.drop_duplicates(subset=["referendumIndex"], keep="last", inplace=True)
 
-        logging.debug("Updating persisted ref data")
-        df = self._fetch_and_update_persisted_data(df_updates, "data/referenda.csv", "referendumIndex", ["state", "onchainData"])
-
         logging.debug("Transforming referenda")
         df = self._transform_referenda(df)
         
@@ -282,6 +279,9 @@ class SubsquareProvider(DataProvider):
                 ]
             }
 
+            if row["id"] == 47:
+                pi = 3
+
             try:
                 if "treasuryInfo" in row["onchainData"]:
                     amount = row["onchainData"]["treasuryInfo"]["amount"]
@@ -347,9 +347,10 @@ class SubsquareProvider(DataProvider):
         df["tally.ayes"] = df.apply(lambda x: self.network_info.apply_denomination(x["onchainData"]["tally"]["ayes"]), axis=1)
         df["tally.nays"] = df.apply(lambda x: self.network_info.apply_denomination(x["onchainData"]["tally"]["nays"]), axis=1)
         df["track"] = df["onchainData"].apply(_determineTrack)
+        df["url"] = df["id"].apply(lambda x:f'=HYPERLINK("{self.network_info.referenda_url}{x}", {x})')
 
         df.set_index("id", inplace=True)
-        df = df[["title", "status", f"{native_asset_name}_proposal_time", "USD_proposal_time", "track", "tally.ayes", "tally.nays", "proposal_time", "latest_status_change", f"{native_asset_name}_latest", "USD_latest", f"{native_asset_name}_component", "USDC_component", "USDT_component"]]
+        df = df[["url", "title", "status", f"{native_asset_name}_proposal_time", "USD_proposal_time", "track", "tally.ayes", "tally.nays", "proposal_time", "latest_status_change", f"{native_asset_name}_latest", "USD_latest", f"{native_asset_name}_component", "USDC_component", "USDT_component"]]
 
         return df
 
@@ -367,7 +368,6 @@ class SubsquareProvider(DataProvider):
     def fetch_child_bounties(self, child_bounties_to_update=10):
         base_url = f"https://{self.network_info.name}.subsquare.io/api/treasury/child-bounties" #&page_size=100
         df_updates = self._fetchList(base_url, child_bounties_to_update)
-        df = self._fetch_and_update_persisted_data(df_updates, "data/child_bounties.csv", "index", ["state", "indexer"])
 
         df = self._transform_child_bounties(df)
         
@@ -375,8 +375,55 @@ class SubsquareProvider(DataProvider):
         self._log_continuity_check(df, "child bounties")
         
         return df
+    
+    def fetch_fellowship_treasury_spends(self, proposals_to_update=10):
+        base_url = f"https://collectives.subsquare.io/api/fellowship/treasury/spends"
+        df_updates = self._fetchList(base_url, proposals_to_update)
+        
+        logging.debug("Fetching Fellowship details")
+        replacements = []
+        detail_items = 0
+        for index, row in df_updates.iterrows():
+            url = f"{base_url}/{row['index']}.json"
+            item = self._fetchItem(url)
+            replacements.append(item)
 
-    def check_continuous_ids(self, df, id_field=None):
+            detail_items += 1
+            if detail_items % 10 == 0:
+                logging.debug(f"Fetched {detail_items} detail items")
+        df_replacements = pd.DataFrame(replacements)
+        df_updates = pd.concat([df_updates, df_replacements], ignore_index=True)
+        df_updates.drop_duplicates(subset=["index"], keep="last", inplace=True)
+
+        df_updates = self._transform_fellowship_treasury_spends(df_updates)
+
+        # we skip the continuity check for fellowship treasury spends
+        # because I don't have the time to figure it out rn xoxo TE 2025-04-25
+        
+        return df_updates
+
+    def _transform_fellowship_treasury_spends(self, df):
+        df = df.copy()
+
+        df.rename(columns={
+            "index": "id",
+            "state": "status",
+            "title": "description",
+        }, inplace=True)
+
+        df[self.network_info.native_asset.name] = df["onchainData"].apply(lambda x:self.network_info.apply_denomination(x["meta"]["amount"]))
+        df["bag"] = df.apply(lambda x: AssetsBag({self.network_info.native_asset: x[self.network_info.native_asset.name]}), axis=1)
+        df["proposal_time"] = pd.to_datetime(df["onchainData"].apply(lambda x: x["timeline"][0]["indexer"]["blockTime"]*1e6), utc=True)
+        df["latest_status_change"] = pd.to_datetime(df["onchainData"].apply(lambda x: x["timeline"][-1]["indexer"]["blockTime"]*1e6), utc=True)
+        df["USD_proposal_time"] = df.apply(self._get_value_converter(AssetKind.USDC, "proposal_time"), axis=1)
+        df["USD_latest"] = df.apply(self._get_value_converter(AssetKind.USDC, "latest_status_change"), axis=1)        
+        df["url"] = df["id"].apply(lambda x:f'=HYPERLINK("{self.network_info.fellowship_treasury_spend_url}{x}", {x})')
+        df.set_index("id", inplace=True)
+        df = df[["url", "status", "description", "DOT", "USD_proposal_time", "proposal_time", "latest_status_change", "USD_latest"]]
+
+        return df
+
+    def _check_continuous_ids(self, df, id_field=None):
         """
         Checks if the IDs are continuous and returns any gaps found.
         
@@ -416,7 +463,7 @@ class SubsquareProvider(DataProvider):
             data_type: String describing the type of data (e.g., "referenda", "treasury proposals")
             id_field: Optional name of column containing IDs. If None, uses index
         """
-        is_continuous, gaps = self.check_continuous_ids(df, id_field)
+        is_continuous, gaps = self._check_continuous_ids(df, id_field)
         if not is_continuous:
             self._logger.warning(f"Found gaps in {data_type} IDs: {gaps}")
             if len(gaps) <= 10:
@@ -450,8 +497,9 @@ class SubsquareProvider(DataProvider):
         df["USD_latest"] = df.apply(self._get_value_converter(AssetKind.USDC, "latest_status_change"), axis=1)        
         df["description"] = df["onchainData"].apply(lambda x: x["description"])
         df["beneficiary"] = df["onchainData"].apply(lambda x: x["address"])    
+        df["url"] = df["id"].apply(lambda x:f'=HYPERLINK("{self.network_info.child_bounty_url}{x}", {x})')
         df.set_index("id", inplace=True)
-        df = df[["parentBountyId", "status", "description", "DOT", "USD_proposal_time", "beneficiary", "proposal_time", "latest_status_change", "USD_latest"]]
+        df = df[["url", "parentBountyId", "status", "description", "DOT", "USD_proposal_time", "beneficiary", "proposal_time", "latest_status_change", "USD_latest"]]
 
         return df
 
@@ -492,36 +540,6 @@ class SubsquareProvider(DataProvider):
         else:
             message = f"While fetching {url}, we received error: {response.status_code} {response.reason}"
             raise SystemExit(message)
-    
-    def _fetch_and_update_persisted_data(self, df_updates, filename, index_col, jsonize_columns=[]):
-
-        # we skip this code for now, since it is not yet adapted for the cloud
-        return df_updates
-
-        converter_map = {}
-        for col in jsonize_columns:
-            converter_map[col] = json.loads
-
-        try:
-            df_persisted = pd.read_csv(
-                filename,
-                # columns with serialized json will be converted to objects
-                converters=converter_map
-            )
-        except FileNotFoundError:
-            df_persisted = pd.DataFrame()
-        # merge the new referenda with the old ones. Use referendumIndex as the key and overwrite the old data
-        df = pd.concat([df_persisted, df_updates], ignore_index=True)
-        df.drop_duplicates(subset=[index_col], keep="last", inplace=True)
-        # store the df into a file, converting the onchainData to json
-        df_persisted = df.copy()
-        for col in jsonize_columns:
-            df_persisted[col] = df_persisted[col].apply(json.dumps)
-        # drop index
-        df_persisted.to_csv(filename, index=False)
-
-        return df
-
 
     def _get_value_converter(self, target_asset: AssetKind, date_key, status_key=None):
         """

@@ -1,7 +1,8 @@
 fetch_limits:
-  referenda: 1000000
+  referenda: 100000
   treasury_proposals: 0
-  child_bounties: 1000000
+  child_bounties: 100000
+  fellowship_treasury_spends: 100
 
 logging:
   enable_file_logging: true

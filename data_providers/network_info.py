@@ -17,9 +17,11 @@ class NetworkInfo:
         if explorer == "polkassembly":
             self.treasury_url = f"https://{network}.polkassembly.io/treasury/"
             self.child_bounty_url = f"https://{network}.polkassembly.io/bounties/"
+            self.fellowship_treasury_spend_url = f"https://collectives.subsquare.io/fellowship/treasury/spends/"
         else:
             self.treasury_url = f"https://{network}.subsquare.io/treasury/proposals/"
             self.child_bounty_url = f"https://{network}.subsquare.io/treasury/child-bounties/"
+            self.fellowship_treasury_spend_url = f"https://collectives.subsquare.io/fellowship/treasury/spends/"
 
         self.referenda_url = f"https://{network}.{explorer}.io/referenda/"
 

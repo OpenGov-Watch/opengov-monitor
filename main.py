@@ -13,24 +13,6 @@ logger = setup_logging()
 
 app = Flask(__name__)
 
-def transform_referenda(df, network_info):
-    df["url"] = df.index.to_series().apply(lambda x:f'=HYPERLINK("{network_info.referenda_url}{x}", {x})')
-    # sort url to the front
-    df = df[["url"] + [col for col in df.columns if col != "url"]]
-    return df
-
-def transform_treasury(df, network_info):
-  df["ref_url"] = df["ref_num"].apply(lambda x:f'=HYPERLINK("{network_info.referenda_url}{x}", {x})')
-  df["url"] = df["id"].apply(lambda x:f'=HYPERLINK("{network_info.treasury_url}{x}", {x})')
-  # sort url to the front
-  df = df[["url", "ref_url"] + [col for col in df.columns if col not in ["url", "ref_url"]]]
-  return df
-
-def transform_child_bounties(df, network_info):
-  df["url"] = df.index.to_series().apply(lambda x:f'=HYPERLINK("{network_info.child_bounty_url}{x}", {x})')
-  # sort url to the front
-  df = df[["url"] + [col for col in df.columns if col != "url"]]
-  return df
 
 @app.route("/")
 def main():
@@ -48,6 +30,7 @@ def main():
         referenda_to_fetch = config['fetch_limits']['referenda']
         treasury_proposals_to_fetch = config['fetch_limits']['treasury_proposals']
         child_bounties_to_fetch = config['fetch_limits']['child_bounties']
+        fellowship_treasury_spends_to_fetch = config['fetch_limits']['fellowship_treasury_spends']
 
         env_var_names = list(os.environ.keys())
         logger.debug(f"Environment variable names: {env_var_names}")
@@ -80,7 +63,6 @@ def main():
         if referenda_to_fetch > 0:
             logger.info("Fetching referenda")   
             referenda_df = provider.fetch_referenda(referenda_to_fetch)
-            referenda_df = transform_referenda(referenda_df, network_info)
 
             logger.info("Updating Referenda worksheet")
             spreadsheet_sink.update_worksheet(spreadsheet_id, "Referenda", referenda_df, allow_empty_first_row=True)
@@ -97,10 +79,17 @@ def main():
         if child_bounties_to_fetch > 0:
             logger.info("Fetching child bounties")
             child_bounties_df = provider.fetch_child_bounties(child_bounties_to_fetch)
-            child_bounties_df = transform_child_bounties(child_bounties_df, network_info)
 
             logger.info("Updating Child Bounties worksheet")
             spreadsheet_sink.update_worksheet(spreadsheet_id, "Child Bounties", child_bounties_df, allow_empty_first_row=True)
+
+        # Fetch and sink fellowship treasury spends
+        if fellowship_treasury_spends_to_fetch > 0:
+            logger.info("Fetching fellowship treasury spends")
+            fellowship_df = provider.fetch_fellowship_treasury_spends(fellowship_treasury_spends_to_fetch)
+
+            logger.info("Updating Fellowship worksheet")
+            spreadsheet_sink.update_worksheet(spreadsheet_id, "Fellowship", fellowship_df, allow_empty_first_row=True)
 
         logger.info(f"Referenda data updated. View at: https://docs.google.com/spreadsheets/d/{spreadsheet_id}/edit#gid=0")
 
