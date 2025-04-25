@@ -7,6 +7,8 @@ import yaml
 import os
 from flask import Flask
 from logging_config import setup_logging
+from datetime import datetime
+
 
 # Setup logging before creating the Flask app
 logger = setup_logging()
@@ -31,6 +33,11 @@ def main():
         treasury_spends_to_fetch = config['fetch_limits']['treasury_spends']
         child_bounties_to_fetch = config['fetch_limits']['child_bounties']
         fellowship_treasury_spends_to_fetch = config['fetch_limits']['fellowship_treasury_spends']
+
+        block_number = config['block_time_projection']['block_number']
+        block_datetime = config['block_time_projection']['block_datetime']
+        block_time = config['block_time_projection']['block_time']
+
 
         env_var_names = list(os.environ.keys())
         logger.debug(f"Environment variable names: {env_var_names}")
@@ -70,7 +77,7 @@ def main():
         # Fetch and sink treasury proposals
         if treasury_spends_to_fetch > 0:
             logger.info("Fetching treasury proposals")
-            treasury_df = provider.fetch_treasury_spends(treasury_spends_to_fetch)
+            treasury_df = provider.fetch_treasury_spends(treasury_spends_to_fetch, block_number, block_datetime, block_time)
 
             logger.info("Updating Treasury worksheet")
             spreadsheet_sink.update_worksheet(spreadsheet_id, "Treasury", treasury_df, allow_empty_first_row=True)

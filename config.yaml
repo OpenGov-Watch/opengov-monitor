@@ -9,3 +9,9 @@ logging:
   log_dir: "logs"
   max_file_size_mb: 10
   backup_count: 5 
+
+block_time_projection:
+  block_number: 25732485
+  block_datetime: 2025-05-25T15:27:36
+  block_time: 6.0
+

@@ -117,7 +117,7 @@ class SpreadsheetSink:
     def _transform_dates(self, df):
         """Transform date columns to Google Sheets format."""
         df = df.copy()
-        for col in ["proposal_time", "latest_status_change"]:
+        for col in ["proposal_time", "latest_status_change", "expireAt", "validFrom"]:
             if col in df.columns:
                 df[col] = df[col].apply(utils.format_date)
         return df
@@ -130,6 +130,7 @@ class SpreadsheetSink:
             "tally.turnout", "tally.total", "proposal_time",
             "latest_status_change", "DOT_latest", "USD_latest",
             "DOT_component", "USDC_component", "USDT_component",
+            "validFrom", "expireAt"
         ]
         df = df.copy()
         for column in columns_to_convert:

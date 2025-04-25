@@ -6,6 +6,7 @@ import json
 from .network_info import NetworkInfo
 from .asset_kind import AssetKind
 from .asssets_bag import AssetsBag
+from datetime import datetime, timedelta
 
 class SubsquareProvider(DataProvider):
 
@@ -300,7 +301,7 @@ class SubsquareProvider(DataProvider):
 
         return df
 
-    def fetch_treasury_spends(self, items_to_update=10):
+    def fetch_treasury_spends(self, items_to_update=10, block_number=None, block_datetime=None, block_time=None):
         #return self._fetchList('', num_referenda)
     
         base_url = f"https://{self.network_info.name}.subsquare.io/api/treasury/spends"
@@ -321,14 +322,14 @@ class SubsquareProvider(DataProvider):
         df_updates = pd.concat([df_updates, df_replacements], ignore_index=True)
         df_updates.drop_duplicates(subset=["index"], keep="last", inplace=True)
 
-        df_updates = self._transform_treasury_spends(df_updates)
+        df_updates = self._transform_treasury_spends(df_updates, block_number, block_datetime, block_time)
 
         # Add continuity check
         # self._log_continuity_check(df_updates, "treasury proposals", "index")
         
         return df_updates
 
-    def _transform_treasury_spends(self, df):
+    def _transform_treasury_spends(self, df, reference_block_number: int =None, reference_block_datetime: datetime =None, block_time: float =None):
         df = df.copy()
 
         df.rename(columns={
@@ -336,6 +337,8 @@ class SubsquareProvider(DataProvider):
             "state": "status",
             "title": "description",
         }, inplace=True)
+
+        # https://polkadot.subsquare.io/api/treasury/spends/128.json
 
         def _bag_from_treasury_spend_data(row) -> AssetsBag:
             bag = AssetsBag()
@@ -348,6 +351,15 @@ class SubsquareProvider(DataProvider):
             amount = self.network_info.apply_denomination(amount, asset_kind)
             bag.add_asset(asset_kind, amount)
             return bag
+
+        def _estimate_block_datetime_from_block_number(block_number: int) -> datetime:
+            assert block_number is not None, "block_number is None"
+            assert reference_block_number is not None, "reference_block_number is None"
+            assert reference_block_datetime is not None, "reference_block_datetime is None"
+            assert block_time is not None, "block_time is None"
+            # estimate the block time
+            estimated_block_datetime = reference_block_datetime + timedelta(seconds=(block_number - reference_block_number) * block_time)
+            return estimated_block_datetime
 
         df["proposal_time"] = pd.to_datetime(df["onchainData"].apply(lambda x: x["timeline"][0]["indexer"]["blockTime"]*1e6), utc=True)
         df["latest_status_change"] = pd.to_datetime(df["onchainData"].apply(lambda x: x["timeline"][-1]["indexer"]["blockTime"]*1e6), utc=True)
@@ -362,10 +374,17 @@ class SubsquareProvider(DataProvider):
         df[f"{native_asset_name}_component"] = df["bag"].apply(lambda x: x.get_amount(self.network_info.native_asset))
         df[f"USDC_component"] = df["bag"].apply(lambda x: x.get_amount(AssetKind.USDC))
         df[f"USDT_component"] = df["bag"].apply(lambda x: x.get_amount(AssetKind.USDT))
+        df["validFrom"] = df["onchainData"].apply(lambda x: _estimate_block_datetime_from_block_number(x["meta"]["validFrom"]))
+        df["expireAt"] = df["onchainData"].apply(lambda x: _estimate_block_datetime_from_block_number(x["meta"]["expireAt"]))
 
         df["url"] = df["id"].apply(lambda x:f'=HYPERLINK("{self.network_info.treasury_spends_url}{x}", {x})')
         df.set_index("id", inplace=True)
-        df = df[["url", "referendumIndex", "status", "description", f"{native_asset_name}_proposal_time", "USD_proposal_time", "proposal_time", "latest_status_change", f"{native_asset_name}_latest", "USD_latest", f"{native_asset_name}_component", "USDC_component", "USDT_component"]]
+        df = df[["url", "referendumIndex", "status", "description", 
+                 f"{native_asset_name}_proposal_time", "USD_proposal_time", 
+                 "proposal_time", "latest_status_change", 
+                 f"{native_asset_name}_latest", "USD_latest", 
+                 f"{native_asset_name}_component", "USDC_component", "USDT_component",
+                 "validFrom", "expireAt"]]
 
         return df
 
