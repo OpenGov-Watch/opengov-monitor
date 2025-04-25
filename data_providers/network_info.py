@@ -16,10 +16,12 @@ class NetworkInfo:
 
         if explorer == "polkassembly":
             self.treasury_url = f"https://{network}.polkassembly.io/treasury/"
+            self.treasury_spends_url = f"https://{network}.polkassembly.io/treasury/spends/"
             self.child_bounty_url = f"https://{network}.polkassembly.io/bounties/"
             self.fellowship_treasury_spend_url = f"https://collectives.subsquare.io/fellowship/treasury/spends/"
         else:
             self.treasury_url = f"https://{network}.subsquare.io/treasury/proposals/"
+            self.treasury_spends_url = f"https://{network}.polkassembly.io/treasury/spends/"
             self.child_bounty_url = f"https://{network}.subsquare.io/treasury/child-bounties/"
             self.fellowship_treasury_spend_url = f"https://collectives.subsquare.io/fellowship/treasury/spends/"
 
@@ -27,10 +29,8 @@ class NetworkInfo:
 
     # returns the human-readable value with the denomination applied
     # if no asset_kind is provided, it will use the network's native token
-    def apply_denomination(self, value, asset_kind: AssetKind = None) -> float:
-        if asset_kind is None:
-            digits = self.digits
-        elif asset_kind == AssetKind.DOT:
+    def apply_denomination(self, value, asset_kind: AssetKind) -> float:
+        if asset_kind == AssetKind.DOT:
             digits = 10
         elif asset_kind == AssetKind.KSM:
             digits = 12

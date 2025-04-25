@@ -3,13 +3,14 @@ import requests
 import pandas as pd
 import logging
 import json
+from .network_info import NetworkInfo
 from .asset_kind import AssetKind
 from .asssets_bag import AssetsBag
 
 class SubsquareProvider(DataProvider):
 
-    def __init__(self, network_info, price_service):
-        self.network_info = network_info
+    def __init__(self, network_info: NetworkInfo, price_service):
+        self.network_info: NetworkInfo = network_info
         self.price_service = price_service
         self._logger = logging.getLogger(__name__)
 
@@ -53,69 +54,17 @@ class SubsquareProvider(DataProvider):
         df_updates.drop_duplicates(subset=["referendumIndex"], keep="last", inplace=True)
 
         logging.debug("Transforming referenda")
-        df = self._transform_referenda(df)
+        df_updates = self._transform_referenda(df_updates)
         
         # Add continuity check
-        self._log_continuity_check(df, "referenda")
+        self._log_continuity_check(df_updates, "referenda")
         
-        return df
+        return df_updates
 
     # Out: ['title', 'Status', 'DOT', 'USD_proposal_time', 'Track', 'tally.ayes', 'tally.nays', 'propose_time', 'last_status_change', 'USD_latest']
     def _transform_referenda(self, df):
         df = df.copy()
 
-        def _get_XCM_asset_kind(asset_kind) -> AssetKind:
-            if "v3" in asset_kind:
-                parachain = asset_kind["v3"]["location"]["interior"]["x1"]["parachain"]
-                if parachain >= 3000:
-                    return AssetKind.INVALID
-                assert parachain >= 1000 and parachain < 2000, "parachain is not a system chain"
-                concrete = asset_kind["v3"]["assetId"]["concrete"]
-                if  "here" in concrete["interior"]:
-                    return self.network_info.native_asset
-                
-                assert concrete["interior"]["x2"][0]["palletInstance"] == 50
-                general_index = concrete["interior"]["x2"][1]["generalIndex"]
-                if general_index == 1337:
-                    return AssetKind.USDC
-                elif general_index == 1984:
-                    return AssetKind.USDT
-                elif general_index == 30:
-                    return AssetKind.DED
-                elif general_index == 19840000000000:
-                    return AssetKind.INVALID # rolleyes emoji
-                else:
-                    self._logger.warn(f"Unknown asset kind: {asset_kind}")
-                    return AssetKind.INVALID
-            elif "v4" in asset_kind:
-                parachain = asset_kind["v4"]["location"]["interior"]["x1"][0]["parachain"]
-                assert parachain >= 1000 and parachain < 2000
-                if asset_kind["v4"]["assetId"]["parents"] == 1 and asset_kind["v4"]["assetId"]["interior"]["here"] == None:
-                    return AssetKind.DOT
-                interior = asset_kind["v4"]["assetId"]["interior"]
-                assert interior["x2"][0]["palletInstance"] == 50
-                general_index = interior["x2"][1]["generalIndex"]
-                if general_index == 1337:
-                    return AssetKind.USDC
-                elif general_index == 1984:
-                    return AssetKind.USDT
-                else:
-                    raise ValueError(f"Unknown asset kind: {asset_kind}")
-            else:
-                raise ValueError(f"Unknown asset kind: {asset_kind}")
-
-        def _get_XCM_asset_value(assets) -> float:
-            if "v3" in assets:
-                raw_value = assets["v3"][0]["fun"]["fungible"]
-            elif "v4" in assets:
-                raw_value = assets["v4"][0]["fun"]["fungible"]
-            else:
-                raise ValueError(f"Unknown asset kind: {assets}")
-            value = self.network_info.apply_denomination(raw_value, self.network_info.native_asset)
-            return value
-
-        def _get_latest_status_change(state) -> pd.Timestamp:
-            return pd.to_datetime(state["indexer"]["blockTime"]*1e6)
         # return the value of the proposal denominated in the network's token
         def _build_bag_from_call_value(bag, call, timestamp, ref_id):
             # we use this map to emit warnings of proposals we haven't seen on OpenGov before. Those that are known to be zero-value (because they are not Treasury-related) are excluded
@@ -238,7 +187,7 @@ class SubsquareProvider(DataProvider):
                 elif call_index == "0x1305": # treasury.spend
                     assert args is not None, "we should always have the details of the call"
                     assert args[0]["name"] == "assetKind"
-                    assetKind = _get_XCM_asset_kind(args[0]["value"])
+                    assetKind = self._get_XCM_asset_kind(args[0]["value"])
                     if assetKind == AssetKind.INVALID:
                         return
                     
@@ -253,11 +202,11 @@ class SubsquareProvider(DataProvider):
                     raise ValueError(f"ref {ref_id}: {call} not implemented")
                 elif call_index == "0x6308": # xcmPallet.limitedReserveTransferAssets"
                         assets = args[2]["value"]
-                        value = _get_XCM_asset_value(assets)
+                        value = self._get_XCM_asset_value(assets)
                         bag.add_asset(self.network_info.native_asset, value)
                 elif call_index == "0x6309": # xcmPallet.limitedTeleportAssets
                         assets = args[2]["value"]
-                        value = _get_XCM_asset_value(assets)
+                        value = self._get_XCM_asset_value(assets)
                         bag.add_asset(self.network_info.native_asset, value)
                         return
                 else:
@@ -267,7 +216,7 @@ class SubsquareProvider(DataProvider):
                 self._logger.warning(f"ref {ref_id}: Error processing call: {e}\n{call}")
                 return
 
-        def _bag_from_data(row) -> AssetsBag:
+        def _bag_from_referendum_data(row) -> AssetsBag:
             bag = AssetsBag()
 
             # for some proposals, it would be too troublesome to write the deep packet inspection
@@ -278,9 +227,6 @@ class SubsquareProvider(DataProvider):
                     1424, # Parallel Hack Recovery Attempt
                 ]
             }
-
-            if row["id"] == 47:
-                pi = 3
 
             try:
                 if "treasuryInfo" in row["onchainData"]:
@@ -335,7 +281,7 @@ class SubsquareProvider(DataProvider):
 
         df["status"] = df["state"].apply(_get_status)
 
-        df["bag"] = df.apply(_bag_from_data, axis=1)
+        df["bag"] = df.apply(_bag_from_referendum_data, axis=1)
         native_asset_name = self.network_info.native_asset.name
         df[f"{native_asset_name}_proposal_time"] = df.apply(self._get_value_converter(self.network_info.native_asset, "proposal_time"), axis=1)
         df[f"{native_asset_name}_latest"] = df.apply(self._get_value_converter(self.network_info.native_asset, "latest_status_change"), axis=1)
@@ -344,8 +290,8 @@ class SubsquareProvider(DataProvider):
         df[f"{native_asset_name}_component"] = df["bag"].apply(lambda x: x.get_amount(self.network_info.native_asset))
         df[f"USDC_component"] = df["bag"].apply(lambda x: x.get_amount(AssetKind.USDC))
         df[f"USDT_component"] = df["bag"].apply(lambda x: x.get_amount(AssetKind.USDT))
-        df["tally.ayes"] = df.apply(lambda x: self.network_info.apply_denomination(x["onchainData"]["tally"]["ayes"]), axis=1)
-        df["tally.nays"] = df.apply(lambda x: self.network_info.apply_denomination(x["onchainData"]["tally"]["nays"]), axis=1)
+        df["tally.ayes"] = df.apply(lambda x: self.network_info.apply_denomination(x["onchainData"]["tally"]["ayes"], self.network_info.native_asset), axis=1)
+        df["tally.nays"] = df.apply(lambda x: self.network_info.apply_denomination(x["onchainData"]["tally"]["nays"], self.network_info.native_asset), axis=1)
         df["track"] = df["onchainData"].apply(_determineTrack)
         df["url"] = df["id"].apply(lambda x:f'=HYPERLINK("{self.network_info.referenda_url}{x}", {x})')
 
@@ -354,33 +300,91 @@ class SubsquareProvider(DataProvider):
 
         return df
 
-    def fetch_treasury_proposals(self, proposals_to_update=10):
+    def fetch_treasury_spends(self, items_to_update=10):
         #return self._fetchList('', num_referenda)
     
-        base_url = f"https://{self.network_info.name}.subsquare.io/api/treasury/proposals"
-        df_updates = self._fetchList(base_url, proposals_to_update)
-        
+        base_url = f"https://{self.network_info.name}.subsquare.io/api/treasury/spends"
+        df_updates = self._fetchList(base_url, items_to_update)
+
+        # load details
+        replacements = []
+        detail_items = 0
+        for index, row in df_updates.iterrows():
+            url = f"{base_url}/{row['index']}.json"
+            item = self._fetchItem(url)
+            replacements.append(item)
+
+            detail_items += 1
+            if detail_items % 10 == 0:
+                logging.debug(f"Fetched {detail_items} detail items")
+        df_replacements = pd.DataFrame(replacements)
+        df_updates = pd.concat([df_updates, df_replacements], ignore_index=True)
+        df_updates.drop_duplicates(subset=["index"], keep="last", inplace=True)
+
+        df_updates = self._transform_treasury_spends(df_updates)
+
         # Add continuity check
-        self._log_continuity_check(df_updates, "treasury proposals", "index")
+        # self._log_continuity_check(df_updates, "treasury proposals", "index")
         
         return df_updates
+
+    def _transform_treasury_spends(self, df):
+        df = df.copy()
+
+        df.rename(columns={
+            "index": "id",
+            "state": "status",
+            "title": "description",
+        }, inplace=True)
+
+        def _bag_from_treasury_spend_data(row) -> AssetsBag:
+            bag = AssetsBag()
+
+            asset_kind = self._get_XCM_asset_kind(row["onchainData"]["meta"]["assetKind"])
+            amount = row["onchainData"]["meta"]["amount"]
+            if asset_kind == AssetKind.INVALID:
+                bag.set_nan()
+                return bag
+            amount = self.network_info.apply_denomination(amount, asset_kind)
+            bag.add_asset(asset_kind, amount)
+            return bag
+
+        df["proposal_time"] = pd.to_datetime(df["onchainData"].apply(lambda x: x["timeline"][0]["indexer"]["blockTime"]*1e6), utc=True)
+        df["latest_status_change"] = pd.to_datetime(df["onchainData"].apply(lambda x: x["timeline"][-1]["indexer"]["blockTime"]*1e6), utc=True)
+
+        df["bag"] = df.apply(_bag_from_treasury_spend_data, axis=1)
+
+        native_asset_name = self.network_info.native_asset.name
+        df[f"{native_asset_name}_proposal_time"] = df.apply(self._get_value_converter(self.network_info.native_asset, "proposal_time"), axis=1)
+        df[f"{native_asset_name}_latest"] = df.apply(self._get_value_converter(self.network_info.native_asset, "latest_status_change"), axis=1)
+        df["USD_proposal_time"] = df.apply(self._get_value_converter(AssetKind.USDC, "proposal_time"), axis=1)
+        df["USD_latest"] = df.apply(self._get_value_converter(AssetKind.USDC, "latest_status_change"), axis=1)        
+        df[f"{native_asset_name}_component"] = df["bag"].apply(lambda x: x.get_amount(self.network_info.native_asset))
+        df[f"USDC_component"] = df["bag"].apply(lambda x: x.get_amount(AssetKind.USDC))
+        df[f"USDT_component"] = df["bag"].apply(lambda x: x.get_amount(AssetKind.USDT))
+
+        df["url"] = df["id"].apply(lambda x:f'=HYPERLINK("{self.network_info.treasury_spends_url}{x}", {x})')
+        df.set_index("id", inplace=True)
+        df = df[["url", "referendumIndex", "status", "description", f"{native_asset_name}_proposal_time", "USD_proposal_time", "proposal_time", "latest_status_change", f"{native_asset_name}_latest", "USD_latest", f"{native_asset_name}_component", "USDC_component", "USDT_component"]]
+
+        return df
 
     def fetch_child_bounties(self, child_bounties_to_update=10):
         base_url = f"https://{self.network_info.name}.subsquare.io/api/treasury/child-bounties" #&page_size=100
         df_updates = self._fetchList(base_url, child_bounties_to_update)
 
-        df = self._transform_child_bounties(df)
+        df_updates = self._transform_child_bounties(df_updates)
+
+        # we skip the continuity check for fellowship treasury spends
+        # because I don't have the time to figure it out rn xoxo TE 2025-04-25
         
-        # Replace existing check with new helper method
-        self._log_continuity_check(df, "child bounties")
-        
-        return df
+        return df_updates
     
-    def fetch_fellowship_treasury_spends(self, proposals_to_update=10):
+    def fetch_fellowship_treasury_spends(self, items_to_update=10):
         base_url = f"https://collectives.subsquare.io/api/fellowship/treasury/spends"
-        df_updates = self._fetchList(base_url, proposals_to_update)
-        
-        logging.debug("Fetching Fellowship details")
+        df_updates = self._fetchList(base_url, items_to_update)
+
+        # load details
         replacements = []
         detail_items = 0
         for index, row in df_updates.iterrows():
@@ -397,8 +401,8 @@ class SubsquareProvider(DataProvider):
 
         df_updates = self._transform_fellowship_treasury_spends(df_updates)
 
-        # we skip the continuity check for fellowship treasury spends
-        # because I don't have the time to figure it out rn xoxo TE 2025-04-25
+        # Add continuity check
+        # self._log_continuity_check(df_updates, "fellowship treasury spends", "index")
         
         return df_updates
 
@@ -411,7 +415,7 @@ class SubsquareProvider(DataProvider):
             "title": "description",
         }, inplace=True)
 
-        df[self.network_info.native_asset.name] = df["onchainData"].apply(lambda x:self.network_info.apply_denomination(x["meta"]["amount"]))
+        df[self.network_info.native_asset.name] = df["onchainData"].apply(lambda x:self.network_info.apply_denomination(x["meta"]["amount"], self.network_info.native_asset))
         df["bag"] = df.apply(lambda x: AssetsBag({self.network_info.native_asset: x[self.network_info.native_asset.name]}), axis=1)
         df["proposal_time"] = pd.to_datetime(df["onchainData"].apply(lambda x: x["timeline"][0]["indexer"]["blockTime"]*1e6), utc=True)
         df["latest_status_change"] = pd.to_datetime(df["onchainData"].apply(lambda x: x["timeline"][-1]["indexer"]["blockTime"]*1e6), utc=True)
@@ -489,7 +493,7 @@ class SubsquareProvider(DataProvider):
         # https://polkadot.subsquare.io/api/treasury/child-bounties
         # https://polkadot.subsquare.io/api/treasury/child-bounties/1234
 
-        df[self.network_info.native_asset.name] = df["onchainData"].apply(lambda x:self.network_info.apply_denomination(x["value"]))
+        df[self.network_info.native_asset.name] = df["onchainData"].apply(lambda x:self.network_info.apply_denomination(x["value"], self.network_info.native_asset))
         df["bag"] = df.apply(lambda x: AssetsBag({self.network_info.native_asset: x[self.network_info.native_asset.name]}), axis=1)
         df["proposal_time"] =        pd.to_datetime(df["onchainData"].apply(lambda x: x["timeline"][0]["indexer"]["blockTime"]*1e6), utc=True)
         df["latest_status_change"] = pd.to_datetime(df["onchainData"].apply(lambda x: x["timeline"][-1]["indexer"]["blockTime"]*1e6), utc=True)
@@ -574,3 +578,53 @@ class SubsquareProvider(DataProvider):
                 return float('nan')
 
         return convert_value
+    
+    def _get_XCM_asset_kind(self, asset_kind) -> AssetKind:
+        if "v3" in asset_kind:
+            parachain = asset_kind["v3"]["location"]["interior"]["x1"]["parachain"]
+            if parachain >= 3000:
+                return AssetKind.INVALID
+            assert parachain >= 1000 and parachain < 2000, "parachain is not a system chain"
+            concrete = asset_kind["v3"]["assetId"]["concrete"]
+            if  "here" in concrete["interior"]:
+                return self.network_info.native_asset
+            
+            assert concrete["interior"]["x2"][0]["palletInstance"] == 50
+            general_index = concrete["interior"]["x2"][1]["generalIndex"]
+            if general_index == 1337:
+                return AssetKind.USDC
+            elif general_index == 1984:
+                return AssetKind.USDT
+            elif general_index == 30:
+                return AssetKind.DED
+            elif general_index == 19840000000000:
+                return AssetKind.INVALID # rolleyes emoji
+            else:
+                self._logger.warn(f"Unknown asset kind: {asset_kind}")
+                return AssetKind.INVALID
+        elif "v4" in asset_kind:
+            parachain = asset_kind["v4"]["location"]["interior"]["x1"][0]["parachain"]
+            assert parachain >= 1000 and parachain < 2000
+            if asset_kind["v4"]["assetId"]["parents"] == 1 and asset_kind["v4"]["assetId"]["interior"]["here"] == None:
+                return AssetKind.DOT
+            interior = asset_kind["v4"]["assetId"]["interior"]
+            assert interior["x2"][0]["palletInstance"] == 50
+            general_index = interior["x2"][1]["generalIndex"]
+            if general_index == 1337:
+                return AssetKind.USDC
+            elif general_index == 1984:
+                return AssetKind.USDT
+            else:
+                raise ValueError(f"Unknown asset kind: {asset_kind}")
+        else:
+            raise ValueError(f"Unknown asset kind: {asset_kind}")
+
+    def _get_XCM_asset_value(self, assets) -> float:
+        if "v3" in assets:
+            raw_value = assets["v3"][0]["fun"]["fungible"]
+        elif "v4" in assets:
+            raw_value = assets["v4"][0]["fun"]["fungible"]
+        else:
+            raise ValueError(f"Unknown asset kind: {assets}")
+        value = self.network_info.apply_denomination(raw_value, self.network_info.native_asset)
+        return value

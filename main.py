@@ -28,7 +28,7 @@ def main():
             config = yaml.safe_load(file)
         
         referenda_to_fetch = config['fetch_limits']['referenda']
-        treasury_proposals_to_fetch = config['fetch_limits']['treasury_proposals']
+        treasury_spends_to_fetch = config['fetch_limits']['treasury_spends']
         child_bounties_to_fetch = config['fetch_limits']['child_bounties']
         fellowship_treasury_spends_to_fetch = config['fetch_limits']['fellowship_treasury_spends']
 
@@ -68,12 +68,12 @@ def main():
             spreadsheet_sink.update_worksheet(spreadsheet_id, "Referenda", referenda_df, allow_empty_first_row=True)
 
         # Fetch and sink treasury proposals
-        if treasury_proposals_to_fetch > 0:
+        if treasury_spends_to_fetch > 0:
             logger.info("Fetching treasury proposals")
-            treasury_df = provider.fetch_treasury_proposals(treasury_proposals_to_fetch)
+            treasury_df = provider.fetch_treasury_spends(treasury_spends_to_fetch)
 
             logger.info("Updating Treasury worksheet")
-            spreadsheet_sink.update_worksheet(spreadsheet_id, "Treasury", treasury_df)
+            spreadsheet_sink.update_worksheet(spreadsheet_id, "Treasury", treasury_df, allow_empty_first_row=True)
 
         # Fetch and sink child bounties
         if child_bounties_to_fetch > 0:

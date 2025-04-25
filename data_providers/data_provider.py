@@ -17,7 +17,7 @@ class DataProvider(ABC):
         pass
 
     @abstractmethod
-    def fetch_treasury_proposals(self, num_proposals=10):
+    def fetch_treasury_spends(self, num_proposals=10):
         """
         Fetch a list of treasury proposals from the data provider.
 

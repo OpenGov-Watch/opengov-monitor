@@ -1,11 +1,11 @@
 fetch_limits:
   referenda: 100000
-  treasury_proposals: 0
+  treasury_spends: 100000
   child_bounties: 100000
-  fellowship_treasury_spends: 100
+  fellowship_treasury_spends: 100000
 
 logging:
-  enable_file_logging: true
+  enable_file_logging: false
   log_dir: "logs"
   max_file_size_mb: 10
   backup_count: 5 
