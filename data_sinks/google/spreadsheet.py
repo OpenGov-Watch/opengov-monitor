@@ -125,7 +125,6 @@ class SpreadsheetSink:
     def _prepare_columns_for_json(self, df):
         """Prepare columns for JSON conversion."""
         columns_to_convert = [
-            # TODO: this should consider the native asset of the network, which might also be KSM
             "DOT_proposal_time", "USD_proposal_time", "tally.ayes", "tally.nays",
             "tally.turnout", "tally.total", "proposal_time",
             "latest_status_change", "DOT_latest", "USD_latest",
@@ -136,9 +135,8 @@ class SpreadsheetSink:
         for column in columns_to_convert:
             if column in df.columns:
                 # Convert to string first to ensure object type
-                df[column] = df[column].astype(str).astype("object")
-                # Replace NaN values with empty strings
-                df[column] = df[column].replace({pd.NA: "", "nan": ""})
+                df[column] = df[column].apply(lambda x: str(x) if pd.notnull(x) else "")
+                df[column] = df[column].astype("object")
         return df
 
     def _process_deltas(self, df, sheet_df):
@@ -209,25 +207,26 @@ class SpreadsheetSink:
                     # Add new row
                     sheet_df.loc[idx] = update_df.loc[idx]
         
-        # Replace NaN values with empty strings to ensure JSON compliance
-        sheet_df.fillna('', inplace=True)
+        # Replace NaN values with None instead of empty strings for better JSON compliance
+        sheet_df = sheet_df.where(pd.notnull(sheet_df), None)
         data_to_update = sheet_df.values.tolist()
         worksheet.update(data_to_update, range_string, raw=False)
-        
+
         # Log stats after update
         post_update_stats = self._get_dataframe_stats(sheet_df, "post_update")
         self._logger.debug("DataFrame analysis after update", extra={"post_update_stats": post_update_stats})
-        
+
         # Handle appends
         if not append_df.empty:
             # Convert numeric columns in append_df
             for col in append_df.columns:
                 if col in sheet_df.columns and pd.api.types.is_numeric_dtype(sheet_df[col]):
                     append_df[col] = pd.to_numeric(append_df[col], errors='coerce')
-            
+
             # Append new rows
+            append_df = append_df.where(pd.notnull(append_df), None)
             worksheet.append_rows(
-                append_df.fillna('').values.tolist(),
+                append_df.values.tolist(),
                 value_input_option='USER_ENTERED'
             )
             
