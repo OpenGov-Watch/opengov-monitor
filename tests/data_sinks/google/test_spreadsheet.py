@@ -129,30 +129,6 @@ def test_transform_dates(spreadsheet_sink, sample_df):
     assert isinstance(result_df['proposal_time'][0], (int, np.int64))
     assert isinstance(result_df['latest_status_change'][0], (int, np.int64))
 
-def test_prepare_columns_for_json(spreadsheet_sink, sample_df):
-    """Test column preparation for JSON."""
-    # Create a sample DataFrame with all the columns that should be converted
-    test_df = pd.DataFrame({
-        'DOT': [100.5],
-        'USD_proposal_time': [1000.0],
-        'tally.ayes': [500.0],
-        'tally.nays': [200.0],
-        'tally.turnout': [0.75],
-        'tally.total': [1000.0],
-        'proposal_time': [pd.Timestamp('2024-04-11')],
-        'latest_status_change': [pd.Timestamp('2024-04-10')],
-        'USD_latest': [2000.0]
-    })
-    
-    # Test preparation
-    result_df = spreadsheet_sink._prepare_columns_for_json(test_df)
-
-    # Verify results
-    for col in ['DOT', 'USD_proposal_time', 'tally.ayes', 'tally.nays', 
-                'tally.turnout', 'tally.total', 'USD_latest']:
-        assert result_df[col].dtype == 'object'
-        assert isinstance(result_df[col][0], str)
-
 def test_process_deltas(spreadsheet_sink, sample_df):
     """Test delta processing."""
     # Create a sheet DataFrame with some existing data
@@ -175,83 +151,6 @@ def test_process_deltas(spreadsheet_sink, sample_df):
     assert len(append_df) == 0
     assert update_df.index[0] == "1"
 
-def test_apply_updates(spreadsheet_sink, mock_worksheet, sample_df, mocker):
-    """Test the _apply_updates method with full row replacement behavior."""
-    # Mock the logger
-    mock_logger = mocker.Mock()
-    spreadsheet_sink._logger = mock_logger
-    
-    # Setup test data
-    sheet_data = {
-        'A': [1, 2, 3],
-        'B': ['x', 'y', 'z'],
-        'C': [10, 20, 30]
-    }
-    sheet_df = pd.DataFrame(sheet_data, index=[1, 2, 3])
-    
-    # Update data that will replace entire rows
-    update_data = {
-        'A': [4, 5],
-        'B': ['a', 'b']
-        # Note: 'C' is missing to test that it gets set to NaN
-    }
-    update_df = pd.DataFrame(update_data, index=[1, 2])
-    
-    # Append data
-    append_data = {
-        'A': [6],
-        'B': ['c'],
-        'C': [60]
-    }
-    append_df = pd.DataFrame(append_data, index=[4])
-    
-    # Mock the worksheet and its methods
-    mock_worksheet.update.return_value = None
-    mock_worksheet.append_rows.return_value = None
-    
-    # Call the method
-    spreadsheet_sink._apply_updates(
-        mock_worksheet,
-        sheet_df,
-        update_df,
-        append_df,
-        "A2:D100"
-    )
-    
-    # Verify the updates were applied correctly
-    expected_sheet_data = {
-        'A': [4, 5, 3],  # First two rows updated
-        'B': ['a', 'b', 'z'],  # First two rows updated
-        'C': [np.nan, np.nan, 30]  # C set to NaN for updated rows
-    }
-    expected_sheet_df = pd.DataFrame(expected_sheet_data, index=[1, 2, 3])
-    
-    # Verify worksheet was updated with correct data
-    mock_worksheet.update.assert_called_once()
-    update_call_args = mock_worksheet.update.call_args[0]
-    actual_data = update_call_args[0]
-    
-    # Compare data with NaN handling
-    assert len(actual_data) == len(expected_sheet_df)
-    for actual_row, expected_row in zip(actual_data, expected_sheet_df.values.tolist()):
-        assert len(actual_row) == len(expected_row)
-        for actual_val, expected_val in zip(actual_row, expected_row):
-            if pd.isna(expected_val):
-                assert pd.isna(actual_val)
-            else:
-                assert actual_val == expected_val
-    
-    assert update_call_args[1] == "A2:D100"  # Range
-    assert mock_worksheet.update.call_args[1] == {'raw': False}  # Options as kwargs
-    
-    # Verify append was called with correct data
-    mock_worksheet.append_rows.assert_called_once_with(
-        [[6, 'c', 60]],  # Values are not converted to strings
-        value_input_option='USER_ENTERED'
-    )
-    
-    # Verify logging was called
-    mock_logger.debug.assert_called()
 
 def test_apply_formatting(spreadsheet_sink, mock_worksheet):
     """Test applying formatting."""

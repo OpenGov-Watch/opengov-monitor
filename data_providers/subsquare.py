@@ -5,7 +5,7 @@ import logging
 import json
 from .network_info import NetworkInfo
 from .asset_kind import AssetKind
-from .asssets_bag import AssetsBag
+from .assets_bag import AssetsBag
 from datetime import datetime, timedelta
 
 class SubsquareProvider(DataProvider):
