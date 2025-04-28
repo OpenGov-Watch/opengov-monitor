@@ -1,8 +1,8 @@
 fetch_limits:
-  referenda: 100000
-  treasury_spends: 100000
-  child_bounties: 100000
-  fellowship_treasury_spends: 100000
+  referenda: 100
+  treasury_spends: 100
+  child_bounties: 100
+  fellowship_treasury_spends: 100
 
 block_time_projection:
   block_number: 25732485

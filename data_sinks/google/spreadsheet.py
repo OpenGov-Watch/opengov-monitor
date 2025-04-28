@@ -122,26 +122,6 @@ class SpreadsheetSink:
                 df[col] = df[col].apply(utils.format_date)
         return df
 
-    def _prepare_columns_for_json(self, df):
-        """Prepare columns for JSON conversion."""
-        columns_to_convert = [
-            "DOT_proposal_time", "USD_proposal_time", "tally.ayes", "tally.nays",
-            "tally.turnout", "tally.total", "proposal_time",
-            "latest_status_change", "DOT_latest", "USD_latest",
-            "DOT_component", "USDC_component", "USDT_component",
-            "validFrom", "expireAt"
-        ]
-        df = df.copy()
-        for column in columns_to_convert:
-            if column in df.columns:
-                # Convert to string first to ensure object type
-                df[column] = df[column].astype(str).astype("object")
-                df[column] = df[column].apply(lambda x: str(x) if pd.notnull(x) else "")
-
-        # Ensure all columns are of type object
-        df = df.astype("object")
-        return df
-
     def _process_deltas(self, df, sheet_df):
         """Process updates and new data."""
         df = df.copy()
@@ -214,7 +194,7 @@ class SpreadsheetSink:
         sheet_df.fillna('', inplace=True)
 
         # Convert all columns to string type to ensure consistency
-        sheet_df = sheet_df.astype(str)
+        #sheet_df = sheet_df.astype(str)
 
         data_to_update = sheet_df.values.tolist()
         worksheet.update(data_to_update, range_string, raw=False)
@@ -280,7 +260,7 @@ class SpreadsheetSink:
 
             sheet_df = self._prepare_index_matching(sheet_df)
             df = self._transform_dates(df)
-            df = self._prepare_columns_for_json(df)
+            #df = self._prepare_columns_for_json(df)
 
             update_df, append_df = self._process_deltas(df, sheet_df)
             
