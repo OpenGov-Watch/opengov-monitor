@@ -6,12 +6,12 @@ import json
 import yaml
 import os
 from flask import Flask
-from logging_config import setup_logging
+from utils.custom_logging import setup_logging
 from datetime import datetime
 
 
 # Setup logging before creating the Flask app
-logger = setup_logging()
+logger, _ = setup_logging()
 
 app = Flask(__name__)
 
@@ -70,6 +70,7 @@ def main():
         if referenda_to_fetch > 0:
             logger.info("Fetching referenda")   
             referenda_df = provider.fetch_referenda(referenda_to_fetch)
+            logger.debug(f"Fetched {len(referenda_df)} referenda")
 
             logger.info("Updating Referenda worksheet")
             spreadsheet_sink.update_worksheet(spreadsheet_id, "Referenda", referenda_df, allow_empty_first_row=True)
@@ -78,6 +79,7 @@ def main():
         if treasury_spends_to_fetch > 0:
             logger.info("Fetching treasury proposals")
             treasury_df = provider.fetch_treasury_spends(treasury_spends_to_fetch, block_number, block_datetime, block_time)
+            logger.debug(f"Fetched {len(treasury_df)} treasury proposals")
 
             logger.info("Updating Treasury worksheet")
             spreadsheet_sink.update_worksheet(spreadsheet_id, "Treasury", treasury_df, allow_empty_first_row=True)
@@ -86,6 +88,7 @@ def main():
         if child_bounties_to_fetch > 0:
             logger.info("Fetching child bounties")
             child_bounties_df = provider.fetch_child_bounties(child_bounties_to_fetch)
+            logger.debug(f"Fetched {len(child_bounties_df)} child bounties")
 
             logger.info("Updating Child Bounties worksheet")
             spreadsheet_sink.update_worksheet(spreadsheet_id, "Child Bounties", child_bounties_df, allow_empty_first_row=True)
@@ -94,6 +97,7 @@ def main():
         if fellowship_treasury_spends_to_fetch > 0:
             logger.info("Fetching fellowship treasury spends")
             fellowship_df = provider.fetch_fellowship_treasury_spends(fellowship_treasury_spends_to_fetch)
+            logger.debug(f"Fetched {len(fellowship_df)} fellowship treasury spends")
 
             logger.info("Updating Fellowship worksheet")
             spreadsheet_sink.update_worksheet(spreadsheet_id, "Fellowship", fellowship_df, allow_empty_first_row=True)
