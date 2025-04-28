@@ -6,12 +6,12 @@ import json
 import yaml
 import os
 from flask import Flask
-from logging_config import setup_logging
+from utils.custom_logging import setup_logging
 from datetime import datetime
 
 
 # Setup logging before creating the Flask app
-logger = setup_logging()
+logger, _ = setup_logging()
 
 app = Flask(__name__)
 

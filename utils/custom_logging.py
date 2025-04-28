@@ -1,9 +1,6 @@
 import logging
 import logging.handlers
-import os
-from datetime import datetime
 import json
-import yaml
 
 
 def setup_logging():
@@ -11,11 +8,21 @@ def setup_logging():
     
     class ExtraFormatter(logging.Formatter):
         def format(self, record):
-            # Access the 'extra' argument directly if it exists
-            extra_fields = getattr(record, 'extra', {})
+            # List of standard LogRecord attributes
+            standard_attrs = {
+                'name', 'msg', 'args', 'levelname', 'levelno', 'pathname', 'filename',
+                'module', 'exc_info', 'exc_text', 'stack_info', 'lineno', 'funcName',
+                'created', 'msecs', 'relativeCreated', 'thread', 'threadName', 'process',
+                'processName', "taskName"
+            }
+
+            # Extract custom attributes
+            extra_fields = {key: value for key, value in record.__dict__.items() if key not in standard_attrs}
+
             if extra_fields:
                 extra_str = json.dumps(extra_fields, default=str)
                 record.msg = f"{record.msg} | Extra: {extra_str}"
+
             return super().format(record)
 
     # Create formatters
@@ -40,10 +47,16 @@ def setup_logging():
     # Add console handler
     root_logger.addHandler(console_handler)
 
+    # Add a memory handler for testing purposes
+    memory_handler = logging.handlers.MemoryHandler(capacity=1024*10, target=None)
+    memory_handler.setFormatter(console_formatter)
+    root_logger.addHandler(memory_handler)
+
     # Keep existing logger configurations from main.py
     logging.getLogger("yfinance").setLevel(logging.INFO)
     logging.getLogger("urllib3").setLevel(logging.INFO)
     logging.getLogger("peewee").setLevel(logging.INFO)
     logging.getLogger("google").setLevel(logging.INFO)
 
-    return root_logger
+    # Return both the logger and the memory handler for testing
+    return root_logger, memory_handler
