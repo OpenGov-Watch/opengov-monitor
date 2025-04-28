@@ -19,6 +19,11 @@ def setup_logging():
             # Extract custom attributes
             extra_fields = {key: value for key, value in record.__dict__.items() if key not in standard_attrs}
 
+            # Include standard attributes if the log level is ERROR
+            if record.levelno == logging.ERROR:
+                standard_fields = {key: getattr(record, key, None) for key in standard_attrs}
+                extra_fields.update(standard_fields)
+
             if extra_fields:
                 extra_str = json.dumps(extra_fields, default=str)
                 record.msg = f"{record.msg} | Extra: {extra_str}"
