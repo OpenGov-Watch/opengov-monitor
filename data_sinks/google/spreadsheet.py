@@ -135,8 +135,11 @@ class SpreadsheetSink:
         for column in columns_to_convert:
             if column in df.columns:
                 # Convert to string first to ensure object type
+                df[column] = df[column].astype(str).astype("object")
                 df[column] = df[column].apply(lambda x: str(x) if pd.notnull(x) else "")
-                df[column] = df[column].astype("object")
+
+        # Ensure all columns are of type object
+        df = df.astype("object")
         return df
 
     def _process_deltas(self, df, sheet_df):
@@ -207,8 +210,12 @@ class SpreadsheetSink:
                     # Add new row
                     sheet_df.loc[idx] = update_df.loc[idx]
         
-        # Replace NaN values with None instead of empty strings for better JSON compliance
-        sheet_df = sheet_df.where(pd.notnull(sheet_df), None)
+        # Replace NaN values with empty strings to ensure JSON compliance
+        sheet_df.fillna('', inplace=True)
+
+        # Convert all columns to string type to ensure consistency
+        sheet_df = sheet_df.astype(str)
+
         data_to_update = sheet_df.values.tolist()
         worksheet.update(data_to_update, range_string, raw=False)
 

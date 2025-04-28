@@ -7,19 +7,19 @@ class TestApplyDenomination(unittest.TestCase):
         self.network_info = NetworkInfo(network="polkadot", explorer="subsquare")
 
     def test_integer_value(self):
-        result = self.network_info.apply_denomination(10000000000)
+        result = self.network_info.apply_denomination(10000000000, AssetKind.DOT)
         self.assertEqual(result, 1.0)
 
     def test_float_value(self):
-        result = self.network_info.apply_denomination(10000000000.0)
+        result = self.network_info.apply_denomination(10000000000.0, AssetKind.DOT)
         self.assertEqual(result, 1.0)
 
     def test_string_scientific_notation(self):
-        result = self.network_info.apply_denomination("1e10")
+        result = self.network_info.apply_denomination("1e10", AssetKind.DOT)
         self.assertEqual(result, 1.0)
 
     def test_hexadecimal_string(self):
-        result = self.network_info.apply_denomination("0x2540be400")
+        result = self.network_info.apply_denomination("0x2540be400", AssetKind.DOT)
         self.assertEqual(result, 1.0)
 
     def test_asset_kind_dot(self):
@@ -33,12 +33,12 @@ class TestApplyDenomination(unittest.TestCase):
 
     def test_invalid_string(self):
         with self.assertRaises(Exception) as context:
-            self.network_info.apply_denomination("invalid_string")
+            self.network_info.apply_denomination("invalid_string", AssetKind.DOT)
         self.assertIn("Invalid string value", str(context.exception))
 
     def test_invalid_type(self):
         with self.assertRaises(Exception) as context:
-            self.network_info.apply_denomination(["not_a_valid_type"])
+            self.network_info.apply_denomination(["not_a_valid_type"], AssetKind.DOT)
         self.assertIn("pls implement me", str(context.exception))
 
 if __name__ == "__main__":
