@@ -6,7 +6,8 @@ def format_date(timestamp):
     """Format a timestamp into days since 1900-01-01."""
     if pd.isnull(timestamp):
         raise ValueError("Timestamp cannot be null when formatting date")
-    return (timestamp.date() - datetime.date(1900, 1, 1)).days
+    return (timestamp.date() - datetime.date(1899, 12, 30)).days
+
 
 def extract_id(input_string):
     """Extract ID from a hyperlink string."""
