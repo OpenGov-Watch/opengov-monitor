@@ -1,12 +1,47 @@
 # Monitoring Updater
 
-  python -m venv .venv
-  ./.venv/Scripts/activate
-  pip install -r ./requirements.txt
+This service collects Polkadot and Kusama governance information and writes it
+into a Google Spreadsheet. It can run locally or as a scheduled job on Google
+Cloud Run.
+
+## Quick start
+
+Create a virtual environment and install the dependencies:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate    # On Windows use .venv\Scripts\activate
+pip install -r requirements.txt
+```
 
 
 ## Summary
-This app fetches Treasury proposals from Polkassembly and updates them on a Google Spreadsheet.
+The app fetches referenda, treasury spends and other governance data from
+Subsquare, enriches it with historical token prices and stores the result in a
+spreadsheet. A Flask route exposes the update function so the job can be
+triggered by Cloud Scheduler or executed locally.
+
+## Project layout
+
+```
+opengov-monitor/
+├── main.py          - Flask entrypoint that performs the update
+├── config.yaml      - Limits and network block information
+├── data_providers/  - Fetch data from Subsquare and price services
+├── data_sinks/      - Write data to Google Sheets
+├── utils/           - Helper utilities (logging etc.)
+├── tests/           - Unit tests
+└── README.md
+```
+
+## How it works
+
+1. `main.py` reads `config.yaml` and environment variables (`OPENGOV_MONITOR_SPREADSHEET_ID`, `OPENGOV_MONITOR_CREDENTIALS`).
+2. `SubsquareProvider` fetches referenda, treasury spends and other data.
+3. `PriceService` loads token prices so the value of proposals can be expressed in USD.
+4. `SpreadsheetSink` connects to Google Sheets, compares existing rows with freshly fetched data and applies updates.
+
+
 
 ## Instructions
 
@@ -18,10 +53,11 @@ This app fetches Treasury proposals from Polkassembly and updates them on a Goog
     - Then select it and under **Keys** create a new key. Download the JSON credentials file. You will need it later.
 
 ### Local Deployment
-1. In the main.py main() function:
-    - set the `network` (lower caps, only `polkadot` or `kusama`)
-    - set the `default_spreadsheet_id` to the one you created in step 2
-2. IF (AND ONLY IF) you want to run the script locally, store the credentials file in the main folder and rename it to `credentials.json`.
+1. In `main.py` adjust the `network` variable (only `polkadot` or `kusama`) and optionally change `default_spreadsheet_id`.
+2. Set environment variables:
+    - `OPENGOV_MONITOR_SPREADSHEET_ID` – your spreadsheet ID (falls back to `default_spreadsheet_id`).
+    - `OPENGOV_MONITOR_CREDENTIALS` – contents of the service account JSON. If not set, `credentials.json` will be read from the working directory.
+3. Run the Flask app with `python main.py run` to execute a single update, or `flask run` to start the HTTP server.
 
 ### Cloud Configuration
 1. Enable the following APIs:
@@ -84,5 +120,14 @@ Features:
 
 Example log format:
 ```
-2024-04-11 14:30:00 - spreadsheet - DEBUG - Processing spreadsheet | Extra: {"gaps": [...], "urls": [...]}
+2024-04-11 14:30:00 - spreadsheet - DEBUG - Processing spreadsheet | Extra: {"gaps": [...], "urls": [...]} 
+```
+
+## Running tests
+
+The tests use `pytest` and rely on mocks to avoid network access. After installing the
+requirements, simply run:
+
+```bash
+pytest
 ```
