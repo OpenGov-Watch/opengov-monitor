@@ -699,3 +699,20 @@ def test_find_gaps_with_type_error(spreadsheet_sink):
     
     # Verify that an empty list is returned for invalid input
     assert result == [] 
+
+def test_process_and_apply_updates_order(spreadsheet_sink, mock_worksheet):
+    """Ensure updates and appends result in a full descending ID sequence."""
+    # Existing sheet IDs are not continuous
+    sheet_df = pd.DataFrame({"val": range(8)}, index=[10, 8, 6, 5, 4, 3, 2, 1])
+    sheet_df.index = sheet_df.index.map(str)
+
+    # Incoming data has IDs 1..10
+    incoming_df = pd.DataFrame({"val": range(1, 11)}, index=range(1, 11))
+    incoming_df.index = incoming_df.index.map(str)
+
+    # Process deltas and apply updates
+    update_df, append_df = spreadsheet_sink._process_deltas(incoming_df, sheet_df)
+    spreadsheet_sink._apply_updates(mock_worksheet, sheet_df, update_df, append_df, "A1:B10")
+
+    final_ids = sorted([int(i) for i in list(sheet_df.index) + list(append_df.index)], reverse=True)
+    assert final_ids == [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
