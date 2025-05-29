@@ -30,6 +30,7 @@ opengov-monitor/
 ├── data_providers/  - Fetch data from Subsquare and price services
 ├── data_sinks/      - Write data to Google Sheets
 ├── utils/           - Helper utilities (logging etc.)
+├── scripts/         - Helper scripts
 ├── tests/           - Unit tests
 └── README.md
 ```
@@ -40,6 +41,17 @@ opengov-monitor/
 2. `SubsquareProvider` fetches referenda, treasury spends and other data.
 3. `PriceService` loads token prices so the value of proposals can be expressed in USD.
 4. `SpreadsheetSink` connects to Google Sheets, compares existing rows with freshly fetched data and applies updates.
+
+
+## Dump provider data
+
+Use the helper script in `scripts/` to store the fetched data locally without updating a spreadsheet:
+
+```bash
+python scripts/dump_provider.py --network polkadot --out ./data_dump
+```
+
+This will produce CSV and JSON files for referenda, treasury spends and other data in the specified directory.
 
 
 
