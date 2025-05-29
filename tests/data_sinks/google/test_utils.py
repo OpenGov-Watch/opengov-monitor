@@ -23,13 +23,20 @@ def test_format_date_null():
     with pytest.raises(ValueError, match="Timestamp cannot be null when formatting date"):
         format_date(pd.NaT)
 
-def test_extract_id_valid():
-    """Test extract_id with valid input."""
-    # Test with valid hyperlink
+def test_extract_id_valid_spaced():
+    """Test extract_id with hyperlink containing a space after the comma."""
     input_str = '=HYPERLINK("https://example.com/1", 123)'
     assert extract_id(input_str) == "123"
 
-    # Test with different format but valid
+
+def test_extract_id_valid_unspaced():
+    """Test extract_id with hyperlink that has no space after the comma."""
+    input_str = '=HYPERLINK("https://example.com/2",123)'
+    assert extract_id(input_str) == "123"
+
+
+def test_extract_id_valid_other_format():
+    """Test extract_id with a non-HYPERLINK format."""
     input_str = 'Something, 456)'
     assert extract_id(input_str) == "456"
 
