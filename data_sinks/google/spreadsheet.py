@@ -126,27 +126,40 @@ class SpreadsheetSink:
         """Process updates and new data."""
         df = df.copy()
         df.index = df.index.astype(str)
-        
+        sheet_df.index = sheet_df.index.astype(str)
+
+        incoming_sorted = sorted(df.index.tolist())
+        existing_sorted = sorted(sheet_df.index.tolist())
+
         # Log the state before processing
-        self._logger.info("Processing data deltas", 
-                         extra={
-                             "incoming_records": len(df),
-                             "existing_records": len(sheet_df),
-                             "incoming_ids": df.index.tolist(),
-                             "existing_ids": sheet_df.index.tolist()
-                         })
+        self._logger.info(
+            "Processing data deltas",
+            extra={
+                "operation_id": self._current_operation,
+                "incoming_records": len(df),
+                "existing_records": len(sheet_df),
+                "incoming_ids": incoming_sorted,
+                "existing_ids": existing_sorted,
+            },
+        )
 
         update_df = df[df.index.isin(sheet_df.index)]
         append_df = df[~df.index.isin(sheet_df.index)]
 
+        final_ids = sorted(set(sheet_df.index.tolist()) | set(append_df.index.tolist()))
+
         # Log the results
-        self._logger.info("Delta processing complete", 
-                         extra={
-                             "updates": len(update_df),
-                             "appends": len(append_df),
-                             "updated_ids": update_df.index.tolist(),
-                             "appended_ids": append_df.index.tolist()
-                         })
+        self._logger.info(
+            "Delta processing complete",
+            extra={
+                "operation_id": self._current_operation,
+                "updates": len(update_df),
+                "appends": len(append_df),
+                "updated_ids": update_df.index.tolist(),
+                "appended_ids": append_df.index.tolist(),
+                "final_ids": final_ids,
+            },
+        )
 
         return update_df, append_df
 
@@ -273,6 +286,18 @@ class SpreadsheetSink:
                             })
 
             self._apply_updates(worksheet, sheet_df, update_df, append_df, range_string)
+
+            # Log final IDs after applying updates and appends
+            final_df = pd.concat([sheet_df, append_df])
+            final_ids_sorted = sorted(final_df.index.astype(str).tolist())
+            self._logger.info(
+                "Final ID state after update",
+                extra={
+                    "operation_id": operation_id,
+                    "final_ids": final_ids_sorted,
+                },
+            )
+
             self._apply_formatting(worksheet)
 
             self._logger.info("Worksheet update completed successfully", 
