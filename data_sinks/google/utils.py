@@ -13,7 +13,7 @@ def extract_id(input_string):
     """Extract ID from a hyperlink string."""
     if isinstance(input_string, int):
         return None
-    match = re.search(r',\s(\d+)\)$', input_string)
+    match = re.search(r',\s*(\d+)\)$', input_string)
     return match.group(1) if match else None
 
 def create_filter_request(worksheet_id):
