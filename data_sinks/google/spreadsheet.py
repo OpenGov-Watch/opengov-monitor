@@ -188,26 +188,39 @@ class SpreadsheetSink:
         self._logger.debug("DataFrame analysis before update", extra={"dataframe_stats": stats})
         
         # Handle updates
-        if not update_df.empty:
-            # Convert numeric columns to float64
-            for col in update_df.columns:
-                if col in sheet_df.columns and pd.api.types.is_numeric_dtype(sheet_df[col]):
-                    update_df[col] = pd.to_numeric(update_df[col], errors='coerce')
-            
-            # Update rows - full row replacement for matching indices
-            for idx in update_df.index:
-                if idx in sheet_df.index:
-                    # Replace entire row with update data
-                    sheet_df.loc[idx] = update_df.loc[idx]
-                else:
-                    # Add new row
-                    sheet_df.loc[idx] = update_df.loc[idx]
+        # Convert numeric columns to float64
+        for col in update_df.columns:
+            if col in sheet_df.columns and pd.api.types.is_numeric_dtype(sheet_df[col]):
+                update_df[col] = pd.to_numeric(update_df[col], errors='coerce')
+
+        # If update_df has duplicate indices, log warning with details and skip updates
+        if not update_df.index.is_unique:
+            dupes = update_df.index[update_df.index.duplicated()]
+            self._logger.warning(
+                "Detected non-unique update index; skipping this update",
+                extra={
+                    "operation_id": self._current_operation,
+                    "duplicate_index_labels": dupes.unique().tolist(),
+                    # dump full update_df for debugging
+                    "update_df_dump": update_df.to_dict(orient='list')
+                }
+            )
+            return
+
+        # existing per-row update logic
+        for idx in update_df.index:
+            if idx in sheet_df.index:
+                # Replace entire row with update data
+                sheet_df.loc[idx] = update_df.loc[idx]
+            else:
+                # Add new row
+                sheet_df.loc[idx] = update_df.loc[idx]
         
         # Replace NaN values with empty strings to ensure JSON compliance
         sheet_df.fillna('', inplace=True)
 
-        # Convert all columns to string type to ensure consistency
-        #sheet_df = sheet_df.astype(str)
+        # Convert all columns to string type to ensure JSON serialization compatibility
+        sheet_df = sheet_df.astype(str)
 
         data_to_update = sheet_df.values.tolist()
         worksheet.update(data_to_update, range_string, raw=False)
@@ -225,6 +238,8 @@ class SpreadsheetSink:
 
             # Append new rows
             append_df = append_df.where(pd.notnull(append_df), None)
+            # Convert to string type to ensure JSON serialization compatibility
+            append_df = append_df.astype(str)
             worksheet.append_rows(
                 append_df.values.tolist(),
                 value_input_option='USER_ENTERED'
@@ -365,17 +380,18 @@ class SpreadsheetSink:
         
         # Convert index to numeric if possible
         try:
-            numeric_index = pd.to_numeric(df.index, errors='coerce')
-            if not numeric_index.isna().any():
-                df = df.copy()
-                df.index = numeric_index
+            numeric_index = pd.to_numeric(df.index, errors='coerce').dropna()
         except (ValueError, TypeError):
-            pass
+            self._logger.warning(
+                "Index conversion to numeric failed, treating index as non-numeric",
+                extra={"index_type": type(df.index)}
+            )
+            return
         
         # Check if index is continuous
         is_continuous = True
-        if len(df.index) > 1:
-            sorted_idx = sorted(df.index)
+        if len(numeric_index) > 1:
+            sorted_idx = sorted(numeric_index)
             try:
                 for i in range(len(sorted_idx) - 1):
                     if sorted_idx[i + 1] - sorted_idx[i] > 1:
@@ -388,7 +404,7 @@ class SpreadsheetSink:
         return {
             "name": name,
             "size": df.shape,
-            "index_range": f"min={df.index.min()} to max={df.index.max()}",
+            "index_range": f"min={numeric_index.min()} to max={numeric_index.max()}",
             "index_is_continuous": is_continuous,
-            "gaps": self._find_gaps(df.index)
+            "gaps": self._find_gaps(numeric_index)
         }

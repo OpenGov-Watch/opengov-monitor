@@ -1,5 +1,5 @@
 fetch_limits:
-  referenda: 100
+  referenda: 10000
   treasury_spends: 100
   child_bounties: 100
   fellowship_treasury_spends: 100

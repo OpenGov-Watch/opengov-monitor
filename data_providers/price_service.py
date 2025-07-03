@@ -29,6 +29,9 @@ class PriceService:
     self._historic_prices_df = yf.download(self.pair, self.pair_start_date, self._today)
     self._historic_prices_df.index = pd.to_datetime(self._historic_prices_df.index, utc=True)
     
+    if self._historic_prices_df.empty:
+      raise ValueError(f"No historic prices found for {self.pair} from {self.pair_start_date} to {self._today}")
+
     # current price
     ticker = self.network_info.name
     url = f'https://api.coingecko.com/api/v3/simple/price?ids={ticker}&vs_currencies=usd'
@@ -36,7 +39,7 @@ class PriceService:
     
     if response.status_code != 200:
       raise ValueError(f"Failed to fetch current price from CoinGecko: {response.status_code} - {response.text}")
-    
+
     data = response.json()
     self.current_price = data[ticker]['usd']
 

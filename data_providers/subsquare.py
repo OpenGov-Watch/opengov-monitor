@@ -20,7 +20,7 @@ class SubsquareProvider(DataProvider):
 
         # fetch the updates
         # base_url = "https://polkadot.subsquare.io/_next/data/trrsQec9V4m7mgsk7Vg0w/referenda.json?"
-        base_url = f"https://{self.network_info.name}.subsquare.io/api/gov2/referendums"
+        base_url = f"https://{self.network_info.name}-api.subsquare.io/gov2/referendums"
 
         logging.debug("Fetching referenda list")
         df_updates = self._fetchList(base_url, referenda_to_update)
@@ -190,6 +190,7 @@ class SubsquareProvider(DataProvider):
                     assert args[0]["name"] == "assetKind"
                     assetKind = self._get_XCM_asset_kind(args[0]["value"])
                     if assetKind == AssetKind.INVALID:
+                        bag.set_nan()
                         return
                     
                     assert args[1]["name"] == "amount"
@@ -304,7 +305,7 @@ class SubsquareProvider(DataProvider):
     def fetch_treasury_spends(self, items_to_update=10, block_number=None, block_datetime=None, block_time=None):
         #return self._fetchList('', num_referenda)
     
-        base_url = f"https://{self.network_info.name}.subsquare.io/api/treasury/spends"
+        base_url = f"https://{self.network_info.name}-api.subsquare.io/treasury/spends"
         df_updates = self._fetchList(base_url, items_to_update)
 
         # load details
@@ -344,10 +345,11 @@ class SubsquareProvider(DataProvider):
             bag = AssetsBag()
 
             asset_kind = self._get_XCM_asset_kind(row["onchainData"]["meta"]["assetKind"])
-            amount = row["onchainData"]["meta"]["amount"]
             if asset_kind == AssetKind.INVALID:
                 bag.set_nan()
                 return bag
+
+            amount = row["onchainData"]["meta"]["amount"]
             amount = self.network_info.apply_denomination(amount, asset_kind)
             bag.add_asset(asset_kind, amount)
             return bag
@@ -389,7 +391,7 @@ class SubsquareProvider(DataProvider):
         return df
 
     def fetch_child_bounties(self, child_bounties_to_update=10):
-        base_url = f"https://{self.network_info.name}.subsquare.io/api/treasury/child-bounties" #&page_size=100
+        base_url = f"https://{self.network_info.name}-api.subsquare.io/treasury/child-bounties" #&page_size=100
         df_updates = self._fetchList(base_url, child_bounties_to_update)
 
         df_updates = self._transform_child_bounties(df_updates)
@@ -400,7 +402,7 @@ class SubsquareProvider(DataProvider):
         return df_updates
     
     def fetch_fellowship_treasury_spends(self, items_to_update=10):
-        base_url = f"https://collectives.subsquare.io/api/fellowship/treasury/spends"
+        base_url = f"https://collectives-api.subsquare.io/fellowship/treasury/spends"
         df_updates = self._fetchList(base_url, items_to_update)
 
         # load details
@@ -598,8 +600,26 @@ class SubsquareProvider(DataProvider):
 
         return convert_value
     
+    
     def _get_XCM_asset_kind(self, asset_kind) -> AssetKind:
-        if "v3" in asset_kind:
+        """
+        Determines the AssetKind from an XCM (Cross-Consensus Message) asset representation.
+
+        This method parses different versions of XCM asset formats (v3, v4, v5)
+        to identify the type of asset (e.g., DOT, KSM, USDC, USDT, DED).
+        It handles native assets, stablecoins, and DED tokens based on their
+        parachain ID and general index.
+
+        Args:
+            asset_kind (dict): A dictionary representing the XCM asset.
+
+        Returns:
+            AssetKind: The identified AssetKind, or AssetKind.INVALID if unknown or unsupported.
+        """
+
+        version_key = list(asset_kind.keys())[0]
+        
+        if version_key == "v3":
             parachain = asset_kind["v3"]["location"]["interior"]["x1"]["parachain"]
             if parachain >= 3000:
                 return AssetKind.INVALID
@@ -621,12 +641,14 @@ class SubsquareProvider(DataProvider):
             else:
                 self._logger.warn(f"Unknown asset kind: {asset_kind}")
                 return AssetKind.INVALID
-        elif "v4" in asset_kind:
-            parachain = asset_kind["v4"]["location"]["interior"]["x1"][0]["parachain"]
-            assert parachain >= 1000 and parachain < 2000
-            if asset_kind["v4"]["assetId"]["parents"] == 1 and asset_kind["v4"]["assetId"]["interior"]["here"] == None:
+        elif version_key in ["v4", "v5"]:
+            parachain = asset_kind[version_key]["location"]["interior"]["x1"][0]["parachain"]
+            if parachain < 1000 or parachain >= 2000:
+                self._logger.warning(f"Parachain {parachain} is not a system chain")
+                return AssetKind.INVALID
+            if asset_kind[version_key]["assetId"]["parents"] == 1 and asset_kind[version_key]["assetId"]["interior"]["here"] == None:
                 return AssetKind.DOT
-            interior = asset_kind["v4"]["assetId"]["interior"]
+            interior = asset_kind[version_key]["assetId"]["interior"]
             assert interior["x2"][0]["palletInstance"] == 50
             general_index = interior["x2"][1]["generalIndex"]
             if general_index == 1337:
@@ -634,9 +656,11 @@ class SubsquareProvider(DataProvider):
             elif general_index == 1984:
                 return AssetKind.USDT
             else:
-                raise ValueError(f"Unknown asset kind: {asset_kind}")
+                self._logger.warning(f"Unknown asset kind: {asset_kind}")
+                return AssetKind.INVALID
         else:
-            raise ValueError(f"Unknown asset kind: {asset_kind}")
+            self._logger.warning(f"Unknown asset kind version: {version_key} in {asset_kind}")
+            return AssetKind.INVALID
 
     def _get_XCM_asset_value(self, assets) -> float:
         if "v3" in assets:
