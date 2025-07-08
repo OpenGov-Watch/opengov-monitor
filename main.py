@@ -91,7 +91,7 @@ def main():
             logger.debug(f"Fetched {len(child_bounties_df)} child bounties")
 
             logger.info("Updating Child Bounties worksheet")
-            spreadsheet_sink.update_worksheet(spreadsheet_id, "Child Bounties", child_bounties_df, allow_empty_first_row=True)
+            spreadsheet_sink.update_worksheet(spreadsheet_id, "Child Bounties", child_bounties_df, allow_empty_first_row=True, sort_keys=["proposal_time"])
 
         # Fetch and sink fellowship treasury spends
         if fellowship_treasury_spends_to_fetch > 0:

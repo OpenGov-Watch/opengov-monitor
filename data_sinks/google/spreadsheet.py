@@ -119,7 +119,7 @@ class SpreadsheetSink:
         df = df.copy()
         for col in ["proposal_time", "latest_status_change", "expireAt", "validFrom"]:
             if col in df.columns:
-                df[col] = df[col].apply(utils.format_date)
+                df[col] = df[col].apply(utils.format_datetime)
         return df
 
     def _process_deltas(self, df, sheet_df):
@@ -250,14 +250,17 @@ class SpreadsheetSink:
             final_stats = self._get_dataframe_stats(final_df, "final")
             self._logger.debug("DataFrame analysis after append", extra={"final_stats": final_stats})
 
-    def _apply_formatting(self, worksheet):
-        """Apply filter and sort to the worksheet."""
+    def _apply_formatting(self, worksheet, sort_column_indexes):
+        """Apply filter and sort to the worksheet.
+        
+        sort_column_indexes: List of column indexes to sort by.
+        """
         requests = []
         requests.append(utils.create_filter_request(worksheet.id))
-        requests.append(utils.create_sort_request(worksheet.id, worksheet.col_count))
+        requests.append(utils.create_sort_request(worksheet.id, worksheet.col_count, sort_column_indexes))
         worksheet.spreadsheet.batch_update({"requests": requests})
 
-    def update_worksheet(self, spreadsheet_id, name, df, allow_empty_first_row=False):
+    def update_worksheet(self, spreadsheet_id, name, df, allow_empty_first_row=False, sort_keys=[]):
         """Update a worksheet with new data, handling both updates and appends."""
         operation_id = f"{name}_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}"
         self._current_operation = operation_id
@@ -313,7 +316,17 @@ class SpreadsheetSink:
                 },
             )
 
-            self._apply_formatting(worksheet)
+            # determine the columnIndex for sorting
+            sort_column_indexes = []
+            for key in sort_keys:
+                if key in df.columns:
+                    col_index = df.columns.get_loc(key)
+                    sort_column_indexes.append(col_index)
+                else:
+                    self._logger.warning(f"Sort key '{key}' not found in DataFrame columns", 
+                                        extra={"operation_id": operation_id})
+
+            self._apply_formatting(worksheet, sort_column_indexes)
 
             self._logger.info("Worksheet update completed successfully", 
                             extra={

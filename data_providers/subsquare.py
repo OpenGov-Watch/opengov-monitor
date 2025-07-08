@@ -7,6 +7,7 @@ from .network_info import NetworkInfo
 from .asset_kind import AssetKind
 from .assets_bag import AssetsBag
 from datetime import datetime, timedelta
+import os
 
 class SubsquareProvider(DataProvider):
 
@@ -507,7 +508,6 @@ class SubsquareProvider(DataProvider):
         df = df.copy()
 
         df.rename(columns={
-            "index": "id",
             "state": "status",
         }, inplace=True)
 
@@ -522,9 +522,11 @@ class SubsquareProvider(DataProvider):
         df["USD_latest"] = df.apply(self._get_value_converter(AssetKind.USDC, "latest_status_change"), axis=1)        
         df["description"] = df["onchainData"].apply(lambda x: x["description"])
         df["beneficiary"] = df["onchainData"].apply(lambda x: x["address"])    
-        df["url"] = df["id"].apply(lambda x:f'=HYPERLINK("{self.network_info.child_bounty_url}{x}", {x})')
-        df.set_index("id", inplace=True)
-        df = df[["url", "parentBountyId", "status", "description", "DOT", "USD_proposal_time", "beneficiary", "proposal_time", "latest_status_change", "USD_latest"]]
+        df["identifier"] = df.apply(lambda row: f'{row["parentBountyId"]}_{row["index"]}', axis=1)
+        df["url"] = df["identifier"].apply(lambda x: f'=HYPERLINK("{self.network_info.child_bounty_url}{x}", "{x}")')
+
+        df.set_index("identifier", inplace=True)
+        df = df[["url", "index", "parentBountyId", "status", "description", "DOT", "USD_proposal_time", "beneficiary", "proposal_time", "latest_status_change", "USD_latest"]]
 
         return df
 
@@ -555,6 +557,13 @@ class SubsquareProvider(DataProvider):
                 break
 
         df = pd.DataFrame(all_items)
+        
+        # Save to CSV
+        #csv_file_path = os.path.join("data", f"{base_url.split('/')[-1]}.csv")
+        #os.makedirs(os.path.dirname(csv_file_path), exist_ok=True)
+        #df.to_csv(csv_file_path, index=False)
+        #self._logger.info(f"Saved data to {csv_file_path}")
+
         return df
     
     def _fetchItem(self, url):
