@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:collectives-api.subsquare.io)",
+      "Bash(python:*)",
+      "WebFetch(domain:id.statescan.io)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

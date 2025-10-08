@@ -1,3 +1,102 @@
+"""
+Subsquare API Documentation
+===========================
+
+This module interfaces with the Subsquare API to fetch Polkadot/Kusama governance data.
+Below are the documented web service calls made by this provider:
+
+BASE URLS:
+- Polkadot: https://polkadot-api.subsquare.io/
+- Kusama: https://kusama-api.subsquare.io/
+- Collectives: https://collectives-api.subsquare.io/
+
+API ENDPOINTS:
+
+1. REFERENDA LIST
+   URL: https://{network}-api.subsquare.io/gov2/referendums?page={page}&page_size=100
+   Method: GET
+   Returns: Paginated list of referenda with basic info
+   Fields: referendumIndex, title, createdAt, lastActivityAt, state, onchainData, info
+
+2. REFERENDUM DETAILS  
+   URL: https://{network}-api.subsquare.io/gov2/referendums/{referendumIndex}.json
+   Method: GET
+   Returns: Detailed referendum data including full proposal call data
+   Used for: Batch calls, treasury spends, and other complex proposals that need deep inspection
+
+3. TREASURY SPENDS LIST
+   URL: https://{network}-api.subsquare.io/treasury/spends?page={page}&page_size=100
+   Method: GET
+   Returns: Paginated list of treasury spend proposals
+   Fields: index, state, title, referendumIndex, onchainData
+
+4. TREASURY SPEND DETAILS
+   URL: https://{network}-api.subsquare.io/treasury/spends/{index}.json
+   Method: GET
+   Returns: Detailed treasury spend with full timeline and metadata
+   Fields: onchainData.meta (assetKind, amount, validFrom, expireAt), timeline
+
+5. CHILD BOUNTIES LIST
+   URL: https://{network}-api.subsquare.io/treasury/child-bounties?page={page}&page_size=100
+   Method: GET
+   Returns: Paginated list of child bounties
+   Fields: index, parentBountyId, state, onchainData (value, description, address, timeline)
+
+6. FELLOWSHIP TREASURY SPENDS LIST
+   URL: https://collectives-api.subsquare.io/fellowship/treasury/spends?page={page}&page_size=100
+   Method: GET
+   Returns: Paginated list of fellowship treasury spend proposals
+   Fields: index, state, title, onchainData
+
+7. FELLOWSHIP TREASURY SPEND DETAILS
+   URL: https://collectives-api.subsquare.io/fellowship/treasury/spends/{index}.json
+   Method: GET
+   Returns: Detailed fellowship spend data
+   Fields: onchainData.meta.amount, timeline
+
+8. FELLOWSHIP SALARY CYCLES
+   URL: https://collectives-api.subsquare.io/fellowship/salary/cycles/{cycle}
+   Method: GET
+   Returns: Salary cycle data including budget, registrations, and payout information
+   Fields: index, budget, totalRegistrations, registeredCount, registeredPaidCount, periods
+
+9. FELLOWSHIP SALARY CLAIMANTS
+   URL: https://collectives-api.subsquare.io/fellowship/salary/claimants
+   Method: GET
+   Returns: Individual claimant data with addresses and claim status
+   Fields: address, status (lastActive, status with registered/attempted/nothing)
+
+10. FELLOWSHIP MEMBERS
+    URL: https://collectives-api.subsquare.io/fellowship/members
+    Method: GET
+    Returns: Fellowship members with their ranks (0-7)
+    Fields: address, rank
+
+
+PAGINATION:
+All list endpoints support pagination with:
+- page: Page number (starts at 1)
+- page_size: Items per page (max 100)
+
+RESPONSE FORMAT:
+All responses return JSON with 'items' array containing the data objects.
+Error responses return HTTP status codes with reason text.
+
+CALL INDEX MAPPING:
+The provider handles various Substrate call indices for proposal parsing:
+- 0x0502: balances.forceTransfer (treasury transfers)
+- 0x1305: treasury.spend (treasury spend proposals)
+- 0x1a00/02/03/04: utility batch calls (require detail fetching)
+- 0x6308/09: xcmPallet transfer calls
+- Plus many others documented in the code
+
+DATA TRANSFORMATION:
+- Timestamps converted from blockTime (seconds) * 1e6 to UTC datetime
+- Asset amounts denominated using network-specific decimals
+- USD values calculated using historical prices at proposal/execution time
+- Hyperlinks generated for spreadsheet integration
+"""
+
 from .data_provider import DataProvider
 import requests
 import pandas as pd
@@ -69,6 +168,10 @@ class SubsquareProvider(DataProvider):
 
         # return the value of the proposal denominated in the network's token
         def _build_bag_from_call_value(bag, call, timestamp, ref_id):
+            
+            if ref_id == 1587:
+                pi = 3
+            
             # we use this map to emit warnings of proposals we haven't seen on OpenGov before. Those that are known to be zero-value (because they are not Treasury-related) are excluded
             known_zero_value_call_indices = [
                 "0x0000", # system.remark
@@ -529,6 +632,239 @@ class SubsquareProvider(DataProvider):
         df = df[["url", "index", "parentBountyId", "status", "description", "DOT", "USD_proposal_time", "beneficiary", "proposal_time", "latest_status_change", "USD_latest"]]
 
         return df
+
+    def fetch_fellowship_salary_cycles(self, start_cycle=1, end_cycle=None):
+        """
+        Fetch fellowship salary cycle data from the Collectives API.
+        
+        Args:
+            start_cycle (int): Starting cycle number (default: 1)
+            end_cycle (int): Ending cycle number (default: None, fetches until failure)
+            
+        Returns:
+            pd.DataFrame: DataFrame with salary cycle data
+        """
+        cycles_data = []
+        current_cycle = start_cycle
+        
+        while True:
+            if end_cycle and current_cycle > end_cycle:
+                break
+                
+            url = f"https://collectives-api.subsquare.io/fellowship/salary/cycles/{current_cycle}"
+            self._logger.debug(f"Fetching salary cycle {current_cycle} from {url}")
+            
+            try:
+                response = requests.get(url)
+                if response.status_code == 200:
+                    data = response.json()
+                    data['cycle'] = current_cycle  # Add cycle number to data
+                    cycles_data.append(data)
+                    current_cycle += 1
+                elif response.status_code == 404:
+                    self._logger.info(f"No more salary cycles found after cycle {current_cycle - 1}")
+                    break
+                else:
+                    self._logger.error(f"Error fetching cycle {current_cycle}: {response.status_code} {response.reason}")
+                    break
+            except Exception as e:
+                self._logger.error(f"Exception fetching cycle {current_cycle}: {e}")
+                break
+        
+        if not cycles_data:
+            self._logger.warning("No salary cycle data found")
+            return pd.DataFrame()
+            
+        df = pd.DataFrame(cycles_data)
+        df = self._transform_salary_cycles(df)
+        
+        self._logger.info(f"Fetched {len(df)} salary cycles from {start_cycle} to {current_cycle - 1}")
+        return df
+
+    def _transform_salary_cycles(self, df):
+        """Transform raw salary cycle data into structured format."""
+        df = df.copy()
+        
+        # Extract key fields from status object
+        df['budget_dot'] = df['status'].apply(lambda x: self.network_info.apply_denomination(x.get('budget', 0), self.network_info.native_asset))
+        df['total_registrations_dot'] = df['status'].apply(lambda x: self.network_info.apply_denomination(x.get('totalRegistrations', 0), self.network_info.native_asset))
+        df['unregistered_paid_dot'] = df['unRegisteredPaid'].apply(lambda x: self.network_info.apply_denomination(int(x), self.network_info.native_asset))
+        df['registered_paid_amount_dot'] = df['registeredPaid'].apply(lambda x: self.network_info.apply_denomination(int(x), self.network_info.native_asset))
+        
+        # Extract periods (direct fields)
+        df['registration_period'] = df['registrationPeriod']
+        df['payout_period'] = df['payoutPeriod']
+        
+        # Extract block information
+        df['start_block'] = df['startIndexer'].apply(lambda x: x.get('blockHeight', 0))
+        df['end_block'] = df['endIndexer'].apply(lambda x: x.get('blockHeight', 0))
+        df['start_time'] = pd.to_datetime(df['startIndexer'].apply(lambda x: x.get('blockTime', 0) * 1e6), utc=True)
+        df['end_time'] = pd.to_datetime(df['endIndexer'].apply(lambda x: x.get('blockTime', 0) * 1e6), utc=True)
+        
+        # Create URL for reference
+        df['url'] = df['cycle'].apply(lambda x: f'=HYPERLINK("https://collectives.subsquare.io/fellowship/salary/cycles/{x}", "{x}")')
+        
+        # Set index and select final columns
+        df.set_index('cycle', inplace=True)
+        df = df[['url', 'budget_dot', 'registeredCount', 'registeredPaidCount', 
+                'registered_paid_amount_dot', 'total_registrations_dot', 'unregistered_paid_dot',
+                'registration_period', 'payout_period', 'start_block', 'end_block', 
+                'start_time', 'end_time']]
+        
+        return df
+
+    def fetch_fellowship_salary_claimants(self, name_mapping=None):
+        """
+        Fetch fellowship salary claimants data from the Collectives API.
+        
+        Args:
+            name_mapping (dict): Optional mapping of addresses to names
+            
+        Returns:
+            pd.DataFrame: DataFrame with individual claimant data
+        """
+        url = "https://collectives-api.subsquare.io/fellowship/salary/claimants"
+        self._logger.debug(f"Fetching salary claimants from {url}")
+        
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                data = response.json()
+                if not data:
+                    self._logger.warning("No claimants data found")
+                    return pd.DataFrame()
+                    
+                df = pd.DataFrame(data)
+                df = self._transform_salary_claimants(df, name_mapping)
+                
+                self._logger.info(f"Fetched {len(df)} salary claimants")
+                return df
+            else:
+                self._logger.error(f"Error fetching claimants: {response.status_code} {response.reason}")
+                return pd.DataFrame()
+        except Exception as e:
+            self._logger.error(f"Exception fetching claimants: {e}")
+            return pd.DataFrame()
+
+    def _transform_salary_claimants(self, df, name_mapping=None):
+        """Transform raw salary claimants data into structured format."""
+        df = df.copy()
+        
+        # Extract status information
+        df['last_active'] = df['status'].apply(lambda x: x.get('lastActive', 0))
+        df['last_active_time'] = pd.to_datetime(df['last_active'] * 1e6, utc=True)
+        
+        # Determine status type and extract relevant data
+        def extract_status_info(status_obj):
+            status = status_obj.get('status', {})
+            if 'attempted' in status:
+                attempted = status['attempted']
+                return {
+                    'status_type': 'attempted',
+                    'registered_amount': attempted.get('registered', 0),
+                    'attempt_id': attempted.get('id', 0),
+                    'attempt_amount': attempted.get('amount', 0)
+                }
+            elif 'registered' in status:
+                return {
+                    'status_type': 'registered',
+                    'registered_amount': status['registered'],
+                    'attempt_id': 0,
+                    'attempt_amount': 0
+                }
+            elif 'nothing' in status:
+                return {
+                    'status_type': 'nothing',
+                    'registered_amount': 0,
+                    'attempt_id': 0,
+                    'attempt_amount': 0
+                }
+            else:
+                return {
+                    'status_type': 'unknown',
+                    'registered_amount': 0,
+                    'attempt_id': 0,
+                    'attempt_amount': 0
+                }
+        
+        # Apply status extraction
+        status_info = df['status'].apply(extract_status_info)
+        status_df = pd.DataFrame(list(status_info))
+        df = pd.concat([df, status_df], axis=1)
+        
+        # Convert amounts to DOT
+        df['registered_amount_dot'] = df['registered_amount'].apply(
+            lambda x: self.network_info.apply_denomination(x, self.network_info.native_asset) if x else 0
+        )
+        df['attempt_amount_dot'] = df['attempt_amount'].apply(
+            lambda x: self.network_info.apply_denomination(x, self.network_info.native_asset) if x else 0
+        )
+        
+        # Apply name mapping if provided
+        if name_mapping:
+            df['name'] = df['address'].map(name_mapping).fillna('')
+            df['display_name'] = df.apply(
+                lambda row: row['name'] if row['name'] else f"{row['address'][:6]}...{row['address'][-6:]}", 
+                axis=1
+            )
+        else:
+            df['name'] = ''
+            df['display_name'] = df['address'].apply(lambda x: f"{x[:6]}...{x[-6:]}")
+        
+        # Create shortened address for reference
+        df['short_address'] = df['address'].apply(lambda x: f"{x[:6]}...{x[-6:]}")
+        
+        # Set address as index and select final columns (rank will be added later by script)
+        df.set_index('address', inplace=True)
+        df = df[['display_name', 'name', 'short_address', 'status_type', 'registered_amount_dot', 
+                'attempt_amount_dot', 'attempt_id', 'last_active_time']]
+        
+        return df
+
+    def fetch_fellowship_members(self):
+        """
+        Fetch fellowship members and their ranks from the Collectives API.
+        
+        Returns:
+            dict: Mapping of address to rank (0-7)
+        """
+        url = "https://collectives-api.subsquare.io/fellowship/members"
+        self._logger.debug(f"Fetching fellowship members from {url}")
+        
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                data = response.json()
+                if not data:
+                    self._logger.warning("No fellowship members data found")
+                    return {}
+                
+                # Create address to rank mapping
+                members_mapping = {}
+                for member in data:
+                    if isinstance(member, dict):
+                        address = member.get('address', '')
+                        rank = member.get('rank', None)
+                        if address and rank is not None:
+                            members_mapping[address] = rank
+                
+                self._logger.info(f"Fetched {len(members_mapping)} fellowship members")
+                
+                # Log rank distribution
+                rank_counts = {}
+                for rank in members_mapping.values():
+                    rank_counts[rank] = rank_counts.get(rank, 0) + 1
+                
+                rank_summary = ", ".join([f"Rank {r}: {c}" for r, c in sorted(rank_counts.items())])
+                self._logger.info(f"Rank distribution: {rank_summary}")
+                
+                return members_mapping
+            else:
+                self._logger.error(f"Error fetching fellowship members: {response.status_code} {response.reason}")
+                return {}
+        except Exception as e:
+            self._logger.error(f"Exception fetching fellowship members: {e}")
+            return {}
 
     def _fetchList(self, base_url, num_items):
 
