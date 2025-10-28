@@ -45,8 +45,9 @@ class SpreadsheetSink:
             
             # Validate column count
             if len(data[0]) != len(df_columns):
-                self._logger.error(f"Column count mismatch. Expected {len(df_columns)}, got {len(data[0])}")
-                raise ValueError(f"Column count mismatch in sheet data. Expected {len(df_columns)} columns.")
+                error_message = f"Column count mismatch in {worksheet.title}. df has {len(df_columns)}, worksheet has {len(data[0])}"
+                self._logger.error(error_message)
+                raise ValueError(error_message)
             
             sheet_df = pd.DataFrame(data, columns=df_columns)
             return sheet_df
@@ -83,8 +84,7 @@ class SpreadsheetSink:
                 id_value = utils.extract_id(url)
                 if id_value is None:
                     self._logger.warning(
-                        f"Could not extract ID from URL: {url}",
-                        extra={"error": "Could not extract numeric ID from URL"}
+                        f"Could not extract ID from URL: {url}"
                     )
                     id_value = pd.NA  # Use pandas NA for missing values
                 extracted_ids.append(id_value)
@@ -216,9 +216,6 @@ class SpreadsheetSink:
                 # Add new row
                 sheet_df.loc[idx] = update_df.loc[idx]
         
-        # Replace NaN values with empty strings to ensure JSON compliance
-        sheet_df.fillna('', inplace=True)
-
         # Convert all columns to string type to ensure JSON serialization compatibility
         sheet_df = sheet_df.astype(str)
 
