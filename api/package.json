@@ -20,7 +20,9 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.5",
+    "@types/supertest": "^6.0.3",
     "@vitest/coverage-v8": "^4.0.16",
+    "supertest": "^7.2.2",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^4.0.16"

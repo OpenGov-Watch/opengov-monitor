@@ -8,6 +8,10 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import {
+  getColumnConfig,
+  formatValue,
+} from "@/lib/column-renderer";
 
 interface PieChartData {
   name: string;
@@ -20,6 +24,8 @@ interface DashboardPieChartProps {
   colors?: string[];
   showLegend?: boolean;
   showTooltip?: boolean;
+  tableName?: string;
+  valueColumn?: string;
 }
 
 const DEFAULT_COLORS = [
@@ -35,11 +41,44 @@ const DEFAULT_COLORS = [
   "#d0ed57",
 ];
 
+// Custom tooltip component with formatted values
+function CustomTooltip({
+  active,
+  payload,
+  tableName,
+  valueColumn,
+}: {
+  active?: boolean;
+  payload?: Array<{ name: string; value: number; payload: PieChartData }>;
+  tableName: string;
+  valueColumn: string;
+}) {
+  if (!active || !payload || !payload.length) return null;
+
+  const entry = payload[0];
+  const config = getColumnConfig(tableName, valueColumn);
+  const formatted = formatValue(entry.value, config);
+  const percent = ((entry.payload.value / payload.reduce((sum, p) => sum + p.payload.value, 0)) * 100).toFixed(1);
+
+  return (
+    <div className="bg-background border rounded-lg shadow-lg p-3">
+      <p className="font-medium text-sm">{entry.name}</p>
+      <p className="text-sm">
+        <span className="text-muted-foreground">Value: </span>
+        <span className="font-medium">{formatted}</span>
+      </p>
+      <p className="text-sm text-muted-foreground">{percent}%</p>
+    </div>
+  );
+}
+
 export function DashboardPieChart({
   data,
   colors = DEFAULT_COLORS,
   showLegend = true,
   showTooltip = true,
+  tableName = "",
+  valueColumn = "value",
 }: DashboardPieChartProps) {
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -63,7 +102,11 @@ export function DashboardPieChart({
             />
           ))}
         </Pie>
-        {showTooltip && <Tooltip />}
+        {showTooltip && (
+          <Tooltip
+            content={<CustomTooltip tableName={tableName} valueColumn={valueColumn} />}
+          />
+        )}
         {showLegend && <Legend />}
       </RechartsPieChart>
     </ResponsiveContainer>

@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { DndContext, closestCenter, DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +15,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Trash2, Play } from "lucide-react";
+import { SortableColumn } from "./sortable-column";
+import {
+  loadColumnConfig,
+  getColumnDisplayName,
+} from "@/lib/column-renderer";
 import type {
   QueryConfig,
   ColumnSelection,
@@ -101,14 +108,21 @@ export function QueryBuilder({
   }, [config]);
 
   const [schemaError, setSchemaError] = useState<string | null>(null);
+  const [, setColumnNamesLoaded] = useState(false);
 
-  // Fetch schema on mount
+  // Fetch schema and column config on mount
   useEffect(() => {
-    async function fetchSchema() {
+    async function fetchSchemaAndConfig() {
       try {
-        const response = await fetch("/api/query/schema");
-        const data = await response.json();
-        if (!response.ok) {
+        // Load both schema and column config in parallel
+        const [schemaResponse] = await Promise.all([
+          fetch("/api/query/schema"),
+          loadColumnConfig(),
+        ]);
+        setColumnNamesLoaded(true);
+
+        const data = await schemaResponse.json();
+        if (!schemaResponse.ok) {
           setSchemaError(data.error || "Failed to load schema");
           return;
         }
@@ -124,12 +138,18 @@ export function QueryBuilder({
         setLoading(false);
       }
     }
-    fetchSchema();
+    fetchSchemaAndConfig();
   }, []);
 
   // Get columns for selected table
   const selectedTable = schema.find((t) => t.name === config.sourceTable);
   const availableColumns = selectedTable?.columns || [];
+
+  // Helper to get display name for current table
+  const displayName = useCallback(
+    (columnName: string) => getColumnDisplayName(config.sourceTable, columnName),
+    [config.sourceTable]
+  );
 
   // Update parent when config changes
   useEffect(() => {
@@ -234,6 +254,17 @@ export function QueryBuilder({
     });
   }
 
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = config.columns.findIndex((c) => c.column === active.id);
+      const newIndex = config.columns.findIndex((c) => c.column === over.id);
+      updateConfig({
+        columns: arrayMove(config.columns, oldIndex, newIndex),
+      });
+    }
+  }
+
   async function handlePreview() {
     if (config.columns.length === 0 || !config.sourceTable) {
       setPreviewError("Please select a table and at least one column");
@@ -289,7 +320,14 @@ export function QueryBuilder({
             <SelectValue placeholder="Select a table" />
           </SelectTrigger>
           <SelectContent>
-            {schema.map((table) => (
+            {[...schema]
+              .sort((a, b) => {
+                // Put all_spending first
+                if (a.name === "all_spending") return -1;
+                if (b.name === "all_spending") return 1;
+                return a.name.localeCompare(b.name);
+              })
+              .map((table) => (
               <SelectItem key={table.name} value={table.name}>
                 {table.name}
               </SelectItem>
@@ -300,23 +338,18 @@ export function QueryBuilder({
 
       {/* Column Selection */}
       {config.sourceTable && (
-        <div className="space-y-2">
-          <Label>Columns</Label>
-          <div className="rounded-md border p-4 max-h-64 overflow-y-auto">
-            <div className="space-y-2">
-              {availableColumns.map((column) => {
-                const isSelected = config.columns.some(
-                  (c) => c.column === column.name
-                );
-                const selectedColumn = config.columns.find(
-                  (c) => c.column === column.name
-                );
-                return (
-                  <div
-                    key={column.name}
-                    className="flex items-center justify-between gap-4"
-                  >
-                    <div className="flex items-center gap-2">
+        <div className="space-y-4">
+          {/* Available Columns - checkbox list */}
+          <div className="space-y-2">
+            <Label>Available Columns</Label>
+            <div className="rounded-md border p-4 max-h-48 overflow-y-auto">
+              <div className="grid grid-cols-2 gap-2">
+                {availableColumns.map((column) => {
+                  const isSelected = config.columns.some(
+                    (c) => c.column === column.name
+                  );
+                  return (
+                    <div key={column.name} className="flex items-center gap-2">
                       <Checkbox
                         id={`col-${column.name}`}
                         checked={isSelected}
@@ -326,42 +359,68 @@ export function QueryBuilder({
                       />
                       <label
                         htmlFor={`col-${column.name}`}
-                        className="text-sm cursor-pointer"
+                        className="text-sm cursor-pointer truncate"
+                        title={column.name}
                       >
-                        {column.name}
-                        <span className="text-muted-foreground ml-2 text-xs">
+                        {displayName(column.name)}
+                        <span className="text-muted-foreground ml-1 text-xs">
                           ({column.type})
                         </span>
                       </label>
                     </div>
-                    {isSelected && (
-                      <Select
-                        value={selectedColumn?.aggregateFunction || "none"}
-                        onValueChange={(v) =>
-                          updateColumnAggregation(
-                            column.name,
-                            v === "none" ? undefined : (v as ColumnSelection["aggregateFunction"])
-                          )
-                        }
-                      >
-                        <SelectTrigger className="w-28 h-8">
-                          <SelectValue placeholder="Aggregate" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Raw</SelectItem>
-                          {AGGREGATE_FUNCTIONS.map((fn) => (
-                            <SelectItem key={fn} value={fn}>
-                              {fn}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
+
+          {/* Selected Columns - sortable list */}
+          {config.columns.length > 0 && (
+            <div className="space-y-2">
+              <Label>Selected Columns (drag to reorder)</Label>
+              <div className="rounded-md border p-4">
+                <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext
+                    items={config.columns.map((c) => c.column)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="space-y-2">
+                      {config.columns.map((col) => (
+                        <SortableColumn key={col.column} id={col.column}>
+                          <div className="flex items-center justify-between gap-4 flex-1">
+                            <span className="text-sm" title={col.column}>
+                              {displayName(col.column)}
+                            </span>
+                            <Select
+                              value={col.aggregateFunction || "none"}
+                              onValueChange={(v) =>
+                                updateColumnAggregation(
+                                  col.column,
+                                  v === "none" ? undefined : (v as ColumnSelection["aggregateFunction"])
+                                )
+                              }
+                            >
+                              <SelectTrigger className="w-28 h-8">
+                                <SelectValue placeholder="Aggregate" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">Raw</SelectItem>
+                                {AGGREGATE_FUNCTIONS.map((fn) => (
+                                  <SelectItem key={fn} value={fn}>
+                                    {fn}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </SortableColumn>
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -388,7 +447,7 @@ export function QueryBuilder({
                     <SelectContent>
                       {availableColumns.map((col) => (
                         <SelectItem key={col.name} value={col.name}>
-                          {col.name}
+                          {displayName(col.name)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -460,8 +519,9 @@ export function QueryBuilder({
                     <label
                       htmlFor={`groupby-${col.column}`}
                       className="text-sm cursor-pointer"
+                      title={col.column}
                     >
-                      {col.column}
+                      {displayName(col.column)}
                     </label>
                   </div>
                 ))}
@@ -493,7 +553,7 @@ export function QueryBuilder({
                     <SelectContent>
                       {config.columns.map((col) => (
                         <SelectItem key={col.column} value={col.column}>
-                          {col.column}
+                          {displayName(col.column)}
                         </SelectItem>
                       ))}
                     </SelectContent>

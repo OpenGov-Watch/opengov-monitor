@@ -106,8 +106,6 @@ export function ComponentEditor({
     component ? JSON.parse(component.grid_config) : defaultGridConfig
   );
   const [previewData, setPreviewData] = useState<Record<string, unknown>[]>([]);
-  const [previewSql, setPreviewSql] = useState<string>("");
-  const [step, setStep] = useState<"config" | "preview">("config");
 
   // Reset state when dialog opens or component changes
   useEffect(() => {
@@ -130,8 +128,6 @@ export function ComponentEditor({
           : defaultGridConfig
       );
       setPreviewData([]);
-      setPreviewSql("");
-      setStep("config");
     }
   }, [open, component]);
 
@@ -140,10 +136,8 @@ export function ComponentEditor({
   }, []);
 
   const handlePreview = useCallback(
-    (data: unknown[], sql: string) => {
+    (data: unknown[]) => {
       setPreviewData(data as Record<string, unknown>[]);
-      setPreviewSql(sql);
-      // Don't auto-switch to preview - let user see SQL in query builder first
     },
     []
   );
@@ -302,99 +296,56 @@ export function ComponentEditor({
             </div>
           </div>
 
-          {/* Query Builder or Text Editor */}
-          {step === "config" && (
+          {/* Text Editor for text type */}
+          {type === "text" && (
             <div className="space-y-4">
-              {type === "text" ? (
-                <div className="space-y-2">
-                  <Label>Markdown Content</Label>
-                  <textarea
-                    className="w-full min-h-[200px] rounded-md border p-3 font-mono text-sm resize-y bg-background"
-                    value={chartConfig.content || ""}
-                    onChange={(e) =>
-                      setChartConfig({ ...chartConfig, content: e.target.value })
-                    }
-                    placeholder="# Heading&#10;&#10;Write your **markdown** content here..."
-                  />
-                  <div className="flex justify-end">
-                    <Button onClick={() => setStep("preview")}>
-                      Preview
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="space-y-2">
-                    <Label>Data Query</Label>
-                    <div className="rounded-md border p-4">
-                      <QueryBuilder
-                        initialConfig={queryConfig}
-                        onChange={handleQueryChange}
-                        onPreview={handlePreview}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Show button to proceed to chart preview after running query */}
-                  {previewData.length > 0 && (
-                    <div className="flex justify-end">
-                      <Button onClick={() => setStep("preview")}>
-                        Continue to Chart Preview ({previewData.length} rows)
-                      </Button>
-                    </div>
-                  )}
-                </>
-              )}
+              <div className="space-y-2">
+                <Label>Markdown Content</Label>
+                <textarea
+                  className="w-full min-h-[200px] rounded-md border p-3 font-mono text-sm resize-y bg-background"
+                  value={chartConfig.content || ""}
+                  onChange={(e) =>
+                    setChartConfig({ ...chartConfig, content: e.target.value })
+                  }
+                  placeholder="# Heading&#10;&#10;Write your **markdown** content here..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Preview</Label>
+                {renderPreview()}
+              </div>
             </div>
           )}
 
-          {/* Preview */}
-          {step === "preview" && (
+          {/* Query Builder for data types */}
+          {type !== "text" && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label>Preview</Label>
-                <Button variant="outline" size="sm" onClick={() => setStep("config")}>
-                  {type === "text" ? "Back to Editor" : "Back to Query"}
-                </Button>
+              <div className="space-y-2">
+                <Label>Data Query</Label>
+                <div className="rounded-md border p-4">
+                  <QueryBuilder
+                    initialConfig={queryConfig}
+                    onChange={handleQueryChange}
+                    onPreview={handlePreview}
+                  />
+                </div>
               </div>
 
-              {/* Chart Config for chart types (not table or text) */}
-              {type !== "table" && type !== "text" && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Label Column</Label>
-                    <Select
-                      value={chartConfig.labelColumn || ""}
-                      onValueChange={(v) =>
-                        setChartConfig({ ...chartConfig, labelColumn: v })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select label column" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {queryConfig.columns.map((col) => (
-                          <SelectItem
-                            key={col.column}
-                            value={col.alias || col.column}
-                          >
-                            {col.alias || col.column}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {type === "pie" && (
+              {/* Chart Config - show when we have preview data and it's a chart type */}
+              {previewData.length > 0 && type !== "table" && (
+                <div className="space-y-4 p-4 border rounded-md bg-muted/30">
+                  <Label>Chart Options</Label>
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Value Column</Label>
+                      <Label className="text-sm text-muted-foreground">Label Column</Label>
                       <Select
-                        value={chartConfig.valueColumn || ""}
+                        value={chartConfig.labelColumn || ""}
                         onValueChange={(v) =>
-                          setChartConfig({ ...chartConfig, valueColumn: v })
+                          setChartConfig({ ...chartConfig, labelColumn: v })
                         }
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select value column" />
+                          <SelectValue placeholder="Select label column" />
                         </SelectTrigger>
                         <SelectContent>
                           {queryConfig.columns.map((col) => (
@@ -408,58 +359,73 @@ export function ComponentEditor({
                         </SelectContent>
                       </Select>
                     </div>
-                  )}
+                    {type === "pie" && (
+                      <div className="space-y-2">
+                        <Label className="text-sm text-muted-foreground">Value Column</Label>
+                        <Select
+                          value={chartConfig.valueColumn || ""}
+                          onValueChange={(v) =>
+                            setChartConfig({ ...chartConfig, valueColumn: v })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select value column" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {queryConfig.columns.map((col) => (
+                              <SelectItem
+                                key={col.column}
+                                value={col.alias || col.column}
+                              >
+                                {col.alias || col.column}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-6">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="showLegend"
+                        checked={chartConfig.showLegend ?? true}
+                        onCheckedChange={(checked) =>
+                          setChartConfig({
+                            ...chartConfig,
+                            showLegend: checked === true,
+                          })
+                        }
+                      />
+                      <label htmlFor="showLegend" className="text-sm">
+                        Show Legend
+                      </label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="showTooltip"
+                        checked={chartConfig.showTooltip ?? true}
+                        onCheckedChange={(checked) =>
+                          setChartConfig({
+                            ...chartConfig,
+                            showTooltip: checked === true,
+                          })
+                        }
+                      />
+                      <label htmlFor="showTooltip" className="text-sm">
+                        Show Tooltip
+                      </label>
+                    </div>
+                  </div>
                 </div>
               )}
 
-              {/* Display Options */}
-              {type !== "table" && type !== "text" && (
-                <div className="flex gap-6">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="showLegend"
-                      checked={chartConfig.showLegend ?? true}
-                      onCheckedChange={(checked) =>
-                        setChartConfig({
-                          ...chartConfig,
-                          showLegend: checked === true,
-                        })
-                      }
-                    />
-                    <label htmlFor="showLegend" className="text-sm">
-                      Show Legend
-                    </label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="showTooltip"
-                      checked={chartConfig.showTooltip ?? true}
-                      onCheckedChange={(checked) =>
-                        setChartConfig({
-                          ...chartConfig,
-                          showTooltip: checked === true,
-                        })
-                      }
-                    />
-                    <label htmlFor="showTooltip" className="text-sm">
-                      Show Tooltip
-                    </label>
-                  </div>
+              {/* Preview - show when we have data */}
+              {previewData.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Preview ({previewData.length} rows)</Label>
+                  {renderPreview()}
                 </div>
-              )}
-
-              {renderPreview()}
-
-              {/* SQL Display (not for text type) */}
-              {previewSql && type !== "text" && (
-                <details className="mt-4">
-                  <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
-                    View SQL Query
-                  </summary>
-                  <div className="mt-2 rounded-md border bg-muted p-4">
-                    <pre className="text-xs overflow-x-auto whitespace-pre-wrap">{previewSql}</pre>
-                  </div>
-                </details>
               )}
             </div>
           )}

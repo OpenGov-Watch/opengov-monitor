@@ -10,6 +10,12 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import {
+  getColumnConfig,
+  getColumnDisplayName,
+  formatValue,
+  formatAbbreviated,
+} from "@/lib/column-renderer";
 
 interface BarChartData {
   name: string;
@@ -28,6 +34,7 @@ interface DashboardBarChartProps {
   showLegend?: boolean;
   showTooltip?: boolean;
   showGrid?: boolean;
+  tableName?: string;
 }
 
 const DEFAULT_COLORS = [
@@ -43,6 +50,41 @@ const DEFAULT_COLORS = [
   "#d0ed57",
 ];
 
+// Custom tooltip component with formatted values
+function CustomTooltip({
+  active,
+  payload,
+  label,
+  tableName,
+}: {
+  active?: boolean;
+  payload?: Array<{ name: string; value: number; dataKey: string; color: string }>;
+  label?: string;
+  tableName: string;
+}) {
+  if (!active || !payload || !payload.length) return null;
+
+  return (
+    <div className="bg-background border rounded-lg shadow-lg p-3">
+      <p className="font-medium text-sm mb-2">{label}</p>
+      {payload.map((entry, index) => {
+        const config = getColumnConfig(tableName, entry.dataKey);
+        const formatted = formatValue(entry.value, config);
+        return (
+          <div key={index} className="flex items-center gap-2 text-sm">
+            <div
+              className="w-3 h-3 rounded-sm"
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="text-muted-foreground">{entry.name}:</span>
+            <span className="font-medium">{formatted}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function DashboardBarChart({
   data,
   bars,
@@ -51,14 +93,28 @@ export function DashboardBarChart({
   showLegend = true,
   showTooltip = true,
   showGrid = true,
+  tableName = "",
 }: DashboardBarChartProps) {
+  // Get config for first value column to determine Y-axis formatting
+  const firstValueColumn = bars[0]?.dataKey;
+  const yAxisConfig = firstValueColumn
+    ? getColumnConfig(tableName, firstValueColumn)
+    : { render: "number" as const };
+
+  // Y-axis tick formatter (abbreviated)
+  const yAxisFormatter = (value: number) => formatAbbreviated(value, yAxisConfig);
+
   return (
     <ResponsiveContainer width="100%" height="100%">
       <RechartsBarChart data={data}>
         {showGrid && <CartesianGrid strokeDasharray="3 3" />}
         <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-        <YAxis tick={{ fontSize: 12 }} />
-        {showTooltip && <Tooltip />}
+        <YAxis tick={{ fontSize: 12 }} tickFormatter={yAxisFormatter} />
+        {showTooltip && (
+          <Tooltip
+            content={<CustomTooltip tableName={tableName} />}
+          />
+        )}
         {showLegend && <Legend />}
         {bars.map((bar, index) => (
           <Bar
@@ -77,7 +133,8 @@ export function DashboardBarChart({
 export function transformToBarData(
   data: Record<string, unknown>[],
   labelColumn: string,
-  valueColumns: string[]
+  valueColumns: string[],
+  tableName?: string
 ): { data: BarChartData[]; bars: { dataKey: string; name: string }[] } {
   const barData = data.map((row) => {
     const item: BarChartData = {
@@ -91,7 +148,7 @@ export function transformToBarData(
 
   const bars = valueColumns.map((col) => ({
     dataKey: col,
-    name: col,
+    name: tableName ? getColumnDisplayName(tableName, col) : col,
   }));
 
   return { data: barData, bars };

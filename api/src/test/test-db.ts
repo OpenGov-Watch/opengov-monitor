@@ -415,3 +415,16 @@ export const fixtures = {
     },
   ],
 };
+
+/**
+ * Set the test database as the global database for route tests.
+ * This allows routes to use the in-memory test database.
+ */
+export function setTestDatabaseGlobal(db: Database.Database): void {
+  // Store reference that can be used by mocked getDatabase
+  (global as Record<string, unknown>).__testDb = db;
+}
+
+export function getTestDatabaseGlobal(): Database.Database | null {
+  return ((global as Record<string, unknown>).__testDb as Database.Database) || null;
+}

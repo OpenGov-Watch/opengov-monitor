@@ -13,6 +13,7 @@ import {
   transformToBarData,
   transformToLineData,
 } from "@/components/charts";
+import { loadColumnConfig } from "@/lib/column-renderer";
 import type {
   DashboardComponent as DashboardComponentType,
   QueryConfig,
@@ -35,11 +36,20 @@ export function DashboardComponent({
   const [data, setData] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [, setConfigLoaded] = useState(false);
 
   const queryConfig: QueryConfig = JSON.parse(component.query_config);
   const chartConfig: ChartConfig = component.chart_config
     ? JSON.parse(component.chart_config)
     : {};
+
+  // Table name for column config lookup
+  const tableName = queryConfig.sourceTable || "";
+
+  useEffect(() => {
+    // Load column config (display names and render settings)
+    loadColumnConfig().then(() => setConfigLoaded(true));
+  }, []);
 
   useEffect(() => {
     // Text components don't need data fetching
@@ -94,6 +104,19 @@ export function DashboardComponent({
       );
     }
 
+    // Text components don't need data
+    if (component.type === "text") {
+      return (
+        <div className="prose prose-sm max-w-none dark:prose-invert h-full overflow-auto">
+          {chartConfig.content ? (
+            <Markdown>{chartConfig.content}</Markdown>
+          ) : (
+            <span className="text-muted-foreground">No content</span>
+          )}
+        </div>
+      );
+    }
+
     if (data.length === 0) {
       return (
         <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -102,17 +125,26 @@ export function DashboardComponent({
       );
     }
 
+    // Helper to get the actual key name used in query results
+    const getColumnKey = (col: { column: string; alias?: string; aggregateFunction?: string }) => {
+      if (col.alias) return col.alias;
+      if (col.aggregateFunction) {
+        return `${col.aggregateFunction.toLowerCase()}_${col.column.replace(/[.\s]/g, "_")}`;
+      }
+      return col.column;
+    };
+
     const labelColumn =
-      chartConfig.labelColumn || queryConfig.columns[0]?.column;
+      chartConfig.labelColumn || (queryConfig.columns[0] && getColumnKey(queryConfig.columns[0]));
     const valueColumn =
-      chartConfig.valueColumn || queryConfig.columns[1]?.column;
+      chartConfig.valueColumn || (queryConfig.columns[1] && getColumnKey(queryConfig.columns[1]));
     const valueColumns = queryConfig.columns
-      .filter((c) => c.column !== labelColumn)
-      .map((c) => c.alias || c.column);
+      .filter((c) => getColumnKey(c) !== labelColumn)
+      .map((c) => getColumnKey(c));
 
     switch (component.type) {
       case "table":
-        return <DashboardDataTable data={data} />;
+        return <DashboardDataTable data={data} tableName={tableName} />;
 
       case "pie":
         if (!labelColumn || !valueColumn) {
@@ -128,6 +160,8 @@ export function DashboardComponent({
             showLegend={chartConfig.showLegend ?? true}
             showTooltip={chartConfig.showTooltip ?? true}
             colors={chartConfig.colors}
+            tableName={tableName}
+            valueColumn={valueColumn}
           />
         );
 
@@ -136,7 +170,8 @@ export function DashboardComponent({
         const { data: barData, bars } = transformToBarData(
           data,
           labelColumn,
-          valueColumns
+          valueColumns,
+          tableName
         );
         return (
           <DashboardBarChart
@@ -145,6 +180,7 @@ export function DashboardComponent({
             stacked={component.type === "bar_stacked"}
             showLegend={chartConfig.showLegend ?? true}
             showTooltip={chartConfig.showTooltip ?? true}
+            tableName={tableName}
           />
         );
       }
@@ -153,7 +189,8 @@ export function DashboardComponent({
         const { data: lineData, lines } = transformToLineData(
           data,
           labelColumn,
-          valueColumns
+          valueColumns,
+          tableName
         );
         return (
           <DashboardLineChart
@@ -161,20 +198,10 @@ export function DashboardComponent({
             lines={lines}
             showLegend={chartConfig.showLegend ?? true}
             showTooltip={chartConfig.showTooltip ?? true}
+            tableName={tableName}
           />
         );
       }
-
-      case "text":
-        return (
-          <div className="prose prose-sm max-w-none dark:prose-invert h-full overflow-auto">
-            {chartConfig.content ? (
-              <Markdown>{chartConfig.content}</Markdown>
-            ) : (
-              <span className="text-muted-foreground">No content</span>
-            )}
-          </div>
-        );
 
       default:
         return (

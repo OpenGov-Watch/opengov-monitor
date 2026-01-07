@@ -1,0 +1,297 @@
+"use client";
+
+import { ExternalLink } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { type ColumnRenderConfig } from "@/lib/column-renderer";
+
+// ============================================================================
+// Currency Cell
+// ============================================================================
+
+interface CurrencyCellProps {
+  value: number | null;
+  currency?: string;
+  decimals?: number;
+}
+
+export function CurrencyCell({ value, currency = "DOT", decimals = 0 }: CurrencyCellProps) {
+  if (value === null || value === undefined) {
+    return <span className="text-muted-foreground">-</span>;
+  }
+
+  const formatted = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(value);
+
+  if (currency === "USD") {
+    return <div className="text-right font-mono">${formatted}</div>;
+  }
+
+  return (
+    <div className="text-right font-mono">
+      {formatted} {currency}
+    </div>
+  );
+}
+
+// ============================================================================
+// Number Cell
+// ============================================================================
+
+interface NumberCellProps {
+  value: number | null;
+  decimals?: number;
+  color?: "green" | "red";
+}
+
+export function NumberCell({ value, decimals = 0, color }: NumberCellProps) {
+  if (value === null || value === undefined) {
+    return <span className="text-muted-foreground">-</span>;
+  }
+
+  const formatted = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: decimals,
+  }).format(value);
+
+  let colorClass = "";
+  if (color === "green") colorClass = "text-green-600";
+  if (color === "red") colorClass = "text-red-600";
+
+  return <div className={`text-right ${colorClass}`}>{formatted}</div>;
+}
+
+// ============================================================================
+// Date Cell
+// ============================================================================
+
+interface DateCellProps {
+  value: string | null;
+  format?: "date" | "datetime";
+}
+
+export function DateCell({ value, format = "date" }: DateCellProps) {
+  if (!value) {
+    return <span className="text-muted-foreground">-</span>;
+  }
+
+  const date = new Date(value);
+  const formatted =
+    format === "datetime"
+      ? date.toLocaleString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : date.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+
+  return <span>{formatted}</span>;
+}
+
+// ============================================================================
+// Badge Cell
+// ============================================================================
+
+interface BadgeCellProps {
+  value: string | null;
+  variants?: Record<string, string>;
+}
+
+export function BadgeCell({ value, variants }: BadgeCellProps) {
+  if (!value) {
+    return <span className="text-muted-foreground">-</span>;
+  }
+
+  const variant = variants?.[value] || variants?.["default"] || "outline";
+
+  return (
+    <Badge
+      variant={
+        variant as
+          | "default"
+          | "secondary"
+          | "destructive"
+          | "outline"
+          | "success"
+          | "warning"
+      }
+    >
+      {value}
+    </Badge>
+  );
+}
+
+// ============================================================================
+// Link Cell
+// ============================================================================
+
+interface LinkCellProps {
+  value: string | number | null;
+  urlTemplate?: string;
+  urlField?: string;
+  row?: Record<string, unknown>;
+  showIcon?: boolean;
+}
+
+export function LinkCell({
+  value,
+  urlTemplate,
+  urlField,
+  row,
+  showIcon = false,
+}: LinkCellProps) {
+  if (value === null || value === undefined) {
+    return <span className="text-muted-foreground">-</span>;
+  }
+
+  // Get URL from field or template
+  let url: string | null = null;
+  if (urlField && row) {
+    url = row[urlField] ? String(row[urlField]) : null;
+  } else if (urlTemplate) {
+    url = urlTemplate.replace("{value}", String(value));
+  }
+
+  if (!url) {
+    return <span>{String(value)}</span>;
+  }
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-blue-600 hover:underline inline-flex items-center gap-1"
+    >
+      {typeof value === "number" ? `#${value}` : value}
+      {showIcon && <ExternalLink className="h-3 w-3 flex-shrink-0" />}
+    </a>
+  );
+}
+
+// ============================================================================
+// Address Cell
+// ============================================================================
+
+interface AddressCellProps {
+  value: string | null;
+  truncate?: boolean;
+}
+
+export function AddressCell({ value, truncate = true }: AddressCellProps) {
+  if (!value) {
+    return <span className="text-muted-foreground">-</span>;
+  }
+
+  const displayValue =
+    truncate && value.length > 16
+      ? `${value.slice(0, 8)}...${value.slice(-6)}`
+      : value;
+
+  return (
+    <span className="font-mono text-xs" title={value}>
+      {displayValue}
+    </span>
+  );
+}
+
+// ============================================================================
+// Text Cell
+// ============================================================================
+
+interface TextCellProps {
+  value: string | number | null;
+  truncate?: boolean;
+  maxWidth?: number;
+}
+
+export function TextCell({ value, truncate = false, maxWidth = 350 }: TextCellProps) {
+  if (value === null || value === undefined) {
+    return <span className="text-muted-foreground">-</span>;
+  }
+
+  const strValue = String(value);
+
+  if (truncate) {
+    return (
+      <span
+        className="truncate block"
+        style={{ maxWidth: `${maxWidth}px` }}
+        title={strValue}
+      >
+        {strValue}
+      </span>
+    );
+  }
+
+  return <span>{strValue}</span>;
+}
+
+// ============================================================================
+// Dynamic Cell (Main Dispatcher)
+// ============================================================================
+
+interface DynamicCellProps {
+  value: unknown;
+  config: ColumnRenderConfig;
+  row?: Record<string, unknown>;
+}
+
+export function DynamicCell({ value, config, row }: DynamicCellProps) {
+  switch (config.render) {
+    case "currency":
+      return (
+        <CurrencyCell
+          value={value as number | null}
+          currency={config.currency}
+          decimals={config.decimals}
+        />
+      );
+
+    case "number":
+      return (
+        <NumberCell
+          value={value as number | null}
+          decimals={config.decimals}
+          color={config.color}
+        />
+      );
+
+    case "date":
+      return (
+        <DateCell value={value as string | null} format={config.format} />
+      );
+
+    case "badge":
+      return (
+        <BadgeCell value={value as string | null} variants={config.variants} />
+      );
+
+    case "link":
+      return (
+        <LinkCell
+          value={value as string | number | null}
+          urlTemplate={config.urlTemplate}
+          urlField={config.urlField}
+          row={row}
+          showIcon={!!config.urlField}
+        />
+      );
+
+    case "address":
+      return (
+        <AddressCell value={value as string | null} truncate={config.truncate} />
+      );
+
+    case "text":
+    default:
+      return <TextCell value={value as string | number | null} />;
+  }
+}

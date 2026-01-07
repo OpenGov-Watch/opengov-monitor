@@ -96,6 +96,7 @@ frontend/src/
 │   │
 │   ├── query-builder/            # Query builder components
 │   │   ├── query-builder.tsx
+│   │   ├── sortable-column.tsx   # Drag-and-drop column reordering
 │   │   └── types.ts
 │   │
 │   └── layout/
@@ -108,6 +109,7 @@ frontend/src/
 ├── lib/
 │   ├── utils.ts                  # cn(), formatters
 │   ├── export.ts                 # CSV/JSON export
+│   ├── column-display-names.ts   # Column display name utility
 │   └── db/
 │       └── types.ts              # TypeScript interfaces
 │
@@ -589,6 +591,45 @@ The query builder provides a visual interface for constructing database queries:
 - Only whitelisted tables are queryable (see `/api/query/schema`)
 - All filter values are parameterized (no SQL injection)
 - Row limits enforced on all queries
+
+### Column Display Names
+
+Column names are automatically converted to human-readable display names in the query builder and dashboard charts.
+
+**Auto-generation rules:**
+- Replace underscores with spaces: `DOT_latest` → "DOT Latest"
+- Title case each word
+- Preserve currency abbreviations: DOT, USD, USDC, USDT
+
+**YAML overrides (`public/config/column-display-names.yaml`):**
+
+```yaml
+# Global overrides (apply to all tables)
+DOT_latest: "DOT Value"
+year_month: "Month"
+
+# Table-specific overrides
+all_spending:
+  type: "Spending Type"
+  title: "Description"
+
+Referenda:
+  id: "Ref #"
+  tally.ayes: "Ayes"
+```
+
+**Usage in code:**
+
+```typescript
+import { getColumnDisplayName, loadColumnNameOverrides } from "@/lib/column-display-names";
+
+// Load overrides on mount
+await loadColumnNameOverrides();
+
+// Get display name for a column
+const name = getColumnDisplayName("all_spending", "DOT_latest"); // "DOT Value"
+const auto = getColumnDisplayName("all_spending", "category");    // "Category" (auto-generated)
+```
 
 ---
 

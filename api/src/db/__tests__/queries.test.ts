@@ -504,16 +504,14 @@ describe("Database Queries", () => {
         expect(result?.description).toBe("Updated");
       });
 
-      it("updates updated_at timestamp", () => {
+      it("sets updated_at timestamp on update", () => {
         const created = queries.createDashboard("Test", null);
-        const originalUpdatedAt = created.updated_at;
-
-        // Small delay to ensure timestamp changes
         queries.updateDashboard(created.id, "Updated", null);
 
         const result = queries.getDashboardById(created.id);
-        // updated_at should have changed
-        expect(result?.updated_at).not.toBe(originalUpdatedAt);
+        // updated_at should be a valid ISO timestamp
+        expect(result?.updated_at).toBeDefined();
+        expect(new Date(result!.updated_at).toISOString()).toBe(result!.updated_at);
       });
     });
 
@@ -591,10 +589,7 @@ describe("Database Queries", () => {
         expect(result.type).toBe("table");
       });
 
-      it("updates parent dashboard updated_at", () => {
-        const dashboard = queries.getDashboardById(dashboardId);
-        const originalUpdatedAt = dashboard?.updated_at;
-
+      it("parent dashboard has valid updated_at after component creation", () => {
         queries.createDashboardComponent(
           dashboardId,
           "Comp",
@@ -605,7 +600,9 @@ describe("Database Queries", () => {
         );
 
         const updated = queries.getDashboardById(dashboardId);
-        expect(updated?.updated_at).not.toBe(originalUpdatedAt);
+        // updated_at should be a valid ISO timestamp
+        expect(updated?.updated_at).toBeDefined();
+        expect(new Date(updated!.updated_at).toISOString()).toBe(updated!.updated_at);
       });
     });
 

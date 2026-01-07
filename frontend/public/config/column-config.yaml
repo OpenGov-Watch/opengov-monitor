@@ -1,0 +1,283 @@
+# Column Configuration
+# Combines display names and render settings for automatic column formatting
+#
+# Structure:
+#   columns:       Global column patterns (apply to all tables)
+#   tables:        Table-specific overrides
+#
+# Render types:
+#   text:     Plain text (default)
+#   number:   Formatted number with locale separators
+#   currency: Number with currency symbol (DOT, USD, USDC, USDT)
+#   date:     Date/datetime formatting
+#   badge:    Status badge with color variants
+#   link:     Clickable link to external URL
+#   address:  Blockchain address with truncation
+
+columns:
+  # Currency columns - DOT
+  DOT_latest:
+    displayName: "DOT Value"
+    render: currency
+    currency: DOT
+    decimals: 0
+
+  DOT_proposal_time:
+    displayName: "DOT (at Proposal)"
+    render: currency
+    currency: DOT
+    decimals: 0
+
+  DOT_component:
+    displayName: "DOT Component"
+    render: currency
+    currency: DOT
+    decimals: 0
+
+  # Currency columns - USD
+  USD_latest:
+    displayName: "USD Value"
+    render: currency
+    currency: USD
+    decimals: 0
+
+  USD_proposal_time:
+    displayName: "USD (at Proposal)"
+    render: currency
+    currency: USD
+    decimals: 0
+
+  # Currency columns - Stablecoins
+  USDC_component:
+    displayName: "USDC Component"
+    render: currency
+    currency: USDC
+    decimals: 2
+
+  USDT_component:
+    displayName: "USDT Component"
+    render: currency
+    currency: USDT
+    decimals: 2
+
+  # Status columns
+  status:
+    render: badge
+    variants:
+      Executed: success
+      Approved: success
+      Paid: success
+      Awarded: success
+      Claimed: success
+      Rejected: destructive
+      Cancelled: destructive
+      Expired: destructive
+      TimedOut: destructive
+      Ongoing: secondary
+      Deciding: secondary
+      Pending: secondary
+      default: outline
+
+  # Date columns
+  latest_status_change:
+    displayName: "Date"
+    render: date
+    format: date
+
+  proposal_time:
+    displayName: "Proposal Time"
+    render: date
+    format: date
+
+  validFrom:
+    displayName: "Valid From"
+    render: date
+    format: date
+
+  expireAt:
+    displayName: "Expires"
+    render: date
+    format: date
+
+  block_time:
+    displayName: "Block Time"
+    render: date
+    format: datetime
+
+  start_time:
+    displayName: "Start Time"
+    render: date
+    format: date
+
+  end_time:
+    displayName: "End Time"
+    render: date
+    format: date
+
+  # Computed time columns
+  year:
+    displayName: "Year"
+    render: text
+
+  year_month:
+    displayName: "Month"
+    render: text
+
+  year_quarter:
+    displayName: "Quarter"
+    render: text
+
+  # Reference/link columns
+  referendumIndex:
+    displayName: "Ref #"
+    render: link
+    urlTemplate: "https://polkadot.subsquare.io/referenda/{value}"
+
+  parentBountyId:
+    displayName: "Parent Bounty"
+    render: link
+    urlTemplate: "https://polkadot.subsquare.io/treasury/bounties/{value}"
+
+  # Address columns
+  beneficiary:
+    displayName: "Beneficiary"
+    render: address
+    truncate: true
+
+  who:
+    displayName: "Who"
+    render: address
+    truncate: true
+
+  address:
+    displayName: "Address"
+    render: address
+    truncate: true
+
+  # Count/number columns
+  registeredCount:
+    displayName: "Registered"
+    render: number
+    decimals: 0
+
+  registeredPaidCount:
+    displayName: "Paid"
+    render: number
+    decimals: 0
+
+  rank:
+    displayName: "Rank"
+    render: number
+    decimals: 0
+
+  cycle:
+    displayName: "Cycle"
+    render: number
+    decimals: 0
+
+  # Tally columns (special colors)
+  tally.ayes:
+    displayName: "Ayes"
+    render: number
+    decimals: 0
+    color: green
+
+  tally.nays:
+    displayName: "Nays"
+    render: number
+    decimals: 0
+    color: red
+
+  # Days columns
+  days_until_expiry:
+    displayName: "Days Until Expiry"
+    render: number
+    decimals: 0
+
+  days_until_valid:
+    displayName: "Days Until Valid"
+    render: number
+    decimals: 0
+
+  days_since_expiry:
+    displayName: "Days Since Expiry"
+    render: number
+    decimals: 0
+
+# Table-specific overrides
+tables:
+  all_spending:
+    id:
+      displayName: "ID"
+      render: text
+
+    title:
+      displayName: "Description"
+      render: link
+      urlField: url
+
+    type:
+      displayName: "Spending Type"
+      render: badge
+      variants:
+        Direct Spend: default
+        Bounty Child: secondary
+        Claim: outline
+        default: outline
+
+  Referenda:
+    id:
+      displayName: "Ref #"
+      render: link
+      urlTemplate: "https://polkadot.subsquare.io/referenda/{value}"
+
+    title:
+      render: link
+      urlField: url
+
+    track:
+      displayName: "Track"
+      render: badge
+      variants:
+        default: outline
+
+  Treasury:
+    id:
+      displayName: "Spend #"
+      render: link
+      urlTemplate: "https://polkadot.subsquare.io/treasury/spends/{value}"
+
+    title:
+      render: link
+      urlField: url
+
+  ChildBounties:
+    identifier:
+      displayName: "ID"
+      render: text
+
+    title:
+      render: link
+      urlField: url
+
+  Fellowship:
+    id:
+      displayName: "Ref #"
+      render: link
+      urlTemplate: "https://collectives.subsquare.io/fellowship/referenda/{value}"
+
+    title:
+      render: link
+      urlField: url
+
+  outstanding_claims:
+    id:
+      displayName: "Spend #"
+      render: link
+      urlTemplate: "https://polkadot.subsquare.io/treasury/spends/{value}"
+
+  expired_claims:
+    id:
+      displayName: "Spend #"
+      render: link
+      urlTemplate: "https://polkadot.subsquare.io/treasury/spends/{value}"
