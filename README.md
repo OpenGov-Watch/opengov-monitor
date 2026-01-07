@@ -1,145 +1,303 @@
-# Monitoring Updater
+# OpenGov Monitor
 
-This service collects Polkadot and Kusama governance information and writes it
-into a Google Spreadsheet. It can run locally or as a scheduled job on Google
-Cloud Run.
+A monorepo containing a data collection backend and web dashboard for Polkadot/Kusama governance data.
 
-## Quick start
+## Components
 
-Create a virtual environment and install the dependencies:
+| Component | Description | Tech Stack |
+|-----------|-------------|------------|
+| **Backend** | Data pipeline fetching from Subsquare | Python, Flask, SQLite |
+| **Frontend** | Interactive dashboard for data exploration | Next.js, React, TanStack Table |
+
+## Quick Start
+
+### 1. Setup Backend
 
 ```bash
+cd backend
 python -m venv .venv
-source .venv/bin/activate    # On Windows use .venv\Scripts\activate
+source .venv/bin/activate    # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+### 2. Fetch Data
 
-## Summary
-The app fetches referenda, treasury spends and other governance data from
-Subsquare, enriches it with historical token prices and stores the result in a
-spreadsheet. A Flask route exposes the update function so the job can be
-triggered by Cloud Scheduler or executed locally.
+```bash
+cd backend
+python scripts/run_sqlite.py --db ../data/polkadot.db
+```
 
-## Project layout
+### 3. Run Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open http://localhost:3000 to view the dashboard.
+
+---
+
+## Project Structure
 
 ```
 opengov-monitor/
-├── main.py          - Flask entrypoint that performs the update
-├── config.yaml      - Limits and network block information
-├── data_providers/  - Fetch data from Subsquare and price services
-├── data_sinks/      - Write data to Google Sheets
-├── utils/           - Helper utilities (logging etc.)
-├── scripts/         - Helper scripts
-├── tests/           - Unit tests
-└── README.md
+├── backend/                 # Python data pipeline
+│   ├── data_providers/      # Fetch from Subsquare, prices
+│   ├── data_sinks/          # SQLite and Google Sheets storage
+│   │   ├── sqlite/          # Local database sink
+│   │   └── google/          # Google Sheets sink
+│   ├── scripts/             # CLI utilities
+│   ├── utils/               # Logging, helpers
+│   ├── tests/               # Test suite
+│   ├── main.py              # Flask app (Google Sheets mode)
+│   └── config.yaml          # Fetch limits
+│
+├── frontend/                # Next.js dashboard
+│   └── src/
+│       ├── app/             # Page routes (6 tables + dashboard)
+│       ├── components/
+│       │   ├── ui/          # shadcn/ui components
+│       │   ├── data-table/  # Reusable table components
+│       │   ├── tables/      # Column definitions
+│       │   └── layout/      # Sidebar navigation
+│       ├── lib/
+│       │   ├── db/          # SQLite queries (server-side)
+│       │   └── export.ts    # CSV/JSON export
+│       └── hooks/           # View state management
+│
+├── data/                    # Shared SQLite database
+│   └── polkadot.db
+│
+├── docs/                    # Documentation
+│   └── spec/                # Technical specifications
+│
+└── CLAUDE.md                # AI assistant instructions
 ```
 
-## How it works
+---
 
-1. `main.py` reads `config.yaml` and environment variables (`OPENGOV_MONITOR_SPREADSHEET_ID`, `OPENGOV_MONITOR_CREDENTIALS`).
-2. `SubsquareProvider` fetches referenda, treasury spends and other data.
-3. `PriceService` loads token prices so the value of proposals can be expressed in USD.
-4. `SpreadsheetSink` connects to Google Sheets, compares existing rows with freshly fetched data and applies updates.
+## Backend Usage
 
-
-## Dump provider data
-
-Use the helper script in `scripts/` to store the fetched data locally without updating a spreadsheet:
+### Run with SQLite (Recommended)
 
 ```bash
-python scripts/dump_provider.py --network polkadot --out ./data_dump
+cd backend
+
+# Fetch Polkadot governance data
+python scripts/run_sqlite.py --db ../data/polkadot.db
+
+# Fetch Kusama data
+python scripts/run_sqlite.py --network kusama --db ../data/kusama.db
 ```
 
-This will produce CSV and JSON files for referenda, treasury spends and other data in the specified directory.
+### Run with Google Sheets
 
+```bash
+cd backend
 
+# Set credentials
+export OPENGOV_MONITOR_CREDENTIALS='{"type": "service_account", ...}'
+export OPENGOV_MONITOR_SPREADSHEET_ID='your-spreadsheet-id'
 
-## Instructions
+# Run pipeline
+python main.py run
+```
 
-### Setting up the spreadsheet
-1. Create a Google spreadsheet from template.xlsx in the main folder. Take a note of the spreadsheet ID in the url. You will need it later.
-2. Create the service account that will be able to edit the sheet: https://developers.google.com/workspace/guides/create-credentials
-    - If you haven't created a project before, you will need to create one.
-    - Create a service account here: https://console.cloud.google.com/iam-admin/serviceaccounts
-    - Then select it and under **Keys** create a new key. Download the JSON credentials file. You will need it later.
+### Helper Scripts
 
-### Local Deployment
-1. In `main.py` adjust the `network` variable (only `polkadot` or `kusama`) and optionally change `default_spreadsheet_id`.
-2. Set environment variables:
-    - `OPENGOV_MONITOR_SPREADSHEET_ID` – your spreadsheet ID (falls back to `default_spreadsheet_id`).
-    - `OPENGOV_MONITOR_CREDENTIALS` – contents of the service account JSON. If not set, `credentials.json` will be read from the working directory.
-3. Run the Flask app with `python main.py run` to execute a single update, or `flask run` to start the HTTP server.
+```bash
+cd backend
 
-### Cloud Configuration
-1. Enable the following APIs:
-    - Cloud Scheduler API
-    - Cloud Run Admin API
-    - Cloud Logging API
-    - Cloud Build API
-    - Artifact Registry API
-    - Secret Manager API
-    - Cloud Pub/Sub API
-    - Identity and Access Management (IAM) API
-    - IAM Service Account Credentials API
-2. Open the IAM settings: https://console.cloud.google.com/iam-admin/iam and add the following roles to the service account:
-    - Cloud Run Admin
-    - Logs Writer
-    - Secret Manager Secret Accessor
-    - Artifact Registry Create-on-Push Repository Administrator
-    - Cloud Build WorkerPool user
-3. Configure a Cloud Build Trigger: https://console.cloud.google.com/cloud-build
-4. Run the trigger for the first time. It should create a cloud service
-5. Select the service in Cloud Run https://console.cloud.google.com/run and then "Edit and Deploy New Revision"
-    - Copy the service URL. You will need it to set up the Cloud Scheduler job.
-    - In Container(s), expand the container and look for the "Variables and Secrets" tab.
-      - Add the environment variable `OPENGOV_MONITOR_SPREDSHEET_ID` and set it to the spreadsheet ID of the spreadsheet you created earlier.
-      - Add the secret `OPENGOV_MONITOR_CREDENTIALS` and paste the content of the credentials file you downloaded earlier.
-6. Create a scheduled job in Cloud Scheduler: https://console.cloud.google.com/cloudscheduler
-    - Set the frequency to `0 0 * * *` to run the job every day at midnight.
-    - Set the target to `HTTP` and paste the service URL you copied earlier.
-    - Set the HTTP method to `GET`.
-    - As Auth header, select `Add OIDC token`.
-    - Select the service account you created earlier.
+# Dump data to CSV/JSON
+python scripts/dump_provider.py --network polkadot --out ../data_dump
 
-## Notes
-- Data is fetched from Subsquare.
-- USD prices of executed proposals are calculated to the exchange rate of the day of the last status change.
-- Not every referendum gets a DOT value assigned from Subsquare. E.g. Bounties are not counted, since the money is not spent. We also see proposals without value where we don't have an explanation yet, e.g. 465
+# Fetch fellowship salaries
+python scripts/fetch_salaries.py --cycle 17
+python scripts/fetch_salaries.py --claimants-only
+```
 
-## Trouble Shooting
-- Check the cloud logs here: https://console.cloud.google.com/logs/
-- Make sure column A is formatted a whole number. If it isn't future updates won't work. Make it a whole number by setting `Format->Number->Automatic`.
+---
 
-## Logging Configuration
-The application uses a comprehensive logging system that can be configured via `config.yaml`:
+## Frontend Features
+
+### Data Tables
+
+The dashboard displays up to 6 governance data types:
+
+| Table | Description | Populated By |
+|-------|-------------|--------------|
+| Referenda | Governance proposals with voting data | `run_sqlite.py` |
+| Treasury Spends | Treasury allocation requests | `run_sqlite.py` |
+| Child Bounties | Sub-bounties for work completion | `run_sqlite.py` |
+| Fellowship Treasury | Fellowship-specific treasury spends | `run_sqlite.py` |
+| Salary Cycles | Fellowship salary payment cycles | `fetch_salaries.py` |
+| Salary Claimants | Individual fellowship members | `fetch_salaries.py` |
+
+> **Note**: Salary tables require running `fetch_salaries.py` separately. The frontend shows a helpful message if these tables don't exist.
+
+### Table Features
+
+- **Sorting** - Click column headers to sort ascending/descending
+- **Global Search** - Search across all columns
+- **Pagination** - Navigate large datasets (10-100 rows per page)
+- **Column Visibility** - Show/hide columns via dropdown
+- **Export** - Download filtered data as CSV or JSON
+- **View State** - Save/load/reset table configuration
+  - Persisted to localStorage
+  - Shareable via URL parameters
+
+### Frontend Development
+
+```bash
+cd frontend
+
+# Development server (hot reload)
+npm run dev
+
+# Production build
+npm run build
+npm start
+
+# Linting
+npm run lint
+```
+
+---
+
+## Configuration
+
+### config.yaml (Backend)
 
 ```yaml
-logging:
-  enable_file_logging: true  # Toggle file logging
-  log_dir: "logs"           # Directory for log files
-  max_file_size_mb: 10      # Maximum size of each log file in MB
-  backup_count: 5           # Number of backup files to keep
+fetch_limits:
+  referenda: 100
+  treasury_spends: 100
+  child_bounties: 100
+  fellowship_treasury_spends: 100
+
+block_time_projection:
+  block_number: 25732485
+  block_datetime: 2025-04-25T15:27:36
+  block_time: 6.0
 ```
 
-Features:
-- Logs to both console and file (file logging can be disabled)
-- Captures detailed extra information in JSON format
-- Rotates log files based on configured size and backup count
-- Logs are stored in the configured `log_dir`
-- All extra fields passed to loggers are automatically JSON-serialized and included in the output
-- Log levels are set to DEBUG for application logs and INFO for third-party libraries
+### Environment Variables
 
-Example log format:
+| Variable | Component | Description |
+|----------|-----------|-------------|
+| `OPENGOV_MONITOR_SQLITE_PATH` | Backend | SQLite database path |
+| `OPENGOV_MONITOR_SPREADSHEET_ID` | Backend | Google Spreadsheet ID |
+| `OPENGOV_MONITOR_CREDENTIALS` | Backend | Google credentials JSON |
+| `DATABASE_PATH` | Frontend | SQLite path (default: `../data/polkadot.db`) |
+
+---
+
+## Data Flow
+
 ```
-2024-04-11 14:30:00 - spreadsheet - DEBUG - Processing spreadsheet | Extra: {"gaps": [...], "urls": [...]} 
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  Subsquare API  │────▶│  Python Backend  │────▶│  SQLite Database│
+│  (governance    │     │  (fetch, enrich  │     │  (data/polkadot │
+│   data)         │     │   with prices)   │     │   .db)          │
+└─────────────────┘     └──────────────────┘     └────────┬────────┘
+                                                          │
+                        ┌──────────────────┐              │
+                        │  Next.js Frontend │◀────────────┘
+                        │  (Server Components
+                        │   read directly)  │
+                        └──────────────────┘
 ```
 
-## Running tests
+The frontend uses Next.js Server Components to read directly from SQLite via `better-sqlite3`. No API layer is needed.
 
-The tests use `pytest` and rely on mocks to avoid network access. After installing the
-requirements, simply run:
+---
+
+## Data Entities
+
+| Entity | Primary Key | Key Fields |
+|--------|-------------|------------|
+| Referenda | `id` | title, status, track, DOT/USD values, tally |
+| Treasury | `id` | referendumIndex, description, DOT/USD values |
+| Child Bounties | `identifier` | parentBountyId, beneficiary, DOT value |
+| Fellowship | `id` | description, DOT/USD values |
+| Salary Cycles | `cycle` | budget_dot, registered/paid counts |
+| Salary Claimants | `address` | display_name, rank, status_type |
+
+See [docs/spec/data-models.md](docs/spec/data-models.md) for complete field documentation.
+
+---
+
+## Testing
 
 ```bash
+cd backend
 pytest
+pytest --cov=data_sinks --cov-report=term-missing
 ```
+
+---
+
+## Documentation
+
+- [docs/spec/index.md](docs/spec/index.md) - Application overview
+- [docs/spec/data-models.md](docs/spec/data-models.md) - Entity schemas
+- [docs/spec/api-reference.md](docs/spec/api-reference.md) - External API docs
+- [docs/spec/business-logic.md](docs/spec/business-logic.md) - Value extraction
+- [docs/spec/sqlite-sink.md](docs/spec/sqlite-sink.md) - SQLite implementation
+- [docs/spec/frontend.md](docs/spec/frontend.md) - Frontend architecture
+
+---
+
+## Cloud Deployment
+
+### Backend (Cloud Run)
+
+```bash
+cd backend
+docker build -t opengov-monitor .
+docker run -p 8080:8080 opengov-monitor
+```
+
+Use Cloud Scheduler to trigger the `/` endpoint periodically.
+
+### Frontend (Vercel/Node)
+
+```bash
+cd frontend
+npm run build
+npm start
+```
+
+Or deploy to Vercel with the Next.js preset.
+
+---
+
+## Troubleshooting
+
+### Database Not Found
+
+If the frontend shows "Database Not Found":
+
+```bash
+cd backend
+python scripts/run_sqlite.py --db ../data/polkadot.db
+```
+
+### Native Module Issues (Frontend)
+
+If `better-sqlite3` fails to build:
+
+```bash
+cd frontend
+npm rebuild better-sqlite3
+```
+
+On Windows, you may need Visual Studio Build Tools installed.
+
+---
+
+## License
+
+See [LICENSE](LICENSE) file.

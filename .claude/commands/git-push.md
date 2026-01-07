@@ -1,0 +1,3 @@
+- do a `git diff` and check the files to commit
+- update `.gitignore` if neccessary
+- do a `git commit` and `git push`

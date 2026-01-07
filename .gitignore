@@ -50,9 +50,13 @@ coverage.xml
 *.log
 logs/
 
-# Local development
-data/*
+# Local development / Secrets
+data/
 credentials.json
+*.env
+.env.*
+
+# Data files
 referenda.csv
 *.xlsx
 *.xls
@@ -61,3 +65,17 @@ referenda.csv
 # OS
 .DS_Store
 Thumbs.db
+
+# Node.js / Frontend
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+.turbo/
+
+# Build artifacts
+*.local
+
+# Claude Code
+.claude/plans/
+.claude/settings.local.json
