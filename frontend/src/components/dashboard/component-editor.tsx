@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -100,20 +100,48 @@ export function ComponentEditor({
       ? JSON.parse(component.chart_config)
       : defaultChartConfig
   );
-  const [gridConfig] = useState<GridConfig>(
+  const [gridConfig, setGridConfig] = useState<GridConfig>(
     component ? JSON.parse(component.grid_config) : defaultGridConfig
   );
   const [previewData, setPreviewData] = useState<Record<string, unknown>[]>([]);
+  const [previewSql, setPreviewSql] = useState<string>("");
   const [step, setStep] = useState<"config" | "preview">("config");
+
+  // Reset state when dialog opens or component changes
+  useEffect(() => {
+    if (open) {
+      setName(component?.name || "");
+      setType(component?.type || "table");
+      setQueryConfig(
+        component?.query_config
+          ? JSON.parse(component.query_config)
+          : defaultQueryConfig
+      );
+      setChartConfig(
+        component?.chart_config
+          ? JSON.parse(component.chart_config)
+          : defaultChartConfig
+      );
+      setGridConfig(
+        component?.grid_config
+          ? JSON.parse(component.grid_config)
+          : defaultGridConfig
+      );
+      setPreviewData([]);
+      setPreviewSql("");
+      setStep("config");
+    }
+  }, [open, component]);
 
   const handleQueryChange = useCallback((config: QueryConfig) => {
     setQueryConfig(config);
   }, []);
 
   const handlePreview = useCallback(
-    (data: unknown[]) => {
+    (data: unknown[], sql: string) => {
       setPreviewData(data as Record<string, unknown>[]);
-      setStep("preview");
+      setPreviewSql(sql);
+      // Don't auto-switch to preview - let user see SQL in query builder first
     },
     []
   );
@@ -256,15 +284,26 @@ export function ComponentEditor({
 
           {/* Query Builder */}
           {step === "config" && (
-            <div className="space-y-2">
-              <Label>Data Query</Label>
-              <div className="rounded-md border p-4">
-                <QueryBuilder
-                  initialConfig={queryConfig}
-                  onChange={handleQueryChange}
-                  onPreview={handlePreview}
-                />
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Data Query</Label>
+                <div className="rounded-md border p-4">
+                  <QueryBuilder
+                    initialConfig={queryConfig}
+                    onChange={handleQueryChange}
+                    onPreview={handlePreview}
+                  />
+                </div>
               </div>
+
+              {/* Show button to proceed to chart preview after running query */}
+              {previewData.length > 0 && (
+                <div className="flex justify-end">
+                  <Button onClick={() => setStep("preview")}>
+                    Continue to Chart Preview ({previewData.length} rows)
+                  </Button>
+                </div>
+              )}
             </div>
           )}
 
@@ -369,6 +408,18 @@ export function ComponentEditor({
               )}
 
               {renderPreview()}
+
+              {/* SQL Display */}
+              {previewSql && (
+                <details className="mt-4">
+                  <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
+                    View SQL Query
+                  </summary>
+                  <div className="mt-2 rounded-md border bg-muted p-4">
+                    <pre className="text-xs overflow-x-auto whitespace-pre-wrap">{previewSql}</pre>
+                  </div>
+                </details>
+              )}
             </div>
           )}
 

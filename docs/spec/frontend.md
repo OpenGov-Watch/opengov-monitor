@@ -2,18 +2,19 @@
 
 ## Overview
 
-The frontend is a Next.js 14+ application that provides an interactive dashboard for exploring Polkadot governance data. It uses Server Components to read directly from SQLite, with client-side interactivity powered by TanStack Table.
+The frontend is a Vite + React application that provides an interactive dashboard for exploring Polkadot governance data. It fetches data from the Express API server and uses TanStack Table for client-side data manipulation.
 
 ## Technology Stack
 
 | Technology | Purpose |
 |------------|---------|
-| Next.js 14+ | React framework with App Router |
+| Vite 6 | Build tool and dev server |
+| React 19 | UI framework |
+| React Router v7 | Client-side routing |
 | TypeScript | Type safety |
 | TanStack Table | Data table with sorting, filtering, pagination |
 | Tailwind CSS | Utility-first styling |
 | shadcn/ui | Accessible UI components |
-| better-sqlite3 | SQLite access from Server Components |
 | Recharts | Charts and visualizations for dashboards |
 | react-grid-layout | Drag-and-drop grid layout for dashboards |
 
@@ -23,28 +24,33 @@ The frontend is a Next.js 14+ application that provides an interactive dashboard
 
 ```
 frontend/src/
-├── app/                          # Next.js App Router
-│   ├── layout.tsx                # Root layout with sidebar
-│   ├── page.tsx                  # Dashboard home
-│   ├── globals.css               # Tailwind + CSS variables
-│   ├── referenda/page.tsx        # Referenda table
-│   ├── treasury/page.tsx         # Treasury table
-│   ├── child-bounties/page.tsx   # Child bounties table
-│   ├── fellowship/page.tsx       # Fellowship table
-│   ├── fellowship-salary-cycles/page.tsx
-│   ├── fellowship-salary-claimants/page.tsx
-│   ├── dashboards/               # Custom dashboards
-│   │   ├── page.tsx              # Dashboard list
-│   │   └── [id]/
-│   │       ├── page.tsx          # View dashboard
-│   │       └── edit/page.tsx     # Edit dashboard
-│   └── api/                      # API routes
-│       ├── dashboards/           # Dashboard CRUD
-│       │   ├── route.ts
-│       │   └── components/route.ts
-│       └── query/                # Query builder APIs
-│           ├── schema/route.ts   # Table/column introspection
-│           └── execute/route.ts  # Query execution
+├── main.tsx                      # React entry point
+├── router.tsx                    # React Router configuration
+├── globals.css                   # Tailwind + CSS variables
+│
+├── pages/                        # Page components (lazy-loaded)
+│   ├── dashboard.tsx             # Dashboard home
+│   ├── referenda.tsx             # Referenda table
+│   ├── treasury.tsx              # Treasury table
+│   ├── child-bounties.tsx        # Child bounties table
+│   ├── fellowship.tsx            # Fellowship table
+│   ├── fellowship-salary-cycles.tsx
+│   ├── fellowship-salary-claimants.tsx
+│   ├── spending.tsx              # Aggregated spending
+│   ├── outstanding-claims.tsx    # Outstanding claims
+│   ├── expired-claims.tsx        # Expired claims
+│   ├── logs.tsx                  # System logs
+│   ├── dashboards/
+│   │   ├── index.tsx             # Dashboard list
+│   │   ├── view.tsx              # View dashboard
+│   │   └── edit.tsx              # Edit dashboard
+│   └── manage/
+│       ├── categories.tsx        # CRUD categories
+│       ├── bounties.tsx          # Assign bounty categories
+│       └── subtreasury.tsx       # CRUD subtreasury
+│
+├── api/
+│   └── client.ts                 # API client functions
 │
 ├── components/
 │   ├── ui/                       # shadcn/ui components
@@ -62,7 +68,7 @@ frontend/src/
 │   │
 │   ├── data-table/               # Reusable table components
 │   │   ├── data-table.tsx        # Main table component
-│   │   ├── data-table-wrapper.tsx # Suspense wrapper for DataTable
+│   │   ├── skeleton.tsx          # Loading skeleton
 │   │   ├── column-header.tsx     # Sortable column headers
 │   │   ├── pagination.tsx        # Page navigation
 │   │   ├── toolbar.tsx           # Search, export, view controls
@@ -74,35 +80,36 @@ frontend/src/
 │   │   ├── child-bounties-columns.tsx
 │   │   ├── fellowship-columns.tsx
 │   │   ├── fellowship-salary-cycles-columns.tsx
-│   │   └── fellowship-salary-claimants-columns.tsx
+│   │   ├── fellowship-salary-claimants-columns.tsx
+│   │   └── all-spending-columns.tsx
 │   │
 │   ├── charts/                   # Chart components
-│   │   ├── pie-chart.tsx         # Pie chart wrapper
-│   │   ├── bar-chart.tsx         # Bar chart (stacked/grouped)
-│   │   ├── line-chart.tsx        # Line chart
-│   │   └── data-table.tsx        # Simple data table for dashboards
+│   │   ├── pie-chart.tsx
+│   │   ├── bar-chart.tsx
+│   │   ├── line-chart.tsx
+│   │   └── data-table.tsx
 │   │
 │   ├── dashboard/                # Dashboard components
 │   │   ├── dashboard-grid.tsx    # Grid layout container
-│   │   ├── dashboard-component.tsx # Component renderer
-│   │   └── component-editor.tsx  # Add/edit component dialog
+│   │   ├── dashboard-component.tsx
+│   │   └── component-editor.tsx
 │   │
 │   ├── query-builder/            # Query builder components
-│   │   └── query-builder.tsx     # Visual query builder UI
+│   │   ├── query-builder.tsx
+│   │   └── types.ts
 │   │
 │   └── layout/
+│       ├── Layout.tsx            # Root layout with sidebar
 │       └── sidebar.tsx           # Navigation sidebar
+│
+├── hooks/
+│   └── use-view-state.ts         # Table state persistence
 │
 ├── lib/
 │   ├── utils.ts                  # cn(), formatters
 │   ├── export.ts                 # CSV/JSON export
 │   └── db/
-│       ├── index.ts              # Database singleton
-│       ├── queries.ts            # Query functions
 │       └── types.ts              # TypeScript interfaces
-│
-├── hooks/
-│   └── use-view-state.ts         # Table state persistence
 │
 └── types/
     └── react-grid-layout.d.ts    # Type overrides
@@ -112,34 +119,42 @@ frontend/src/
 
 ## Data Flow
 
-### Server-Side Data Fetching
+### Client-Side Data Fetching
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  Page.tsx   │────▶│  queries.ts │────▶│   SQLite    │
-│  (Server    │     │ getReferenda│     │  Database   │
-│  Component) │     │     ()      │     │             │
-└──────┬──────┘     └─────────────┘     └─────────────┘
-       │
-       ▼ data (serialized)
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  DataTable  │────▶│  TanStack   │────▶│   Browser   │
-│  (Client    │     │   Table     │     │   Render    │
-│  Component) │     │             │     │             │
-└─────────────┘     └─────────────┘     └─────────────┘
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  Page Component │────▶│   API Client    │────▶│  Express API    │
+│  (useEffect)    │     │  fetch('/api/') │     │  (:3001)        │
+└────────┬────────┘     └─────────────────┘     └─────────────────┘
+         │
+         ▼ data (JSON)
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   useState      │────▶│   TanStack      │────▶│   Browser       │
+│   setData()     │     │   Table         │     │   Render        │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
 ```
 
 ### Example Page Component
 
 ```tsx
-// app/referenda/page.tsx (Server Component)
-import { getReferenda } from "@/lib/db/queries";
-import { referendaColumns } from "@/components/tables/referenda-columns";
+// pages/referenda.tsx
+import { useState, useEffect } from "react";
 import { DataTable } from "@/components/data-table/data-table";
+import { DataTableSkeleton } from "@/components/data-table/skeleton";
+import { referendaColumns } from "@/components/tables/referenda-columns";
 
 export default function ReferendaPage() {
-  // Runs on server - reads from SQLite
-  const data = getReferenda();
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/referenda")
+      .then((res) => res.json())
+      .then(setData)
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <DataTableSkeleton />;
 
   return (
     <DataTable
@@ -153,40 +168,44 @@ export default function ReferendaPage() {
 
 ---
 
-## Database Layer
+## API Client
 
-### Singleton Connection
-
-```typescript
-// lib/db/index.ts
-import Database from "better-sqlite3";
-import path from "path";
-
-const DB_PATH = process.env.DATABASE_PATH ||
-  path.join(process.cwd(), "..", "data", "polkadot.db");
-
-let db: Database.Database | null = null;
-
-export function getDatabase(): Database.Database {
-  if (!db) {
-    db = new Database(DB_PATH, { readonly: true });
-    db.pragma("journal_mode = WAL");
-  }
-  return db;
-}
-```
-
-### Query Functions
+The API client (`src/api/client.ts`) provides typed fetch functions for all endpoints:
 
 ```typescript
-// lib/db/queries.ts
-export function getReferenda(): Referendum[] {
-  const db = getDatabase();
-  return db.prepare('SELECT * FROM "Referenda"').all() as Referendum[];
-}
+// api/client.ts
+const API_BASE = "/api";
+
+export const api = {
+  referenda: {
+    getAll: () => fetch(`${API_BASE}/referenda`).then(r => r.json()),
+  },
+  treasury: {
+    getAll: () => fetch(`${API_BASE}/treasury`).then(r => r.json()),
+  },
+  dashboards: {
+    getAll: () => fetch(`${API_BASE}/dashboards`).then(r => r.json()),
+    create: (data) => fetch(`${API_BASE}/dashboards`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }).then(r => r.json()),
+    // ...
+  },
+  query: {
+    getSchema: () => fetch(`${API_BASE}/query/schema`).then(r => r.json()),
+    execute: (config) => fetch(`${API_BASE}/query/execute`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(config),
+    }).then(r => r.json()),
+  },
+};
 ```
 
-### TypeScript Types
+---
+
+## TypeScript Types
 
 Types in `lib/db/types.ts` mirror the backend's SQLite schema:
 
@@ -267,8 +286,8 @@ const table = useReactTable({
   getSortedRowModel: getSortedRowModel(),
   getFilteredRowModel: getFilteredRowModel(),
   getPaginationRowModel: getPaginationRowModel(),
-  getFacetedRowModel: getFacetedRowModel(),           // For faceted filters
-  getFacetedUniqueValues: getFacetedUniqueValues(),   // Unique values per column
+  getFacetedRowModel: getFacetedRowModel(),
+  getFacetedUniqueValues: getFacetedUniqueValues(),
   globalFilterFn: "includesString",
 });
 ```
@@ -289,8 +308,6 @@ Each table has a column definition file that configures:
 |-------------|----------------|-----------------|
 | **Sortable** | Cycles through: ascending → descending → none | ID, Title, DOT, USD, dates |
 | **Filterable** | Opens dropdown to select visible values | Status, Track |
-
-Both the column name and sort arrows are clickable for sortable columns. Column visibility is managed separately via the Columns button in the toolbar.
 
 ### Example
 
@@ -317,74 +334,8 @@ export const referendaColumns: ColumnDef<Referendum>[] = [
     },
     filterFn: (row, id, value) => value.includes(row.getValue(id)),
   },
-  {
-    accessorKey: "track",
-    header: ({ column }) => (
-      <DataTableFacetedFilter column={column} title="Track" />
-    ),
-    cell: ({ row }) => row.getValue("track"),
-    filterFn: (row, id, value) => value.includes(row.getValue(id)),
-  },
-  // ...
 ];
 ```
-
-### Faceted Filter Component
-
-The `DataTableFacetedFilter` component provides a multi-select dropdown for filtering categorical columns:
-
-```tsx
-// components/data-table/faceted-filter.tsx
-interface FacetedFilterProps<TData, TValue> {
-  column: Column<TData, TValue>;
-  title: string;
-}
-
-export function DataTableFacetedFilter({ column, title }: FacetedFilterProps) {
-  const facets = column.getFacetedUniqueValues();  // Get unique values
-  const selectedValues = new Set(column.getFilterValue() as string[]);
-
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" className="h-8 gap-1">
-          {title}
-          <ChevronDown className="h-4 w-4" />
-          {selectedValues.size > 0 && (
-            <Badge variant="secondary">{selectedValues.size}</Badge>
-          )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent>
-        <Command>
-          <CommandInput placeholder={`Filter ${title}...`} />
-          <CommandList>
-            {Array.from(facets.keys()).map((value) => (
-              <CommandItem
-                key={value}
-                onSelect={() => toggleValue(value)}
-              >
-                <Checkbox checked={selectedValues.has(value)} />
-                <span>{value}</span>
-                <span className="ml-auto text-muted-foreground">
-                  {facets.get(value)}
-                </span>
-              </CommandItem>
-            ))}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-}
-```
-
-The dropdown shows:
-- All unique values in the column
-- Count of rows for each value
-- Checkboxes for multi-select
-- Search input to filter options
-- Badge showing number of active filters
 
 ---
 
@@ -455,16 +406,52 @@ export function exportToCSV(
 }
 ```
 
-### JSON Export
+Exports include only the currently filtered/visible data.
 
-```typescript
-export function exportToJSON(data: unknown[], filename: string): void {
-  const jsonContent = JSON.stringify(data, null, 2);
-  downloadFile(jsonContent, `${filename}.json`, "application/json");
-}
+---
+
+## Routing
+
+### React Router Configuration
+
+```tsx
+// router.tsx
+import { createBrowserRouter } from "react-router";
+import { lazy } from "react";
+import { Layout } from "@/components/layout/Layout";
+
+const DashboardPage = lazy(() => import("@/pages/dashboard"));
+const ReferendaPage = lazy(() => import("@/pages/referenda"));
+// ... more lazy imports
+
+export const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <Layout />,
+    children: [
+      { index: true, element: <DashboardPage /> },
+      { path: "referenda", element: <ReferendaPage /> },
+      { path: "treasury", element: <TreasuryPage /> },
+      { path: "dashboards", element: <DashboardsPage /> },
+      { path: "dashboards/:id", element: <DashboardViewPage /> },
+      { path: "dashboards/:id/edit", element: <DashboardEditPage /> },
+      // ...
+    ],
+  },
+]);
 ```
 
-Exports include only the currently filtered/visible data.
+### Navigation
+
+Uses React Router hooks instead of Next.js:
+
+| React Router | Purpose |
+|--------------|---------|
+| `Link` | Navigation links |
+| `useNavigate` | Programmatic navigation |
+| `useLocation` | Current pathname |
+| `useParams` | Route parameters |
+| `useSearchParams` | URL query parameters |
 
 ---
 
@@ -497,49 +484,38 @@ Pre-built accessible components from shadcn/ui:
 
 ## Configuration
 
-### Next.js Config
+### Vite Config
 
-```javascript
-// next.config.js (Next.js 15+)
-const nextConfig = {
-  serverExternalPackages: ['better-sqlite3'],
-  webpack: (config) => {
-    config.externals.push({
-      'better-sqlite3': 'commonjs better-sqlite3',
-    });
-    return config;
+```typescript
+// vite.config.ts
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import path from "path";
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
   },
-};
+  server: {
+    port: 3000,
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:3001",
+        changeOrigin: true,
+      },
+    },
+  },
+});
 ```
 
-> **Note**: In Next.js 15+, `experimental.serverComponentsExternalPackages` was moved to top-level `serverExternalPackages`.
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_PATH` | `../data/polkadot.db` | Path to SQLite database |
+The dev server proxies all `/api/*` requests to the Express API server on port 3001.
 
 ---
 
 ## Implementation Notes
-
-### Suspense Boundary for useSearchParams
-
-The `useViewState` hook uses `useSearchParams()` for URL state persistence. In Next.js 15+, this requires a Suspense boundary during static generation. The `DataTableWrapper` component handles this:
-
-```tsx
-// components/data-table/data-table-wrapper.tsx
-export function DataTableWrapper({ columns, data, tableName }) {
-  return (
-    <Suspense fallback={<DataTableSkeleton />}>
-      <DataTable columns={columns} data={data} tableName={tableName} />
-    </Suspense>
-  );
-}
-```
-
-All page components use `DataTableWrapper` instead of `DataTable` directly.
 
 ### Dot-Notation Column Names
 
@@ -557,24 +533,31 @@ SQLite columns like `tally.ayes` contain literal dots. TanStack Table interprets
 }
 ```
 
-### Handling Missing Tables
+### Loading States
 
-Not all tables exist in every database. Fellowship Salary tables are only populated by `fetch_salaries.py`. Pages check for table existence before querying:
+Each page manages its own loading state with `useState`:
 
 ```tsx
-export default function FellowshipSalaryCyclesPage() {
-  const exists = tableExists(TABLE_NAMES.fellowshipSalaryCycles);
+const [loading, setLoading] = useState(true);
 
-  if (!exists) {
-    return <TableNotAvailableMessage />;
-  }
+useEffect(() => {
+  fetch("/api/endpoint")
+    .then(res => res.json())
+    .then(setData)
+    .finally(() => setLoading(false));
+}, []);
 
-  const data = getFellowshipSalaryCycles();
-  return <DataTableWrapper ... />;
-}
+if (loading) return <DataTableSkeleton />;
 ```
 
----
+### React Router Params
+
+Route parameters are always strings. Parse numeric IDs:
+
+```tsx
+const { id } = useParams();
+const numericId = parseInt(id as string, 10);
+```
 
 ---
 

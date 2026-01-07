@@ -213,9 +213,26 @@ Note: CoinGecko has rate limits on the free tier.
 
 ---
 
-## Internal API Routes (Frontend)
+## Express API Server Endpoints
 
-The frontend provides internal API routes for dashboard and data management.
+The Node.js Express API server (`api/`) provides REST endpoints for data retrieval and CRUD operations. The API runs on port 3001 and the frontend proxies requests to it.
+
+### Read-Only Data Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/referenda` | All referenda |
+| `GET /api/treasury` | Treasury spends |
+| `GET /api/child-bounties` | Child bounties |
+| `GET /api/fellowship` | Fellowship treasury |
+| `GET /api/fellowship-salary/cycles` | Salary cycles |
+| `GET /api/fellowship-salary/claimants` | Salary claimants |
+| `GET /api/spending` | Aggregated spending view |
+| `GET /api/claims/outstanding` | Outstanding claims |
+| `GET /api/claims/expired` | Expired claims |
+| `GET /api/logs` | System logs |
+| `GET /api/stats` | Table row counts |
+| `GET /api/health` | Health check |
 
 ### Dashboard CRUD
 

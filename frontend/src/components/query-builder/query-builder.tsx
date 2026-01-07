@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Play, Code } from "lucide-react";
+import { Plus, Trash2, Play } from "lucide-react";
 import type {
   QueryConfig,
   ColumnSelection,
@@ -59,7 +59,6 @@ export function QueryBuilder({
   const [loading, setLoading] = useState(true);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
-  const [showSql, setShowSql] = useState(false);
   const [generatedSql, setGeneratedSql] = useState<string>("");
 
   const [schemaError, setSchemaError] = useState<string | null>(null);
@@ -510,35 +509,33 @@ export function QueryBuilder({
         </div>
       )}
 
-      {/* Preview Button and SQL */}
+      {/* SQL Display - always visible */}
       {config.sourceTable && config.columns.length > 0 && (
         <div className="space-y-4 pt-4 border-t">
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={handlePreview}
-              disabled={previewLoading}
-            >
-              <Play className="h-4 w-4 mr-2" />
-              {previewLoading ? "Running..." : "Preview Results"}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setShowSql(!showSql)}
-            >
-              <Code className="h-4 w-4 mr-2" />
-              {showSql ? "Hide SQL" : "Show SQL"}
-            </Button>
+          <div className="space-y-2">
+            <Label className="text-muted-foreground">Generated SQL</Label>
+            <div className="rounded-md border bg-muted p-4">
+              {generatedSql ? (
+                <pre className="text-xs overflow-x-auto">{generatedSql}</pre>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">
+                  Click "Preview Results" to generate SQL
+                </p>
+              )}
+            </div>
           </div>
 
           {previewError && (
             <div className="text-sm text-red-500">{previewError}</div>
           )}
 
-          {showSql && generatedSql && (
-            <div className="rounded-md border bg-muted p-4">
-              <pre className="text-xs overflow-x-auto">{generatedSql}</pre>
-            </div>
-          )}
+          <Button
+            onClick={handlePreview}
+            disabled={previewLoading}
+          >
+            <Play className="h-4 w-4 mr-2" />
+            {previewLoading ? "Running..." : "Preview Results"}
+          </Button>
         </div>
       )}
     </div>

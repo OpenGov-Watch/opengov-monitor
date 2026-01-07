@@ -2,14 +2,15 @@
 
 ## Overview
 
-OpenGov Monitor is a monorepo containing a data aggregation backend and interactive web dashboard for Polkadot/Kusama blockchain governance data.
+OpenGov Monitor is a monorepo containing a data aggregation backend, REST API, and interactive web dashboard for Polkadot/Kusama blockchain governance data.
 
 ### Components
 
 | Component | Purpose | Technology |
 |-----------|---------|------------|
 | **Backend** | Fetch governance data, enrich with prices, store | Python, Flask, SQLite |
-| **Frontend** | Interactive data exploration dashboard | Next.js, React, TanStack Table |
+| **API** | REST API serving data to frontend | Node.js, Express, better-sqlite3 |
+| **Frontend** | Interactive data exploration dashboard | Vite, React, React Router, TanStack Table |
 
 ## Related Documents
 
@@ -55,10 +56,19 @@ OpenGov Monitor is a monorepo containing a data aggregation backend and interact
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                        Next.js Frontend                                  │
+│                     Node.js Express API (:3001)                          │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐          │
-│  │ Server Component│  │   DataTable     │  │   View State    │          │
-│  │ (read SQLite)   │──│  (TanStack)     │──│ (localStorage)  │          │
+│  │   better-sqlite3│  │  Route Handlers │  │  Query Builder  │          │
+│  │   (read/write)  │──│  (14 routes)    │──│   (safe SQL)    │          │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘          │
+└───────────────────────────────┬─────────────────────────────────────────┘
+                                │
+                                ▼  fetch('/api/...')
+┌─────────────────────────────────────────────────────────────────────────┐
+│                       Vite + React Frontend (:3000)                      │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐          │
+│  │  React Router   │  │   DataTable     │  │   View State    │          │
+│  │  (pages)        │──│  (TanStack)     │──│ (localStorage)  │          │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘          │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -117,19 +127,36 @@ class DataSink(ABC):
 
 ---
 
+## API Server
+
+The Express API server (`api/`) provides REST endpoints for the frontend. It reads from SQLite using `better-sqlite3` and handles CRUD operations for manual tables.
+
+### Key Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/referenda` | GET | All referenda |
+| `/api/treasury` | GET | Treasury spends |
+| `/api/spending` | GET | Aggregated spending view |
+| `/api/dashboards` | CRUD | Custom dashboard management |
+| `/api/query/execute` | POST | Query builder execution |
+
+See [API Reference](api-reference.md) for full endpoint documentation.
+
+---
+
 ## Frontend Application Flow
 
 ### Architecture
 
-The frontend uses Next.js 14+ with the App Router. Server Components read directly from SQLite using `better-sqlite3`, eliminating the need for an API layer.
+The frontend uses Vite + React with React Router v7. All data is fetched from the API server using `fetch()`. Client-side interactivity is powered by TanStack Table.
 
 ### Request Flow
 
 1. **Page Request** - User navigates to a table page (e.g., `/referenda`)
-2. **Server Component** - `page.tsx` executes on server, calls `getReferenda()`
-3. **Database Query** - `better-sqlite3` reads from `data/polkadot.db`
-4. **Data Transfer** - Data serialized and sent to client
-5. **Client Render** - `DataTable` component renders with TanStack Table
+2. **React Router** - Loads the page component lazily
+3. **API Fetch** - Component fetches data from `/api/referenda`
+4. **Client Render** - `DataTable` component renders with TanStack Table
 
 ### Key Components
 
@@ -138,6 +165,7 @@ The frontend uses Next.js 14+ with the App Router. Server Components read direct
 | `DataTable` | `components/data-table/` | Reusable table with sorting, filtering, pagination |
 | `useViewState` | `hooks/use-view-state.ts` | Persist table state to localStorage/URL |
 | Column Defs | `components/tables/` | Table-specific column configurations |
+| API Client | `api/client.ts` | Fetch functions for all endpoints |
 
 See [Frontend Architecture](frontend.md) for detailed implementation.
 
@@ -153,7 +181,8 @@ See [Frontend Architecture](frontend.md) for detailed implementation.
 | `OPENGOV_MONITOR_SPREADSHEET_ID` | Backend | Google Spreadsheet ID |
 | `OPENGOV_MONITOR_CREDENTIALS` | Backend | Google credentials JSON |
 | `OPENGOV_MONITOR_LOG_DB` | Backend | Log database path |
-| `DATABASE_PATH` | Frontend | SQLite path (default: `../data/polkadot.db`) |
+| `PORT` | API | API server port (default: 3001) |
+| `DATABASE_PATH` | API | SQLite path (default: `../data/polkadot.db`) |
 
 ### config.yaml (Backend)
 
@@ -219,28 +248,28 @@ Suppressed loggers: `yfinance`, `urllib3`, `peewee`, `google`
 
 ## Deployment
 
-### Backend
+### Backend (Data Fetching)
 
 ```bash
-# Local (SQLite)
 cd backend
 python scripts/run_sqlite.py --db ../data/polkadot.db
-
-# Docker (Cloud Run)
-docker build -t opengov-monitor .
-docker run -p 8080:8080 opengov-monitor
 ```
 
-### Frontend
+### API + Frontend (Development)
 
 ```bash
-# Development
-cd frontend
-npm run dev
+# From root - starts both API and frontend
+pnpm run dev
 
-# Production
-npm run build
-npm start
+# Or individually
+pnpm api:dev       # API server on :3001
+pnpm frontend:dev  # Frontend on :3000
 ```
 
-Cloud Run triggers the backend's `/` endpoint on a schedule. The frontend can be deployed to Vercel or any Node.js host.
+### Production Build
+
+```bash
+pnpm run build     # Builds both API and frontend
+```
+
+The frontend proxies `/api/*` requests to the API server. In production, configure reverse proxy or deploy frontend with API base URL environment variable.
