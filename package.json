@@ -2,12 +2,13 @@
   "name": "opengov-monitor",
   "private": true,
   "scripts": {
-    "dev": "pnpm -r --parallel run dev",
+    "dev": "concurrently -k -n api,frontend -c blue,green \"pnpm api:dev\" \"pnpm frontend:dev\"",
     "build": "pnpm -r run build",
     "api:dev": "pnpm --filter api run dev",
-    "frontend:dev": "pnpm --filter frontend run dev"
+    "frontend:dev": "pnpm --filter opengov-monitor-frontend run dev"
   },
   "devDependencies": {
+    "concurrently": "^9.1.0",
     "typescript": "^5.7.2"
   },
   "pnpm": {

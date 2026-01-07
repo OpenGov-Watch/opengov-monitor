@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import Markdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,6 +59,7 @@ const COMPONENT_TYPES: { value: DashboardComponentType; label: string }[] = [
   { value: "bar_grouped", label: "Bar Chart (Grouped)" },
   { value: "bar_stacked", label: "Bar Chart (Stacked)" },
   { value: "line", label: "Line Chart" },
+  { value: "text", label: "Text (Markdown)" },
 ];
 
 const defaultQueryConfig: QueryConfig = {
@@ -147,7 +149,12 @@ export function ComponentEditor({
   );
 
   function handleSave() {
-    if (!name.trim() || !queryConfig.sourceTable || queryConfig.columns.length === 0) {
+    if (!name.trim()) {
+      return;
+    }
+
+    // Text components don't need query validation
+    if (type !== "text" && (!queryConfig.sourceTable || queryConfig.columns.length === 0)) {
       return;
     }
 
@@ -156,7 +163,7 @@ export function ComponentEditor({
       dashboard_id: dashboardId,
       name: name.trim(),
       type,
-      query_config: queryConfig,
+      query_config: type === "text" ? defaultQueryConfig : queryConfig,
       grid_config: gridConfig,
       chart_config: chartConfig,
     });
@@ -165,6 +172,19 @@ export function ComponentEditor({
   }
 
   function renderPreview() {
+    // Text components show markdown preview
+    if (type === "text") {
+      return (
+        <div className="h-64 overflow-auto border rounded p-4 prose prose-sm max-w-none dark:prose-invert">
+          {chartConfig.content ? (
+            <Markdown>{chartConfig.content}</Markdown>
+          ) : (
+            <span className="text-muted-foreground">No content to preview</span>
+          )}
+        </div>
+      );
+    }
+
     if (previewData.length === 0) {
       return (
         <div className="flex items-center justify-center h-64 text-muted-foreground">
@@ -282,27 +302,48 @@ export function ComponentEditor({
             </div>
           </div>
 
-          {/* Query Builder */}
+          {/* Query Builder or Text Editor */}
           {step === "config" && (
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Data Query</Label>
-                <div className="rounded-md border p-4">
-                  <QueryBuilder
-                    initialConfig={queryConfig}
-                    onChange={handleQueryChange}
-                    onPreview={handlePreview}
+              {type === "text" ? (
+                <div className="space-y-2">
+                  <Label>Markdown Content</Label>
+                  <textarea
+                    className="w-full min-h-[200px] rounded-md border p-3 font-mono text-sm resize-y bg-background"
+                    value={chartConfig.content || ""}
+                    onChange={(e) =>
+                      setChartConfig({ ...chartConfig, content: e.target.value })
+                    }
+                    placeholder="# Heading&#10;&#10;Write your **markdown** content here..."
                   />
+                  <div className="flex justify-end">
+                    <Button onClick={() => setStep("preview")}>
+                      Preview
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label>Data Query</Label>
+                    <div className="rounded-md border p-4">
+                      <QueryBuilder
+                        initialConfig={queryConfig}
+                        onChange={handleQueryChange}
+                        onPreview={handlePreview}
+                      />
+                    </div>
+                  </div>
 
-              {/* Show button to proceed to chart preview after running query */}
-              {previewData.length > 0 && (
-                <div className="flex justify-end">
-                  <Button onClick={() => setStep("preview")}>
-                    Continue to Chart Preview ({previewData.length} rows)
-                  </Button>
-                </div>
+                  {/* Show button to proceed to chart preview after running query */}
+                  {previewData.length > 0 && (
+                    <div className="flex justify-end">
+                      <Button onClick={() => setStep("preview")}>
+                        Continue to Chart Preview ({previewData.length} rows)
+                      </Button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -313,12 +354,12 @@ export function ComponentEditor({
               <div className="flex items-center justify-between">
                 <Label>Preview</Label>
                 <Button variant="outline" size="sm" onClick={() => setStep("config")}>
-                  Back to Query
+                  {type === "text" ? "Back to Editor" : "Back to Query"}
                 </Button>
               </div>
 
-              {/* Chart Config for non-table types */}
-              {type !== "table" && (
+              {/* Chart Config for chart types (not table or text) */}
+              {type !== "table" && type !== "text" && (
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Label Column</Label>
@@ -372,7 +413,7 @@ export function ComponentEditor({
               )}
 
               {/* Display Options */}
-              {type !== "table" && (
+              {type !== "table" && type !== "text" && (
                 <div className="flex gap-6">
                   <div className="flex items-center gap-2">
                     <Checkbox
@@ -409,8 +450,8 @@ export function ComponentEditor({
 
               {renderPreview()}
 
-              {/* SQL Display */}
-              {previewSql && (
+              {/* SQL Display (not for text type) */}
+              {previewSql && type !== "text" && (
                 <details className="mt-4">
                   <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
                     View SQL Query
@@ -432,8 +473,7 @@ export function ComponentEditor({
               onClick={handleSave}
               disabled={
                 !name.trim() ||
-                !queryConfig.sourceTable ||
-                queryConfig.columns.length === 0
+                (type !== "text" && (!queryConfig.sourceTable || queryConfig.columns.length === 0))
               }
             >
               {component ? "Update" : "Add"} Component

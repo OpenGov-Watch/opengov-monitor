@@ -412,7 +412,7 @@ class SQLiteSink(DataSink):
                     continue
                 df[col] = pd.to_datetime(df[col], errors='coerce')
                 df[col] = df[col].apply(
-                    lambda x: x.isoformat() if pd.notna(x) else None
+                    lambda x: x.isoformat().replace('T', ' ') if pd.notna(x) else None
                 )
 
         # Handle NaN values - SQLite prefers None

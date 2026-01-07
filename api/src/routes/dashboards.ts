@@ -125,7 +125,8 @@ dashboardsRouter.post("/components", (req, res) => {
       res.status(400).json({ error: "type is required" });
       return;
     }
-    if (!query_config) {
+    // Text components don't require query_config
+    if (!query_config && type !== "text") {
       res.status(400).json({ error: "query_config is required" });
       return;
     }
@@ -134,11 +135,14 @@ dashboardsRouter.post("/components", (req, res) => {
       return;
     }
 
+    // For text components, use empty query_config if not provided
+    const finalQueryConfig = query_config || { sourceTable: "", columns: [], filters: [] };
+
     const newComponent = createDashboardComponent(
       dashboard_id,
       name,
       type,
-      typeof query_config === "string" ? query_config : JSON.stringify(query_config),
+      typeof finalQueryConfig === "string" ? finalQueryConfig : JSON.stringify(finalQueryConfig),
       typeof grid_config === "string" ? grid_config : JSON.stringify(grid_config),
       chart_config ? (typeof chart_config === "string" ? chart_config : JSON.stringify(chart_config)) : null
     );
@@ -168,16 +172,20 @@ dashboardsRouter.put("/components", (req, res) => {
       return;
     }
 
-    if (!name || !type || !query_config || !grid_config) {
-      res.status(400).json({ error: "name, type, query_config, and grid_config are required" });
+    // Text components don't require query_config
+    if (!name || !type || !grid_config || (!query_config && type !== "text")) {
+      res.status(400).json({ error: "name, type, query_config (for non-text), and grid_config are required" });
       return;
     }
+
+    // For text components, use empty query_config if not provided
+    const finalQueryConfig = query_config || { sourceTable: "", columns: [], filters: [] };
 
     updateDashboardComponent(
       id,
       name,
       type,
-      typeof query_config === "string" ? query_config : JSON.stringify(query_config),
+      typeof finalQueryConfig === "string" ? finalQueryConfig : JSON.stringify(finalQueryConfig),
       typeof grid_config === "string" ? grid_config : JSON.stringify(grid_config),
       chart_config ? (typeof chart_config === "string" ? chart_config : JSON.stringify(chart_config)) : null
     );

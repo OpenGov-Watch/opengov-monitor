@@ -254,7 +254,8 @@ export type DashboardComponentType =
   | "pie"
   | "bar_stacked"
   | "bar_grouped"
-  | "line";
+  | "line"
+  | "text";
 
 export interface DashboardComponent {
   id: number;
@@ -317,6 +318,7 @@ export interface ChartConfig {
   valueColumn?: string;
   showLegend?: boolean;
   showTooltip?: boolean;
+  content?: string; // Markdown content for text components
 }
 
 export interface QueryCache {

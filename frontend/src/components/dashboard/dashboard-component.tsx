@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Markdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { Pencil, Trash2, RefreshCw, AlertCircle } from "lucide-react";
 import {
@@ -41,8 +42,13 @@ export function DashboardComponent({
     : {};
 
   useEffect(() => {
+    // Text components don't need data fetching
+    if (component.type === "text") {
+      setLoading(false);
+      return;
+    }
     fetchData();
-  }, [component.query_config]);
+  }, [component.query_config, component.type]);
 
   async function fetchData() {
     setLoading(true);
@@ -159,6 +165,17 @@ export function DashboardComponent({
         );
       }
 
+      case "text":
+        return (
+          <div className="prose prose-sm max-w-none dark:prose-invert h-full overflow-auto">
+            {chartConfig.content ? (
+              <Markdown>{chartConfig.content}</Markdown>
+            ) : (
+              <span className="text-muted-foreground">No content</span>
+            )}
+          </div>
+        );
+
       default:
         return (
           <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -174,15 +191,17 @@ export function DashboardComponent({
       <div className="flex items-center justify-between p-3 border-b bg-muted/30">
         <h3 className="font-medium text-sm truncate">{component.name}</h3>
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={fetchData}
-            title="Refresh"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-          </Button>
+          {component.type !== "text" && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={fetchData}
+              title="Refresh"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
+          )}
           {editable && (
             <>
               <Button

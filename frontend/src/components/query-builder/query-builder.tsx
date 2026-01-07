@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,7 +59,46 @@ export function QueryBuilder({
   const [loading, setLoading] = useState(true);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
-  const [generatedSql, setGeneratedSql] = useState<string>("");
+
+  // Generate SQL client-side as user builds query
+  const generatedSql = useMemo(() => {
+    if (!config.sourceTable || config.columns.length === 0) return "";
+
+    const selectParts = config.columns.map((col) => {
+      const colName = `"${col.column}"`;
+      if (col.aggregateFunction) {
+        const alias = col.alias || `${col.aggregateFunction.toLowerCase()}_${col.column.replace(/[.\s]/g, "_")}`;
+        return `${col.aggregateFunction}(${colName}) AS "${alias}"`;
+      }
+      return col.alias ? `${colName} AS "${col.alias}"` : colName;
+    });
+
+    const parts = [`SELECT ${selectParts.join(", ")}`, `FROM "${config.sourceTable}"`];
+
+    if (config.filters && config.filters.length > 0) {
+      const conditions = config.filters.map((f) => {
+        const colName = `"${f.column}"`;
+        if (f.operator === "IS NULL" || f.operator === "IS NOT NULL") {
+          return `${colName} ${f.operator}`;
+        }
+        return `${colName} ${f.operator} '${f.value}'`;
+      });
+      parts.push(`WHERE ${conditions.join(" AND ")}`);
+    }
+
+    if (config.groupBy && config.groupBy.length > 0) {
+      parts.push(`GROUP BY ${config.groupBy.map((c) => `"${c}"`).join(", ")}`);
+    }
+
+    if (config.orderBy && config.orderBy.length > 0) {
+      const orderParts = config.orderBy.map((o) => `"${o.column}" ${o.direction}`);
+      parts.push(`ORDER BY ${orderParts.join(", ")}`);
+    }
+
+    parts.push(`LIMIT ${config.limit || 1000}`);
+
+    return parts.join("\n");
+  }, [config]);
 
   const [schemaError, setSchemaError] = useState<string | null>(null);
 
@@ -218,7 +257,6 @@ export function QueryBuilder({
         return;
       }
 
-      setGeneratedSql(data.sql);
       onPreview?.(data.data, data.sql);
     } catch (error) {
       setPreviewError("Failed to execute query");
@@ -509,19 +547,13 @@ export function QueryBuilder({
         </div>
       )}
 
-      {/* SQL Display - always visible */}
-      {config.sourceTable && config.columns.length > 0 && (
+      {/* SQL Display - always visible when query is being built */}
+      {generatedSql && (
         <div className="space-y-4 pt-4 border-t">
           <div className="space-y-2">
             <Label className="text-muted-foreground">Generated SQL</Label>
             <div className="rounded-md border bg-muted p-4">
-              {generatedSql ? (
-                <pre className="text-xs overflow-x-auto">{generatedSql}</pre>
-              ) : (
-                <p className="text-sm text-muted-foreground italic">
-                  Click "Preview Results" to generate SQL
-                </p>
-              )}
+              <pre className="text-xs overflow-x-auto whitespace-pre-wrap">{generatedSql}</pre>
             </div>
           </div>
 

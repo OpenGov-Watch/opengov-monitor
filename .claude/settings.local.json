@@ -55,7 +55,9 @@
       "Bash(netstat:*)",
       "Bash(taskkill /F /PID 20380 /PID 33144)",
       "Bash(taskkill:*)",
-      "Bash(pnpm build:*)"
+      "Bash(pnpm build:*)",
+      "Bash(source .venv/Scripts/activate)",
+      "Bash(pnpm add:*)"
     ],
     "deny": [],
     "ask": []
