@@ -41,12 +41,15 @@ REFERENDA_SCHEMA = TableSchema(
         "DOT_component": "REAL",
         "USDC_component": "REAL",
         "USDT_component": "REAL",
+        "category": "TEXT",
+        "subcategory": "TEXT",
     },
     primary_key="id",
     indexes=[
         ("idx_referenda_status", ["status"]),
         ("idx_referenda_track", ["track"]),
         ("idx_referenda_proposal_time", ["proposal_time"]),
+        ("idx_referenda_category", ["category"]),
     ]
 )
 
@@ -94,11 +97,14 @@ CHILD_BOUNTIES_SCHEMA = TableSchema(
         "proposal_time": "TIMESTAMP",
         "latest_status_change": "TIMESTAMP",
         "USD_latest": "REAL",
+        "category": "TEXT",
+        "subcategory": "TEXT",
     },
     primary_key="identifier",
     indexes=[
         ("idx_child_bounty_parent", ["parentBountyId"]),
         ("idx_child_bounty_status", ["status"]),
+        ("idx_child_bounty_category", ["category"]),
     ]
 )
 
@@ -193,6 +199,134 @@ FELLOWSHIP_SALARY_PAYMENTS_SCHEMA = TableSchema(
     ]
 )
 
+# Schema for Categories (predefined category/subcategory pairs)
+CATEGORIES_SCHEMA = TableSchema(
+    name="Categories",
+    columns={
+        "id": "INTEGER",
+        "category": "TEXT",
+        "subcategory": "TEXT",
+    },
+    primary_key="id",
+    indexes=[
+        ("idx_categories_category", ["category"]),
+    ]
+)
+
+# Schema for Parent Bounties (fetched from Subsquare + manual category assignment)
+BOUNTIES_SCHEMA = TableSchema(
+    name="Bounties",
+    columns={
+        "id": "INTEGER",
+        "name": "TEXT",
+        "category": "TEXT",
+        "subcategory": "TEXT",
+        "remaining_dot": "REAL",
+        "url": "TEXT",
+    },
+    primary_key="id",
+    indexes=[
+        ("idx_bounties_category", ["category"]),
+    ]
+)
+
+# Schema for Subtreasury (manually managed spending entries)
+SUBTREASURY_SCHEMA = TableSchema(
+    name="Subtreasury",
+    columns={
+        "id": "INTEGER",
+        "title": "TEXT",
+        "description": "TEXT",
+        "DOT_latest": "REAL",
+        "USD_latest": "REAL",
+        "DOT_component": "REAL",
+        "USDC_component": "REAL",
+        "USDT_component": "REAL",
+        "category": "TEXT",
+        "subcategory": "TEXT",
+        "latest_status_change": "TIMESTAMP",
+        "url": "TEXT",
+    },
+    primary_key="id",
+    indexes=[
+        ("idx_subtreasury_category", ["category"]),
+    ]
+)
+
+# Schema for Fellowship Subtreasury (fetched from collectives-api.subsquare.io)
+FELLOWSHIP_SUBTREASURY_SCHEMA = TableSchema(
+    name="Fellowship Subtreasury",
+    columns={
+        "id": "INTEGER",
+        "url": "TEXT",
+        "title": "TEXT",
+        "status": "TEXT",
+        "DOT_proposal_time": "REAL",
+        "USD_proposal_time": "REAL",
+        "DOT_latest": "REAL",
+        "USD_latest": "REAL",
+        "proposal_time": "TIMESTAMP",
+        "latest_status_change": "TIMESTAMP",
+        "validFrom": "TIMESTAMP",
+        "expireAt": "TIMESTAMP",
+    },
+    primary_key="id",
+    indexes=[
+        ("idx_fellowship_subtreasury_status", ["status"]),
+    ]
+)
+
+# Schema for Dashboards (user-created dashboard definitions)
+DASHBOARDS_SCHEMA = TableSchema(
+    name="Dashboards",
+    columns={
+        "id": "INTEGER",
+        "name": "TEXT",
+        "description": "TEXT",
+        "created_at": "TIMESTAMP",
+        "updated_at": "TIMESTAMP",
+    },
+    primary_key="id",
+    indexes=[]
+)
+
+# Schema for Dashboard Components (widgets on a dashboard)
+DASHBOARD_COMPONENTS_SCHEMA = TableSchema(
+    name="Dashboard Components",
+    columns={
+        "id": "INTEGER",
+        "dashboard_id": "INTEGER",
+        "name": "TEXT",
+        "type": "TEXT",  # 'table' | 'pie' | 'bar_stacked' | 'bar_grouped' | 'line'
+        "query_config": "TEXT",  # JSON blob storing query builder config
+        "grid_config": "TEXT",  # JSON blob: { x, y, w, h }
+        "chart_config": "TEXT",  # JSON blob for chart-specific options
+        "created_at": "TIMESTAMP",
+        "updated_at": "TIMESTAMP",
+    },
+    primary_key="id",
+    indexes=[
+        ("idx_dashboard_components_dashboard", ["dashboard_id"]),
+    ]
+)
+
+# Schema for Query Cache (caching query results with TTL)
+QUERY_CACHE_SCHEMA = TableSchema(
+    name="Query Cache",
+    columns={
+        "id": "INTEGER",
+        "cache_key": "TEXT",  # hash of query config
+        "result_json": "TEXT",  # JSON blob of query results
+        "cached_at": "TIMESTAMP",
+        "expires_at": "TIMESTAMP",
+    },
+    primary_key="id",
+    indexes=[
+        ("idx_query_cache_key", ["cache_key"]),
+        ("idx_query_cache_expires", ["expires_at"]),
+    ]
+)
+
 # Registry mapping table names to schemas
 SCHEMA_REGISTRY: Dict[str, TableSchema] = {
     "Referenda": REFERENDA_SCHEMA,
@@ -202,6 +336,13 @@ SCHEMA_REGISTRY: Dict[str, TableSchema] = {
     "Fellowship Salary Cycles": FELLOWSHIP_SALARY_CYCLES_SCHEMA,
     "Fellowship Salary Claimants": FELLOWSHIP_SALARY_CLAIMANTS_SCHEMA,
     "Fellowship Salary Payments": FELLOWSHIP_SALARY_PAYMENTS_SCHEMA,
+    "Categories": CATEGORIES_SCHEMA,
+    "Bounties": BOUNTIES_SCHEMA,
+    "Subtreasury": SUBTREASURY_SCHEMA,
+    "Fellowship Subtreasury": FELLOWSHIP_SUBTREASURY_SCHEMA,
+    "Dashboards": DASHBOARDS_SCHEMA,
+    "Dashboard Components": DASHBOARD_COMPONENTS_SCHEMA,
+    "Query Cache": QUERY_CACHE_SCHEMA,
 }
 
 

@@ -14,6 +14,8 @@ The frontend is a Next.js 14+ application that provides an interactive dashboard
 | Tailwind CSS | Utility-first styling |
 | shadcn/ui | Accessible UI components |
 | better-sqlite3 | SQLite access from Server Components |
+| Recharts | Charts and visualizations for dashboards |
+| react-grid-layout | Drag-and-drop grid layout for dashboards |
 
 ---
 
@@ -30,7 +32,19 @@ frontend/src/
 │   ├── child-bounties/page.tsx   # Child bounties table
 │   ├── fellowship/page.tsx       # Fellowship table
 │   ├── fellowship-salary-cycles/page.tsx
-│   └── fellowship-salary-claimants/page.tsx
+│   ├── fellowship-salary-claimants/page.tsx
+│   ├── dashboards/               # Custom dashboards
+│   │   ├── page.tsx              # Dashboard list
+│   │   └── [id]/
+│   │       ├── page.tsx          # View dashboard
+│   │       └── edit/page.tsx     # Edit dashboard
+│   └── api/                      # API routes
+│       ├── dashboards/           # Dashboard CRUD
+│       │   ├── route.ts
+│       │   └── components/route.ts
+│       └── query/                # Query builder APIs
+│           ├── schema/route.ts   # Table/column introspection
+│           └── execute/route.ts  # Query execution
 │
 ├── components/
 │   ├── ui/                       # shadcn/ui components
@@ -62,6 +76,20 @@ frontend/src/
 │   │   ├── fellowship-salary-cycles-columns.tsx
 │   │   └── fellowship-salary-claimants-columns.tsx
 │   │
+│   ├── charts/                   # Chart components
+│   │   ├── pie-chart.tsx         # Pie chart wrapper
+│   │   ├── bar-chart.tsx         # Bar chart (stacked/grouped)
+│   │   ├── line-chart.tsx        # Line chart
+│   │   └── data-table.tsx        # Simple data table for dashboards
+│   │
+│   ├── dashboard/                # Dashboard components
+│   │   ├── dashboard-grid.tsx    # Grid layout container
+│   │   ├── dashboard-component.tsx # Component renderer
+│   │   └── component-editor.tsx  # Add/edit component dialog
+│   │
+│   ├── query-builder/            # Query builder components
+│   │   └── query-builder.tsx     # Visual query builder UI
+│   │
 │   └── layout/
 │       └── sidebar.tsx           # Navigation sidebar
 │
@@ -73,8 +101,11 @@ frontend/src/
 │       ├── queries.ts            # Query functions
 │       └── types.ts              # TypeScript interfaces
 │
-└── hooks/
-    └── use-view-state.ts         # Table state persistence
+├── hooks/
+│   └── use-view-state.ts         # Table state persistence
+│
+└── types/
+    └── react-grid-layout.d.ts    # Type overrides
 ```
 
 ---
@@ -545,13 +576,45 @@ export default function FellowshipSalaryCyclesPage() {
 
 ---
 
+---
+
+## Custom Dashboards
+
+The dashboard feature allows users to create custom visualizations using a visual query builder.
+
+### Features
+
+- **CRUD Dashboards**: Create, view, edit, and delete custom dashboards
+- **Drag-and-Drop Grid**: Arrange components on a responsive grid layout
+- **Component Types**: Table, Pie Chart, Bar Chart (stacked/grouped), Line Chart
+- **Visual Query Builder**: Select tables, columns, filters, and aggregations without writing SQL
+- **Live Preview**: Preview query results before saving components
+
+### Query Builder
+
+The query builder provides a visual interface for constructing database queries:
+
+1. **Table Selection**: Choose from whitelisted tables/views
+2. **Column Selection**: Select columns with optional aggregation (COUNT, SUM, AVG, MIN, MAX)
+3. **Filters**: Add conditions with operators (=, !=, >, <, LIKE, IS NULL, etc.)
+4. **Group By**: Group results by non-aggregated columns
+5. **Order By**: Sort results by selected columns
+6. **Limit**: Cap the number of returned rows (max 10,000)
+
+### Security
+
+- Only whitelisted tables are queryable (see `/api/query/schema`)
+- All filter values are parameterized (no SQL injection)
+- Row limits enforced on all queries
+
+---
+
 ## Future Enhancements
 
-Planned features for dashboard evolution:
+Planned features:
 
-- **Charts & Visualizations** - Aggregate statistics, trends over time
+- **Query Cache**: TTL-based caching for dashboard queries
 - **Cross-table Filtering** - Filter referenda by treasury spend
 - **Real-time Updates** - Periodic data refresh
 - **Advanced Filters** - Date ranges, numeric ranges
-- **Saved Views** - Named view configurations
 - **Dark Mode** - Theme toggle

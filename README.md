@@ -1,41 +1,49 @@
 # OpenGov Monitor
 
-A monorepo containing a data collection backend and web dashboard for Polkadot/Kusama governance data.
+A monorepo containing a data collection backend, REST API, and web dashboard for Polkadot/Kusama governance data.
 
 ## Components
 
 | Component | Description | Tech Stack |
 |-----------|-------------|------------|
 | **Backend** | Data pipeline fetching from Subsquare | Python, Flask, SQLite |
-| **Frontend** | Interactive dashboard for data exploration | Next.js, React, TanStack Table |
+| **API** | REST API serving data to frontend | Node.js, Express, better-sqlite3 |
+| **Frontend** | Interactive dashboard for data exploration | Vite, React, React Router, TanStack Table |
 
 ## Quick Start
 
-### 1. Setup Backend
+### Prerequisites
+- Node.js 18+
+- Python 3.10+
+- pnpm (`npm install -g pnpm`)
+
+### 1. Install Dependencies
+
+```bash
+pnpm install
+```
+
+### 2. Setup Backend & Fetch Data
 
 ```bash
 cd backend
 python -m venv .venv
 source .venv/bin/activate    # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-```
 
-### 2. Fetch Data
-
-```bash
-cd backend
+# Fetch Polkadot governance data
 python scripts/run_sqlite.py --db ../data/polkadot.db
 ```
 
-### 3. Run Frontend
+### 3. Run Application
 
 ```bash
-cd frontend
-npm install
-npm run dev
+# From root directory - starts both API and frontend
+pnpm run dev
 ```
 
-Open http://localhost:3000 to view the dashboard.
+- API server: http://localhost:3001
+- Frontend: http://localhost:3000
 
 ---
 
@@ -46,25 +54,29 @@ opengov-monitor/
 ├── backend/                 # Python data pipeline
 │   ├── data_providers/      # Fetch from Subsquare, prices
 │   ├── data_sinks/          # SQLite and Google Sheets storage
-│   │   ├── sqlite/          # Local database sink
-│   │   └── google/          # Google Sheets sink
 │   ├── scripts/             # CLI utilities
 │   ├── utils/               # Logging, helpers
 │   ├── tests/               # Test suite
 │   ├── main.py              # Flask app (Google Sheets mode)
 │   └── config.yaml          # Fetch limits
 │
-├── frontend/                # Next.js dashboard
+├── api/                     # Node.js REST API
 │   └── src/
-│       ├── app/             # Page routes (6 tables + dashboard)
+│       ├── index.ts         # Express server
+│       ├── db/              # Database access
+│       └── routes/          # API route handlers
+│
+├── frontend/                # Vite + React dashboard
+│   └── src/
+│       ├── pages/           # Page components
 │       ├── components/
 │       │   ├── ui/          # shadcn/ui components
 │       │   ├── data-table/  # Reusable table components
 │       │   ├── tables/      # Column definitions
+│       │   ├── dashboard/   # Dashboard builder
 │       │   └── layout/      # Sidebar navigation
-│       ├── lib/
-│       │   ├── db/          # SQLite queries (server-side)
-│       │   └── export.ts    # CSV/JSON export
+│       ├── api/             # API client
+│       ├── lib/             # Types, utilities
 │       └── hooks/           # View state management
 │
 ├── data/                    # Shared SQLite database
@@ -73,49 +85,71 @@ opengov-monitor/
 ├── docs/                    # Documentation
 │   └── spec/                # Technical specifications
 │
+├── pnpm-workspace.yaml      # Workspace configuration
 └── CLAUDE.md                # AI assistant instructions
 ```
 
 ---
 
-## Backend Usage
+## Commands
 
-### Run with SQLite (Recommended)
+### Development
+
+```bash
+# Install all dependencies
+pnpm install
+
+# Run all services (API + frontend)
+pnpm run dev
+
+# Run individual services
+pnpm api:dev       # API server on :3001
+pnpm frontend:dev  # Frontend on :3000
+
+# Build for production
+pnpm run build
+```
+
+### Backend
 
 ```bash
 cd backend
+source .venv/bin/activate
 
 # Fetch Polkadot governance data
 python scripts/run_sqlite.py --db ../data/polkadot.db
 
 # Fetch Kusama data
 python scripts/run_sqlite.py --network kusama --db ../data/kusama.db
-```
-
-### Run with Google Sheets
-
-```bash
-cd backend
-
-# Set credentials
-export OPENGOV_MONITOR_CREDENTIALS='{"type": "service_account", ...}'
-export OPENGOV_MONITOR_SPREADSHEET_ID='your-spreadsheet-id'
-
-# Run pipeline
-python main.py run
-```
-
-### Helper Scripts
-
-```bash
-cd backend
-
-# Dump data to CSV/JSON
-python scripts/dump_provider.py --network polkadot --out ../data_dump
 
 # Fetch fellowship salaries
 python scripts/fetch_salaries.py --cycle 17
 python scripts/fetch_salaries.py --claimants-only
+
+# Dump data to CSV/JSON
+python scripts/dump_provider.py --network polkadot --out ../data_dump
+```
+
+---
+
+## Data Flow
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  Subsquare API  │────▶│  Python Backend  │────▶│  SQLite Database│
+│  (governance    │     │  (fetch, enrich  │     │  (data/polkadot │
+│   data)         │     │   with prices)   │     │   .db)          │
+└─────────────────┘     └──────────────────┘     └────────┬────────┘
+                                                          │
+                        ┌──────────────────┐              │
+                        │  Express API     │◀─────────────┘
+                        │  (:3001)         │
+                        └────────┬─────────┘
+                                 │
+                        ┌────────▼─────────┐
+                        │  Vite Frontend   │
+                        │  (:3000)         │
+                        └──────────────────┘
 ```
 
 ---
@@ -124,45 +158,68 @@ python scripts/fetch_salaries.py --claimants-only
 
 ### Data Tables
 
-The dashboard displays up to 6 governance data types:
-
-| Table | Description | Populated By |
-|-------|-------------|--------------|
-| Referenda | Governance proposals with voting data | `run_sqlite.py` |
-| Treasury Spends | Treasury allocation requests | `run_sqlite.py` |
-| Child Bounties | Sub-bounties for work completion | `run_sqlite.py` |
-| Fellowship Treasury | Fellowship-specific treasury spends | `run_sqlite.py` |
-| Salary Cycles | Fellowship salary payment cycles | `fetch_salaries.py` |
-| Salary Claimants | Individual fellowship members | `fetch_salaries.py` |
-
-> **Note**: Salary tables require running `fetch_salaries.py` separately. The frontend shows a helpful message if these tables don't exist.
+| Table | Description |
+|-------|-------------|
+| Referenda | Governance proposals with voting data |
+| Treasury Spends | Treasury allocation requests |
+| Child Bounties | Sub-bounties for work completion |
+| Fellowship Treasury | Fellowship-specific treasury spends |
+| Salary Cycles | Fellowship salary payment cycles |
+| Salary Claimants | Individual fellowship members |
+| Spending | Aggregated view of all spending |
+| Outstanding Claims | Approved spends not yet expired |
+| Expired Claims | Approved spends past expiration |
 
 ### Table Features
 
-- **Sorting** - Click column headers to sort ascending/descending
+- **Sorting** - Click column headers
 - **Global Search** - Search across all columns
-- **Pagination** - Navigate large datasets (10-100 rows per page)
-- **Column Visibility** - Show/hide columns via dropdown
-- **Export** - Download filtered data as CSV or JSON
-- **View State** - Save/load/reset table configuration
-  - Persisted to localStorage
-  - Shareable via URL parameters
+- **Column Filters** - Filter by specific values
+- **Pagination** - Navigate large datasets
+- **Column Visibility** - Show/hide columns
+- **Export** - Download as CSV or JSON
+- **View State** - Save/load table configuration (localStorage + URL)
 
-### Frontend Development
+### Custom Dashboards
 
-```bash
-cd frontend
+- Create custom dashboards with multiple components
+- Query builder for aggregating data
+- Chart types: Table, Pie, Bar (stacked/grouped), Line
+- Drag-and-drop grid layout
 
-# Development server (hot reload)
-npm run dev
+---
 
-# Production build
-npm run build
-npm start
+## API Endpoints
 
-# Linting
-npm run lint
-```
+### Read-Only Data
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/referenda` | All referenda |
+| `GET /api/treasury` | Treasury spends |
+| `GET /api/child-bounties` | Child bounties |
+| `GET /api/fellowship` | Fellowship treasury |
+| `GET /api/fellowship-salary/cycles` | Salary cycles |
+| `GET /api/fellowship-salary/claimants` | Salary claimants |
+| `GET /api/spending` | Aggregated spending |
+| `GET /api/claims/outstanding` | Outstanding claims |
+| `GET /api/claims/expired` | Expired claims |
+| `GET /api/stats` | Table row counts |
+| `GET /api/health` | Health check |
+
+### CRUD Endpoints
+| Resource | Methods |
+|----------|---------|
+| `/api/categories` | GET, POST, PUT, DELETE |
+| `/api/bounties` | GET, POST, PUT, DELETE |
+| `/api/subtreasury` | GET, POST, PUT, DELETE |
+| `/api/dashboards` | GET, POST, PUT, DELETE |
+| `/api/dashboards/components` | GET, POST, PUT, DELETE |
+
+### Query Builder
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/query/schema` | Get table schemas |
+| `POST /api/query/execute` | Execute custom query |
 
 ---
 
@@ -177,65 +234,18 @@ fetch_limits:
   child_bounties: 100
   fellowship_treasury_spends: 100
 
-block_time_projection:
-  block_number: 25732485
-  block_datetime: 2025-04-25T15:27:36
-  block_time: 6.0
+fellowship_salary_cycles: 0  # 0=fetch all, -1=skip
 ```
 
 ### Environment Variables
 
 | Variable | Component | Description |
 |----------|-----------|-------------|
+| `PORT` | API | API server port (default: 3001) |
+| `DATABASE_PATH` | API | SQLite path (default: ../data/polkadot.db) |
 | `OPENGOV_MONITOR_SQLITE_PATH` | Backend | SQLite database path |
 | `OPENGOV_MONITOR_SPREADSHEET_ID` | Backend | Google Spreadsheet ID |
 | `OPENGOV_MONITOR_CREDENTIALS` | Backend | Google credentials JSON |
-| `DATABASE_PATH` | Frontend | SQLite path (default: `../data/polkadot.db`) |
-
----
-
-## Data Flow
-
-```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  Subsquare API  │────▶│  Python Backend  │────▶│  SQLite Database│
-│  (governance    │     │  (fetch, enrich  │     │  (data/polkadot │
-│   data)         │     │   with prices)   │     │   .db)          │
-└─────────────────┘     └──────────────────┘     └────────┬────────┘
-                                                          │
-                        ┌──────────────────┐              │
-                        │  Next.js Frontend │◀────────────┘
-                        │  (Server Components
-                        │   read directly)  │
-                        └──────────────────┘
-```
-
-The frontend uses Next.js Server Components to read directly from SQLite via `better-sqlite3`. No API layer is needed.
-
----
-
-## Data Entities
-
-| Entity | Primary Key | Key Fields |
-|--------|-------------|------------|
-| Referenda | `id` | title, status, track, DOT/USD values, tally |
-| Treasury | `id` | referendumIndex, description, DOT/USD values |
-| Child Bounties | `identifier` | parentBountyId, beneficiary, DOT value |
-| Fellowship | `id` | description, DOT/USD values |
-| Salary Cycles | `cycle` | budget_dot, registered/paid counts |
-| Salary Claimants | `address` | display_name, rank, status_type |
-
-See [docs/spec/data-models.md](docs/spec/data-models.md) for complete field documentation.
-
----
-
-## Testing
-
-```bash
-cd backend
-pytest
-pytest --cov=data_sinks --cov-report=term-missing
-```
 
 ---
 
@@ -244,33 +254,9 @@ pytest --cov=data_sinks --cov-report=term-missing
 - [docs/spec/index.md](docs/spec/index.md) - Application overview
 - [docs/spec/data-models.md](docs/spec/data-models.md) - Entity schemas
 - [docs/spec/api-reference.md](docs/spec/api-reference.md) - External API docs
-- [docs/spec/business-logic.md](docs/spec/business-logic.md) - Value extraction
-- [docs/spec/sqlite-sink.md](docs/spec/sqlite-sink.md) - SQLite implementation
-- [docs/spec/frontend.md](docs/spec/frontend.md) - Frontend architecture
-
----
-
-## Cloud Deployment
-
-### Backend (Cloud Run)
-
-```bash
-cd backend
-docker build -t opengov-monitor .
-docker run -p 8080:8080 opengov-monitor
-```
-
-Use Cloud Scheduler to trigger the `/` endpoint periodically.
-
-### Frontend (Vercel/Node)
-
-```bash
-cd frontend
-npm run build
-npm start
-```
-
-Or deploy to Vercel with the Next.js preset.
+- [backend/CLAUDE.md](backend/CLAUDE.md) - Backend specifics
+- [api/CLAUDE.md](api/CLAUDE.md) - API server specifics
+- [frontend/CLAUDE.md](frontend/CLAUDE.md) - Frontend specifics
 
 ---
 
@@ -278,20 +264,26 @@ Or deploy to Vercel with the Next.js preset.
 
 ### Database Not Found
 
-If the frontend shows "Database Not Found":
-
 ```bash
 cd backend
 python scripts/run_sqlite.py --db ../data/polkadot.db
 ```
 
-### Native Module Issues (Frontend)
+### API Connection Issues (Windows)
+
+If you see `EADDRINUSE` errors, kill existing processes:
+
+```bash
+netstat -ano | findstr :3001
+taskkill /F /PID <pid>
+```
+
+### Native Module Issues
 
 If `better-sqlite3` fails to build:
 
 ```bash
-cd frontend
-npm rebuild better-sqlite3
+pnpm rebuild better-sqlite3
 ```
 
 On Windows, you may need Visual Studio Build Tools installed.

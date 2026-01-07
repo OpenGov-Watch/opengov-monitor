@@ -1,13 +1,11 @@
-"use client";
-
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   SortingState,
   ColumnFiltersState,
   VisibilityState,
   PaginationState,
 } from "@tanstack/react-table";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useSearchParams, useNavigate, useLocation } from "react-router";
 
 interface ViewState {
   sorting: SortingState;
@@ -36,9 +34,10 @@ function decodeViewState(encoded: string): ViewState | null {
 }
 
 export function useViewState(tableName: string) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const initialLoadDone = useRef(false);
 
   // Initialize state
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -50,8 +49,11 @@ export function useViewState(tableName: string) {
     pageSize: 20,
   });
 
-  // Load from URL on mount
+  // Load from URL only on initial mount
   useEffect(() => {
+    if (initialLoadDone.current) return;
+    initialLoadDone.current = true;
+
     const viewParam = searchParams.get("view");
     if (viewParam) {
       const state = decodeViewState(viewParam);
@@ -63,7 +65,8 @@ export function useViewState(tableName: string) {
         setPagination(state.pagination);
       }
     }
-  }, [searchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Get current state
   const getCurrentState = useCallback(
@@ -87,9 +90,9 @@ export function useViewState(tableName: string) {
     if (encoded) {
       const params = new URLSearchParams(searchParams.toString());
       params.set("view", encoded);
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      navigate(`${location.pathname}?${params.toString()}`, { replace: true });
     }
-  }, [getCurrentState, tableName, searchParams, router, pathname]);
+  }, [getCurrentState, tableName, searchParams, navigate, location.pathname]);
 
   // Load from localStorage
   const loadViewState = useCallback(() => {
@@ -118,8 +121,8 @@ export function useViewState(tableName: string) {
     setPagination({ pageIndex: 0, pageSize: 20 });
 
     // Clear URL params
-    router.replace(pathname, { scroll: false });
-  }, [tableName, router, pathname]);
+    navigate(location.pathname, { replace: true });
+  }, [tableName, navigate, location.pathname]);
 
   // Get list of saved views
   const getSavedViews = useCallback((): string[] => {

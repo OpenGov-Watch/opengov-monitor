@@ -52,6 +52,8 @@ A container for holding multiple asset amounts. Used to represent the value of p
 | `{ASSET}_component` | float | Native asset component of proposal |
 | `USDC_component` | float | USDC component of proposal |
 | `USDT_component` | float | USDT component of proposal |
+| `category` | string | Spending category (nullable, manually assigned) |
+| `subcategory` | string | Spending subcategory (nullable, manually assigned) |
 
 ### Treasury Spend
 
@@ -90,6 +92,8 @@ A container for holding multiple asset amounts. Used to represent the value of p
 | `proposal_time` | datetime | Creation timestamp |
 | `latest_status_change` | datetime | Last status change |
 | `USD_latest` | float | USD value at latest status |
+| `category` | string | Spending category (nullable, manually assigned or inherited from parent bounty) |
+| `subcategory` | string | Spending subcategory (nullable, manually assigned or inherited from parent bounty) |
 
 ### Fellowship Treasury Spend
 
@@ -139,13 +143,35 @@ A container for holding multiple asset amounts. Used to represent the value of p
 | `last_active_time` | datetime | Last activity timestamp |
 | `rank` | int | Fellowship rank (0-7) |
 
+### Fellowship Salary Payment
+
+Individual payment events from fellowship salary cycles. Populated from the `/fellowship/salary/cycles/{cycle}/feeds` endpoint, filtered for `event: "Paid"`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `payment_id` | int | Auto-incrementing payment ID (primary key) |
+| `cycle` | int | Salary cycle number |
+| `who` | string | Address of the fellowship member |
+| `who_name` | string | Resolved identity name for `who` |
+| `beneficiary` | string | Address receiving the payment |
+| `beneficiary_name` | string | Resolved identity name for `beneficiary` |
+| `amount_dot` | float | Total payment amount in DOT |
+| `salary_dot` | float | Base salary amount in DOT |
+| `rank` | int | Fellowship rank at time of payment |
+| `is_active` | int | Whether member is active (1) or passive (0) |
+| `block_height` | int | Block number of the payment |
+| `block_time` | datetime | Timestamp of the payment |
+| `url` | string | Link to payment on explorer |
+
+**Note:** The `blockTime` from the API is in **milliseconds** (not seconds like other endpoints).
+
 ---
 
 ## Database Views
 
 ### Outstanding Claims
 
-Treasury spends that are approved, currently valid, and not yet expired. This view helps track claims that need to be processed before their expiration date.
+Treasury spends that are approved and not yet expired. Includes both **active** claims (already valid) and **upcoming** claims (not yet valid). This view helps track all claims that need to be processed before their expiration date.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -162,13 +188,15 @@ Treasury spends that are approved, currently valid, and not yet expired. This vi
 | `USDC_component` | float | USDC component |
 | `USDT_component` | float | USDT component |
 | `proposal_time` | datetime | Creation timestamp |
-| `validFrom` | datetime | When spend became valid |
+| `latest_status_change` | datetime | Last status change |
+| `validFrom` | datetime | When spend becomes/became valid |
 | `expireAt` | datetime | Expiration date |
+| `claim_type` | string | "active" if validFrom <= now, "upcoming" otherwise |
 | `days_until_expiry` | int | Calculated days until expiration |
+| `days_until_valid` | int | Calculated days until validFrom (negative if already valid) |
 
 **Filter Criteria:**
 - `status = 'Approved'`
-- `validFrom <= current_date`
 - `expireAt > current_date`
 
 **SQL Definition:**
@@ -179,11 +207,12 @@ SELECT
     DOT_proposal_time, USD_proposal_time,
     DOT_latest, USD_latest,
     DOT_component, USDC_component, USDT_component,
-    proposal_time, validFrom, expireAt,
-    CAST((julianday(expireAt) - julianday('now')) AS INTEGER) AS days_until_expiry
+    proposal_time, latest_status_change, validFrom, expireAt,
+    CASE WHEN validFrom <= datetime('now') THEN 'active' ELSE 'upcoming' END AS claim_type,
+    CAST((julianday(expireAt) - julianday('now')) AS INTEGER) AS days_until_expiry,
+    CAST((julianday(validFrom) - julianday('now')) AS INTEGER) AS days_until_valid
 FROM Treasury
 WHERE status = 'Approved'
-  AND validFrom <= datetime('now')
   AND expireAt > datetime('now');
 ```
 
@@ -206,6 +235,7 @@ Treasury spends that were approved but have passed their expiration date without
 | `USDC_component` | float | USDC component |
 | `USDT_component` | float | USDT component |
 | `proposal_time` | datetime | Creation timestamp |
+| `latest_status_change` | datetime | Last status change |
 | `validFrom` | datetime | When spend became valid |
 | `expireAt` | datetime | Expiration date |
 | `days_since_expiry` | int | Calculated days since expiration |
@@ -222,9 +252,168 @@ SELECT
     DOT_proposal_time, USD_proposal_time,
     DOT_latest, USD_latest,
     DOT_component, USDC_component, USDT_component,
-    proposal_time, validFrom, expireAt,
+    proposal_time, latest_status_change, validFrom, expireAt,
     CAST((julianday('now') - julianday(expireAt)) AS INTEGER) AS days_since_expiry
 FROM Treasury
 WHERE status = 'Approved'
   AND expireAt < datetime('now');
+```
+
+### All Spending
+
+Aggregated view of all spending across multiple sources. Used for unified spending analytics.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | string | Spending type: Direct Spend, Claim, Bounty, Subtreasury, Fellowship Salary, Fellowship Grants |
+| `id` | string | Unique identifier with type prefix (e.g., "ref-123", "treasury-456") |
+| `latest_status_change` | datetime | When status last changed |
+| `DOT_latest` | float | DOT amount |
+| `USD_latest` | float | USD value |
+| `category` | string | Spending category |
+| `subcategory` | string | Spending subcategory |
+| `title` | string | Spending title/description |
+| `DOT_component` | float | DOT component |
+| `USDC_component` | float | USDC component |
+| `USDT_component` | float | USDT component |
+| `url` | string | Link to source |
+
+**Spending Types:**
+- **Direct Spend**: Referenda with `status = 'Executed'` and `DOT_latest > 0`, with no linked Treasury record
+- **Claim**: Treasury spends with `status IN ('Paid', 'Processed')`
+- **Bounty**: Child bounties with `status = 'Claimed'`
+- **Subtreasury**: Manually managed spending entries
+- **Fellowship Salary**: Completed fellowship salary cycles
+- **Fellowship Grants**: Fellowship treasury spends with `status IN ('Paid', 'Approved')`
+
+---
+
+## Manual Tables
+
+These tables are managed via the frontend UI rather than populated from external APIs.
+
+### Categories
+
+Predefined category/subcategory pairs for classifying spending.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | int | Auto-incrementing ID (primary key) |
+| `category` | string | Category name |
+| `subcategory` | string | Subcategory name |
+
+**Unique constraint:** (category, subcategory) pair must be unique.
+
+### Bounties
+
+Parent bounty records for category inheritance by child bounties. Bounty data is fetched from Subsquare API, but category assignment is manual.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | int | Bounty index from chain (primary key) |
+| `name` | string | Bounty name/title |
+| `category` | string | Assigned category |
+| `subcategory` | string | Assigned subcategory |
+| `remaining_dot` | float | Remaining bounty funds in DOT |
+| `url` | string | Link to bounty on explorer |
+
+### Subtreasury
+
+Manually tracked spending that doesn't fit other categories.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | int | Auto-incrementing ID (primary key) |
+| `title` | string | Spending title |
+| `description` | string | Detailed description |
+| `DOT_latest` | float | DOT amount |
+| `USD_latest` | float | USD value |
+| `DOT_component` | float | DOT component |
+| `USDC_component` | float | USDC component |
+| `USDT_component` | float | USDT component |
+| `category` | string | Spending category |
+| `subcategory` | string | Spending subcategory |
+| `latest_status_change` | datetime | Last update timestamp |
+| `url` | string | Link to related resource |
+
+---
+
+## Dashboard Tables
+
+These tables support the custom dashboard feature.
+
+### Dashboard
+
+User-created dashboard definitions.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | int | Auto-incrementing ID (primary key) |
+| `name` | string | Dashboard name |
+| `description` | string | Optional description |
+| `created_at` | datetime | Creation timestamp |
+| `updated_at` | datetime | Last update timestamp |
+
+### Dashboard Component
+
+Individual components (charts, tables) within a dashboard.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | int | Auto-incrementing ID (primary key) |
+| `dashboard_id` | int | Parent dashboard ID (foreign key) |
+| `name` | string | Component name/title |
+| `type` | string | Component type: table, pie, bar_stacked, bar_grouped, line |
+| `query_config` | string | JSON blob storing query builder configuration |
+| `grid_config` | string | JSON blob storing grid position: { x, y, w, h } |
+| `chart_config` | string | JSON blob storing chart-specific options (nullable) |
+| `created_at` | datetime | Creation timestamp |
+| `updated_at` | datetime | Last update timestamp |
+
+**Index:** `idx_dashboard_components_dashboard` on `dashboard_id`
+
+### Query Config Structure
+
+The `query_config` JSON has the following structure:
+
+```typescript
+interface QueryConfig {
+  sourceTable: string;        // Table or view name
+  columns: ColumnSelection[]; // Selected columns
+  filters: FilterCondition[]; // Filter conditions
+  groupBy?: string[];         // Columns to group by
+  orderBy?: OrderByConfig[];  // Sort order
+  limit?: number;             // Row limit (max 10,000)
+}
+
+interface ColumnSelection {
+  column: string;
+  alias?: string;
+  aggregateFunction?: "COUNT" | "SUM" | "AVG" | "MIN" | "MAX";
+}
+
+interface FilterCondition {
+  column: string;
+  operator: "=" | "!=" | ">" | "<" | ">=" | "<=" | "LIKE" | "IN" | "IS NULL" | "IS NOT NULL";
+  value: string | number | string[] | null;
+}
+
+interface OrderByConfig {
+  column: string;
+  direction: "ASC" | "DESC";
+}
+```
+
+### Chart Config Structure
+
+The `chart_config` JSON stores chart-specific options:
+
+```typescript
+interface ChartConfig {
+  colors?: string[];      // Custom color palette
+  labelColumn?: string;   // Column for chart labels/categories
+  valueColumn?: string;   // Column for chart values (pie chart)
+  showLegend?: boolean;   // Show/hide legend
+  showTooltip?: boolean;  // Show/hide tooltips
+}
 ```

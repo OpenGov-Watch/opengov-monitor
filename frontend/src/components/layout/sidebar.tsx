@@ -1,7 +1,4 @@
-"use client";
-
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link, useLocation } from "react-router";
 import { LucideIcon } from "lucide-react";
 import {
   Vote,
@@ -14,6 +11,11 @@ import {
   Clock,
   TimerOff,
   ScrollText,
+  PieChart,
+  Tags,
+  Coins,
+  FileBox,
+  LayoutDashboard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +33,10 @@ interface NavSection {
 const navigation: NavSection[] = [
   {
     items: [{ name: "Dashboard", href: "/", icon: Home }],
+  },
+  {
+    title: "Analytics",
+    items: [{ name: "All Spending", href: "/spending", icon: PieChart }],
   },
   {
     title: "Governance",
@@ -56,18 +62,31 @@ const navigation: NavSection[] = [
     ],
   },
   {
+    title: "Manage",
+    items: [
+      { name: "Categories", href: "/manage/categories", icon: Tags },
+      { name: "Bounties", href: "/manage/bounties", icon: Coins },
+      { name: "Subtreasury", href: "/manage/subtreasury", icon: FileBox },
+    ],
+  },
+  {
+    title: "Custom",
+    items: [{ name: "Dashboards", href: "/dashboards", icon: LayoutDashboard }],
+  },
+  {
     title: "System",
     items: [{ name: "Logs", href: "/logs", icon: ScrollText }],
   },
 ];
 
 export function Sidebar() {
-  const pathname = usePathname();
+  const location = useLocation();
+  const pathname = location.pathname;
 
   return (
     <div className="flex h-screen w-64 flex-col border-r bg-background">
       <div className="flex h-16 items-center border-b px-6">
-        <Link href="/" className="text-xl font-bold">
+        <Link to="/" className="text-xl font-bold">
           OpenGov Monitor
         </Link>
       </div>
@@ -85,7 +104,7 @@ export function Sidebar() {
                 return (
                   <Link
                     key={item.name}
-                    href={item.href}
+                    to={item.href}
                     className={cn(
                       "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                       isActive

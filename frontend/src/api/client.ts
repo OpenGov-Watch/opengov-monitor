@@ -1,0 +1,162 @@
+const API_BASE = "/api";
+
+async function fetchJSON<T>(path: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+    },
+    ...options,
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: response.statusText }));
+    throw new Error(error.error || "An error occurred");
+  }
+  return response.json();
+}
+
+export const api = {
+  // Read-only endpoints
+  referenda: {
+    getAll: () => fetchJSON<unknown[]>("/referenda"),
+    updateCategory: (id: number, category: string | null, subcategory: string | null) =>
+      fetchJSON(`/referenda/${id}/category`, {
+        method: "PATCH",
+        body: JSON.stringify({ category, subcategory }),
+      }),
+  },
+  treasury: {
+    getAll: () => fetchJSON<unknown[]>("/treasury"),
+  },
+  childBounties: {
+    getAll: () => fetchJSON<unknown[]>("/child-bounties"),
+    updateCategory: (identifier: string, category: string | null, subcategory: string | null) =>
+      fetchJSON(`/child-bounties/${encodeURIComponent(identifier)}/category`, {
+        method: "PATCH",
+        body: JSON.stringify({ category, subcategory }),
+      }),
+  },
+  fellowship: {
+    getAll: () => fetchJSON<unknown[]>("/fellowship"),
+  },
+  salary: {
+    getCycles: () => fetchJSON<unknown[]>("/fellowship-salary/cycles"),
+    getClaimants: () => fetchJSON<unknown[]>("/fellowship-salary/claimants"),
+  },
+  claims: {
+    getOutstanding: () => fetchJSON<unknown[]>("/claims/outstanding"),
+    getExpired: () => fetchJSON<unknown[]>("/claims/expired"),
+  },
+  spending: {
+    getAll: () => fetchJSON<unknown[]>("/spending"),
+  },
+  logs: {
+    getAll: () => fetchJSON<unknown[]>("/logs"),
+  },
+  stats: {
+    get: () => fetchJSON<Record<string, number | null>>("/stats"),
+  },
+
+  // CRUD endpoints
+  categories: {
+    getAll: () => fetchJSON<unknown[]>("/categories"),
+    create: (category: string, subcategory: string) =>
+      fetchJSON("/categories", {
+        method: "POST",
+        body: JSON.stringify({ category, subcategory }),
+      }),
+    update: (id: number, category: string, subcategory: string) =>
+      fetchJSON(`/categories/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({ category, subcategory }),
+      }),
+    delete: (id: number) =>
+      fetchJSON(`/categories/${id}`, { method: "DELETE" }),
+  },
+  bounties: {
+    getAll: () => fetchJSON<unknown[]>("/bounties"),
+    getById: (id: number) => fetchJSON<unknown>(`/bounties/${id}`),
+    create: (data: unknown) =>
+      fetchJSON("/bounties", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    update: (id: number, data: unknown) =>
+      fetchJSON(`/bounties/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    updateCategory: (id: number, category: string | null, subcategory: string | null) =>
+      fetchJSON(`/bounties/${id}/category`, {
+        method: "PATCH",
+        body: JSON.stringify({ category, subcategory }),
+      }),
+    delete: (id: number) =>
+      fetchJSON(`/bounties/${id}`, { method: "DELETE" }),
+  },
+  subtreasury: {
+    getAll: () => fetchJSON<unknown[]>("/subtreasury"),
+    getById: (id: number) => fetchJSON<unknown>(`/subtreasury/${id}`),
+    create: (data: unknown) =>
+      fetchJSON("/subtreasury", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    update: (id: number, data: unknown) =>
+      fetchJSON(`/subtreasury/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    delete: (id: number) =>
+      fetchJSON(`/subtreasury/${id}`, { method: "DELETE" }),
+  },
+
+  // Dashboards
+  dashboards: {
+    getAll: () => fetchJSON<unknown[]>("/dashboards"),
+    getById: (id: number) => fetchJSON<unknown>(`/dashboards?id=${id}`),
+    create: (name: string, description: string | null) =>
+      fetchJSON("/dashboards", {
+        method: "POST",
+        body: JSON.stringify({ name, description }),
+      }),
+    update: (id: number, name: string, description: string | null) =>
+      fetchJSON("/dashboards", {
+        method: "PUT",
+        body: JSON.stringify({ id, name, description }),
+      }),
+    delete: (id: number) =>
+      fetchJSON(`/dashboards?id=${id}`, { method: "DELETE" }),
+  },
+  dashboardComponents: {
+    getByDashboardId: (dashboardId: number) =>
+      fetchJSON<unknown[]>(`/dashboards/components?dashboard_id=${dashboardId}`),
+    getById: (id: number) => fetchJSON<unknown>(`/dashboards/components?id=${id}`),
+    create: (data: unknown) =>
+      fetchJSON("/dashboards/components", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    update: (data: unknown) =>
+      fetchJSON("/dashboards/components", {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    updateGrid: (id: number, gridConfig: unknown) =>
+      fetchJSON("/dashboards/components", {
+        method: "PUT",
+        body: JSON.stringify({ id, grid_config: gridConfig, grid_only: true }),
+      }),
+    delete: (id: number) =>
+      fetchJSON(`/dashboards/components?id=${id}`, { method: "DELETE" }),
+  },
+
+  // Query builder
+  query: {
+    getSchema: () => fetchJSON<unknown[]>("/query/schema"),
+    execute: (config: unknown) =>
+      fetchJSON<{ data: unknown[]; rowCount: number; sql: string }>("/query/execute", {
+        method: "POST",
+        body: JSON.stringify(config),
+      }),
+  },
+};

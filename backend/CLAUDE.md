@@ -54,8 +54,21 @@ pytest --cov=data_sinks --cov-report=term-missing
 | Fellowship Salary Cycles | Unless disabled |
 | Fellowship Salary Claimants | Unless disabled |
 | Fellowship Salary Payments | Unless disabled |
+| Categories | Yes (manual) |
+| Bounties | Yes (manual) |
+| Subtreasury | Yes (manual) |
+| Fellowship Subtreasury | Yes |
+| Dashboards | Yes (manual) |
+| Dashboard Components | Yes (manual) |
 
 config.yaml `fellowship_salary_cycles`: `0` = fetch all, `-1` = skip
+
+## Database Views
+| View | Description |
+|------|-------------|
+| outstanding_claims | Approved treasury spends not yet expired |
+| expired_claims | Approved treasury spends past expiration |
+| all_spending | Aggregated spending from all sources |
 
 ## Fellowship Salary API Notes
 - Cycles: `/fellowship/salary/cycles/{cycle}` - aggregate data per cycle

@@ -72,6 +72,8 @@ node_modules/
 out/
 *.tsbuildinfo
 .turbo/
+dist/
+pnpm-debug.log*
 
 # Build artifacts
 *.local
@@ -79,3 +81,7 @@ out/
 # Claude Code
 .claude/plans/
 .claude/settings.local.json
+
+# Exploration / scratch files
+exploration/
+nul

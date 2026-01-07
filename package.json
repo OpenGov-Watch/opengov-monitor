@@ -1,0 +1,16 @@
+{
+  "name": "opengov-monitor",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "build": "pnpm -r run build",
+    "api:dev": "pnpm --filter api run dev",
+    "frontend:dev": "pnpm --filter frontend run dev"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["better-sqlite3", "esbuild"]
+  }
+}

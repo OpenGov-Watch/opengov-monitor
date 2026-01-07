@@ -1,0 +1,592 @@
+import { getDatabase, getWritableDatabase, getLogDatabase, logDatabaseExists } from "./index";
+import type {
+  Referendum,
+  TreasurySpend,
+  ChildBounty,
+  Fellowship,
+  FellowshipSalaryCycle,
+  FellowshipSalaryClaimant,
+  OutstandingClaim,
+  ExpiredClaim,
+  LogEntry,
+  Category,
+  Bounty,
+  Subtreasury,
+  FellowshipSubtreasury,
+  AllSpending,
+  Dashboard,
+  DashboardComponent,
+} from "./types";
+import { TABLE_NAMES, VIEW_NAMES } from "./types";
+
+export function getReferenda(): Referendum[] {
+  const db = getDatabase();
+  return db.prepare(`SELECT * FROM "${TABLE_NAMES.referenda}"`).all() as Referendum[];
+}
+
+export function getTreasury(): TreasurySpend[] {
+  const db = getDatabase();
+  return db.prepare(`SELECT * FROM "${TABLE_NAMES.treasury}"`).all() as TreasurySpend[];
+}
+
+export function getChildBounties(): ChildBounty[] {
+  const db = getDatabase();
+  return db.prepare(`SELECT * FROM "${TABLE_NAMES.childBounties}"`).all() as ChildBounty[];
+}
+
+export function getFellowship(): Fellowship[] {
+  const db = getDatabase();
+  return db.prepare(`SELECT * FROM "${TABLE_NAMES.fellowship}"`).all() as Fellowship[];
+}
+
+export function getFellowshipSalaryCycles(): FellowshipSalaryCycle[] {
+  const db = getDatabase();
+  return db
+    .prepare(`SELECT * FROM "${TABLE_NAMES.fellowshipSalaryCycles}"`)
+    .all() as FellowshipSalaryCycle[];
+}
+
+export function getFellowshipSalaryClaimants(): FellowshipSalaryClaimant[] {
+  const db = getDatabase();
+  return db
+    .prepare(`SELECT * FROM "${TABLE_NAMES.fellowshipSalaryClaimants}"`)
+    .all() as FellowshipSalaryClaimant[];
+}
+
+// Database Views
+
+export function getOutstandingClaims(): OutstandingClaim[] {
+  const db = getDatabase();
+  return db
+    .prepare(`SELECT * FROM "${VIEW_NAMES.outstandingClaims}" ORDER BY validFrom ASC`)
+    .all() as OutstandingClaim[];
+}
+
+export function getExpiredClaims(): ExpiredClaim[] {
+  const db = getDatabase();
+  return db
+    .prepare(`SELECT * FROM "${VIEW_NAMES.expiredClaims}" ORDER BY validFrom DESC`)
+    .all() as ExpiredClaim[];
+}
+
+// Get table names that exist in the database
+export function getTableNames(): string[] {
+  const db = getDatabase();
+  const result = db
+    .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+    .all() as { name: string }[];
+  return result.map((r) => r.name);
+}
+
+// Check if a specific table exists
+export function tableExists(tableName: string): boolean {
+  const tables = getTableNames();
+  return tables.includes(tableName);
+}
+
+// Check if a specific view exists
+export function viewExists(viewName: string): boolean {
+  const db = getDatabase();
+  const result = db
+    .prepare("SELECT name FROM sqlite_master WHERE type='view' AND name=?")
+    .get(viewName) as { name: string } | undefined;
+  return result !== undefined;
+}
+
+// Get row count for a table
+export function getRowCount(tableName: string): number {
+  const db = getDatabase();
+  const result = db
+    .prepare(`SELECT COUNT(*) as count FROM "${tableName}"`)
+    .get() as { count: number };
+  return result.count;
+}
+
+// Check if database is accessible
+export function isDatabaseAccessible(): boolean {
+  try {
+    const db = getDatabase();
+    db.prepare("SELECT 1").get();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Log database queries
+
+export function getLogs(): LogEntry[] {
+  const db = getLogDatabase();
+  return db
+    .prepare("SELECT * FROM logs ORDER BY timestamp DESC")
+    .all() as LogEntry[];
+}
+
+export function isLogDatabaseAccessible(): boolean {
+  // Check file exists first to avoid caching a failed connection
+  if (!logDatabaseExists()) {
+    return false;
+  }
+  try {
+    const db = getLogDatabase();
+    db.prepare("SELECT 1").get();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function getLogCount(): number {
+  const db = getLogDatabase();
+  const result = db.prepare("SELECT COUNT(*) as count FROM logs").get() as {
+    count: number;
+  };
+  return result.count;
+}
+
+// Manual Tables - Categories
+
+export function getCategories(): Category[] {
+  const db = getDatabase();
+  return db
+    .prepare(`SELECT * FROM "${TABLE_NAMES.categories}" ORDER BY category, subcategory`)
+    .all() as Category[];
+}
+
+export function createCategory(category: string, subcategory: string): Category {
+  const db = getWritableDatabase();
+  const result = db
+    .prepare(`INSERT INTO "${TABLE_NAMES.categories}" (category, subcategory) VALUES (?, ?)`)
+    .run(category, subcategory);
+  return { id: result.lastInsertRowid as number, category, subcategory };
+}
+
+export function updateCategory(id: number, category: string, subcategory: string): void {
+  const db = getWritableDatabase();
+  db.prepare(`UPDATE "${TABLE_NAMES.categories}" SET category = ?, subcategory = ? WHERE id = ?`)
+    .run(category, subcategory, id);
+}
+
+export function deleteCategory(id: number): void {
+  const db = getWritableDatabase();
+  db.prepare(`DELETE FROM "${TABLE_NAMES.categories}" WHERE id = ?`).run(id);
+}
+
+// Manual Tables - Bounties (Parent)
+
+export function getBounties(): Bounty[] {
+  const db = getDatabase();
+  return db
+    .prepare(`SELECT * FROM "${TABLE_NAMES.bounties}" ORDER BY id DESC`)
+    .all() as Bounty[];
+}
+
+export function getBountyById(id: number): Bounty | undefined {
+  const db = getDatabase();
+  return db
+    .prepare(`SELECT * FROM "${TABLE_NAMES.bounties}" WHERE id = ?`)
+    .get(id) as Bounty | undefined;
+}
+
+export function upsertBounty(bounty: Bounty): void {
+  const db = getWritableDatabase();
+  db.prepare(`
+    INSERT INTO "${TABLE_NAMES.bounties}" (id, name, category, subcategory, remaining_dot, url)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      name = excluded.name,
+      category = excluded.category,
+      subcategory = excluded.subcategory,
+      remaining_dot = excluded.remaining_dot,
+      url = excluded.url
+  `).run(bounty.id, bounty.name, bounty.category, bounty.subcategory, bounty.remaining_dot, bounty.url);
+}
+
+export function updateBountyCategory(id: number, category: string | null, subcategory: string | null): void {
+  const db = getWritableDatabase();
+  db.prepare(`UPDATE "${TABLE_NAMES.bounties}" SET category = ?, subcategory = ? WHERE id = ?`)
+    .run(category, subcategory, id);
+}
+
+export function deleteBounty(id: number): void {
+  const db = getWritableDatabase();
+  db.prepare(`DELETE FROM "${TABLE_NAMES.bounties}" WHERE id = ?`).run(id);
+}
+
+// Manual Tables - Subtreasury
+
+export function getSubtreasury(): Subtreasury[] {
+  const db = getDatabase();
+  return db
+    .prepare(`SELECT * FROM "${TABLE_NAMES.subtreasury}" ORDER BY latest_status_change DESC`)
+    .all() as Subtreasury[];
+}
+
+export function getSubtreasuryById(id: number): Subtreasury | undefined {
+  const db = getDatabase();
+  return db
+    .prepare(`SELECT * FROM "${TABLE_NAMES.subtreasury}" WHERE id = ?`)
+    .get(id) as Subtreasury | undefined;
+}
+
+export function createSubtreasury(entry: Omit<Subtreasury, "id">): Subtreasury {
+  const db = getWritableDatabase();
+  const result = db.prepare(`
+    INSERT INTO "${TABLE_NAMES.subtreasury}"
+    (title, description, DOT_latest, USD_latest, DOT_component, USDC_component, USDT_component, category, subcategory, latest_status_change, url)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    entry.title,
+    entry.description,
+    entry.DOT_latest,
+    entry.USD_latest,
+    entry.DOT_component,
+    entry.USDC_component,
+    entry.USDT_component,
+    entry.category,
+    entry.subcategory,
+    entry.latest_status_change,
+    entry.url
+  );
+  return { id: result.lastInsertRowid as number, ...entry };
+}
+
+export function updateSubtreasury(entry: Subtreasury): void {
+  const db = getWritableDatabase();
+  db.prepare(`
+    UPDATE "${TABLE_NAMES.subtreasury}" SET
+      title = ?, description = ?, DOT_latest = ?, USD_latest = ?,
+      DOT_component = ?, USDC_component = ?, USDT_component = ?,
+      category = ?, subcategory = ?, latest_status_change = ?, url = ?
+    WHERE id = ?
+  `).run(
+    entry.title,
+    entry.description,
+    entry.DOT_latest,
+    entry.USD_latest,
+    entry.DOT_component,
+    entry.USDC_component,
+    entry.USDT_component,
+    entry.category,
+    entry.subcategory,
+    entry.latest_status_change,
+    entry.url,
+    entry.id
+  );
+}
+
+export function deleteSubtreasury(id: number): void {
+  const db = getWritableDatabase();
+  db.prepare(`DELETE FROM "${TABLE_NAMES.subtreasury}" WHERE id = ?`).run(id);
+}
+
+// Fellowship Subtreasury (read-only, fetched from API)
+
+export function getFellowshipSubtreasury(): FellowshipSubtreasury[] {
+  const db = getDatabase();
+  return db
+    .prepare(`SELECT * FROM "${TABLE_NAMES.fellowshipSubtreasury}" ORDER BY id DESC`)
+    .all() as FellowshipSubtreasury[];
+}
+
+// All Spending View
+
+export function getAllSpending(): AllSpending[] {
+  const db = getDatabase();
+
+  // Use custom query instead of broken all_spending view
+  // Note: Referenda table doesn't have category/subcategory columns
+  const sql = `
+    -- Direct Spend: Referenda with DOT value but NO Treasury link
+    SELECT
+        'Direct Spend' AS type,
+        'ref-' || r.id AS id,
+        r.latest_status_change,
+        r.DOT_latest,
+        r.USD_latest,
+        NULL AS category,
+        NULL AS subcategory,
+        r.title,
+        r.DOT_component,
+        r.USDC_component,
+        r.USDT_component,
+        r.url
+    FROM Referenda r
+    LEFT JOIN Treasury t ON r.id = t.referendumIndex
+    WHERE t.id IS NULL
+      AND r.DOT_latest > 0
+      AND r.status = 'Executed'
+
+    UNION ALL
+
+    -- Claim: Treasury spends (paid)
+    SELECT
+        'Claim' AS type,
+        'treasury-' || t.id AS id,
+        t.latest_status_change,
+        t.DOT_latest,
+        t.USD_latest,
+        NULL AS category,
+        NULL AS subcategory,
+        t.description AS title,
+        t.DOT_component,
+        t.USDC_component,
+        t.USDT_component,
+        t.url
+    FROM Treasury t
+    WHERE t.status IN ('Paid', 'Processed')
+
+    UNION ALL
+
+    -- Bounty (Child): Child bounties that have been claimed
+    SELECT
+        'Bounty' AS type,
+        'cb-' || cb.identifier AS id,
+        cb.latest_status_change,
+        cb.DOT AS DOT_latest,
+        cb.USD_latest,
+        b.category AS category,
+        b.subcategory AS subcategory,
+        cb.description AS title,
+        cb.DOT AS DOT_component,
+        NULL AS USDC_component,
+        NULL AS USDT_component,
+        cb.url
+    FROM "Child Bounties" cb
+    LEFT JOIN Bounties b ON cb.parentBountyId = b.id
+    WHERE cb.status = 'Claimed'
+
+    UNION ALL
+
+    -- Subtreasury: Manually managed spending entries
+    SELECT
+        'Subtreasury' AS type,
+        'sub-' || s.id AS id,
+        s.latest_status_change,
+        s.DOT_latest,
+        s.USD_latest,
+        s.category,
+        s.subcategory,
+        s.title,
+        s.DOT_component,
+        s.USDC_component,
+        s.USDT_component,
+        s.url
+    FROM Subtreasury s
+
+    UNION ALL
+
+    -- Fellowship Salary: From salary cycles (completed cycles only)
+    SELECT
+        'Fellowship Salary' AS type,
+        'fs-' || c.cycle AS id,
+        c.end_time AS latest_status_change,
+        c.registered_paid_amount_dot AS DOT_latest,
+        NULL AS USD_latest,
+        'Development' AS category,
+        'Polkadot Protocol & SDK' AS subcategory,
+        'Fellowship Salary Cycle ' || c.cycle AS title,
+        c.registered_paid_amount_dot AS DOT_component,
+        NULL AS USDC_component,
+        NULL AS USDT_component,
+        c.url
+    FROM "Fellowship Salary Cycles" c
+    WHERE c.end_time IS NOT NULL
+
+    UNION ALL
+
+    -- Fellowship Grants: Fellowship treasury spends
+    SELECT
+        'Fellowship Grants' AS type,
+        'fg-' || f.id AS id,
+        f.latest_status_change,
+        f.DOT AS DOT_latest,
+        f.USD_latest,
+        'Development' AS category,
+        'Polkadot Protocol & SDK' AS subcategory,
+        f.description AS title,
+        f.DOT AS DOT_component,
+        NULL AS USDC_component,
+        NULL AS USDT_component,
+        f.url
+    FROM Fellowship f
+    WHERE f.status IN ('Paid', 'Approved')
+
+    ORDER BY latest_status_change DESC
+  `;
+
+  return db.prepare(sql).all() as AllSpending[];
+}
+
+// Update category on Referendum
+
+export function updateReferendumCategory(id: number, category: string | null, subcategory: string | null): void {
+  const db = getWritableDatabase();
+  db.prepare(`UPDATE "${TABLE_NAMES.referenda}" SET category = ?, subcategory = ? WHERE id = ?`)
+    .run(category, subcategory, id);
+}
+
+// Update category on Child Bounty
+
+export function updateChildBountyCategory(identifier: string, category: string | null, subcategory: string | null): void {
+  const db = getWritableDatabase();
+  db.prepare(`UPDATE "${TABLE_NAMES.childBounties}" SET category = ?, subcategory = ? WHERE identifier = ?`)
+    .run(category, subcategory, identifier);
+}
+
+// Dashboards
+
+export function getDashboards(): Dashboard[] {
+  const db = getDatabase();
+  return db
+    .prepare(`SELECT * FROM "${TABLE_NAMES.dashboards}" ORDER BY updated_at DESC`)
+    .all() as Dashboard[];
+}
+
+export function getDashboardById(id: number): Dashboard | undefined {
+  const db = getDatabase();
+  return db
+    .prepare(`SELECT * FROM "${TABLE_NAMES.dashboards}" WHERE id = ?`)
+    .get(id) as Dashboard | undefined;
+}
+
+export function createDashboard(name: string, description: string | null): Dashboard {
+  const db = getWritableDatabase();
+  const now = new Date().toISOString();
+  const result = db.prepare(`
+    INSERT INTO "${TABLE_NAMES.dashboards}" (name, description, created_at, updated_at)
+    VALUES (?, ?, ?, ?)
+  `).run(name, description, now, now);
+  return {
+    id: result.lastInsertRowid as number,
+    name,
+    description,
+    created_at: now,
+    updated_at: now,
+  };
+}
+
+export function updateDashboard(id: number, name: string, description: string | null): void {
+  const db = getWritableDatabase();
+  const now = new Date().toISOString();
+  db.prepare(`
+    UPDATE "${TABLE_NAMES.dashboards}" SET name = ?, description = ?, updated_at = ?
+    WHERE id = ?
+  `).run(name, description, now, id);
+}
+
+export function deleteDashboard(id: number): void {
+  const db = getWritableDatabase();
+  // Delete components first (cascade)
+  db.prepare(`DELETE FROM "${TABLE_NAMES.dashboardComponents}" WHERE dashboard_id = ?`).run(id);
+  db.prepare(`DELETE FROM "${TABLE_NAMES.dashboards}" WHERE id = ?`).run(id);
+}
+
+// Dashboard Components
+
+export function getDashboardComponents(dashboardId: number): DashboardComponent[] {
+  const db = getDatabase();
+  return db
+    .prepare(`SELECT * FROM "${TABLE_NAMES.dashboardComponents}" WHERE dashboard_id = ? ORDER BY id`)
+    .all(dashboardId) as DashboardComponent[];
+}
+
+export function getDashboardComponentById(id: number): DashboardComponent | undefined {
+  const db = getDatabase();
+  return db
+    .prepare(`SELECT * FROM "${TABLE_NAMES.dashboardComponents}" WHERE id = ?`)
+    .get(id) as DashboardComponent | undefined;
+}
+
+export function createDashboardComponent(
+  dashboardId: number,
+  name: string,
+  type: string,
+  queryConfig: string,
+  gridConfig: string,
+  chartConfig: string | null
+): DashboardComponent {
+  const db = getWritableDatabase();
+  const now = new Date().toISOString();
+  const result = db.prepare(`
+    INSERT INTO "${TABLE_NAMES.dashboardComponents}"
+    (dashboard_id, name, type, query_config, grid_config, chart_config, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(dashboardId, name, type, queryConfig, gridConfig, chartConfig, now, now);
+
+  // Update dashboard's updated_at
+  db.prepare(`UPDATE "${TABLE_NAMES.dashboards}" SET updated_at = ? WHERE id = ?`).run(now, dashboardId);
+
+  return {
+    id: result.lastInsertRowid as number,
+    dashboard_id: dashboardId,
+    name,
+    type: type as DashboardComponent["type"],
+    query_config: queryConfig,
+    grid_config: gridConfig,
+    chart_config: chartConfig,
+    created_at: now,
+    updated_at: now,
+  };
+}
+
+export function updateDashboardComponent(
+  id: number,
+  name: string,
+  type: string,
+  queryConfig: string,
+  gridConfig: string,
+  chartConfig: string | null
+): void {
+  const db = getWritableDatabase();
+  const now = new Date().toISOString();
+
+  // Get dashboard_id to update dashboard's updated_at
+  const component = db
+    .prepare(`SELECT dashboard_id FROM "${TABLE_NAMES.dashboardComponents}" WHERE id = ?`)
+    .get(id) as { dashboard_id: number } | undefined;
+
+  db.prepare(`
+    UPDATE "${TABLE_NAMES.dashboardComponents}" SET
+      name = ?, type = ?, query_config = ?, grid_config = ?, chart_config = ?, updated_at = ?
+    WHERE id = ?
+  `).run(name, type, queryConfig, gridConfig, chartConfig, now, id);
+
+  if (component) {
+    db.prepare(`UPDATE "${TABLE_NAMES.dashboards}" SET updated_at = ? WHERE id = ?`)
+      .run(now, component.dashboard_id);
+  }
+}
+
+export function updateDashboardComponentGrid(id: number, gridConfig: string): void {
+  const db = getWritableDatabase();
+  const now = new Date().toISOString();
+
+  const component = db
+    .prepare(`SELECT dashboard_id FROM "${TABLE_NAMES.dashboardComponents}" WHERE id = ?`)
+    .get(id) as { dashboard_id: number } | undefined;
+
+  db.prepare(`UPDATE "${TABLE_NAMES.dashboardComponents}" SET grid_config = ?, updated_at = ? WHERE id = ?`)
+    .run(gridConfig, now, id);
+
+  if (component) {
+    db.prepare(`UPDATE "${TABLE_NAMES.dashboards}" SET updated_at = ? WHERE id = ?`)
+      .run(now, component.dashboard_id);
+  }
+}
+
+export function deleteDashboardComponent(id: number): void {
+  const db = getWritableDatabase();
+  const now = new Date().toISOString();
+
+  const component = db
+    .prepare(`SELECT dashboard_id FROM "${TABLE_NAMES.dashboardComponents}" WHERE id = ?`)
+    .get(id) as { dashboard_id: number } | undefined;
+
+  db.prepare(`DELETE FROM "${TABLE_NAMES.dashboardComponents}" WHERE id = ?`).run(id);
+
+  if (component) {
+    db.prepare(`UPDATE "${TABLE_NAMES.dashboards}" SET updated_at = ? WHERE id = ?`)
+      .run(now, component.dashboard_id);
+  }
+}

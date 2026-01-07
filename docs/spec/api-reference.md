@@ -210,3 +210,168 @@ Returns current price:
 ```
 
 Note: CoinGecko has rate limits on the free tier.
+
+---
+
+## Internal API Routes (Frontend)
+
+The frontend provides internal API routes for dashboard and data management.
+
+### Dashboard CRUD
+
+#### List/Get Dashboards
+```
+GET /api/dashboards
+GET /api/dashboards?id={id}
+```
+
+Returns all dashboards or a specific dashboard by ID.
+
+#### Create Dashboard
+```
+POST /api/dashboards
+Content-Type: application/json
+
+{
+  "name": "My Dashboard",
+  "description": "Optional description"
+}
+```
+
+#### Update Dashboard
+```
+PUT /api/dashboards
+Content-Type: application/json
+
+{
+  "id": 1,
+  "name": "Updated Name",
+  "description": "Updated description"
+}
+```
+
+#### Delete Dashboard
+```
+DELETE /api/dashboards?id={id}
+```
+
+Deletes the dashboard and all its components.
+
+---
+
+### Dashboard Components
+
+#### List Components
+```
+GET /api/dashboards/components?dashboard_id={id}
+GET /api/dashboards/components?id={componentId}
+```
+
+#### Create Component
+```
+POST /api/dashboards/components
+Content-Type: application/json
+
+{
+  "dashboard_id": 1,
+  "name": "Spending by Category",
+  "type": "pie",
+  "query_config": { ... },
+  "grid_config": { "x": 0, "y": 0, "w": 6, "h": 4 },
+  "chart_config": { "showLegend": true }
+}
+```
+
+#### Update Component
+```
+PUT /api/dashboards/components
+Content-Type: application/json
+
+{
+  "id": 1,
+  "name": "Updated Name",
+  "type": "bar_grouped",
+  "query_config": { ... },
+  "grid_config": { ... },
+  "chart_config": { ... }
+}
+```
+
+For grid-only updates (drag/resize):
+```
+PUT /api/dashboards/components
+Content-Type: application/json
+
+{
+  "id": 1,
+  "grid_only": true,
+  "grid_config": { "x": 2, "y": 0, "w": 4, "h": 3 }
+}
+```
+
+#### Delete Component
+```
+DELETE /api/dashboards/components?id={id}
+```
+
+---
+
+### Query Builder
+
+#### Get Schema
+```
+GET /api/query/schema
+```
+
+Returns whitelisted tables with their columns:
+```json
+[
+  {
+    "name": "Referenda",
+    "columns": [
+      { "name": "id", "type": "INTEGER", "nullable": false },
+      { "name": "title", "type": "TEXT", "nullable": true }
+    ]
+  }
+]
+```
+
+**Whitelisted tables:**
+- Referenda, Treasury, Child Bounties, Fellowship
+- Fellowship Salary Cycles, Fellowship Salary Claimants
+- categories, bounties, subtreasury, Fellowship Subtreasury
+- Views: outstanding_claims, expired_claims, all_spending
+
+#### Execute Query
+```
+POST /api/query/execute
+Content-Type: application/json
+
+{
+  "sourceTable": "Referenda",
+  "columns": [
+    { "column": "status" },
+    { "column": "id", "aggregateFunction": "COUNT", "alias": "count" }
+  ],
+  "filters": [
+    { "column": "DOT_latest", "operator": ">", "value": 0 }
+  ],
+  "groupBy": ["status"],
+  "orderBy": [{ "column": "count", "direction": "DESC" }],
+  "limit": 100
+}
+```
+
+Returns:
+```json
+{
+  "data": [...],
+  "rowCount": 5,
+  "sql": "SELECT \"status\", COUNT(\"id\") AS \"count\" FROM \"Referenda\" WHERE \"DOT_latest\" > ? GROUP BY \"status\" ORDER BY \"count\" DESC LIMIT 100"
+}
+```
+
+**Security:**
+- Only whitelisted tables/views can be queried
+- Filter values are parameterized (no SQL injection)
+- Maximum row limit: 10,000
