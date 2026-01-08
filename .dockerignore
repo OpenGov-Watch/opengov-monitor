@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+**/node_modules/
+**/.venv/
+
+# Build artifacts
+**/dist/
+**/__pycache__/
+*.pyc
+*.pyo
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+docs/
+exploration/
+
+# Local data
+data/
+logs/
+
+# Environment files
+.env*
+*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Claude
+.claude/

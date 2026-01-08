@@ -1,0 +1,4 @@
+# OpenGov Monitor - Hourly data sync from Subsquare
+# Runs every hour at minute 0
+
+0 * * * * root cd /app/backend && /app/backend/.venv/bin/python scripts/run_sqlite.py --db /data/polkadot.db >> /var/log/opengov-sync.log 2>&1

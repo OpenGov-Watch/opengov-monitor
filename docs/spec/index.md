@@ -248,14 +248,51 @@ Suppressed loggers: `yfinance`, `urllib3`, `peewee`, `google`
 
 ## Deployment
 
-### Backend (Data Fetching)
+### Docker (Production)
 
-```bash
-cd backend
-python scripts/run_sqlite.py --db ../data/polkadot.db
+The application is deployed as a single Docker container running nginx, Node.js API, and Python sync via supervisord.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Single Docker Container (:80)                   │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │                    supervisord                           ││
+│  │   ┌─────────────┐  ┌─────────────┐  ┌────────────────┐  ││
+│  │   │   nginx     │  │  node API   │  │   cron         │  ││
+│  │   │  :80        │──│  :3001      │  │  (hourly sync) │  ││
+│  │   └─────────────┘  └─────────────┘  └────────────────┘  ││
+│  └─────────────────────────────────────────────────────────┘│
+│                    ┌─────────────────┐                       │
+│                    │  /data volume   │                       │
+│                    │  polkadot.db    │                       │
+│                    └─────────────────┘                       │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### API + Frontend (Development)
+**Infrastructure:**
+
+| Field | Value |
+|-------|-------|
+| Image | `ghcr.io/opengov-watch/opengov-monitor:prod` |
+| Port | `80` |
+| Domain | `polkadot-treasury-monitor.cypherpunk.agency` |
+| Storage | `/data` (SQLite database) |
+
+**Key files:**
+- `Dockerfile` - Multi-stage build (frontend + API + backend)
+- `deploy/supervisord.conf` - Process manager config
+- `deploy/nginx-container.conf` - nginx config
+- `.github/workflows/deploy.yml` - CI/CD pipeline
+
+```bash
+# Local development with Docker
+docker compose up -d --build
+
+# Initial data sync
+docker compose exec opengov-monitor /app/backend/.venv/bin/python /app/backend/scripts/run_sqlite.py --db /data/polkadot.db
+```
+
+### Local Development (without Docker)
 
 ```bash
 # From root - starts both API and frontend
@@ -266,10 +303,17 @@ pnpm api:dev       # API server on :3001
 pnpm frontend:dev  # Frontend on :3000
 ```
 
+### Backend (Data Fetching)
+
+```bash
+cd backend
+python scripts/run_sqlite.py --db ../data/polkadot.db
+```
+
 ### Production Build
 
 ```bash
 pnpm run build     # Builds both API and frontend
 ```
 
-The frontend proxies `/api/*` requests to the API server. In production, configure reverse proxy or deploy frontend with API base URL environment variable.
+The frontend proxies `/api/*` requests to the API server.
