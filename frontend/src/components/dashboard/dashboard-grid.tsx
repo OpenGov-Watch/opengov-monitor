@@ -43,6 +43,7 @@ export function DashboardGrid({
       h: gridConfig.h,
       minW: 2,
       minH: 2,
+      static: !editable,
     };
   });
 
