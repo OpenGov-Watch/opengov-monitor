@@ -19,6 +19,8 @@ export interface Referendum {
   USDT_component: number | null;
   category: string | null;
   subcategory: string | null;
+  notes: string | null;
+  hide_in_spends: number | null;
 }
 
 export interface TreasurySpend {
@@ -55,6 +57,8 @@ export interface ChildBounty {
   USD_latest: number | null;
   category: string | null;
   subcategory: string | null;
+  notes: string | null;
+  hide_in_spends: number | null;
 }
 
 export interface Fellowship {
@@ -276,9 +280,15 @@ export interface GridConfig {
   h: number;
 }
 
+export interface ExpressionColumn {
+  expression: string; // SQL expression, e.g., "DOT_latest * 10"
+  alias: string; // Required display name for the result column
+}
+
 export interface QueryConfig {
   sourceTable: string;
   columns: ColumnSelection[];
+  expressionColumns?: ExpressionColumn[];
   filters: FilterCondition[];
   groupBy?: string[];
   orderBy?: OrderByConfig[];

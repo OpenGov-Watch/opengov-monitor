@@ -18,10 +18,31 @@ export const api = {
   // Read-only endpoints
   referenda: {
     getAll: () => fetchJSON<unknown[]>("/referenda"),
-    updateCategory: (id: number, category: string | null, subcategory: string | null) =>
-      fetchJSON(`/referenda/${id}/category`, {
+    update: (
+      id: number,
+      data: {
+        category?: string | null;
+        subcategory?: string | null;
+        notes?: string | null;
+        hide_in_spends?: number | null;
+      }
+    ) =>
+      fetchJSON(`/referenda/${id}`, {
         method: "PATCH",
-        body: JSON.stringify({ category, subcategory }),
+        body: JSON.stringify(data),
+      }),
+    import: (
+      items: Array<{
+        id: number;
+        category?: string | null;
+        subcategory?: string | null;
+        notes?: string | null;
+        hide_in_spends?: number | null;
+      }>
+    ) =>
+      fetchJSON<{ success: boolean; count: number }>("/referenda/import", {
+        method: "POST",
+        body: JSON.stringify({ items }),
       }),
   },
   treasury: {
@@ -29,10 +50,31 @@ export const api = {
   },
   childBounties: {
     getAll: () => fetchJSON<unknown[]>("/child-bounties"),
-    updateCategory: (identifier: string, category: string | null, subcategory: string | null) =>
-      fetchJSON(`/child-bounties/${encodeURIComponent(identifier)}/category`, {
+    update: (
+      identifier: string,
+      data: {
+        category?: string | null;
+        subcategory?: string | null;
+        notes?: string | null;
+        hide_in_spends?: number | null;
+      }
+    ) =>
+      fetchJSON(`/child-bounties/${encodeURIComponent(identifier)}`, {
         method: "PATCH",
-        body: JSON.stringify({ category, subcategory }),
+        body: JSON.stringify(data),
+      }),
+    import: (
+      items: Array<{
+        identifier: string;
+        category?: string | null;
+        subcategory?: string | null;
+        notes?: string | null;
+        hide_in_spends?: number | null;
+      }>
+    ) =>
+      fetchJSON<{ success: boolean; count: number }>("/child-bounties/import", {
+        method: "POST",
+        body: JSON.stringify({ items }),
       }),
   },
   fellowship: {
@@ -158,5 +200,11 @@ export const api = {
         method: "POST",
         body: JSON.stringify(config),
       }),
+  },
+
+  // Sync settings
+  sync: {
+    getDefaultReferenda: () => fetchJSON<{ content: string }>("/sync/defaults/referenda"),
+    getDefaultChildBounties: () => fetchJSON<{ content: string }>("/sync/defaults/child-bounties"),
   },
 };

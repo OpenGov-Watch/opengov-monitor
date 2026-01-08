@@ -234,6 +234,82 @@ The Node.js Express API server (`api/`) provides REST endpoints for data retriev
 | `GET /api/stats` | Table row counts |
 | `GET /api/health` | Health check |
 
+### Referenda Categorization
+
+#### Update Single Referendum
+```
+PATCH /api/referenda/:id
+Content-Type: application/json
+
+{
+  "category": "Development",
+  "subcategory": "Core",
+  "notes": "Optional notes",
+  "hide_in_spends": 0
+}
+```
+
+All fields are optional. Only provided fields will be updated.
+
+#### Bulk Import Referenda Categories
+```
+POST /api/referenda/import
+Content-Type: application/json
+
+[
+  { "id": 1, "category": "Development", "subcategory": "Core" },
+  { "id": 2, "category": "Outreach", "notes": "Marketing campaign" }
+]
+```
+
+Returns: `{ "updated": 2 }` - count of records updated.
+
+### Child Bounties Categorization
+
+#### Update Single Child Bounty
+```
+PATCH /api/child-bounties/:identifier
+Content-Type: application/json
+
+{
+  "category": "Development",
+  "subcategory": "SDK",
+  "notes": "Optional notes",
+  "hide_in_spends": 0
+}
+```
+
+The `identifier` is in format `{parentBountyId}_{index}` (e.g., `1_23`).
+
+#### Bulk Import Child Bounties Categories
+```
+POST /api/child-bounties/import
+Content-Type: application/json
+
+[
+  { "identifier": "1_23", "category": "Development", "subcategory": "SDK" },
+  { "identifier": "2_45", "category": "Outreach", "hide_in_spends": 1 }
+]
+```
+
+Returns: `{ "updated": 2 }` - count of records updated.
+
+### Sync Defaults
+
+#### Get Default Referenda Categories
+```
+GET /api/sync/defaults/referenda
+```
+
+Returns CSV content with default category mappings for referenda.
+
+#### Get Default Child Bounties Categories
+```
+GET /api/sync/defaults/child-bounties
+```
+
+Returns CSV content with default category mappings for child bounties.
+
 ### Dashboard CRUD
 
 #### List/Get Dashboards
@@ -370,6 +446,9 @@ Content-Type: application/json
     { "column": "status" },
     { "column": "id", "aggregateFunction": "COUNT", "alias": "count" }
   ],
+  "expressionColumns": [
+    { "expression": "ROUND(DOT_latest / 1000000, 2)", "alias": "dot_millions" }
+  ],
   "filters": [
     { "column": "DOT_latest", "operator": ">", "value": 0 }
   ],
@@ -384,7 +463,7 @@ Returns:
 {
   "data": [...],
   "rowCount": 5,
-  "sql": "SELECT \"status\", COUNT(\"id\") AS \"count\" FROM \"Referenda\" WHERE \"DOT_latest\" > ? GROUP BY \"status\" ORDER BY \"count\" DESC LIMIT 100"
+  "sql": "SELECT \"status\", COUNT(\"id\") AS \"count\", (ROUND(DOT_latest / 1000000, 2)) AS \"dot_millions\" FROM \"Referenda\" WHERE \"DOT_latest\" > ? GROUP BY \"status\" ORDER BY \"count\" DESC LIMIT 100"
 }
 ```
 
@@ -392,6 +471,8 @@ Returns:
 - Only whitelisted tables/views can be queried
 - Filter values are parameterized (no SQL injection)
 - Maximum row limit: 10,000
+- Expression columns are validated against blocked patterns (SQL injection prevention)
+- Expression column references must be valid columns from the selected table
 
 ---
 
@@ -591,22 +672,36 @@ Uses path parameter - no validation needed.
 | Field | Required | Validation |
 |-------|----------|------------|
 | `sourceTable` | Yes | Must be in whitelist |
-| `columns` | Yes | Non-empty array |
+| `columns` | Conditional | Required if no expressionColumns |
 | `columns[].column` | Yes | Alphanumeric + `_.` + space |
 | `columns[].aggregateFunction` | No | Must be: COUNT, SUM, AVG, MIN, MAX |
+| `expressionColumns` | No | Array of ExpressionColumn |
+| `expressionColumns[].expression` | Yes | SQL expression, max 500 chars, no blocked patterns |
+| `expressionColumns[].alias` | Yes | Valid identifier (alphanumeric + underscore) |
 | `filters` | No | Array of FilterCondition |
 | `filters[].operator` | Yes | Must be: =, !=, >, <, >=, <=, LIKE, IN, IS NULL, IS NOT NULL |
 | `groupBy` | No | Array of column names |
 | `orderBy` | No | Array of {column, direction} |
 | `limit` | No | Capped at 10,000 |
 
+**Expression Column Validation:**
+- Blocked patterns: `;`, `--`, `/*`, UNION, SELECT, INSERT, UPDATE, DELETE, DROP, CREATE, ALTER, EXEC, ATTACH, DETACH, PRAGMA
+- Allowed functions: ROUND, ABS, COALESCE, NULLIF, CASE/WHEN/THEN/ELSE/END, IIF, CAST, date functions, etc.
+- Column references in expressions must exist in the selected table
+
 **Error messages:**
 ```
 400: "Invalid source table: {table}"
-400: "At least one column must be selected"
+400: "At least one column or expression must be selected"
 400: "Invalid aggregate function: {function}"
 400: "Invalid operator: {operator}"
 400: "Invalid column name: {name}"
+400: "Expression columns must have an alias"
+400: "Expression cannot be empty"
+400: "Invalid expression alias: {alias}. Use only letters, numbers, and underscores."
+500: "Invalid expression \"{alias}\": Expression contains blocked pattern: {pattern}"
+500: "Invalid expression \"{alias}\": Unknown column or function: {identifier}"
+500: "Invalid expression \"{alias}\": Expression too long (max 500 characters)"
 ```
 
 ---

@@ -157,3 +157,81 @@ describe("DELETE /api/Categories/:id", () => {
     expect(response.status).toBe(200);
   });
 });
+
+describe("Validation", () => {
+  describe("POST /api/categories", () => {
+    it("returns 400 when category is missing", async () => {
+      const response = await request(app)
+        .post("/api/categories")
+        .send({ subcategory: "Sub" });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("category is required");
+    });
+
+    it("returns 400 when category is empty string", async () => {
+      const response = await request(app)
+        .post("/api/categories")
+        .send({ category: "", subcategory: "Sub" });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("category is required");
+    });
+
+    it("returns 400 when category is whitespace only", async () => {
+      const response = await request(app)
+        .post("/api/categories")
+        .send({ category: "   ", subcategory: "Sub" });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("category is required");
+    });
+
+    it("returns 400 when category is not a string", async () => {
+      const response = await request(app)
+        .post("/api/categories")
+        .send({ category: 123, subcategory: "Sub" });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("category is required");
+    });
+  });
+
+  describe("PUT /api/categories/:id", () => {
+    it("returns 400 when id is not a number", async () => {
+      const response = await request(app)
+        .put("/api/categories/not-a-number")
+        .send({ category: "Test", subcategory: "Sub" });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("Invalid id format");
+    });
+
+    it("returns 400 when category is missing", async () => {
+      const response = await request(app)
+        .put("/api/categories/1")
+        .send({ subcategory: "Sub" });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("category is required");
+    });
+
+    it("returns 400 when category is empty string", async () => {
+      const response = await request(app)
+        .put("/api/categories/1")
+        .send({ category: "", subcategory: "Sub" });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("category is required");
+    });
+  });
+
+  describe("DELETE /api/categories/:id", () => {
+    it("returns 400 when id is not a number", async () => {
+      const response = await request(app).delete("/api/categories/not-a-number");
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("Invalid id format");
+    });
+  });
+});

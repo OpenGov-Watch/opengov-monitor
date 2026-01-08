@@ -1,4 +1,0 @@
-- do a `git diff` and check the files to commit
-- update `.gitignore` if neccessary
-- do `git add`, `git commit` and `git push`
-- NEVER do `git reset`, instead ask the user for help/clarification

@@ -18,6 +18,7 @@ const LogsPage = lazy(() => import("@/pages/logs"));
 const ManageCategoriesPage = lazy(() => import("@/pages/manage/categories"));
 const ManageBountiesPage = lazy(() => import("@/pages/manage/bounties"));
 const ManageSubtreasuryPage = lazy(() => import("@/pages/manage/subtreasury"));
+const ManageSyncSettingsPage = lazy(() => import("@/pages/manage/sync-settings"));
 const DashboardsListPage = lazy(() => import("@/pages/dashboards/index"));
 const DashboardViewPage = lazy(() => import("@/pages/dashboards/view"));
 const DashboardEditPage = lazy(() => import("@/pages/dashboards/edit"));
@@ -58,6 +59,7 @@ export const router = createBrowserRouter([
       { path: "manage/categories", element: withSuspense(ManageCategoriesPage) },
       { path: "manage/bounties", element: withSuspense(ManageBountiesPage) },
       { path: "manage/subtreasury", element: withSuspense(ManageSubtreasuryPage) },
+      { path: "manage/sync", element: withSuspense(ManageSyncSettingsPage) },
       { path: "dashboards", element: withSuspense(DashboardsListPage) },
       { path: "dashboards/:id", element: withSuspense(DashboardViewPage) },
       { path: "dashboards/:id/edit", element: withSuspense(DashboardEditPage) },

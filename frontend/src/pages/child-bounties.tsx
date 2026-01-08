@@ -1,22 +1,51 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { api } from "@/api/client";
-import { childBountiesColumns } from "@/components/tables/child-bounties-columns";
+import { createChildBountiesColumns } from "@/components/tables/child-bounties-columns";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
-import type { ChildBounty } from "@/lib/db/types";
+import type { ChildBounty, Category } from "@/lib/db/types";
 
 export default function ChildBountiesPage() {
   const [data, setData] = useState<ChildBounty[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.childBounties
-      .getAll()
-      .then((res) => setData(res as ChildBounty[]))
+    Promise.all([api.childBounties.getAll(), api.categories.getAll()])
+      .then(([childBountiesRes, categoriesRes]) => {
+        setData(childBountiesRes as ChildBounty[]);
+        setCategories(categoriesRes as Category[]);
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleUpdate = async (
+    identifier: string,
+    updates: Partial<ChildBounty>
+  ) => {
+    try {
+      await api.childBounties.update(identifier, updates);
+      // Update local state
+      setData((prev) =>
+        prev.map((item) =>
+          item.identifier === identifier ? { ...item, ...updates } : item
+        )
+      );
+    } catch (err) {
+      console.error("Failed to update child bounty:", err);
+    }
+  };
+
+  const columns = useMemo(
+    () =>
+      createChildBountiesColumns({
+        categories,
+        onUpdate: handleUpdate,
+      }),
+    [categories]
+  );
 
   if (error) {
     return (
@@ -38,7 +67,7 @@ export default function ChildBountiesPage() {
       {loading ? (
         <DataTableSkeleton />
       ) : (
-        <DataTable columns={childBountiesColumns} data={data} tableName="child-bounties" />
+        <DataTable columns={columns} data={data} tableName="child-bounties" />
       )}
     </div>
   );

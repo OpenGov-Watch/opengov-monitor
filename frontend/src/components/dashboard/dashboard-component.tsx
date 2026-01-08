@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Markdown from "react-markdown";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, RefreshCw, AlertCircle } from "lucide-react";
+import { Pencil, Trash2, RefreshCw, AlertCircle, Copy } from "lucide-react";
 import {
   DashboardPieChart,
   DashboardBarChart,
@@ -24,6 +24,7 @@ interface DashboardComponentProps {
   component: DashboardComponentType;
   editable?: boolean;
   onEdit?: () => void;
+  onDuplicate?: () => void;
   onDelete?: () => void;
 }
 
@@ -31,6 +32,7 @@ export function DashboardComponent({
   component,
   editable = false,
   onEdit,
+  onDuplicate,
   onDelete,
 }: DashboardComponentProps) {
   const [data, setData] = useState<Record<string, unknown>[]>([]);
@@ -255,6 +257,15 @@ export function DashboardComponent({
                 title="Edit"
               >
                 <Pencil className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={onDuplicate}
+                title="Duplicate"
+              >
+                <Copy className="h-3.5 w-3.5" />
               </Button>
               <Button
                 variant="ghost"

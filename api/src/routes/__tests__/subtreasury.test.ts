@@ -179,3 +179,81 @@ describe("DELETE /api/subtreasury/:id", () => {
     expect(response.status).toBe(200);
   });
 });
+
+describe("Validation", () => {
+  describe("POST /api/subtreasury", () => {
+    it("returns 400 when title is missing", async () => {
+      const response = await request(app)
+        .post("/api/subtreasury")
+        .send({ description: "Description only" });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("title is required");
+    });
+
+    it("returns 400 when title is empty string", async () => {
+      const response = await request(app)
+        .post("/api/subtreasury")
+        .send({ title: "", description: "Description" });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("title is required");
+    });
+
+    it("returns 400 when title is whitespace only", async () => {
+      const response = await request(app)
+        .post("/api/subtreasury")
+        .send({ title: "   ", description: "Description" });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("title is required");
+    });
+
+    it("returns 400 when title is not a string", async () => {
+      const response = await request(app)
+        .post("/api/subtreasury")
+        .send({ title: 123, description: "Description" });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("title is required");
+    });
+  });
+
+  describe("PUT /api/subtreasury/:id", () => {
+    it("returns 400 when id is not a number", async () => {
+      const response = await request(app)
+        .put("/api/subtreasury/not-a-number")
+        .send({ title: "Updated" });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("Invalid id format");
+    });
+
+    it("returns 400 when title is missing", async () => {
+      const response = await request(app)
+        .put("/api/subtreasury/1")
+        .send({ description: "Description only" });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("title is required");
+    });
+
+    it("returns 400 when title is empty string", async () => {
+      const response = await request(app)
+        .put("/api/subtreasury/1")
+        .send({ title: "", description: "Description" });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("title is required");
+    });
+  });
+
+  describe("DELETE /api/subtreasury/:id", () => {
+    it("returns 400 when id is not a number", async () => {
+      const response = await request(app).delete("/api/subtreasury/not-a-number");
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("Invalid id format");
+    });
+  });
+});

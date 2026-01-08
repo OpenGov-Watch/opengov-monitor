@@ -511,7 +511,7 @@ describe("Database Queries", () => {
         const result = queries.getDashboardById(created.id);
         // updated_at should be a valid ISO timestamp
         expect(result?.updated_at).toBeDefined();
-        expect(new Date(result!.updated_at).toISOString()).toBe(result!.updated_at);
+        expect(new Date(result!.updated_at!).toISOString()).toBe(result!.updated_at);
       });
     });
 
@@ -602,7 +602,7 @@ describe("Database Queries", () => {
         const updated = queries.getDashboardById(dashboardId);
         // updated_at should be a valid ISO timestamp
         expect(updated?.updated_at).toBeDefined();
-        expect(new Date(updated!.updated_at).toISOString()).toBe(updated!.updated_at);
+        expect(new Date(updated!.updated_at!).toISOString()).toBe(updated!.updated_at);
       });
     });
 

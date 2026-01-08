@@ -1,0 +1,7 @@
+- update docs/ and docs/spec if you haven't done so yet
+- update the unit tests
+- run the tests. only fix issues related to the features you built. if you encounter other issues, STOP and tell the user what's going on
+- do a `git diff` and check the files to commit
+- update `.gitignore` if neccessary
+- do `git add`, `git commit` and `git push`
+- NEVER do `git reset`, instead ask the user for help/clarification

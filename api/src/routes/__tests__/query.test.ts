@@ -949,3 +949,422 @@ describe("GET /api/query/schema", () => {
     expect(idColumn.type).toBeDefined();
   });
 });
+
+// ===========================================================================
+// Expression Column Security Tests
+// ===========================================================================
+describe("Expression Column Security Tests", () => {
+  describe("Valid Expression Columns", () => {
+    it("allows valid arithmetic expression", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "DOT_latest * 10", alias: "dot_x10" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toBeDefined();
+      expect(response.body.sql).toContain("dot_x10");
+    });
+
+    it("allows ROUND function in expression", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "ROUND(DOT_latest / 1000000, 2)", alias: "dot_millions" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(200);
+    });
+
+    it("allows CASE WHEN expression", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{
+            expression: "CASE WHEN status = 'Executed' THEN 1 ELSE 0 END",
+            alias: "is_executed"
+          }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(200);
+    });
+
+    it("allows COALESCE function", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "COALESCE(DOT_latest, 0)", alias: "dot_safe" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(200);
+    });
+
+    it("allows NULLIF function", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "COALESCE(DOT_latest, 0) / NULLIF(USD_latest, 0)", alias: "ratio" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(200);
+    });
+
+    it("allows IIF function", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "IIF(DOT_latest > 1000, 'large', 'small')", alias: "size" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(200);
+    });
+
+    it("allows expression-only query (no regular columns)", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [],
+          expressionColumns: [{ expression: "COUNT(*)", alias: "total_count" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(200);
+    });
+
+    it("allows quoted column names in expression", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: '"DOT_latest" * 2', alias: "doubled" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(200);
+    });
+  });
+
+  describe("Blocked SQL Injection Patterns", () => {
+    it("rejects expression with semicolon", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "DOT_latest; DROP TABLE secret_data", alias: "bad" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain("blocked");
+    });
+
+    it("rejects expression with UNION", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "1 UNION SELECT password FROM secret_data", alias: "bad" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain("blocked");
+    });
+
+    it("rejects expression with SELECT", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "(SELECT password FROM secret_data)", alias: "bad" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain("blocked");
+    });
+
+    it("rejects expression with INSERT", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "INSERT INTO secret_data VALUES(1, 'x')", alias: "bad" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain("blocked");
+    });
+
+    it("rejects expression with UPDATE", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "UPDATE secret_data SET password = 'x'", alias: "bad" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain("blocked");
+    });
+
+    it("rejects expression with DELETE", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "DELETE FROM secret_data", alias: "bad" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain("blocked");
+    });
+
+    it("rejects expression with DROP", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "DROP TABLE secret_data", alias: "bad" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain("blocked");
+    });
+
+    it("rejects expression with SQL comment --", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "DOT_latest -- comment", alias: "bad" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain("blocked");
+    });
+
+    it("rejects expression with block comment /*", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "DOT_latest /* comment */", alias: "bad" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain("blocked");
+    });
+
+    it("rejects expression with ATTACH", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "ATTACH DATABASE 'evil.db' AS evil", alias: "bad" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain("blocked");
+    });
+
+    it("rejects expression with PRAGMA", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "PRAGMA table_info(secret_data)", alias: "bad" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain("blocked");
+    });
+  });
+
+  describe("Column Validation in Expressions", () => {
+    it("rejects unknown column reference", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "nonexistent_column * 10", alias: "bad" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain("Unknown column");
+    });
+
+    it("rejects reference to column from different table", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "password * 1", alias: "bad" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain("Unknown column");
+    });
+  });
+
+  describe("Alias Validation", () => {
+    it("rejects empty alias", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "DOT_latest * 10", alias: "" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("alias");
+    });
+
+    it("rejects alias with special characters", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "DOT_latest * 10", alias: "bad; DROP TABLE" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("alias");
+    });
+
+    it("rejects alias starting with number", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "DOT_latest * 10", alias: "123bad" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("alias");
+    });
+
+    it("accepts alias with underscore", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "DOT_latest * 10", alias: "dot_times_10" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(200);
+    });
+
+    it("accepts alias starting with underscore", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "DOT_latest * 10", alias: "_private" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(200);
+    });
+  });
+
+  describe("Expression Length Limits", () => {
+    it("rejects expression exceeding max length (500 chars)", async () => {
+      const longExpression = "DOT_latest + " + "1 + ".repeat(200) + "1";
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: longExpression, alias: "too_long" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain("too long");
+    });
+  });
+
+  describe("Empty Expression Validation", () => {
+    it("rejects empty expression", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "", alias: "empty" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("empty");
+    });
+
+    it("rejects whitespace-only expression", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          expressionColumns: [{ expression: "   ", alias: "whitespace" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("empty");
+    });
+  });
+});

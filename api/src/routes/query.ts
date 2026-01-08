@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getDatabase } from "../db/index.js";
-import type { QueryConfig, FilterCondition } from "../db/types.js";
+import type { QueryConfig, FilterCondition, ExpressionColumn } from "../db/types.js";
 
 export const queryRouter: Router = Router();
 
@@ -46,16 +46,142 @@ const ALLOWED_OPERATORS = new Set([
 ]);
 const ALLOWED_AGGREGATES = new Set(["COUNT", "SUM", "AVG", "MIN", "MAX"]);
 
+// Expression column validation
+const MAX_EXPRESSION_LENGTH = 500;
+
+// Allowed SQL functions in expressions
+const ALLOWED_EXPRESSION_FUNCTIONS = new Set([
+  // Math functions
+  "ABS", "ROUND", "CEIL", "FLOOR", "MAX", "MIN", "AVG", "SUM", "COUNT",
+  "TOTAL", "RANDOM", "ZEROBLOB",
+  // String functions
+  "UPPER", "LOWER", "LENGTH", "SUBSTR", "SUBSTRING", "TRIM", "LTRIM", "RTRIM",
+  "REPLACE", "INSTR", "PRINTF", "QUOTE", "HEX", "UNHEX", "UNICODE", "CHAR",
+  "GLOB", "LIKE",
+  // Null handling
+  "COALESCE", "NULLIF", "IFNULL",
+  // Conditional
+  "CASE", "WHEN", "THEN", "ELSE", "END", "IIF",
+  // Type conversion
+  "CAST", "TYPEOF",
+  // Date functions (SQLite)
+  "DATE", "TIME", "DATETIME", "JULIANDAY", "STRFTIME", "UNIXEPOCH",
+  // Aggregate window functions
+  "ROW_NUMBER", "RANK", "DENSE_RANK", "NTILE", "LAG", "LEAD",
+  "FIRST_VALUE", "LAST_VALUE", "NTH_VALUE",
+  // JSON functions
+  "JSON", "JSON_ARRAY", "JSON_EXTRACT", "JSON_OBJECT", "JSON_TYPE",
+]);
+
+// SQL keywords that are allowed in expressions
+const ALLOWED_SQL_KEYWORDS = new Set([
+  "AS", "AND", "OR", "NOT", "IN", "IS", "NULL", "LIKE", "BETWEEN",
+  "TRUE", "FALSE", "ASC", "DESC", "OVER", "PARTITION", "BY", "ORDER",
+  "DISTINCT", "ALL", "ESCAPE",
+]);
+
+// Blocked patterns that indicate SQL injection attempts
+const BLOCKED_PATTERNS: { pattern: RegExp; description: string }[] = [
+  { pattern: /;\s*$/, description: "Trailing semicolon" },
+  { pattern: /;(?!\s*$)/, description: "Semicolon in expression" },
+  { pattern: /--/, description: "SQL comment" },
+  { pattern: /\/\*/, description: "Block comment" },
+  { pattern: /\bUNION\b/i, description: "UNION keyword" },
+  { pattern: /\bSELECT\b/i, description: "SELECT keyword" },
+  { pattern: /\bINSERT\b/i, description: "INSERT keyword" },
+  { pattern: /\bUPDATE\b/i, description: "UPDATE keyword" },
+  { pattern: /\bDELETE\b/i, description: "DELETE keyword" },
+  { pattern: /\bDROP\b/i, description: "DROP keyword" },
+  { pattern: /\bCREATE\b/i, description: "CREATE keyword" },
+  { pattern: /\bALTER\b/i, description: "ALTER keyword" },
+  { pattern: /\bEXEC\b/i, description: "EXEC keyword" },
+  { pattern: /\bATTACH\b/i, description: "ATTACH keyword" },
+  { pattern: /\bDETACH\b/i, description: "DETACH keyword" },
+  { pattern: /\bPRAGMA\b/i, description: "PRAGMA keyword" },
+  { pattern: /\bVACUUM\b/i, description: "VACUUM keyword" },
+  { pattern: /\bREINDEX\b/i, description: "REINDEX keyword" },
+];
+
+function getTableColumns(tableName: string): string[] {
+  const db = getDatabase();
+  const columns = db
+    .prepare(`PRAGMA table_info("${tableName}")`)
+    .all() as { name: string }[];
+  return columns.map((c) => c.name);
+}
+
+function validateExpression(
+  expression: string,
+  availableColumns: string[]
+): { valid: boolean; error?: string } {
+  // Check expression length
+  if (expression.length > MAX_EXPRESSION_LENGTH) {
+    return { valid: false, error: `Expression too long (max ${MAX_EXPRESSION_LENGTH} characters)` };
+  }
+
+  // Check for blocked patterns
+  for (const { pattern, description } of BLOCKED_PATTERNS) {
+    if (pattern.test(expression)) {
+      return { valid: false, error: `Expression contains blocked pattern: ${description}` };
+    }
+  }
+
+  // Remove string literals before extracting identifiers
+  // This prevents 'Executed', 'large', 'small' etc from being validated as columns
+  const exprWithoutStrings = expression.replace(/'[^']*'/g, "''");
+
+  // Extract and validate identifiers (column references)
+  // Matches: "quoted identifiers" or bare_identifiers
+  const identifierPattern = /"([^"]+)"|([a-zA-Z_][a-zA-Z0-9_.]*)/g;
+  let match;
+  while ((match = identifierPattern.exec(exprWithoutStrings)) !== null) {
+    const identifier = match[1] || match[2];
+
+    // Skip if it's an allowed function (case-insensitive)
+    if (ALLOWED_EXPRESSION_FUNCTIONS.has(identifier.toUpperCase())) {
+      continue;
+    }
+
+    // Skip SQL keywords
+    if (ALLOWED_SQL_KEYWORDS.has(identifier.toUpperCase())) {
+      continue;
+    }
+
+    // Skip numeric literals that look like identifiers (e.g., part of a number)
+    if (/^\d+$/.test(identifier)) {
+      continue;
+    }
+
+    // Must be a valid column name from the selected table
+    if (!availableColumns.includes(identifier)) {
+      return { valid: false, error: `Unknown column or function: ${identifier}` };
+    }
+  }
+
+  return { valid: true };
+}
+
+function sanitizeAlias(alias: string): string {
+  // Aliases must be simple identifiers (alphanumeric + underscore, starting with letter/underscore)
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(alias)) {
+    throw new Error(`Invalid alias: ${alias}. Use only letters, numbers, and underscores.`);
+  }
+  return alias;
+}
+
 function validateQueryConfig(config: QueryConfig): string | null {
   if (!config.sourceTable || !ALLOWED_SOURCES.has(config.sourceTable)) {
     return `Invalid source table: ${config.sourceTable}`;
   }
 
-  if (!config.columns || config.columns.length === 0) {
-    return "At least one column must be selected";
+  // Must have at least one column or expression column
+  const hasColumns = config.columns && config.columns.length > 0;
+  const hasExpressions = config.expressionColumns && config.expressionColumns.length > 0;
+  if (!hasColumns && !hasExpressions) {
+    return "At least one column or expression must be selected";
   }
 
-  for (const col of config.columns) {
+  for (const col of config.columns || []) {
     if (col.aggregateFunction && !ALLOWED_AGGREGATES.has(col.aggregateFunction)) {
       return `Invalid aggregate function: ${col.aggregateFunction}`;
     }
@@ -64,6 +190,21 @@ function validateQueryConfig(config: QueryConfig): string | null {
   for (const filter of config.filters || []) {
     if (!ALLOWED_OPERATORS.has(filter.operator)) {
       return `Invalid operator: ${filter.operator}`;
+    }
+  }
+
+  // Validate expression columns
+  for (const expr of config.expressionColumns || []) {
+    if (!expr.alias || !expr.alias.trim()) {
+      return "Expression columns must have an alias";
+    }
+    if (!expr.expression || !expr.expression.trim()) {
+      return "Expression cannot be empty";
+    }
+    try {
+      sanitizeAlias(expr.alias);
+    } catch {
+      return `Invalid expression alias: ${expr.alias}. Use only letters, numbers, and underscores.`;
     }
   }
 
@@ -77,17 +218,31 @@ function sanitizeColumnName(name: string): string {
   return `"${name}"`;
 }
 
-function buildSelectClause(config: QueryConfig): string {
-  return config.columns
-    .map((col) => {
-      const colName = sanitizeColumnName(col.column);
-      if (col.aggregateFunction) {
-        const alias = col.alias || `${col.aggregateFunction.toLowerCase()}_${col.column.replace(/[.\s]/g, "_")}`;
-        return `${col.aggregateFunction}(${colName}) AS "${alias}"`;
-      }
-      return col.alias ? `${colName} AS "${col.alias}"` : colName;
-    })
-    .join(", ");
+function buildSelectClause(config: QueryConfig, availableColumns: string[]): string {
+  const parts: string[] = [];
+
+  // Regular columns
+  for (const col of config.columns || []) {
+    const colName = sanitizeColumnName(col.column);
+    if (col.aggregateFunction) {
+      const alias = col.alias || `${col.aggregateFunction.toLowerCase()}_${col.column.replace(/[.\s]/g, "_")}`;
+      parts.push(`${col.aggregateFunction}(${colName}) AS "${alias}"`);
+    } else {
+      parts.push(col.alias ? `${colName} AS "${col.alias}"` : colName);
+    }
+  }
+
+  // Expression columns
+  for (const expr of config.expressionColumns || []) {
+    const validation = validateExpression(expr.expression, availableColumns);
+    if (!validation.valid) {
+      throw new Error(`Invalid expression "${expr.alias}": ${validation.error}`);
+    }
+    const safeAlias = sanitizeAlias(expr.alias);
+    parts.push(`(${expr.expression}) AS "${safeAlias}"`);
+  }
+
+  return parts.join(", ");
 }
 
 function buildWhereClause(
@@ -146,7 +301,10 @@ function buildOrderByClause(orderBy?: { column: string; direction: "ASC" | "DESC
 }
 
 function buildQuery(config: QueryConfig): { sql: string; params: (string | number)[] } {
-  const selectClause = buildSelectClause(config);
+  // Get available columns for expression validation
+  const availableColumns = getTableColumns(config.sourceTable);
+
+  const selectClause = buildSelectClause(config, availableColumns);
   const tableName = `"${config.sourceTable}"`;
   const { clause: whereClause, params } = buildWhereClause(config.filters || []);
   const groupByClause = buildGroupByClause(config.groupBy);

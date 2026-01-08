@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router";
+import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,7 +19,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Pencil, Trash2, Plus, LayoutDashboard, Eye } from "lucide-react";
+import { Trash2, Plus, LayoutDashboard } from "lucide-react";
 import type { Dashboard } from "@/lib/db/types";
 import { formatDateTime } from "@/lib/utils";
 
@@ -35,10 +35,10 @@ const emptyFormData: FormData = {
 };
 
 export default function DashboardsPage() {
+  const navigate = useNavigate();
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingDashboard, setEditingDashboard] = useState<Dashboard | null>(null);
   const [formData, setFormData] = useState<FormData>(emptyFormData);
 
   useEffect(() => {
@@ -56,18 +56,7 @@ export default function DashboardsPage() {
   }
 
   function openAddDialog() {
-    setEditingDashboard(null);
     setFormData(emptyFormData);
-    setDialogOpen(true);
-  }
-
-  function openEditDialog(dashboard: Dashboard) {
-    setEditingDashboard(dashboard);
-    setFormData({
-      id: dashboard.id,
-      name: dashboard.name,
-      description: dashboard.description || "",
-    });
     setDialogOpen(true);
   }
 
@@ -75,14 +64,13 @@ export default function DashboardsPage() {
     e.preventDefault();
 
     const payload = {
-      id: editingDashboard?.id,
       name: formData.name,
       description: formData.description || null,
     };
 
     try {
       await fetch("/api/dashboards", {
-        method: editingDashboard ? "PUT" : "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -127,9 +115,7 @@ export default function DashboardsPage() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>
-                {editingDashboard ? "Edit Dashboard" : "Create Dashboard"}
-              </DialogTitle>
+              <DialogTitle>Create Dashboard</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
@@ -164,9 +150,7 @@ export default function DashboardsPage() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit">
-                  {editingDashboard ? "Update" : "Create"}
-                </Button>
+                <Button type="submit">Create</Button>
               </div>
             </form>
           </DialogContent>
@@ -181,12 +165,16 @@ export default function DashboardsPage() {
               <TableHead>Name</TableHead>
               <TableHead>Description</TableHead>
               <TableHead>Last Updated</TableHead>
-              <TableHead className="w-[150px]">Actions</TableHead>
+              <TableHead className="w-[60px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {dashboards.map((dashboard) => (
-              <TableRow key={dashboard.id}>
+              <TableRow
+                key={dashboard.id}
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => navigate(`/dashboards/${dashboard.id}`)}
+              >
                 <TableCell>
                   <LayoutDashboard className="h-5 w-5 text-muted-foreground" />
                 </TableCell>
@@ -198,34 +186,17 @@ export default function DashboardsPage() {
                   {formatDateTime(dashboard.updated_at)}
                 </TableCell>
                 <TableCell>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      asChild
-                      title="View dashboard"
-                    >
-                      <Link to={`/dashboards/${dashboard.id}`}>
-                        <Eye className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openEditDialog(dashboard)}
-                      title="Edit dashboard"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(dashboard.id)}
-                      title="Delete dashboard"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(dashboard.id);
+                    }}
+                    title="Delete dashboard"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}

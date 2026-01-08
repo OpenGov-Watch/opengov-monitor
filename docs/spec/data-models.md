@@ -54,6 +54,8 @@ A container for holding multiple asset amounts. Used to represent the value of p
 | `USDT_component` | float | USDT component of proposal |
 | `category` | string | Spending category (nullable, manually assigned) |
 | `subcategory` | string | Spending subcategory (nullable, manually assigned) |
+| `notes` | string | User notes for this referendum (nullable) |
+| `hide_in_spends` | int | 1 to hide from spending reports, 0 or null to show |
 
 ### Treasury Spend
 
@@ -94,6 +96,8 @@ A container for holding multiple asset amounts. Used to represent the value of p
 | `USD_latest` | float | USD value at latest status |
 | `category` | string | Spending category (nullable, manually assigned or inherited from parent bounty) |
 | `subcategory` | string | Spending subcategory (nullable, manually assigned or inherited from parent bounty) |
+| `notes` | string | User notes for this child bounty (nullable) |
+| `hide_in_spends` | int | 1 to hide from spending reports, 0 or null to show |
 
 ### Fellowship Treasury Spend
 
@@ -378,18 +382,24 @@ The `query_config` JSON has the following structure:
 
 ```typescript
 interface QueryConfig {
-  sourceTable: string;        // Table or view name
-  columns: ColumnSelection[]; // Selected columns
-  filters: FilterCondition[]; // Filter conditions
-  groupBy?: string[];         // Columns to group by
-  orderBy?: OrderByConfig[];  // Sort order
-  limit?: number;             // Row limit (max 10,000)
+  sourceTable: string;                   // Table or view name
+  columns: ColumnSelection[];            // Selected columns
+  expressionColumns?: ExpressionColumn[]; // User-defined calculated columns
+  filters: FilterCondition[];            // Filter conditions
+  groupBy?: string[];                    // Columns to group by
+  orderBy?: OrderByConfig[];             // Sort order
+  limit?: number;                        // Row limit (max 10,000)
 }
 
 interface ColumnSelection {
   column: string;
   alias?: string;
   aggregateFunction?: "COUNT" | "SUM" | "AVG" | "MIN" | "MAX";
+}
+
+interface ExpressionColumn {
+  expression: string;  // SQL expression, e.g., "ROUND(DOT_latest / 1000000, 2)"
+  alias: string;       // Required display name for the result column
 }
 
 interface FilterCondition {
@@ -403,6 +413,13 @@ interface OrderByConfig {
   direction: "ASC" | "DESC";
 }
 ```
+
+**Expression Column Examples:**
+- Arithmetic: `DOT_latest * 10`
+- Rounding: `ROUND(DOT_latest / 1000000, 2)`
+- Conditional: `CASE WHEN status = 'Executed' THEN 1 ELSE 0 END`
+- Null handling: `COALESCE(DOT_latest, 0) / NULLIF(USD_latest, 0)`
+- String functions: `UPPER(status)`
 
 ### Chart Config Structure
 

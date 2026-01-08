@@ -208,3 +208,95 @@ describe("DELETE /api/bounties/:id", () => {
     expect(response.status).toBe(200);
   });
 });
+
+describe("Validation", () => {
+  describe("POST /api/bounties", () => {
+    it("returns 400 when id is missing", async () => {
+      const response = await request(app)
+        .post("/api/bounties")
+        .send({ name: "Test Bounty" });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("id is required");
+    });
+
+    it("returns 400 when id is null", async () => {
+      const response = await request(app)
+        .post("/api/bounties")
+        .send({ id: null, name: "Test Bounty" });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("id is required");
+    });
+
+    it("returns 400 when id is not a number", async () => {
+      const response = await request(app)
+        .post("/api/bounties")
+        .send({ id: "not-a-number", name: "Test Bounty" });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("id must be a number");
+    });
+
+    it("accepts numeric string id", async () => {
+      const response = await request(app)
+        .post("/api/bounties")
+        .send({ id: "123", name: "Test Bounty" });
+
+      expect(response.status).toBe(201);
+    });
+  });
+
+  describe("PUT /api/bounties/:id", () => {
+    it("returns 400 when id is not a number", async () => {
+      const response = await request(app)
+        .put("/api/bounties/not-a-number")
+        .send({ name: "Updated" });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("Invalid id format");
+    });
+
+    it("returns 400 when body id does not match URL id", async () => {
+      const response = await request(app)
+        .put("/api/bounties/1")
+        .send({ id: 2, name: "Updated" });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("id in body must match id in URL");
+    });
+
+    it("accepts request without body id", async () => {
+      testDb.exec(`
+        INSERT INTO "Bounties" (id, name)
+        VALUES (1, 'Original')
+      `);
+
+      const response = await request(app)
+        .put("/api/bounties/1")
+        .send({ name: "Updated" });
+
+      expect(response.status).toBe(200);
+    });
+  });
+
+  describe("PATCH /api/bounties/:id/category", () => {
+    it("returns 400 when id is not a number", async () => {
+      const response = await request(app)
+        .patch("/api/bounties/not-a-number/category")
+        .send({ category: "Test" });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("Invalid id format");
+    });
+  });
+
+  describe("DELETE /api/bounties/:id", () => {
+    it("returns 400 when id is not a number", async () => {
+      const response = await request(app).delete("/api/bounties/not-a-number");
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("Invalid id format");
+    });
+  });
+});

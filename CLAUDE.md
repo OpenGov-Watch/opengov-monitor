@@ -77,7 +77,8 @@ pnpm frontend:dev  # Frontend on :3000
 pnpm run build
 
 # Backend data fetching
-cd backend && source .venv/bin/activate
+cd backend
+source .venv/bin/activate
 python scripts/run_sqlite.py --db ../data/polkadot.db
 ```
 
@@ -125,3 +126,6 @@ Requires `pnpm.onlyBuiltDependencies` in root package.json to allow native build
 ## Configuration
 - **backend/config.yaml**: Fetch limits, block time projection, salary toggle (`-1` to skip)
 - **Environment vars**: `PORT`, `DATABASE_PATH`, `OPENGOV_MONITOR_SPREADSHEET_ID`, `OPENGOV_MONITOR_CREDENTIALS`
+
+# Tool usage:
+- Bash: never command multiple commands via `&&`. Instead, use them one after the other.

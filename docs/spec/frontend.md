@@ -47,7 +47,8 @@ frontend/src/
 │   └── manage/
 │       ├── categories.tsx        # CRUD categories
 │       ├── bounties.tsx          # Assign bounty categories
-│       └── subtreasury.tsx       # CRUD subtreasury
+│       ├── subtreasury.tsx       # CRUD subtreasury
+│       └── sync-settings.tsx     # CSV import for bulk categorization
 │
 ├── api/
 │   └── client.ts                 # API client functions
@@ -72,7 +73,8 @@ frontend/src/
 │   │   ├── column-header.tsx     # Sortable column headers
 │   │   ├── pagination.tsx        # Page navigation
 │   │   ├── toolbar.tsx           # Search, export, view controls
-│   │   └── column-visibility.tsx # Show/hide columns
+│   │   ├── column-visibility.tsx # Show/hide columns
+│   │   └── editable-cells.tsx    # Inline editable cell components
 │   │
 │   ├── tables/                   # Table-specific columns
 │   │   ├── referenda-columns.tsx
@@ -109,6 +111,7 @@ frontend/src/
 ├── lib/
 │   ├── utils.ts                  # cn(), formatters
 │   ├── export.ts                 # CSV/JSON export
+│   ├── csv-parser.ts             # CSV import parsing utilities
 │   ├── column-display-names.ts   # Column display name utility
 │   └── db/
 │       └── types.ts              # TypeScript interfaces
@@ -571,9 +574,11 @@ The dashboard feature allows users to create custom visualizations using a visua
 
 - **CRUD Dashboards**: Create, view, edit, and delete custom dashboards
 - **Drag-and-Drop Grid**: Arrange components on a responsive grid layout
-- **Component Types**: Table, Pie Chart, Bar Chart (stacked/grouped), Line Chart
+- **Component Types**: Table, Pie Chart, Bar Chart (stacked/grouped), Line Chart, Text (Markdown)
 - **Visual Query Builder**: Select tables, columns, filters, and aggregations without writing SQL
 - **Live Preview**: Preview query results before saving components
+- **Duplicate Components**: Clone existing components with smart positioning (places to the right if space available, otherwise below)
+- **Inline Editing**: Edit dashboard name and description directly in edit mode
 
 ### Query Builder
 
@@ -630,6 +635,70 @@ await loadColumnNameOverrides();
 const name = getColumnDisplayName("all_spending", "DOT_latest"); // "DOT Value"
 const auto = getColumnDisplayName("all_spending", "category");    // "Category" (auto-generated)
 ```
+
+---
+
+## Inline Editing
+
+The Referenda and Child Bounties tables support inline editing for categorization:
+
+### Editable Cell Components
+
+Located in `components/data-table/editable-cells.tsx`:
+
+| Component | Purpose |
+|-----------|---------|
+| `EditableCategoryCell` | Dropdown to select category from Categories table |
+| `EditableSubcategoryCell` | Dropdown filtered by selected category |
+| `EditableNotesCell` | Text input with blur-to-save |
+| `EditableHideCheckbox` | Checkbox to hide from spending reports |
+
+### Column Factory Pattern
+
+Tables with inline editing use factory functions instead of static column definitions:
+
+```tsx
+// Creates columns with edit callbacks
+const columns = createReferendaColumns({
+  categories,
+  onUpdate: (id, data) => api.referenda.update(id, data),
+});
+```
+
+---
+
+## CSV Import (Sync Settings)
+
+The Sync Settings page (`/manage/sync`) allows bulk import of category mappings.
+
+### Features
+
+- **File Upload**: Upload CSV files to bulk-update categories
+- **Apply Defaults**: One-click import of default mappings from `data/defaults/`
+- **Format Support**: Handles quoted values and both legacy/new column formats
+
+### CSV Format
+
+```csv
+id,category,subcategory,notes,hide_in_spends
+1,Development,Core,,0
+4,Outreach,Marketing,Campaign notes,0
+```
+
+For child bounties, use `identifier` instead of `id`:
+
+```csv
+identifier,category,subcategory,notes,hide_in_spends
+1_23,Development,SDK,,0
+```
+
+### CSV Parser
+
+Located in `lib/csv-parser.ts`:
+
+- `parseCSV(content)` - Generic CSV to array of objects
+- `parseReferendaCSV(content)` - Parses referenda format
+- `parseChildBountiesCSV(content)` - Parses child bounties format
 
 ---
 

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -25,6 +26,7 @@ import type {
   ColumnSelection,
   FilterCondition,
   OrderByConfig,
+  ExpressionColumn,
 } from "@/lib/db/types";
 import type { SchemaInfo, ColumnInfo } from "./types";
 
@@ -50,6 +52,7 @@ const FILTER_OPERATORS = [
 const defaultConfig: QueryConfig = {
   sourceTable: "",
   columns: [],
+  expressionColumns: [],
   filters: [],
   groupBy: [],
   orderBy: [],
@@ -69,16 +72,29 @@ export function QueryBuilder({
 
   // Generate SQL client-side as user builds query
   const generatedSql = useMemo(() => {
-    if (!config.sourceTable || config.columns.length === 0) return "";
+    const hasColumns = config.columns.length > 0;
+    const hasExpressions = (config.expressionColumns?.length ?? 0) > 0;
+    if (!config.sourceTable || (!hasColumns && !hasExpressions)) return "";
 
-    const selectParts = config.columns.map((col) => {
+    const selectParts: string[] = [];
+
+    // Regular columns
+    for (const col of config.columns) {
       const colName = `"${col.column}"`;
       if (col.aggregateFunction) {
         const alias = col.alias || `${col.aggregateFunction.toLowerCase()}_${col.column.replace(/[.\s]/g, "_")}`;
-        return `${col.aggregateFunction}(${colName}) AS "${alias}"`;
+        selectParts.push(`${col.aggregateFunction}(${colName}) AS "${alias}"`);
+      } else {
+        selectParts.push(col.alias ? `${colName} AS "${col.alias}"` : colName);
       }
-      return col.alias ? `${colName} AS "${col.alias}"` : colName;
-    });
+    }
+
+    // Expression columns
+    for (const expr of config.expressionColumns || []) {
+      if (expr.expression && expr.alias) {
+        selectParts.push(`(${expr.expression}) AS "${expr.alias}"`);
+      }
+    }
 
     const parts = [`SELECT ${selectParts.join(", ")}`, `FROM "${config.sourceTable}"`];
 
@@ -165,6 +181,7 @@ export function QueryBuilder({
     updateConfig({
       sourceTable: tableName,
       columns: [],
+      expressionColumns: [],
       filters: [],
       groupBy: [],
       orderBy: [],
@@ -254,6 +271,31 @@ export function QueryBuilder({
     });
   }
 
+  // Expression column handlers
+  function addExpressionColumn() {
+    const newExpr: ExpressionColumn = {
+      expression: "",
+      alias: `expr_${(config.expressionColumns?.length ?? 0) + 1}`,
+    };
+    updateConfig({
+      expressionColumns: [...(config.expressionColumns || []), newExpr],
+    });
+  }
+
+  function updateExpressionColumn(index: number, updates: Partial<ExpressionColumn>) {
+    updateConfig({
+      expressionColumns: config.expressionColumns?.map((e, i) =>
+        i === index ? { ...e, ...updates } : e
+      ),
+    });
+  }
+
+  function removeExpressionColumn(index: number) {
+    updateConfig({
+      expressionColumns: config.expressionColumns?.filter((_, i) => i !== index),
+    });
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (over && active.id !== over.id) {
@@ -266,8 +308,10 @@ export function QueryBuilder({
   }
 
   async function handlePreview() {
-    if (config.columns.length === 0 || !config.sourceTable) {
-      setPreviewError("Please select a table and at least one column");
+    const hasColumns = config.columns.length > 0;
+    const hasExpressions = (config.expressionColumns?.length ?? 0) > 0;
+    if ((!hasColumns && !hasExpressions) || !config.sourceTable) {
+      setPreviewError("Please select a table and at least one column or expression");
       return;
     }
 
@@ -419,6 +463,63 @@ export function QueryBuilder({
                   </SortableContext>
                 </DndContext>
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Calculated Columns (Expression Columns) */}
+      {config.sourceTable && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label>Calculated Columns</Label>
+            <Button variant="outline" size="sm" onClick={addExpressionColumn}>
+              <Plus className="h-4 w-4 mr-1" /> Add Expression
+            </Button>
+          </div>
+          {(config.expressionColumns?.length ?? 0) > 0 && (
+            <div className="rounded-md border p-4 space-y-4">
+              {config.expressionColumns?.map((expr, index) => (
+                <div key={index} className="space-y-2 p-3 border rounded bg-muted/20">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <Label className="text-xs text-muted-foreground">Alias (column name)</Label>
+                      <Input
+                        value={expr.alias}
+                        onChange={(e) => updateExpressionColumn(index, {
+                          alias: e.target.value.replace(/[^a-zA-Z0-9_]/g, "_")
+                        })}
+                        placeholder="my_calculated_column"
+                        className="font-mono text-sm"
+                      />
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeExpressionColumn(index)}
+                      className="mt-5"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Expression</Label>
+                    <Textarea
+                      value={expr.expression}
+                      onChange={(e) => updateExpressionColumn(index, { expression: e.target.value })}
+                      placeholder="DOT_latest * 10"
+                      className="font-mono text-sm min-h-[60px]"
+                    />
+                  </div>
+
+                  {/* Available columns hint */}
+                  <div className="text-xs text-muted-foreground">
+                    Available columns: {availableColumns.slice(0, 5).map(c => c.name).join(", ")}
+                    {availableColumns.length > 5 && `, ... (+${availableColumns.length - 5} more)`}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

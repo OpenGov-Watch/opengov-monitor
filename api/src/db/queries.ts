@@ -295,7 +295,7 @@ export function getAllSpending(): AllSpending[] {
   const db = getDatabase();
 
   // Use custom query instead of broken all_spending view
-  // Note: Referenda table doesn't have category/subcategory columns
+  // Respects hide_in_spends flag for referenda and child bounties
   const sql = `
     -- Direct Spend: Referenda with DOT value but NO Treasury link
     SELECT
@@ -304,8 +304,8 @@ export function getAllSpending(): AllSpending[] {
         r.latest_status_change,
         r.DOT_latest,
         r.USD_latest,
-        NULL AS category,
-        NULL AS subcategory,
+        r.category,
+        r.subcategory,
         r.title,
         r.DOT_component,
         r.USDC_component,
@@ -316,6 +316,7 @@ export function getAllSpending(): AllSpending[] {
     WHERE t.id IS NULL
       AND r.DOT_latest > 0
       AND r.status = 'Executed'
+      AND (r.hide_in_spends IS NULL OR r.hide_in_spends = 0)
 
     UNION ALL
 
@@ -345,8 +346,8 @@ export function getAllSpending(): AllSpending[] {
         cb.latest_status_change,
         cb.DOT AS DOT_latest,
         cb.USD_latest,
-        b.category AS category,
-        b.subcategory AS subcategory,
+        COALESCE(cb.category, b.category) AS category,
+        COALESCE(cb.subcategory, b.subcategory) AS subcategory,
         cb.description AS title,
         cb.DOT AS DOT_component,
         NULL AS USDC_component,
@@ -355,6 +356,7 @@ export function getAllSpending(): AllSpending[] {
     FROM "Child Bounties" cb
     LEFT JOIN Bounties b ON cb.parentBountyId = b.id
     WHERE cb.status = 'Claimed'
+      AND (cb.hide_in_spends IS NULL OR cb.hide_in_spends = 0)
 
     UNION ALL
 
@@ -418,20 +420,158 @@ export function getAllSpending(): AllSpending[] {
   return db.prepare(sql).all() as AllSpending[];
 }
 
-// Update category on Referendum
+// Update Referendum (all editable fields)
 
-export function updateReferendumCategory(id: number, category: string | null, subcategory: string | null): void {
-  const db = getWritableDatabase();
-  db.prepare(`UPDATE "${TABLE_NAMES.referenda}" SET category = ?, subcategory = ? WHERE id = ?`)
-    .run(category, subcategory, id);
+export interface ReferendumUpdate {
+  category?: string | null;
+  subcategory?: string | null;
+  notes?: string | null;
+  hide_in_spends?: number | null;
 }
 
-// Update category on Child Bounty
-
-export function updateChildBountyCategory(identifier: string, category: string | null, subcategory: string | null): void {
+export function updateReferendum(id: number, data: ReferendumUpdate): void {
   const db = getWritableDatabase();
-  db.prepare(`UPDATE "${TABLE_NAMES.childBounties}" SET category = ?, subcategory = ? WHERE identifier = ?`)
-    .run(category, subcategory, identifier);
+  const setClauses: string[] = [];
+  const values: (string | number | null)[] = [];
+
+  if (data.category !== undefined) {
+    setClauses.push("category = ?");
+    values.push(data.category);
+  }
+  if (data.subcategory !== undefined) {
+    setClauses.push("subcategory = ?");
+    values.push(data.subcategory);
+  }
+  if (data.notes !== undefined) {
+    setClauses.push("notes = ?");
+    values.push(data.notes);
+  }
+  if (data.hide_in_spends !== undefined) {
+    setClauses.push("hide_in_spends = ?");
+    values.push(data.hide_in_spends);
+  }
+
+  if (setClauses.length === 0) return;
+
+  values.push(id);
+  db.prepare(`UPDATE "${TABLE_NAMES.referenda}" SET ${setClauses.join(", ")} WHERE id = ?`).run(...values);
+}
+
+// Legacy function for backwards compatibility
+export function updateReferendumCategory(id: number, category: string | null, subcategory: string | null): void {
+  updateReferendum(id, { category, subcategory });
+}
+
+// Bulk update referenda from CSV import
+export interface ReferendumImportItem {
+  id: number;
+  category?: string | null;
+  subcategory?: string | null;
+  notes?: string | null;
+  hide_in_spends?: number | null;
+}
+
+export function bulkUpdateReferenda(items: ReferendumImportItem[]): number {
+  const db = getWritableDatabase();
+  const stmt = db.prepare(`
+    UPDATE "${TABLE_NAMES.referenda}"
+    SET category = ?, subcategory = ?, notes = ?, hide_in_spends = ?
+    WHERE id = ?
+  `);
+
+  const transaction = db.transaction((items: ReferendumImportItem[]) => {
+    let count = 0;
+    for (const item of items) {
+      const result = stmt.run(
+        item.category ?? null,
+        item.subcategory ?? null,
+        item.notes ?? null,
+        item.hide_in_spends ?? null,
+        item.id
+      );
+      if (result.changes > 0) count++;
+    }
+    return count;
+  });
+
+  return transaction(items);
+}
+
+// Update Child Bounty (all editable fields)
+
+export interface ChildBountyUpdate {
+  category?: string | null;
+  subcategory?: string | null;
+  notes?: string | null;
+  hide_in_spends?: number | null;
+}
+
+export function updateChildBounty(identifier: string, data: ChildBountyUpdate): void {
+  const db = getWritableDatabase();
+  const setClauses: string[] = [];
+  const values: (string | number | null)[] = [];
+
+  if (data.category !== undefined) {
+    setClauses.push("category = ?");
+    values.push(data.category);
+  }
+  if (data.subcategory !== undefined) {
+    setClauses.push("subcategory = ?");
+    values.push(data.subcategory);
+  }
+  if (data.notes !== undefined) {
+    setClauses.push("notes = ?");
+    values.push(data.notes);
+  }
+  if (data.hide_in_spends !== undefined) {
+    setClauses.push("hide_in_spends = ?");
+    values.push(data.hide_in_spends);
+  }
+
+  if (setClauses.length === 0) return;
+
+  values.push(identifier);
+  db.prepare(`UPDATE "${TABLE_NAMES.childBounties}" SET ${setClauses.join(", ")} WHERE identifier = ?`).run(...values);
+}
+
+// Legacy function for backwards compatibility
+export function updateChildBountyCategory(identifier: string, category: string | null, subcategory: string | null): void {
+  updateChildBounty(identifier, { category, subcategory });
+}
+
+// Bulk update child bounties from CSV import
+export interface ChildBountyImportItem {
+  identifier: string;
+  category?: string | null;
+  subcategory?: string | null;
+  notes?: string | null;
+  hide_in_spends?: number | null;
+}
+
+export function bulkUpdateChildBounties(items: ChildBountyImportItem[]): number {
+  const db = getWritableDatabase();
+  const stmt = db.prepare(`
+    UPDATE "${TABLE_NAMES.childBounties}"
+    SET category = ?, subcategory = ?, notes = ?, hide_in_spends = ?
+    WHERE identifier = ?
+  `);
+
+  const transaction = db.transaction((items: ChildBountyImportItem[]) => {
+    let count = 0;
+    for (const item of items) {
+      const result = stmt.run(
+        item.category ?? null,
+        item.subcategory ?? null,
+        item.notes ?? null,
+        item.hide_in_spends ?? null,
+        item.identifier
+      );
+      if (result.changes > 0) count++;
+    }
+    return count;
+  });
+
+  return transaction(items);
 }
 
 // Dashboards

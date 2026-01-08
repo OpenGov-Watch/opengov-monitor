@@ -16,6 +16,7 @@ import { subtreasuryRouter } from "./routes/subtreasury.js";
 import { dashboardsRouter } from "./routes/dashboards.js";
 import { queryRouter } from "./routes/query.js";
 import { statsRouter } from "./routes/stats.js";
+import { syncRouter } from "./routes/sync.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -44,6 +45,7 @@ app.use("/api/subtreasury", subtreasuryRouter);
 app.use("/api/dashboards", dashboardsRouter);
 app.use("/api/query", queryRouter);
 app.use("/api/stats", statsRouter);
+app.use("/api/sync", syncRouter);
 
 // Error handling
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

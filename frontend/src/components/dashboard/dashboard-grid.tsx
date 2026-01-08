@@ -15,6 +15,7 @@ interface DashboardGridProps {
   editable?: boolean;
   onLayoutChange?: (componentId: number, gridConfig: GridConfig) => void;
   onEditComponent?: (component: DashboardComponentType) => void;
+  onDuplicateComponent?: (component: DashboardComponentType) => void;
   onDeleteComponent?: (componentId: number) => void;
   width?: number;
 }
@@ -27,6 +28,7 @@ export function DashboardGrid({
   editable = false,
   onLayoutChange,
   onEditComponent,
+  onDuplicateComponent,
   onDeleteComponent,
   width = 1200,
 }: DashboardGridProps) {
@@ -121,6 +123,7 @@ export function DashboardGrid({
               component={component}
               editable={editable}
               onEdit={() => onEditComponent?.(component)}
+              onDuplicate={() => onDuplicateComponent?.(component)}
               onDelete={() => onDeleteComponent?.(component.id)}
             />
           </div>

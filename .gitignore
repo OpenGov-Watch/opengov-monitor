@@ -52,15 +52,21 @@ logs/
 
 # Local development / Secrets
 data/
+!data/defaults/
 credentials.json
 *.env
 .env.*
+
+# Exploration / scratch files
+exploration/
+scripts/
 
 # Data files
 referenda.csv
 *.xlsx
 *.xls
 *.csv
+!data/defaults/*.csv
 
 # OS
 .DS_Store
@@ -82,6 +88,5 @@ pnpm-debug.log*
 .claude/plans/
 .claude/settings.local.json
 
-# Exploration / scratch files
-exploration/
+# Exploration / scratch file
 nul

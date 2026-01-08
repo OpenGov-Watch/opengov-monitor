@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { DashboardGrid, ComponentEditor } from "@/components/dashboard";
-import { Plus, ArrowLeft, Eye } from "lucide-react";
+import { Plus, ArrowLeft, Eye, Check } from "lucide-react";
 import type {
   Dashboard,
   DashboardComponent,
@@ -20,6 +20,11 @@ export default function DashboardEditPage() {
   const [components, setComponents] = useState<DashboardComponent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [metadataDirty, setMetadataDirty] = useState(false);
+  const [savingMetadata, setSavingMetadata] = useState(false);
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingComponent, setEditingComponent] = useState<DashboardComponent | null>(null);
@@ -40,6 +45,9 @@ export default function DashboardEditPage() {
       const componentsData = await componentsRes.json();
 
       setDashboard(dashboardData);
+      setName(dashboardData.name);
+      setDescription(dashboardData.description || "");
+      setMetadataDirty(false);
       setComponents(componentsData);
     } catch (err) {
       setError("Failed to load dashboard");
@@ -69,6 +77,38 @@ export default function DashboardEditPage() {
     }
   }
 
+  async function handleSaveMetadata() {
+    if (!metadataDirty) return;
+
+    setSavingMetadata(true);
+    try {
+      await fetch("/api/dashboards", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: dashboardId,
+          name,
+          description: description || null,
+        }),
+      });
+      setMetadataDirty(false);
+    } catch (err) {
+      console.error("Failed to update dashboard:", err);
+    } finally {
+      setSavingMetadata(false);
+    }
+  }
+
+  function handleNameChange(value: string) {
+    setName(value);
+    setMetadataDirty(true);
+  }
+
+  function handleDescriptionChange(value: string) {
+    setDescription(value);
+    setMetadataDirty(true);
+  }
+
   function handleAddComponent() {
     setEditingComponent(null);
     setEditorOpen(true);
@@ -89,6 +129,70 @@ export default function DashboardEditPage() {
       fetchData();
     } catch (err) {
       console.error("Failed to delete component:", err);
+    }
+  }
+
+  async function handleDuplicateComponent(component: DashboardComponent) {
+    try {
+      const queryConfig = JSON.parse(component.query_config);
+      const gridConfig: GridConfig = JSON.parse(component.grid_config);
+      const chartConfig = component.chart_config
+        ? JSON.parse(component.chart_config)
+        : null;
+
+      // Calculate position - try to place right of existing components at bottom row
+      const GRID_COLS = 12;
+      const componentWidth = gridConfig.w;
+
+      // Parse all grid configs
+      const grids = components.map((c) => ({
+        ...JSON.parse(c.grid_config) as GridConfig,
+      }));
+
+      // Find bottom row (highest y value where components start)
+      const maxY = Math.max(0, ...grids.map((g) => g.y + g.h));
+      const bottomRowY = Math.max(0, ...grids.map((g) => g.y));
+
+      // Find components in the bottom row
+      const bottomRowComponents = grids.filter((g) => g.y === bottomRowY);
+
+      // Find the rightmost edge in the bottom row
+      const rightEdge = Math.max(
+        0,
+        ...bottomRowComponents.map((g) => g.x + g.w)
+      );
+
+      // Check if there's space to place the component to the right
+      let newX: number;
+      let newY: number;
+      if (rightEdge + componentWidth <= GRID_COLS) {
+        // Place to the right in the same row
+        newX = rightEdge;
+        newY = bottomRowY;
+      } else {
+        // No space, place at the start of a new row below
+        newX = 0;
+        newY = maxY;
+      }
+
+      const payload = {
+        dashboard_id: component.dashboard_id,
+        name: `${component.name} (copy)`,
+        type: component.type,
+        query_config: queryConfig,
+        grid_config: { ...gridConfig, x: newX, y: newY },
+        chart_config: chartConfig,
+      };
+
+      await fetch("/api/dashboards/components", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      fetchData();
+    } catch (err) {
+      console.error("Failed to duplicate component:", err);
     }
   }
 
@@ -166,25 +270,39 @@ export default function DashboardEditPage() {
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">
-              Edit: {dashboard.name}
-            </h1>
-            {dashboard.description && (
-              <p className="text-muted-foreground">{dashboard.description}</p>
-            )}
+          <div className="flex-1 space-y-1">
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => handleNameChange(e.target.value)}
+              className="w-full text-3xl font-bold tracking-tight py-0 px-1 border border-transparent rounded hover:border-input focus:border-input focus:outline-none bg-transparent"
+              placeholder="Dashboard name"
+            />
+            <textarea
+              value={description}
+              onChange={(e) => handleDescriptionChange(e.target.value)}
+              className="w-full text-muted-foreground resize-none border border-transparent rounded hover:border-input focus:border-input focus:outline-none bg-transparent py-0 px-1"
+              placeholder="Add a description..."
+              rows={1}
+            />
           </div>
         </div>
         <div className="flex gap-2">
+          {metadataDirty && (
+            <Button onClick={handleSaveMetadata} disabled={savingMetadata}>
+              <Check className="mr-2 h-4 w-4" />
+              {savingMetadata ? "Saving..." : "Save"}
+            </Button>
+          )}
+          <Button onClick={handleAddComponent}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Component
+          </Button>
           <Button variant="outline" asChild>
             <Link to={`/dashboards/${dashboardId}`}>
               <Eye className="mr-2 h-4 w-4" />
               View Dashboard
             </Link>
-          </Button>
-          <Button onClick={handleAddComponent}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Component
           </Button>
         </div>
       </div>
@@ -195,6 +313,7 @@ export default function DashboardEditPage() {
           editable={true}
           onLayoutChange={handleLayoutChange}
           onEditComponent={handleEditComponent}
+          onDuplicateComponent={handleDuplicateComponent}
           onDeleteComponent={handleDeleteComponent}
         />
       </div>

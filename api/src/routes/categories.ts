@@ -15,6 +15,12 @@ categoriesRouter.get("/", (_req, res) => {
 categoriesRouter.post("/", (req, res) => {
   try {
     const { category, subcategory } = req.body;
+
+    if (!category || typeof category !== "string" || category.trim() === "") {
+      res.status(400).json({ error: "category is required" });
+      return;
+    }
+
     const result = createCategory(category, subcategory);
     res.status(201).json(result);
   } catch (error) {
@@ -25,7 +31,18 @@ categoriesRouter.post("/", (req, res) => {
 categoriesRouter.put("/:id", (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid id format" });
+      return;
+    }
+
     const { category, subcategory } = req.body;
+
+    if (!category || typeof category !== "string" || category.trim() === "") {
+      res.status(400).json({ error: "category is required" });
+      return;
+    }
+
     updateCategory(id, category, subcategory);
     res.json({ success: true });
   } catch (error) {
@@ -36,6 +53,11 @@ categoriesRouter.put("/:id", (req, res) => {
 categoriesRouter.delete("/:id", (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid id format" });
+      return;
+    }
+
     deleteCategory(id);
     res.json({ success: true });
   } catch (error) {

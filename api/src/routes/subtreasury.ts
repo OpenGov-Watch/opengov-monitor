@@ -28,6 +28,13 @@ subtreasuryRouter.get("/:id", (req, res) => {
 
 subtreasuryRouter.post("/", (req, res) => {
   try {
+    const { title } = req.body;
+
+    if (!title || typeof title !== "string" || title.trim() === "") {
+      res.status(400).json({ error: "title is required" });
+      return;
+    }
+
     const result = createSubtreasury(req.body);
     res.status(201).json(result);
   } catch (error) {
@@ -37,7 +44,20 @@ subtreasuryRouter.post("/", (req, res) => {
 
 subtreasuryRouter.put("/:id", (req, res) => {
   try {
-    updateSubtreasury(req.body);
+    const urlId = parseInt(req.params.id);
+    if (isNaN(urlId)) {
+      res.status(400).json({ error: "Invalid id format" });
+      return;
+    }
+
+    const { title } = req.body;
+    if (!title || typeof title !== "string" || title.trim() === "") {
+      res.status(400).json({ error: "title is required" });
+      return;
+    }
+
+    // Ensure body has the URL id
+    updateSubtreasury({ ...req.body, id: urlId });
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
@@ -47,6 +67,11 @@ subtreasuryRouter.put("/:id", (req, res) => {
 subtreasuryRouter.delete("/:id", (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid id format" });
+      return;
+    }
+
     deleteSubtreasury(id);
     res.json({ success: true });
   } catch (error) {

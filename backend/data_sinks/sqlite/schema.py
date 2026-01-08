@@ -43,6 +43,8 @@ REFERENDA_SCHEMA = TableSchema(
         "USDT_component": "REAL",
         "category": "TEXT",
         "subcategory": "TEXT",
+        "notes": "TEXT",
+        "hide_in_spends": "INTEGER",
     },
     primary_key="id",
     indexes=[
@@ -99,6 +101,8 @@ CHILD_BOUNTIES_SCHEMA = TableSchema(
         "USD_latest": "REAL",
         "category": "TEXT",
         "subcategory": "TEXT",
+        "notes": "TEXT",
+        "hide_in_spends": "INTEGER",
     },
     primary_key="identifier",
     indexes=[
