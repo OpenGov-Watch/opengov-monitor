@@ -188,15 +188,43 @@ See [Frontend Architecture](frontend.md) for detailed implementation.
 
 ```yaml
 fetch_limits:
-  referenda: 100
-  treasury_spends: 100
-  child_bounties: 100
-  fellowship_treasury_spends: 100
+  # Incremental mode: used when table already has data
+  incremental:
+    referenda: 100
+    treasury_spends: 50
+    child_bounties: 100
+    fellowship_treasury_spends: 20
+    fellowship_salary_cycles: 0  # 0 = fetch all
+
+  # Backfill mode: used when table is empty or --backfill flag
+  backfill:
+    referenda: 0  # 0 = fetch ALL
+    treasury_spends: 0
+    child_bounties: 0
+    fellowship_treasury_spends: 0
+    fellowship_salary_cycles: 0
 
 block_time_projection:
   block_number: 25732485
   block_datetime: 2025-04-25T15:27:36
   block_time: 6.0
+```
+
+### Fetch Modes
+
+The backend supports **auto-detection** of fetch mode:
+
+| Mode | Condition | Behavior |
+|------|-----------|----------|
+| **Backfill** | Table is empty OR `--backfill` flag | Fetch ALL items (limit=0) |
+| **Incremental** | Table has existing data | Fetch configured limit |
+
+```bash
+# Auto-detect: backfills empty tables, incremental for populated ones
+python scripts/run_sqlite.py --db ../data/polkadot.db
+
+# Force full backfill (re-fetch everything)
+python scripts/run_sqlite.py --db ../data/polkadot.db --backfill
 ```
 
 ### Network Configuration

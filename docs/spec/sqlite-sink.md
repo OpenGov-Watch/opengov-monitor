@@ -100,6 +100,10 @@ table_exists(table_name: str) -> bool
 
 get_row_count(table_name: str) -> int
     """Count rows in table."""
+
+is_table_empty(table_name: str) -> bool
+    """Check if table is empty or doesn't exist.
+    Used for auto-detecting backfill vs incremental mode."""
 ```
 
 ## Implementation Details
@@ -127,12 +131,29 @@ This is simpler than SpreadsheetSink's delta detection.
 ## Running the Pipeline
 
 ```bash
-# Fetch data and store in SQLite
+# Auto-detect mode: backfills empty tables, incremental for populated
 python scripts/run_sqlite.py --db ./data/opengov.db
+
+# Force full backfill (re-fetch everything)
+python scripts/run_sqlite.py --db ./data/opengov.db --backfill
 
 # With specific network
 python scripts/run_sqlite.py --network kusama --db ./data/kusama.db
 ```
+
+### Fetch Modes
+
+The pipeline supports two fetch modes configured in `config.yaml`:
+
+| Mode | Trigger | Behavior |
+|------|---------|----------|
+| **Backfill** | Empty table OR `--backfill` flag | Fetch ALL items (limit=0) |
+| **Incremental** | Table has data | Fetch configured limit |
+
+Mode is auto-detected per table using `is_table_empty()`. This allows:
+- Fresh databases to auto-backfill completely
+- Subsequent runs to fetch only recent updates
+- Manual `--backfill` to force re-sync when needed
 
 ## File Locations
 
