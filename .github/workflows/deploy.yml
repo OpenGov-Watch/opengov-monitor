@@ -66,4 +66,4 @@ jobs:
       - name: Deploy to server
         run: |
           gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-            --command="cd /mnt/pd/stack && docker compose pull opengov-monitor && docker compose up -d opengov-monitor"
+            --command="sudo /usr/local/bin/deploy-service opengov-monitor"
