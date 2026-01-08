@@ -13,12 +13,12 @@ RUN pnpm install --frozen-lockfile
 COPY frontend/ ./frontend/
 RUN pnpm --filter opengov-monitor-frontend build
 
-# Stage 2: Build API
-FROM node:20-alpine AS api-build
+# Stage 2: Build API (use debian-based image for glibc compatibility with runtime)
+FROM node:20-slim AS api-build
 
 WORKDIR /app
 
-RUN apk add --no-cache python3 make g++
+RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
 RUN npm install -g pnpm
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
