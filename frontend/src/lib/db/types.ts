@@ -17,8 +17,10 @@ export interface Referendum {
   DOT_component: number | null;
   USDC_component: number | null;
   USDT_component: number | null;
-  category: string | null;
-  subcategory: string | null;
+  category_id: number | null;
+  // Denormalized fields (populated via JOIN with Categories)
+  category?: string | null;
+  subcategory?: string | null;
   notes: string | null;
   hide_in_spends: number | null;
 }
@@ -55,8 +57,10 @@ export interface ChildBounty {
   proposal_time: string | null;
   latest_status_change: string | null;
   USD_latest: number | null;
-  category: string | null;
-  subcategory: string | null;
+  category_id: number | null;
+  // Denormalized fields (populated via JOIN with Categories)
+  category?: string | null;
+  subcategory?: string | null;
   notes: string | null;
   hide_in_spends: number | null;
 }
@@ -130,8 +134,10 @@ export interface Category {
 export interface Bounty {
   id: number;
   name: string | null;
-  category: string | null;
-  subcategory: string | null;
+  category_id: number | null;
+  // Denormalized fields (populated via JOIN with Categories)
+  category?: string | null;
+  subcategory?: string | null;
   remaining_dot: number | null;
   url: string | null;
 }
@@ -145,8 +151,10 @@ export interface Subtreasury {
   DOT_component: number | null;
   USDC_component: number | null;
   USDT_component: number | null;
-  category: string | null;
-  subcategory: string | null;
+  category_id: number | null;
+  // Denormalized fields (populated via JOIN with Categories)
+  category?: string | null;
+  subcategory?: string | null;
   latest_status_change: string | null;
   url: string | null;
 }

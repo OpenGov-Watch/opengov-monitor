@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import GridLayout, { Layout } from "react-grid-layout";
 import { DashboardComponent } from "./dashboard-component";
 import type {
@@ -13,6 +13,7 @@ import "react-grid-layout/css/styles.css";
 interface DashboardGridProps {
   components: DashboardComponentType[];
   editable?: boolean;
+  highlightComponentId?: number | null;
   onLayoutChange?: (componentId: number, gridConfig: GridConfig) => void;
   onEditComponent?: (component: DashboardComponentType) => void;
   onDuplicateComponent?: (component: DashboardComponentType) => void;
@@ -26,6 +27,7 @@ const ROW_HEIGHT = 80;
 export function DashboardGrid({
   components,
   editable = false,
+  highlightComponentId,
   onLayoutChange,
   onEditComponent,
   onDuplicateComponent,
@@ -33,6 +35,21 @@ export function DashboardGrid({
   width = 1200,
 }: DashboardGridProps) {
   const [containerWidth, setContainerWidth] = useState(width);
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to bottom when new component is added
+  useEffect(() => {
+    if (highlightComponentId) {
+      // Delay to allow grid layout to fully render
+      const timeoutId = setTimeout(() => {
+        window.scrollTo({
+          top: document.body.scrollHeight,
+          behavior: "smooth",
+        });
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [highlightComponentId, components]);
 
   // Convert components to grid layout
   const layout: Layout[] = components.map((comp) => {
@@ -103,7 +120,10 @@ export function DashboardGrid({
   }
 
   return (
-    <div ref={containerRef} className="w-full">
+    <div ref={(node) => {
+      containerRef(node);
+      (gridRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+    }} className="w-full">
       <GridLayout
         className="layout"
         layout={layout}
@@ -118,7 +138,13 @@ export function DashboardGrid({
         preventCollision={false}
       >
         {components.map((component) => (
-          <div key={component.id} className={editable ? "drag-handle" : ""}>
+          <div
+            key={component.id}
+            data-component-id={component.id}
+            className={`${editable ? "drag-handle" : ""} ${
+              highlightComponentId === component.id ? "highlight-new" : ""
+            }`}
+          >
             <DashboardComponent
               component={component}
               editable={editable}

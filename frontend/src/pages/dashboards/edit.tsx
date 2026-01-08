@@ -28,6 +28,7 @@ export default function DashboardEditPage() {
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingComponent, setEditingComponent] = useState<DashboardComponent | null>(null);
+  const [highlightComponentId, setHighlightComponentId] = useState<number | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -184,13 +185,18 @@ export default function DashboardEditPage() {
         chart_config: chartConfig,
       };
 
-      await fetch("/api/dashboards/components", {
+      const response = await fetch("/api/dashboards/components", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      const newComponent = await response.json();
 
-      fetchData();
+      await fetchData();
+
+      // Scroll to and highlight the new component
+      setHighlightComponentId(newComponent.id);
+      setTimeout(() => setHighlightComponentId(null), 2000);
     } catch (err) {
       console.error("Failed to duplicate component:", err);
     }
@@ -233,14 +239,22 @@ export default function DashboardEditPage() {
           y: maxY,
         };
 
-        await fetch("/api/dashboards/components", {
+        const response = await fetch("/api/dashboards/components", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
+        const newComponent = await response.json();
+
+        await fetchData();
+
+        // Scroll to and highlight the new component
+        setHighlightComponentId(newComponent.id);
+        setTimeout(() => setHighlightComponentId(null), 2000);
+        return;
       }
 
-      fetchData();
+      await fetchData();
     } catch (err) {
       console.error("Failed to save component:", err);
     }
@@ -311,6 +325,7 @@ export default function DashboardEditPage() {
         <DashboardGrid
           components={components}
           editable={true}
+          highlightComponentId={highlightComponentId}
           onLayoutChange={handleLayoutChange}
           onEditComponent={handleEditComponent}
           onDuplicateComponent={handleDuplicateComponent}

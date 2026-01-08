@@ -41,8 +41,7 @@ REFERENDA_SCHEMA = TableSchema(
         "DOT_component": "REAL",
         "USDC_component": "REAL",
         "USDT_component": "REAL",
-        "category": "TEXT",
-        "subcategory": "TEXT",
+        "category_id": "INTEGER",
         "notes": "TEXT",
         "hide_in_spends": "INTEGER",
     },
@@ -51,7 +50,7 @@ REFERENDA_SCHEMA = TableSchema(
         ("idx_referenda_status", ["status"]),
         ("idx_referenda_track", ["track"]),
         ("idx_referenda_proposal_time", ["proposal_time"]),
-        ("idx_referenda_category", ["category"]),
+        ("idx_referenda_category_id", ["category_id"]),
     ]
 )
 
@@ -99,8 +98,7 @@ CHILD_BOUNTIES_SCHEMA = TableSchema(
         "proposal_time": "TIMESTAMP",
         "latest_status_change": "TIMESTAMP",
         "USD_latest": "REAL",
-        "category": "TEXT",
-        "subcategory": "TEXT",
+        "category_id": "INTEGER",
         "notes": "TEXT",
         "hide_in_spends": "INTEGER",
     },
@@ -108,7 +106,7 @@ CHILD_BOUNTIES_SCHEMA = TableSchema(
     indexes=[
         ("idx_child_bounty_parent", ["parentBountyId"]),
         ("idx_child_bounty_status", ["status"]),
-        ("idx_child_bounty_category", ["category"]),
+        ("idx_child_bounty_category_id", ["category_id"]),
     ]
 )
 
@@ -223,14 +221,13 @@ BOUNTIES_SCHEMA = TableSchema(
     columns={
         "id": "INTEGER",
         "name": "TEXT",
-        "category": "TEXT",
-        "subcategory": "TEXT",
+        "category_id": "INTEGER",
         "remaining_dot": "REAL",
         "url": "TEXT",
     },
     primary_key="id",
     indexes=[
-        ("idx_bounties_category", ["category"]),
+        ("idx_bounties_category_id", ["category_id"]),
     ]
 )
 
@@ -246,14 +243,13 @@ SUBTREASURY_SCHEMA = TableSchema(
         "DOT_component": "REAL",
         "USDC_component": "REAL",
         "USDT_component": "REAL",
-        "category": "TEXT",
-        "subcategory": "TEXT",
+        "category_id": "INTEGER",
         "latest_status_change": "TIMESTAMP",
         "url": "TEXT",
     },
     primary_key="id",
     indexes=[
-        ("idx_subtreasury_category", ["category"]),
+        ("idx_subtreasury_category_id", ["category_id"]),
     ]
 )
 

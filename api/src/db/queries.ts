@@ -21,7 +21,11 @@ import { TABLE_NAMES, VIEW_NAMES } from "./types";
 
 export function getReferenda(): Referendum[] {
   const db = getDatabase();
-  return db.prepare(`SELECT * FROM "${TABLE_NAMES.referenda}"`).all() as Referendum[];
+  return db.prepare(`
+    SELECT r.*, c.category, c.subcategory
+    FROM "${TABLE_NAMES.referenda}" r
+    LEFT JOIN "${TABLE_NAMES.categories}" c ON r.category_id = c.id
+  `).all() as Referendum[];
 }
 
 export function getTreasury(): TreasurySpend[] {
@@ -31,7 +35,11 @@ export function getTreasury(): TreasurySpend[] {
 
 export function getChildBounties(): ChildBounty[] {
   const db = getDatabase();
-  return db.prepare(`SELECT * FROM "${TABLE_NAMES.childBounties}"`).all() as ChildBounty[];
+  return db.prepare(`
+    SELECT cb.*, c.category, c.subcategory
+    FROM "${TABLE_NAMES.childBounties}" cb
+    LEFT JOIN "${TABLE_NAMES.categories}" c ON cb.category_id = c.id
+  `).all() as ChildBounty[];
 }
 
 export function getFellowship(): Fellowship[] {
@@ -153,6 +161,22 @@ export function getCategories(): Category[] {
     .all() as Category[];
 }
 
+export function findOrCreateCategory(category: string, subcategory: string): Category {
+  const db = getWritableDatabase();
+  const existing = db.prepare(`
+    SELECT * FROM "${TABLE_NAMES.categories}" WHERE category = ? AND subcategory = ?
+  `).get(category, subcategory) as Category | undefined;
+
+  if (existing) {
+    return existing;
+  }
+
+  const result = db.prepare(`
+    INSERT INTO "${TABLE_NAMES.categories}" (category, subcategory) VALUES (?, ?)
+  `).run(category, subcategory);
+  return { id: result.lastInsertRowid as number, category, subcategory };
+}
+
 export function createCategory(category: string, subcategory: string): Category {
   const db = getWritableDatabase();
   const result = db
@@ -177,35 +201,44 @@ export function deleteCategory(id: number): void {
 export function getBounties(): Bounty[] {
   const db = getDatabase();
   return db
-    .prepare(`SELECT * FROM "${TABLE_NAMES.bounties}" ORDER BY id DESC`)
+    .prepare(`
+      SELECT b.*, c.category, c.subcategory
+      FROM "${TABLE_NAMES.bounties}" b
+      LEFT JOIN "${TABLE_NAMES.categories}" c ON b.category_id = c.id
+      ORDER BY b.id DESC
+    `)
     .all() as Bounty[];
 }
 
 export function getBountyById(id: number): Bounty | undefined {
   const db = getDatabase();
   return db
-    .prepare(`SELECT * FROM "${TABLE_NAMES.bounties}" WHERE id = ?`)
+    .prepare(`
+      SELECT b.*, c.category, c.subcategory
+      FROM "${TABLE_NAMES.bounties}" b
+      LEFT JOIN "${TABLE_NAMES.categories}" c ON b.category_id = c.id
+      WHERE b.id = ?
+    `)
     .get(id) as Bounty | undefined;
 }
 
-export function upsertBounty(bounty: Bounty): void {
+export function upsertBounty(bounty: Omit<Bounty, "category" | "subcategory">): void {
   const db = getWritableDatabase();
   db.prepare(`
-    INSERT INTO "${TABLE_NAMES.bounties}" (id, name, category, subcategory, remaining_dot, url)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO "${TABLE_NAMES.bounties}" (id, name, category_id, remaining_dot, url)
+    VALUES (?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       name = excluded.name,
-      category = excluded.category,
-      subcategory = excluded.subcategory,
+      category_id = excluded.category_id,
       remaining_dot = excluded.remaining_dot,
       url = excluded.url
-  `).run(bounty.id, bounty.name, bounty.category, bounty.subcategory, bounty.remaining_dot, bounty.url);
+  `).run(bounty.id, bounty.name, bounty.category_id, bounty.remaining_dot, bounty.url);
 }
 
-export function updateBountyCategory(id: number, category: string | null, subcategory: string | null): void {
+export function updateBountyCategory(id: number, category_id: number | null): void {
   const db = getWritableDatabase();
-  db.prepare(`UPDATE "${TABLE_NAMES.bounties}" SET category = ?, subcategory = ? WHERE id = ?`)
-    .run(category, subcategory, id);
+  db.prepare(`UPDATE "${TABLE_NAMES.bounties}" SET category_id = ? WHERE id = ?`)
+    .run(category_id, id);
 }
 
 export function deleteBounty(id: number): void {
@@ -218,23 +251,33 @@ export function deleteBounty(id: number): void {
 export function getSubtreasury(): Subtreasury[] {
   const db = getDatabase();
   return db
-    .prepare(`SELECT * FROM "${TABLE_NAMES.subtreasury}" ORDER BY latest_status_change DESC`)
+    .prepare(`
+      SELECT s.*, c.category, c.subcategory
+      FROM "${TABLE_NAMES.subtreasury}" s
+      LEFT JOIN "${TABLE_NAMES.categories}" c ON s.category_id = c.id
+      ORDER BY s.latest_status_change DESC
+    `)
     .all() as Subtreasury[];
 }
 
 export function getSubtreasuryById(id: number): Subtreasury | undefined {
   const db = getDatabase();
   return db
-    .prepare(`SELECT * FROM "${TABLE_NAMES.subtreasury}" WHERE id = ?`)
+    .prepare(`
+      SELECT s.*, c.category, c.subcategory
+      FROM "${TABLE_NAMES.subtreasury}" s
+      LEFT JOIN "${TABLE_NAMES.categories}" c ON s.category_id = c.id
+      WHERE s.id = ?
+    `)
     .get(id) as Subtreasury | undefined;
 }
 
-export function createSubtreasury(entry: Omit<Subtreasury, "id">): Subtreasury {
+export function createSubtreasury(entry: Omit<Subtreasury, "id" | "category" | "subcategory">): Subtreasury {
   const db = getWritableDatabase();
   const result = db.prepare(`
     INSERT INTO "${TABLE_NAMES.subtreasury}"
-    (title, description, DOT_latest, USD_latest, DOT_component, USDC_component, USDT_component, category, subcategory, latest_status_change, url)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (title, description, DOT_latest, USD_latest, DOT_component, USDC_component, USDT_component, category_id, latest_status_change, url)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     entry.title,
     entry.description,
@@ -243,21 +286,20 @@ export function createSubtreasury(entry: Omit<Subtreasury, "id">): Subtreasury {
     entry.DOT_component,
     entry.USDC_component,
     entry.USDT_component,
-    entry.category,
-    entry.subcategory,
+    entry.category_id,
     entry.latest_status_change,
     entry.url
   );
   return { id: result.lastInsertRowid as number, ...entry };
 }
 
-export function updateSubtreasury(entry: Subtreasury): void {
+export function updateSubtreasury(entry: Omit<Subtreasury, "category" | "subcategory">): void {
   const db = getWritableDatabase();
   db.prepare(`
     UPDATE "${TABLE_NAMES.subtreasury}" SET
       title = ?, description = ?, DOT_latest = ?, USD_latest = ?,
       DOT_component = ?, USDC_component = ?, USDT_component = ?,
-      category = ?, subcategory = ?, latest_status_change = ?, url = ?
+      category_id = ?, latest_status_change = ?, url = ?
     WHERE id = ?
   `).run(
     entry.title,
@@ -267,8 +309,7 @@ export function updateSubtreasury(entry: Subtreasury): void {
     entry.DOT_component,
     entry.USDC_component,
     entry.USDT_component,
-    entry.category,
-    entry.subcategory,
+    entry.category_id,
     entry.latest_status_change,
     entry.url,
     entry.id

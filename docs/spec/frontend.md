@@ -579,6 +579,7 @@ The dashboard feature allows users to create custom visualizations using a visua
 - **Live Preview**: Preview query results before saving components
 - **Duplicate Components**: Clone existing components with smart positioning (places to the right if space available, otherwise below)
 - **Inline Editing**: Edit dashboard name and description directly in edit mode
+- **Auto-scroll & Highlight**: New/duplicated components trigger smooth scroll and pulse highlight animation
 
 ### Query Builder
 
