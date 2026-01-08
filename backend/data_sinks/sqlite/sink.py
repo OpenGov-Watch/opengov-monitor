@@ -591,6 +591,19 @@ class SQLiteSink(DataSink):
         )
         return cursor.fetchone()[0]
 
+    def is_table_empty(self, table_name: str) -> bool:
+        """Check if a table is empty or doesn't exist.
+
+        Args:
+            table_name: Name of the table to check.
+
+        Returns:
+            True if table doesn't exist or has no rows, False otherwise.
+        """
+        if not self.table_exists(table_name):
+            return True
+        return self.get_row_count(table_name) == 0
+
     def update_worksheet(
         self,
         spreadsheet_id: str,

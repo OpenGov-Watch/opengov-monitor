@@ -1024,7 +1024,15 @@ class SubsquareProvider(DataProvider):
             return {}
 
     def _fetchList(self, base_url, num_items):
+        """Fetch items from a paginated API endpoint.
 
+        Args:
+            base_url: The API endpoint URL.
+            num_items: Maximum number of items to fetch. 0 = fetch ALL items.
+
+        Returns:
+            DataFrame with fetched items.
+        """
         all_items = []
         page = 1
 
@@ -1042,7 +1050,8 @@ class SubsquareProvider(DataProvider):
 
                 self._logger.debug(f"Fetched {len(all_items)} items")
 
-                if len(all_items) >= num_items:
+                # num_items = 0 means fetch ALL items (no early break)
+                if num_items > 0 and len(all_items) >= num_items:
                     break
             else:
                 message = f"While fetching {base_url}, we received error: {response.status_code} {response.reason}"

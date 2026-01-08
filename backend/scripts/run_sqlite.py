@@ -41,6 +41,11 @@ def main():
         choices=['polkadot', 'kusama'],
         help='Network to fetch data for (default: polkadot)'
     )
+    parser.add_argument(
+        '--backfill',
+        action='store_true',
+        help='Force full backfill of all data (ignore existing data)'
+    )
     args = parser.parse_args()
 
     logger, _ = setup_logging()
@@ -54,11 +59,15 @@ def main():
         with open(config_path, 'r') as file:
             config = yaml.safe_load(file)
 
-        referenda_to_fetch = config['fetch_limits']['referenda']
-        treasury_spends_to_fetch = config['fetch_limits']['treasury_spends']
-        child_bounties_to_fetch = config['fetch_limits']['child_bounties']
-        fellowship_treasury_spends_to_fetch = config['fetch_limits']['fellowship_treasury_spends']
-        fellowship_salary_cycles_to_fetch = config['fetch_limits'].get('fellowship_salary_cycles', 0)
+        # Get fetch limits (supports both old flat structure and new incremental/backfill structure)
+        fetch_limits = config['fetch_limits']
+        if 'incremental' in fetch_limits:
+            incremental_limits = fetch_limits['incremental']
+            backfill_limits = fetch_limits.get('backfill', {})
+        else:
+            # Legacy flat structure - use same limits for both modes
+            incremental_limits = fetch_limits
+            backfill_limits = fetch_limits
 
         block_number = config['block_time_projection']['block_number']
         block_datetime = config['block_time_projection']['block_datetime']
@@ -73,55 +82,76 @@ def main():
         sink = SQLiteSink(args.db)
         sink.connect()
 
+        # Helper function to determine fetch mode and limit
+        def get_fetch_limit(table_name: str, config_key: str) -> tuple[int, str]:
+            """Determine fetch limit based on table state and --backfill flag.
+
+            Returns:
+                Tuple of (limit, mode) where mode is 'backfill' or 'incremental'.
+            """
+            if args.backfill:
+                mode = 'backfill'
+                limit = backfill_limits.get(config_key, 0)
+                logger.info(f"[{table_name}] Using backfill mode (forced)")
+            elif sink.is_table_empty(table_name):
+                mode = 'backfill'
+                limit = backfill_limits.get(config_key, 0)
+                logger.info(f"[{table_name}] Table empty - using backfill mode")
+            else:
+                mode = 'incremental'
+                limit = incremental_limits.get(config_key, 0)
+                logger.info(f"[{table_name}] Table has data - using incremental mode")
+
+            limit_str = "all" if limit == 0 else str(limit)
+            logger.info(f"[{table_name}] Fetch limit: {limit_str}")
+            return limit, mode
+
         # Fetch prices
         logger.info("Fetching prices...")
         price_service.load_prices()
         logger.info(f"Current {args.network.upper()} price: ${price_service.current_price:.2f}")
 
         # Fetch and store referenda
-        if referenda_to_fetch > 0:
-            logger.info(f"Fetching {referenda_to_fetch} referenda...")
-            referenda_df = provider.fetch_referenda(referenda_to_fetch)
+        referenda_limit, _ = get_fetch_limit("Referenda", "referenda")
+        if referenda_limit != -1:  # -1 means skip
+            referenda_df = provider.fetch_referenda(referenda_limit)
             logger.info(f"Fetched {len(referenda_df)} referenda")
-
             sink.update_table("Referenda", referenda_df, allow_empty=True)
-            logger.info(f"Stored {sink.get_row_count('Referenda')} referenda in database")
+            logger.info(f"Total {sink.get_row_count('Referenda')} referenda in database")
 
         # Fetch and store treasury spends
-        if treasury_spends_to_fetch > 0:
-            logger.info(f"Fetching {treasury_spends_to_fetch} treasury spends...")
+        treasury_limit, _ = get_fetch_limit("Treasury", "treasury_spends")
+        if treasury_limit != -1:
             treasury_df = provider.fetch_treasury_spends(
-                treasury_spends_to_fetch,
+                treasury_limit,
                 block_number,
                 block_datetime,
                 block_time
             )
             logger.info(f"Fetched {len(treasury_df)} treasury spends")
-
             sink.update_table("Treasury", treasury_df, allow_empty=True)
-            logger.info(f"Stored {sink.get_row_count('Treasury')} treasury spends in database")
+            logger.info(f"Total {sink.get_row_count('Treasury')} treasury spends in database")
 
         # Fetch and store child bounties
-        if child_bounties_to_fetch > 0:
-            logger.info(f"Fetching {child_bounties_to_fetch} child bounties...")
-            child_bounties_df = provider.fetch_child_bounties(child_bounties_to_fetch)
+        child_bounties_limit, _ = get_fetch_limit("Child Bounties", "child_bounties")
+        if child_bounties_limit != -1:
+            child_bounties_df = provider.fetch_child_bounties(child_bounties_limit)
             logger.info(f"Fetched {len(child_bounties_df)} child bounties")
-
             sink.update_table("Child Bounties", child_bounties_df, allow_empty=True)
-            logger.info(f"Stored {sink.get_row_count('Child Bounties')} child bounties in database")
+            logger.info(f"Total {sink.get_row_count('Child Bounties')} child bounties in database")
 
         # Fetch and store fellowship treasury spends
-        if fellowship_treasury_spends_to_fetch > 0:
-            logger.info(f"Fetching {fellowship_treasury_spends_to_fetch} fellowship spends...")
-            fellowship_df = provider.fetch_fellowship_treasury_spends(fellowship_treasury_spends_to_fetch)
+        fellowship_limit, _ = get_fetch_limit("Fellowship", "fellowship_treasury_spends")
+        if fellowship_limit != -1:
+            fellowship_df = provider.fetch_fellowship_treasury_spends(fellowship_limit)
             logger.info(f"Fetched {len(fellowship_df)} fellowship spends")
-
             sink.update_table("Fellowship", fellowship_df, allow_empty=True)
-            logger.info(f"Stored {sink.get_row_count('Fellowship')} fellowship spends in database")
+            logger.info(f"Total {sink.get_row_count('Fellowship')} fellowship spends in database")
 
         # Fetch and store fellowship salary data
-        # 0 = fetch all, -1 = skip
-        if fellowship_salary_cycles_to_fetch != -1:
+        # Check fellowship_salary_cycles: 0 = fetch all, -1 = skip
+        salary_limit, _ = get_fetch_limit("Fellowship Salary Cycles", "fellowship_salary_cycles")
+        if salary_limit != -1:
             # Initialize ID provider for address resolution (used by claimants and payments)
             id_provider = StatescanIdProvider(args.network)
 

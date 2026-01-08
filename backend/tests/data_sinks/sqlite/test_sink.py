@@ -626,6 +626,31 @@ class TestReadQueryUtilities:
         sqlite_sink.update_table("Referenda", sample_referenda_df)
         assert sqlite_sink.get_row_count("Referenda") == 2
 
+    def test_is_table_empty_nonexistent_table(self, sqlite_sink):
+        """Verify returns True for nonexistent table."""
+        assert sqlite_sink.is_table_empty("NonexistentTable") is True
+
+    def test_is_table_empty_empty_table(self, populated_sink):
+        """Verify returns True for empty table."""
+        # populated_sink creates tables but doesn't add data
+        assert populated_sink.is_table_empty("Referenda") is True
+
+    def test_is_table_empty_with_data(self, sqlite_sink, sample_referenda_df):
+        """Verify returns False for table with data."""
+        sqlite_sink.update_table("Referenda", sample_referenda_df)
+        assert sqlite_sink.is_table_empty("Referenda") is False
+
+    def test_is_table_empty_after_all_deleted(self, sqlite_sink, sample_referenda_df):
+        """Verify returns True after all rows deleted."""
+        sqlite_sink.update_table("Referenda", sample_referenda_df)
+        assert sqlite_sink.is_table_empty("Referenda") is False
+
+        # Delete all rows
+        sqlite_sink.connection.execute('DELETE FROM "Referenda"')
+        sqlite_sink.connection.commit()
+
+        assert sqlite_sink.is_table_empty("Referenda") is True
+
 
 # =============================================================================
 # Compatibility Method Tests

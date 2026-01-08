@@ -25,8 +25,11 @@ This file provides guidance for working with the Python backend.
 # Run Flask server
 python main.py
 
-# Run with SQLite sink
+# Run with SQLite sink (auto-detects backfill vs incremental)
 python scripts/run_sqlite.py --db ../data/polkadot.db
+
+# Force full backfill (re-fetch everything)
+python scripts/run_sqlite.py --db ../data/polkadot.db --backfill
 
 # Dump provider data for debugging
 python scripts/dump_provider.py --network polkadot --out ../data_dump
@@ -60,6 +63,25 @@ pytest --cov=data_sinks --cov-report=term-missing
 | Fellowship Subtreasury | Yes |
 | Dashboards | Yes (manual) |
 | Dashboard Components | Yes (manual) |
+
+## Fetch Modes
+
+The backend supports two fetch modes configured in `config.yaml`:
+
+```yaml
+fetch_limits:
+  incremental:    # Used when table has existing data
+    referenda: 100
+    treasury_spends: 50
+  backfill:       # Used when table is empty or --backfill flag
+    referenda: 0  # 0 = fetch ALL
+    treasury_spends: 0
+```
+
+- **Incremental mode**: Fetches configured limit (catches new + recent updates)
+- **Backfill mode**: Fetches all items (0 = unlimited)
+- Auto-detection: empty table → backfill, populated → incremental
+- `--backfill` flag forces full backfill
 
 config.yaml `fellowship_salary_cycles`: `0` = fetch all, `-1` = skip
 
