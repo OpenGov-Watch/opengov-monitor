@@ -194,6 +194,37 @@ function listUsers(): void {
 }
 
 /**
+ * Update a user's password (non-interactive, for scripting).
+ */
+async function setPassword(username: string, password: string): Promise<void> {
+  if (!username || username.trim() === "") {
+    console.error("Error: Username is required");
+    process.exit(1);
+  }
+
+  if (!password || password.trim() === "") {
+    console.error("Error: Password is required");
+    process.exit(1);
+  }
+
+  const db = getDb();
+  ensureUsersTable(db);
+
+  const user = getUserByUsername(db, username);
+  if (!user) {
+    console.error(`Error: User "${username}" not found`);
+    db.close();
+    process.exit(1);
+  }
+
+  const hash = await hashPassword(password);
+  db.prepare("UPDATE Users SET password_hash = ? WHERE username = ?").run(hash, username);
+  db.close();
+
+  console.log(`Password updated for user: ${username}`);
+}
+
+/**
  * Delete a user.
  */
 function removeUser(username: string): void {
@@ -234,12 +265,14 @@ Usage:
   npx tsx scripts/manage-users.ts <command> [options]
 
 Commands:
-  add <username>     Create a new user (will prompt for password)
-  list               List all users
-  delete <username>  Delete a user
+  add <username>                  Create a new user (will prompt for password)
+  set-password <username> <pass>  Set password (non-interactive)
+  list                            List all users
+  delete <username>               Delete a user
 
 Examples:
   npx tsx scripts/manage-users.ts add admin
+  npx tsx scripts/manage-users.ts set-password admin newpass123
   npx tsx scripts/manage-users.ts list
   npx tsx scripts/manage-users.ts delete olduser
 
@@ -250,11 +283,14 @@ Environment:
 
 // Main CLI handler
 async function main(): Promise<void> {
-  const [command, arg] = process.argv.slice(2);
+  const [command, arg, arg2] = process.argv.slice(2);
 
   switch (command) {
     case "add":
       await addUser(arg);
+      break;
+    case "set-password":
+      await setPassword(arg, arg2);
       break;
     case "list":
       listUsers();
