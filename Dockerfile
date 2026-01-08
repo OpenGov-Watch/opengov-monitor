@@ -51,10 +51,11 @@ WORKDIR /app
 # Copy built frontend to nginx
 COPY --from=frontend-build /app/frontend/dist /var/www/html
 
-# Copy built API (pnpm hoists node_modules to root)
+# Copy built API (pnpm hoists node_modules to root, but symlinks are in api/node_modules)
 COPY --from=api-build /app/api/dist ./api/dist
 COPY --from=api-build /app/api/package.json ./api/
 COPY --from=api-build /app/node_modules ./node_modules
+COPY --from=api-build /app/api/node_modules ./api/node_modules
 
 # Copy Python backend
 COPY backend/ ./backend/
