@@ -134,6 +134,13 @@ export function DashboardComponent({
       return col.column;
     };
 
+    // Build column mapping: result column key → source column name
+    const columnMapping: Record<string, string> = {};
+    for (const col of queryConfig.columns) {
+      const key = getColumnKey(col);
+      columnMapping[key] = col.column;
+    }
+
     const labelColumn =
       chartConfig.labelColumn || (queryConfig.columns[0] && getColumnKey(queryConfig.columns[0]));
     const valueColumn =
@@ -144,7 +151,13 @@ export function DashboardComponent({
 
     switch (component.type) {
       case "table":
-        return <DashboardDataTable data={data} tableName={tableName} />;
+        return (
+          <DashboardDataTable
+            data={data}
+            tableName={tableName}
+            columnMapping={columnMapping}
+          />
+        );
 
       case "pie":
         if (!labelColumn || !valueColumn) {
@@ -162,6 +175,7 @@ export function DashboardComponent({
             colors={chartConfig.colors}
             tableName={tableName}
             valueColumn={valueColumn}
+            columnMapping={columnMapping}
           />
         );
 
@@ -181,6 +195,7 @@ export function DashboardComponent({
             showLegend={chartConfig.showLegend ?? true}
             showTooltip={chartConfig.showTooltip ?? true}
             tableName={tableName}
+            columnMapping={columnMapping}
           />
         );
       }
@@ -199,6 +214,7 @@ export function DashboardComponent({
             showLegend={chartConfig.showLegend ?? true}
             showTooltip={chartConfig.showTooltip ?? true}
             tableName={tableName}
+            columnMapping={columnMapping}
           />
         );
       }

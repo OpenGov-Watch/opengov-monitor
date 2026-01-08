@@ -26,6 +26,7 @@ interface DashboardPieChartProps {
   showTooltip?: boolean;
   tableName?: string;
   valueColumn?: string;
+  columnMapping?: Record<string, string>;
 }
 
 const DEFAULT_COLORS = [
@@ -47,16 +48,19 @@ function CustomTooltip({
   payload,
   tableName,
   valueColumn,
+  columnMapping,
 }: {
   active?: boolean;
   payload?: Array<{ name: string; value: number; payload: PieChartData }>;
   tableName: string;
   valueColumn: string;
+  columnMapping?: Record<string, string>;
 }) {
   if (!active || !payload || !payload.length) return null;
 
   const entry = payload[0];
-  const config = getColumnConfig(tableName, valueColumn);
+  const sourceColumn = columnMapping?.[valueColumn] ?? valueColumn;
+  const config = getColumnConfig(tableName, sourceColumn);
   const formatted = formatValue(entry.value, config);
   const percent = ((entry.payload.value / payload.reduce((sum, p) => sum + p.payload.value, 0)) * 100).toFixed(1);
 
@@ -79,6 +83,7 @@ export function DashboardPieChart({
   showTooltip = true,
   tableName = "",
   valueColumn = "value",
+  columnMapping,
 }: DashboardPieChartProps) {
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -104,7 +109,7 @@ export function DashboardPieChart({
         </Pie>
         {showTooltip && (
           <Tooltip
-            content={<CustomTooltip tableName={tableName} valueColumn={valueColumn} />}
+            content={<CustomTooltip tableName={tableName} valueColumn={valueColumn} columnMapping={columnMapping} />}
           />
         )}
         {showLegend && <Legend />}

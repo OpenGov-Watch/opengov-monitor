@@ -24,10 +24,6 @@ export function CurrencyCell({ value, currency = "DOT", decimals = 0 }: Currency
     maximumFractionDigits: decimals,
   }).format(value);
 
-  if (currency === "USD") {
-    return <div className="text-right font-mono">${formatted}</div>;
-  }
-
   return (
     <div className="text-right font-mono">
       {formatted} {currency}

@@ -19,6 +19,8 @@ interface DashboardDataTableProps {
   data: Record<string, unknown>[];
   maxRows?: number;
   tableName?: string;
+  // Maps result column key to source column name for decoration lookup
+  columnMapping?: Record<string, string>;
   // Legacy prop for backwards compatibility
   displayName?: (col: string) => string;
 }
@@ -27,6 +29,7 @@ export function DashboardDataTable({
   data,
   maxRows = 100,
   tableName = "",
+  columnMapping,
   displayName,
 }: DashboardDataTableProps) {
   if (data.length === 0) {
@@ -40,10 +43,11 @@ export function DashboardDataTable({
   const columns = Object.keys(data[0]);
   const displayData = data.slice(0, maxRows);
 
-  // Get config for each column
+  // Get config for each column (use source column name if available)
   const columnConfigs: Record<string, ColumnRenderConfig> = {};
   for (const col of columns) {
-    columnConfigs[col] = getColumnConfig(tableName, col);
+    const sourceColumn = columnMapping?.[col] ?? col;
+    columnConfigs[col] = getColumnConfig(tableName, sourceColumn);
   }
 
   // Get display name using legacy prop or new function

@@ -35,6 +35,7 @@ interface DashboardLineChartProps {
   showGrid?: boolean;
   showDots?: boolean;
   tableName?: string;
+  columnMapping?: Record<string, string>;
 }
 
 const DEFAULT_COLORS = [
@@ -56,11 +57,13 @@ function CustomTooltip({
   payload,
   label,
   tableName,
+  columnMapping,
 }: {
   active?: boolean;
   payload?: Array<{ name: string; value: number; dataKey: string; color: string }>;
   label?: string;
   tableName: string;
+  columnMapping?: Record<string, string>;
 }) {
   if (!active || !payload || !payload.length) return null;
 
@@ -68,7 +71,8 @@ function CustomTooltip({
     <div className="bg-background border rounded-lg shadow-lg p-3">
       <p className="font-medium text-sm mb-2">{label}</p>
       {payload.map((entry, index) => {
-        const config = getColumnConfig(tableName, entry.dataKey);
+        const sourceColumn = columnMapping?.[entry.dataKey] ?? entry.dataKey;
+        const config = getColumnConfig(tableName, sourceColumn);
         const formatted = formatValue(entry.value, config);
         return (
           <div key={index} className="flex items-center gap-2 text-sm">
@@ -94,11 +98,15 @@ export function DashboardLineChart({
   showGrid = true,
   showDots = true,
   tableName = "",
+  columnMapping,
 }: DashboardLineChartProps) {
   // Get config for first value column to determine Y-axis formatting
   const firstValueColumn = lines[0]?.dataKey;
-  const yAxisConfig = firstValueColumn
-    ? getColumnConfig(tableName, firstValueColumn)
+  const sourceColumn = firstValueColumn
+    ? (columnMapping?.[firstValueColumn] ?? firstValueColumn)
+    : null;
+  const yAxisConfig = sourceColumn
+    ? getColumnConfig(tableName, sourceColumn)
     : { render: "number" as const };
 
   // Y-axis tick formatter (abbreviated)
@@ -112,7 +120,7 @@ export function DashboardLineChart({
         <YAxis tick={{ fontSize: 12 }} tickFormatter={yAxisFormatter} />
         {showTooltip && (
           <Tooltip
-            content={<CustomTooltip tableName={tableName} />}
+            content={<CustomTooltip tableName={tableName} columnMapping={columnMapping} />}
           />
         )}
         {showLegend && <Legend />}
