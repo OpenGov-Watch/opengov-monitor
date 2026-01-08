@@ -1,0 +1,181 @@
+/**
+ * Subtreasury Route Tests
+ */
+
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from "vitest";
+import request from "supertest";
+import express from "express";
+import { subtreasuryRouter } from "../subtreasury.js";
+import Database from "better-sqlite3";
+
+let testDb: Database.Database;
+
+vi.mock("../../db/index.js", () => ({
+  getDatabase: () => testDb,
+  getWritableDatabase: () => testDb,
+}));
+
+function createApp(): express.Express {
+  const app = express();
+  app.use(express.json());
+  app.use("/api/subtreasury", subtreasuryRouter);
+  return app;
+}
+
+const SCHEMA_SQL = `
+  CREATE TABLE IF NOT EXISTS "Subtreasury" (
+    "id" INTEGER PRIMARY KEY,
+    "title" TEXT,
+    "description" TEXT,
+    "DOT_latest" REAL,
+    "USD_latest" REAL,
+    "DOT_component" REAL,
+    "USDC_component" REAL,
+    "USDT_component" REAL,
+    "category" TEXT,
+    "subcategory" TEXT,
+    "latest_status_change" TEXT,
+    "url" TEXT
+  );
+`;
+
+let app: express.Express;
+
+beforeAll(() => {
+  testDb = new Database(":memory:");
+  testDb.exec(SCHEMA_SQL);
+  app = createApp();
+});
+
+beforeEach(() => {
+  testDb.exec('DELETE FROM "Subtreasury"');
+});
+
+afterAll(() => {
+  testDb.close();
+});
+
+describe("GET /api/subtreasury", () => {
+  it("returns empty array when no entries exist", async () => {
+    const response = await request(app).get("/api/subtreasury");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([]);
+  });
+
+  it("returns all subtreasury entries", async () => {
+    testDb.exec(`
+      INSERT INTO "Subtreasury" (id, title, description, DOT_latest, category)
+      VALUES (1, 'Entry 1', 'Desc 1', 1000.5, 'Development'),
+             (2, 'Entry 2', 'Desc 2', 500.0, 'Marketing')
+    `);
+
+    const response = await request(app).get("/api/subtreasury");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveLength(2);
+    expect(response.body[0].title).toBe("Entry 1");
+  });
+});
+
+describe("GET /api/subtreasury/:id", () => {
+  it("returns single entry by id", async () => {
+    testDb.exec(`
+      INSERT INTO "Subtreasury" (id, title, description, DOT_latest, category)
+      VALUES (1, 'Entry 1', 'Description', 1000.5, 'Development')
+    `);
+
+    const response = await request(app).get("/api/subtreasury/1");
+
+    expect(response.status).toBe(200);
+    expect(response.body.id).toBe(1);
+    expect(response.body.title).toBe("Entry 1");
+  });
+
+  it("returns 404 for non-existent entry", async () => {
+    const response = await request(app).get("/api/subtreasury/999");
+
+    expect(response.status).toBe(404);
+    expect(response.body.error).toContain("not found");
+  });
+});
+
+describe("POST /api/subtreasury", () => {
+  it("creates entry with valid data", async () => {
+    const response = await request(app)
+      .post("/api/subtreasury")
+      .send({
+        title: "New Entry",
+        description: "Description",
+        DOT_latest: 1000.0,
+        USD_latest: 7500.0,
+        category: "Development",
+        subcategory: "Core",
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.id).toBeDefined();
+    expect(response.body.title).toBe("New Entry");
+  });
+
+  it("creates entry with minimal data", async () => {
+    const response = await request(app)
+      .post("/api/subtreasury")
+      .send({ title: "Minimal" });
+
+    expect(response.status).toBe(201);
+  });
+});
+
+describe("PUT /api/subtreasury/:id", () => {
+  it("updates existing entry", async () => {
+    testDb.exec(`
+      INSERT INTO "Subtreasury" (id, title, description)
+      VALUES (1, 'Original', 'Desc')
+    `);
+
+    const response = await request(app)
+      .put("/api/subtreasury/1")
+      .send({
+        id: 1,
+        title: "Updated",
+        description: "New Description",
+        DOT_latest: 2000.0,
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+
+    // Verify update
+    const result = testDb.prepare('SELECT * FROM "Subtreasury" WHERE id = 1').get() as {
+      title: string;
+      description: string;
+    };
+    expect(result.title).toBe("Updated");
+    expect(result.description).toBe("New Description");
+  });
+});
+
+describe("DELETE /api/subtreasury/:id", () => {
+  it("deletes existing entry", async () => {
+    testDb.exec(`
+      INSERT INTO "Subtreasury" (id, title)
+      VALUES (1, 'ToDelete')
+    `);
+
+    const response = await request(app).delete("/api/subtreasury/1");
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+
+    // Verify deletion
+    const result = testDb.prepare('SELECT * FROM "Subtreasury" WHERE id = 1').get();
+    expect(result).toBeUndefined();
+  });
+
+  it("handles non-existent entry gracefully", async () => {
+    const response = await request(app).delete("/api/subtreasury/999");
+
+    expect(response.status).toBe(200);
+  });
+});

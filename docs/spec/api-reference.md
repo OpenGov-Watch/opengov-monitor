@@ -392,3 +392,257 @@ Returns:
 - Only whitelisted tables/views can be queried
 - Filter values are parameterized (no SQL injection)
 - Maximum row limit: 10,000
+
+---
+
+## Error Handling Specification
+
+This section specifies the error response format, HTTP status codes, and validation rules for unit testing.
+
+### Error Response Format
+
+All error responses follow this structure:
+
+```json
+{
+  "error": "Human-readable error message"
+}
+```
+
+**Consistency rules:**
+- Error message is always a string
+- No nested error objects
+- Error message comes from: validation logic OR caught exception `.message`
+
+### HTTP Status Codes
+
+| Code | Meaning | When Used |
+|------|---------|-----------|
+| 200 | OK | Successful GET, PUT, DELETE |
+| 201 | Created | Successful POST that creates a resource |
+| 400 | Bad Request | Validation failure (missing/invalid fields) |
+| 404 | Not Found | Resource with specified ID doesn't exist |
+| 500 | Internal Server Error | Database error, unexpected exception |
+
+### Success Response Patterns
+
+| Operation | Response Format |
+|-----------|-----------------|
+| GET (list) | `[...]` (array of resources) |
+| GET (single) | `{...}` (resource object) |
+| POST | `{...}` (created resource with `id`) |
+| PUT | `{ "success": true }` |
+| DELETE | `{ "success": true }` |
+
+---
+
+### Endpoint Validation Rules
+
+#### Dashboards
+
+##### POST /api/dashboards
+
+| Field | Required | Validation |
+|-------|----------|------------|
+| `name` | Yes | Must be non-empty string |
+| `description` | No | Can be null or omitted |
+
+**Error messages:**
+```
+400: "Name is required"
+```
+
+##### PUT /api/dashboards
+
+| Field | Required | Validation |
+|-------|----------|------------|
+| `id` | Yes | Must be present (undefined check) |
+| `name` | Yes | Must be non-empty string |
+| `description` | No | Can be null |
+
+**Error messages:**
+```
+400: "ID is required"
+400: "Name is required"
+```
+
+##### DELETE /api/dashboards
+
+| Parameter | Required | Location |
+|-----------|----------|----------|
+| `id` | Yes | Query string |
+
+**Error messages:**
+```
+400: "ID is required"
+```
+
+##### GET /api/dashboards?id={id}
+
+**Error messages:**
+```
+404: "Dashboard not found"
+```
+
+---
+
+#### Dashboard Components
+
+##### GET /api/dashboards/components
+
+| Parameter | Required | Notes |
+|-----------|----------|-------|
+| `id` | One of | Component ID |
+| `dashboard_id` | One of | Parent dashboard ID |
+
+**Error messages:**
+```
+400: "dashboard_id or id is required"
+404: "Component not found"
+```
+
+##### POST /api/dashboards/components
+
+| Field | Required | Validation |
+|-------|----------|------------|
+| `dashboard_id` | Yes | Integer |
+| `name` | Yes | Non-empty string |
+| `type` | Yes | Component type string |
+| `query_config` | Conditional | Required unless `type` is "text" |
+| `grid_config` | Yes | Object or JSON string |
+| `chart_config` | No | Optional object |
+
+**Error messages:**
+```
+400: "dashboard_id is required"
+400: "name is required"
+400: "type is required"
+400: "query_config is required"
+400: "grid_config is required"
+```
+
+##### PUT /api/dashboards/components
+
+**Full update:**
+| Field | Required | Validation |
+|-------|----------|------------|
+| `id` | Yes | Integer |
+| `name` | Yes | Non-empty string |
+| `type` | Yes | Component type |
+| `query_config` | Conditional | Required unless `type` is "text" |
+| `grid_config` | Yes | Object or JSON string |
+
+**Grid-only update:**
+| Field | Required |
+|-------|----------|
+| `id` | Yes |
+| `grid_only` | `true` |
+| `grid_config` | Yes |
+
+**Error messages:**
+```
+400: "id is required"
+400: "name, type, query_config (for non-text), and grid_config are required"
+```
+
+##### DELETE /api/dashboards/components
+
+| Parameter | Required | Location |
+|-----------|----------|----------|
+| `id` | Yes | Query string |
+
+**Error messages:**
+```
+400: "id is required"
+```
+
+---
+
+#### Categories
+
+##### POST /api/categories
+
+| Field | Required | Validation |
+|-------|----------|------------|
+| `category` | Yes | String |
+| `subcategory` | No | Can be null |
+
+No explicit validation - any request body accepted.
+
+##### PUT /api/categories/:id
+
+| Field | Required |
+|-------|----------|
+| `category` | Yes |
+| `subcategory` | No |
+
+No explicit validation - uses path parameter.
+
+##### DELETE /api/categories/:id
+
+Uses path parameter - no validation needed.
+
+---
+
+#### Query Builder
+
+##### POST /api/query/execute
+
+| Field | Required | Validation |
+|-------|----------|------------|
+| `sourceTable` | Yes | Must be in whitelist |
+| `columns` | Yes | Non-empty array |
+| `columns[].column` | Yes | Alphanumeric + `_.` + space |
+| `columns[].aggregateFunction` | No | Must be: COUNT, SUM, AVG, MIN, MAX |
+| `filters` | No | Array of FilterCondition |
+| `filters[].operator` | Yes | Must be: =, !=, >, <, >=, <=, LIKE, IN, IS NULL, IS NOT NULL |
+| `groupBy` | No | Array of column names |
+| `orderBy` | No | Array of {column, direction} |
+| `limit` | No | Capped at 10,000 |
+
+**Error messages:**
+```
+400: "Invalid source table: {table}"
+400: "At least one column must be selected"
+400: "Invalid aggregate function: {function}"
+400: "Invalid operator: {operator}"
+400: "Invalid column name: {name}"
+```
+
+---
+
+### Test Scenarios
+
+#### Validation Tests
+
+| Scenario | Endpoint | Expected |
+|----------|----------|----------|
+| Missing name | POST /dashboards | 400, "Name is required" |
+| Empty name | POST /dashboards `{"name": ""}` | 400, "Name is required" |
+| Missing id for delete | DELETE /dashboards | 400, "ID is required" |
+| Non-existent id | GET /dashboards?id=999 | 404, "Dashboard not found" |
+| Missing required fields | POST /components | 400, specific field error |
+| Invalid table | POST /query/execute | 400, "Invalid source table" |
+| Invalid operator | POST /query/execute | 400, "Invalid operator" |
+| SQL injection attempt | POST /query/execute | 400, "Invalid column name" |
+
+#### Success Tests
+
+| Scenario | Endpoint | Expected Status |
+|----------|----------|-----------------|
+| Create dashboard | POST /dashboards | 201 |
+| List dashboards | GET /dashboards | 200 |
+| Update dashboard | PUT /dashboards | 200 |
+| Delete dashboard | DELETE /dashboards?id=1 | 200 |
+| Execute valid query | POST /query/execute | 200 |
+
+#### Edge Cases
+
+| Scenario | Expected Behavior |
+|----------|-------------------|
+| Delete non-existent id | 200, success (no-op) |
+| Update non-existent id | 200, success (no rows affected) |
+| null description | Accepted, stored as null |
+| omitted description | Defaults to null |
+| Empty filter array | Valid, no WHERE clause |
+| Limit > 10,000 | Capped to 10,000 |
