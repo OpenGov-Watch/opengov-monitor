@@ -3,9 +3,18 @@ import { api } from "@/api/client";
 import { logsColumns } from "@/components/tables/logs-columns";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
+import { RequireAuth } from "@/components/auth/require-auth";
 import type { LogEntry } from "@/lib/db/types";
 
 export default function LogsPage() {
+  return (
+    <RequireAuth>
+      <LogsPageContent />
+    </RequireAuth>
+  );
+}
+
+function LogsPageContent() {
   const [data, setData] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

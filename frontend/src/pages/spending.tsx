@@ -3,9 +3,10 @@ import { api } from "@/api/client";
 import { allSpendingColumns } from "@/components/tables/all-spending-columns";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
+import { RequireAuth } from "@/components/auth/require-auth";
 import type { AllSpending } from "@/lib/db/types";
 
-export default function SpendingPage() {
+function SpendingPageContent() {
   const [data, setData] = useState<AllSpending[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,5 +42,13 @@ export default function SpendingPage() {
         <DataTable columns={allSpendingColumns} data={data} tableName="all-spending" />
       )}
     </div>
+  );
+}
+
+export default function SpendingPage() {
+  return (
+    <RequireAuth>
+      <SpendingPageContent />
+    </RequireAuth>
   );
 }

@@ -1,10 +1,9 @@
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, Navigate } from "react-router";
 import { Layout } from "@/components/layout/Layout";
 
 // Lazy load pages
 import { lazy, Suspense } from "react";
 
-const DashboardPage = lazy(() => import("@/pages/dashboard"));
 const ReferendaPage = lazy(() => import("@/pages/referenda"));
 const TreasuryPage = lazy(() => import("@/pages/treasury"));
 const ChildBountiesPage = lazy(() => import("@/pages/child-bounties"));
@@ -51,7 +50,7 @@ export const router = createBrowserRouter([
     path: "/",
     element: <Layout />,
     children: [
-      { index: true, element: withSuspense(DashboardPage) },
+      { index: true, element: <Navigate to="/referenda" replace /> },
       { path: "referenda", element: withSuspense(ReferendaPage) },
       { path: "treasury", element: withSuspense(TreasuryPage) },
       { path: "child-bounties", element: withSuspense(ChildBountiesPage) },

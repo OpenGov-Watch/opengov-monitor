@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router";
+import { useState, useEffect } from "react";
 import { LucideIcon, LogIn, LogOut, User } from "lucide-react";
 import {
   Vote,
@@ -7,7 +8,6 @@ import {
   Users,
   Calendar,
   UserCheck,
-  Home,
   Clock,
   TimerOff,
   ScrollText,
@@ -31,16 +31,16 @@ interface NavItem {
 interface NavSection {
   title?: string;
   items: NavItem[];
+  requiresAuth?: boolean;
 }
 
-const navigation: NavSection[] = [
-  {
-    items: [{ name: "Dashboard", href: "/", icon: Home }],
-  },
-  {
-    title: "Analytics",
-    items: [{ name: "All Spending", href: "/spending", icon: PieChart }],
-  },
+interface Dashboard {
+  id: number;
+  name: string;
+}
+
+// Static navigation sections
+const staticNavigation: NavSection[] = [
   {
     title: "Governance",
     items: [
@@ -64,6 +64,15 @@ const navigation: NavSection[] = [
       { name: "Expired Claims", href: "/expired-claims", icon: TimerOff },
     ],
   },
+];
+
+// Sections that require authentication
+const authenticatedNavigation: NavSection[] = [
+  {
+    title: "Analytics",
+    items: [{ name: "All Spending", href: "/spending", icon: PieChart }],
+    requiresAuth: true,
+  },
   {
     title: "Manage",
     items: [
@@ -72,14 +81,12 @@ const navigation: NavSection[] = [
       { name: "Subtreasury", href: "/manage/subtreasury", icon: FileBox },
       { name: "Sync Settings", href: "/manage/sync", icon: RefreshCw },
     ],
-  },
-  {
-    title: "Custom",
-    items: [{ name: "Dashboards", href: "/dashboards", icon: LayoutDashboard }],
+    requiresAuth: true,
   },
   {
     title: "System",
     items: [{ name: "Logs", href: "/logs", icon: ScrollText }],
+    requiresAuth: true,
   },
 ];
 
@@ -87,14 +94,21 @@ export function Sidebar() {
   const location = useLocation();
   const pathname = location.pathname;
   const { isAuthenticated, user, logout, isLoading } = useAuth();
+  const [dashboards, setDashboards] = useState<Dashboard[]>([]);
 
-  // Filter navigation to hide "Manage" section for unauthenticated users
-  const visibleNavigation = navigation.filter((section) => {
-    if (section.title === "Manage" && !isAuthenticated) {
-      return false;
-    }
-    return true;
-  });
+  // Fetch dashboards list
+  useEffect(() => {
+    fetch("/api/dashboards")
+      .then((res) => res.json())
+      .then((data) => setDashboards(data))
+      .catch(() => setDashboards([]));
+  }, []);
+
+  // Build navigation based on auth state
+  const visibleNavigation = [
+    ...staticNavigation,
+    ...(isAuthenticated ? authenticatedNavigation : []),
+  ];
 
   return (
     <div className="flex h-screen w-64 flex-col border-r bg-background">
@@ -133,6 +147,40 @@ export function Sidebar() {
             </div>
           </div>
         ))}
+
+        {/* Dashboards section - always visible, dynamic list */}
+        <div className="mt-6">
+          <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Dashboards
+          </h3>
+          <div className="space-y-1">
+            {dashboards.length === 0 ? (
+              <p className="px-3 py-2 text-sm text-muted-foreground italic">
+                No dashboards
+              </p>
+            ) : (
+              dashboards.map((dashboard) => {
+                const href = `/dashboards/${dashboard.id}`;
+                const isActive = pathname === href || pathname === `${href}/edit`;
+                return (
+                  <Link
+                    key={dashboard.id}
+                    to={href}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-secondary text-secondary-foreground"
+                        : "text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
+                    )}
+                  >
+                    <LayoutDashboard className="h-4 w-4" />
+                    {dashboard.name}
+                  </Link>
+                );
+              })
+            )}
+          </div>
+        </div>
       </nav>
       <div className="border-t p-4 space-y-3">
         {isLoading ? (
