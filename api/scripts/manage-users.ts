@@ -2,6 +2,9 @@
 /**
  * CLI script for managing users in the OpenGov Monitor database.
  *
+ * This script is standalone and doesn't depend on compiled app code,
+ * so it works in both development and production containers.
+ *
  * Usage:
  *   npx tsx scripts/manage-users.ts add <username>     # Create user (prompts for password)
  *   npx tsx scripts/manage-users.ts list               # List all users
@@ -14,20 +17,98 @@
  */
 
 import { createInterface } from "readline";
-import { hashPassword } from "../src/middleware/auth.js";
-import {
-  ensureUsersTable,
-  createUser,
-  getAllUsers,
-  getUserByUsername,
-  deleteUserByUsername,
-} from "../src/db/auth-queries.js";
+import Database from "better-sqlite3";
+import bcrypt from "bcrypt";
+import path from "path";
+import { fileURLToPath } from "url";
 
-// Ensure Users table exists
-ensureUsersTable();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Database path - check environment or use default relative path
+const DB_PATH = process.env.DATABASE_PATH || path.join(__dirname, "../../data/polkadot.db");
+
+// Salt rounds for bcrypt
+const SALT_ROUNDS = 12;
+
+// User type
+interface User {
+  id: number;
+  username: string;
+  password_hash: string;
+  created_at: string;
+}
 
 /**
- * Prompt for password input (hidden).
+ * Get database connection.
+ */
+function getDb(): Database.Database {
+  const db = new Database(DB_PATH);
+  db.pragma("journal_mode = WAL");
+  return db;
+}
+
+/**
+ * Ensure Users table exists.
+ */
+function ensureUsersTable(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS Users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_users_username ON Users (username);
+  `);
+}
+
+/**
+ * Hash a password using bcrypt.
+ */
+async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, SALT_ROUNDS);
+}
+
+/**
+ * Get user by username.
+ */
+function getUserByUsername(db: Database.Database, username: string): User | undefined {
+  return db.prepare("SELECT * FROM Users WHERE username = ?").get(username) as User | undefined;
+}
+
+/**
+ * Get all users.
+ */
+function getAllUsers(db: Database.Database): User[] {
+  return db.prepare("SELECT id, username, created_at FROM Users ORDER BY id").all() as User[];
+}
+
+/**
+ * Create a new user.
+ */
+function createUser(db: Database.Database, username: string, passwordHash: string): User {
+  const result = db.prepare(
+    "INSERT INTO Users (username, password_hash) VALUES (?, ?)"
+  ).run(username, passwordHash);
+
+  return {
+    id: result.lastInsertRowid as number,
+    username,
+    password_hash: passwordHash,
+    created_at: new Date().toISOString(),
+  };
+}
+
+/**
+ * Delete a user by username.
+ */
+function deleteUserByUsername(db: Database.Database, username: string): boolean {
+  const result = db.prepare("DELETE FROM Users WHERE username = ?").run(username);
+  return result.changes > 0;
+}
+
+/**
+ * Prompt for password input.
  */
 async function promptPassword(prompt: string): Promise<string> {
   const rl = createInterface({
@@ -36,8 +117,6 @@ async function promptPassword(prompt: string): Promise<string> {
   });
 
   return new Promise((resolve) => {
-    // Note: This doesn't actually hide input on all terminals,
-    // but it's the best we can do without external dependencies
     rl.question(prompt, (answer) => {
       rl.close();
       resolve(answer);
@@ -54,26 +133,33 @@ async function addUser(username: string): Promise<void> {
     process.exit(1);
   }
 
-  const existing = getUserByUsername(username);
+  const db = getDb();
+  ensureUsersTable(db);
+
+  const existing = getUserByUsername(db, username);
   if (existing) {
     console.error(`Error: User "${username}" already exists`);
+    db.close();
     process.exit(1);
   }
 
   const password = await promptPassword("Enter password: ");
   if (!password || password.length < 8) {
     console.error("Error: Password must be at least 8 characters");
+    db.close();
     process.exit(1);
   }
 
   const confirmPassword = await promptPassword("Confirm password: ");
   if (password !== confirmPassword) {
     console.error("Error: Passwords do not match");
+    db.close();
     process.exit(1);
   }
 
   const hash = await hashPassword(password);
-  const user = createUser(username, hash);
+  const user = createUser(db, username, hash);
+  db.close();
 
   console.log(`\nCreated user: ${user.username} (id: ${user.id})`);
 }
@@ -82,7 +168,11 @@ async function addUser(username: string): Promise<void> {
  * List all users.
  */
 function listUsers(): void {
-  const users = getAllUsers();
+  const db = getDb();
+  ensureUsersTable(db);
+
+  const users = getAllUsers(db);
+  db.close();
 
   if (users.length === 0) {
     console.log("No users found.");
@@ -112,13 +202,19 @@ function removeUser(username: string): void {
     process.exit(1);
   }
 
-  const user = getUserByUsername(username);
+  const db = getDb();
+  ensureUsersTable(db);
+
+  const user = getUserByUsername(db, username);
   if (!user) {
     console.error(`Error: User "${username}" not found`);
+    db.close();
     process.exit(1);
   }
 
-  const deleted = deleteUserByUsername(username);
+  const deleted = deleteUserByUsername(db, username);
+  db.close();
+
   if (deleted) {
     console.log(`Deleted user: ${username}`);
   } else {
@@ -146,6 +242,9 @@ Examples:
   npx tsx scripts/manage-users.ts add admin
   npx tsx scripts/manage-users.ts list
   npx tsx scripts/manage-users.ts delete olduser
+
+Environment:
+  DATABASE_PATH      Path to SQLite database (default: ../data/polkadot.db)
 `);
 }
 
