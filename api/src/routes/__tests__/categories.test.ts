@@ -15,6 +15,11 @@ vi.mock("../../db/index.js", () => ({
   getWritableDatabase: () => testDb,
 }));
 
+// Mock auth middleware to allow all requests in tests
+vi.mock("../../middleware/auth.js", () => ({
+  requireAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
+
 function createApp(): express.Express {
   const app = express();
   app.use(express.json());

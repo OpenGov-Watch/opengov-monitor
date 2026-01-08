@@ -327,6 +327,21 @@ QUERY_CACHE_SCHEMA = TableSchema(
     ]
 )
 
+# Schema for Users (authentication)
+USERS_SCHEMA = TableSchema(
+    name="Users",
+    columns={
+        "id": "INTEGER",
+        "username": "TEXT UNIQUE NOT NULL",
+        "password_hash": "TEXT NOT NULL",
+        "created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+    },
+    primary_key="id",
+    indexes=[
+        ("idx_users_username", ["username"]),
+    ]
+)
+
 # Registry mapping table names to schemas
 SCHEMA_REGISTRY: Dict[str, TableSchema] = {
     "Referenda": REFERENDA_SCHEMA,
@@ -343,6 +358,7 @@ SCHEMA_REGISTRY: Dict[str, TableSchema] = {
     "Dashboards": DASHBOARDS_SCHEMA,
     "Dashboard Components": DASHBOARD_COMPONENTS_SCHEMA,
     "Query Cache": QUERY_CACHE_SCHEMA,
+    "Users": USERS_SCHEMA,
 }
 
 

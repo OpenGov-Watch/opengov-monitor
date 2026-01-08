@@ -7,6 +7,7 @@ async function fetchJSON<T>(path: string, options?: RequestInit): Promise<T> {
     headers: {
       "Content-Type": "application/json",
     },
+    credentials: "include", // Include cookies for session auth
     ...options,
   });
   if (!response.ok) {

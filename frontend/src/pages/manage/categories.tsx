@@ -19,8 +19,9 @@ import {
 import { Label } from "@/components/ui/label";
 import { Pencil, Trash2, Plus } from "lucide-react";
 import type { Category } from "@/lib/db/types";
+import { RequireAuth } from "@/components/auth/require-auth";
 
-export default function CategoriesPage() {
+function CategoriesPageContent() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -220,5 +221,13 @@ export default function CategoriesPage() {
         </Table>
       </div>
     </div>
+  );
+}
+
+export default function CategoriesPage() {
+  return (
+    <RequireAuth>
+      <CategoriesPageContent />
+    </RequireAuth>
   );
 }

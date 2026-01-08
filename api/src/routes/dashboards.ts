@@ -12,6 +12,7 @@ import {
   updateDashboardComponentGrid,
   deleteDashboardComponent,
 } from "../db/queries.js";
+import { requireAuth } from "../middleware/auth.js";
 
 export const dashboardsRouter: Router = Router();
 
@@ -35,7 +36,7 @@ dashboardsRouter.get("/", (req, res) => {
   }
 });
 
-dashboardsRouter.post("/", (req, res) => {
+dashboardsRouter.post("/", requireAuth, (req, res) => {
   try {
     const { name, description } = req.body;
     if (!name) {
@@ -49,7 +50,7 @@ dashboardsRouter.post("/", (req, res) => {
   }
 });
 
-dashboardsRouter.put("/", (req, res) => {
+dashboardsRouter.put("/", requireAuth, (req, res) => {
   try {
     const { id, name, description } = req.body;
     if (id === undefined) {
@@ -67,7 +68,7 @@ dashboardsRouter.put("/", (req, res) => {
   }
 });
 
-dashboardsRouter.delete("/", (req, res) => {
+dashboardsRouter.delete("/", requireAuth, (req, res) => {
   try {
     const id = req.query.id;
     if (!id) {
@@ -109,7 +110,7 @@ dashboardsRouter.get("/components", (req, res) => {
   }
 });
 
-dashboardsRouter.post("/components", (req, res) => {
+dashboardsRouter.post("/components", requireAuth, (req, res) => {
   try {
     const { dashboard_id, name, type, query_config, grid_config, chart_config } = req.body;
 
@@ -153,7 +154,7 @@ dashboardsRouter.post("/components", (req, res) => {
   }
 });
 
-dashboardsRouter.put("/components", (req, res) => {
+dashboardsRouter.put("/components", requireAuth, (req, res) => {
   try {
     const { id, name, type, query_config, grid_config, chart_config, grid_only } = req.body;
 
@@ -196,7 +197,7 @@ dashboardsRouter.put("/components", (req, res) => {
   }
 });
 
-dashboardsRouter.delete("/components", (req, res) => {
+dashboardsRouter.delete("/components", requireAuth, (req, res) => {
   try {
     const id = req.query.id;
     if (!id) {

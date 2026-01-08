@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { getChildBounties, updateChildBounty, bulkUpdateChildBounties, type ChildBountyImportItem } from "../db/queries.js";
+import { requireAuth } from "../middleware/auth.js";
 
 export const childBountiesRouter: Router = Router();
 
@@ -13,7 +14,7 @@ childBountiesRouter.get("/", (_req, res) => {
 });
 
 // Update a single child bounty (all editable fields)
-childBountiesRouter.patch("/:identifier", (req, res) => {
+childBountiesRouter.patch("/:identifier", requireAuth, (req, res) => {
   try {
     const { identifier } = req.params;
     const { category_id, notes, hide_in_spends } = req.body;
@@ -25,7 +26,7 @@ childBountiesRouter.patch("/:identifier", (req, res) => {
 });
 
 // Bulk import from CSV
-childBountiesRouter.post("/import", (req, res) => {
+childBountiesRouter.post("/import", requireAuth, (req, res) => {
   try {
     const { items } = req.body as { items: ChildBountyImportItem[] };
     if (!Array.isArray(items)) {

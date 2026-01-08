@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { getSubtreasury, getSubtreasuryById, createSubtreasury, updateSubtreasury, deleteSubtreasury } from "../db/queries.js";
+import { requireAuth } from "../middleware/auth.js";
 
 export const subtreasuryRouter: Router = Router();
 
@@ -26,7 +27,7 @@ subtreasuryRouter.get("/:id", (req, res) => {
   }
 });
 
-subtreasuryRouter.post("/", (req, res) => {
+subtreasuryRouter.post("/", requireAuth, (req, res) => {
   try {
     const { title } = req.body;
 
@@ -42,7 +43,7 @@ subtreasuryRouter.post("/", (req, res) => {
   }
 });
 
-subtreasuryRouter.put("/:id", (req, res) => {
+subtreasuryRouter.put("/:id", requireAuth, (req, res) => {
   try {
     const urlId = parseInt(req.params.id);
     if (isNaN(urlId)) {
@@ -64,7 +65,7 @@ subtreasuryRouter.put("/:id", (req, res) => {
   }
 });
 
-subtreasuryRouter.delete("/:id", (req, res) => {
+subtreasuryRouter.delete("/:id", requireAuth, (req, res) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {

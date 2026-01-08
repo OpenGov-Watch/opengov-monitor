@@ -352,6 +352,21 @@ Manually tracked spending that doesn't fit other categories.
 | `category` | string | Category name from Categories table |
 | `subcategory` | string | Subcategory name from Categories table |
 
+### Users
+
+Authentication users managed via CLI (`pnpm users`).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | int | Auto-incrementing ID (primary key) |
+| `username` | string | Unique username |
+| `password_hash` | string | bcrypt hashed password |
+| `created_at` | datetime | Creation timestamp |
+
+**Unique constraint:** username must be unique.
+
+**Note:** Users are created via CLI only, not through the frontend.
+
 ---
 
 ## Dashboard Tables

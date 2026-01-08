@@ -1,7 +1,11 @@
 import express from "express";
 import cors from "cors";
+import session from "express-session";
+import { createSessionStore } from "./db/session-store.js";
+import { ensureUsersTable } from "./db/auth-queries.js";
 
 // Import route handlers
+import { authRouter } from "./routes/auth.js";
 import { referendaRouter } from "./routes/referenda.js";
 import { treasuryRouter } from "./routes/treasury.js";
 import { childBountiesRouter } from "./routes/child-bounties.js";
@@ -21,9 +25,34 @@ import { syncRouter } from "./routes/sync.js";
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Ensure Users table exists on startup
+ensureUsersTable();
+
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: true, // Allow all origins (configure specific origins in production)
+    credentials: true, // Required for cookies
+  })
+);
 app.use(express.json());
+
+// Session middleware
+app.use(
+  session({
+    store: createSessionStore(),
+    secret: process.env.SESSION_SECRET || "dev-secret-change-in-production",
+    name: "connect.sid",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours default
+    },
+  })
+);
 
 // Health check
 app.get("/api/health", (_req, res) => {
@@ -31,6 +60,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 // Mount routes
+app.use("/api/auth", authRouter);
 app.use("/api/referenda", referendaRouter);
 app.use("/api/treasury", treasuryRouter);
 app.use("/api/child-bounties", childBountiesRouter);

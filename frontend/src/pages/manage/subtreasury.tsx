@@ -28,6 +28,7 @@ import { Label } from "@/components/ui/label";
 import { Pencil, Trash2, Plus, ExternalLink, ChevronRight } from "lucide-react";
 import type { Subtreasury, Category } from "@/lib/db/types";
 import { formatNumber, formatDate, cn } from "@/lib/utils";
+import { RequireAuth } from "@/components/auth/require-auth";
 
 interface FormData {
   id?: number;
@@ -58,7 +59,7 @@ const emptyFormData: FormData = {
   url: "",
 };
 
-export default function SubtreasuryPage() {
+function SubtreasuryPageContent() {
   const [entries, setEntries] = useState<Subtreasury[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -481,5 +482,13 @@ export default function SubtreasuryPage() {
         </Table>
       </div>
     </div>
+  );
+}
+
+export default function SubtreasuryPage() {
+  return (
+    <RequireAuth>
+      <SubtreasuryPageContent />
+    </RequireAuth>
   );
 }

@@ -171,6 +171,44 @@ See [Frontend Architecture](frontend.md) for detailed implementation.
 
 ---
 
+## Authentication
+
+The application uses server-side session authentication for write operations.
+
+### Overview
+
+- Session-based authentication using `express-session`
+- Sessions stored in SQLite (`data/sessions.db`)
+- Password hashing with bcrypt (cost factor 12)
+- User management via CLI only (no registration UI)
+
+### Protected Operations
+
+All mutating API endpoints require authentication:
+- Referenda/Child Bounties categorization (PATCH, POST /import)
+- Categories, Bounties, Subtreasury (POST, PUT, DELETE)
+- Dashboards and Dashboard Components (POST, PUT, DELETE)
+
+### User Management
+
+```bash
+cd api
+pnpm users add <username>    # Create user
+pnpm users list              # List users
+pnpm users delete <username> # Delete user
+```
+
+### Migration
+
+Run before first use:
+```bash
+cd api
+npx tsx scripts/migrate-auth.ts
+pnpm users add admin
+```
+
+---
+
 ## Configuration
 
 ### Environment Variables
@@ -183,6 +221,7 @@ See [Frontend Architecture](frontend.md) for detailed implementation.
 | `OPENGOV_MONITOR_LOG_DB` | Backend | Log database path |
 | `PORT` | API | API server port (default: 3001) |
 | `DATABASE_PATH` | API | SQLite path (default: `../data/polkadot.db`) |
+| `SESSION_SECRET` | API | Session encryption secret (32+ chars) |
 
 ### config.yaml (Backend)
 

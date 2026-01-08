@@ -53,6 +53,7 @@ opengov-monitor/
 | Fellowship Salary Cycles/Claimants/Payments | Subsquare API |
 | Categories, Bounties, Subtreasury | Manual (frontend UI via API) |
 | Dashboards, Dashboard Components | Manual (frontend UI via API) |
+| Users | Manual (CLI via `pnpm users`) |
 
 ### Views
 | View | Description |
@@ -123,9 +124,49 @@ Requires `pnpm.onlyBuiltDependencies` in root package.json to allow native build
 | API specifics | [api/CLAUDE.md](api/CLAUDE.md) |
 | Frontend specifics | [frontend/CLAUDE.md](frontend/CLAUDE.md) |
 
+## Authentication
+
+The application uses server-side session authentication for write operations.
+
+### User Management
+```bash
+# From the api directory
+pnpm users add <username>    # Create user (prompts for password)
+pnpm users list              # List all users
+pnpm users delete <username> # Delete user
+```
+
+### Protected Routes
+All mutating API endpoints require authentication:
+- `PATCH /api/referenda/:id`, `POST /api/referenda/import`
+- `PATCH /api/child-bounties/:identifier`, `POST /api/child-bounties/import`
+- All POST/PUT/DELETE on `/api/categories`, `/api/bounties`, `/api/subtreasury`, `/api/dashboards`
+
+### Session Configuration
+- Sessions stored in `data/sessions.db` (SQLite)
+- Default session: 24 hours, "Remember me": 30 days
+- Cookies: httpOnly, sameSite=lax, secure in production
+
+### Frontend Auth
+- Login page: `/login`
+- "Manage" section hidden for unauthenticated users
+- Protected pages redirect to login with return URL
+
+### Environment Variables
+- `SESSION_SECRET`: Required for production (32+ character random string)
+  - Generate with: `openssl rand -base64 32`
+
+### Migration
+Run before first use or after updates:
+```bash
+cd api
+npx tsx scripts/migrate-auth.ts
+pnpm users add admin
+```
+
 ## Configuration
 - **backend/config.yaml**: Fetch limits, block time projection, salary toggle (`-1` to skip)
-- **Environment vars**: `PORT`, `DATABASE_PATH`, `OPENGOV_MONITOR_SPREADSHEET_ID`, `OPENGOV_MONITOR_CREDENTIALS`
+- **Environment vars**: `PORT`, `DATABASE_PATH`, `SESSION_SECRET`, `OPENGOV_MONITOR_SPREADSHEET_ID`, `OPENGOV_MONITOR_CREDENTIALS`
 
 # Tool usage:
 - Bash: never command multiple commands via `&&`. Instead, use them one after the other.

@@ -27,8 +27,9 @@ import { Label } from "@/components/ui/label";
 import { Pencil, Plus, ExternalLink, ChevronRight } from "lucide-react";
 import type { Bounty, Category } from "@/lib/db/types";
 import { formatNumber, cn } from "@/lib/utils";
+import { RequireAuth } from "@/components/auth/require-auth";
 
-export default function BountiesPage() {
+function BountiesPageContent() {
   const [bounties, setBounties] = useState<Bounty[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -354,5 +355,13 @@ export default function BountiesPage() {
         </Table>
       </div>
     </div>
+  );
+}
+
+export default function BountiesPage() {
+  return (
+    <RequireAuth>
+      <BountiesPageContent />
+    </RequireAuth>
   );
 }

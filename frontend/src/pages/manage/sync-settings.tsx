@@ -15,10 +15,11 @@ import {
   parseReferendaCSV,
   parseChildBountiesCSV,
 } from "@/lib/csv-parser";
+import { RequireAuth } from "@/components/auth/require-auth";
 
 type StatusType = { type: "success" | "error"; message: string } | null;
 
-export default function SyncSettingsPage() {
+function SyncSettingsPageContent() {
   const [referendaFile, setReferendaFile] = useState<File | null>(null);
   const [childBountiesFile, setChildBountiesFile] = useState<File | null>(null);
   const [status, setStatus] = useState<StatusType>(null);
@@ -327,5 +328,13 @@ export default function SyncSettingsPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function SyncSettingsPage() {
+  return (
+    <RequireAuth>
+      <SyncSettingsPageContent />
+    </RequireAuth>
   );
 }

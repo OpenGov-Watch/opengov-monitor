@@ -217,6 +217,71 @@ Note: CoinGecko has rate limits on the free tier.
 
 The Node.js Express API server (`api/`) provides REST endpoints for data retrieval and CRUD operations. The API runs on port 3001 and the frontend proxies requests to it.
 
+### Authentication
+
+The API uses server-side sessions for authentication. All mutating endpoints (POST, PUT, PATCH, DELETE) on protected routes require authentication.
+
+#### Login
+```
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "secret",
+  "rememberMe": true
+}
+```
+
+Returns:
+```json
+{
+  "success": true,
+  "user": { "id": 1, "username": "admin" }
+}
+```
+
+Error (401):
+```json
+{ "error": "Invalid credentials" }
+```
+
+#### Logout
+```
+POST /api/auth/logout
+```
+
+Returns: `{ "success": true }`
+
+#### Check Authentication Status
+```
+GET /api/auth/me
+```
+
+Returns (authenticated):
+```json
+{
+  "authenticated": true,
+  "user": { "id": 1, "username": "admin" }
+}
+```
+
+Returns (not authenticated):
+```json
+{ "authenticated": false }
+```
+
+#### Session Configuration
+
+| Setting | Value |
+|---------|-------|
+| Default session duration | 24 hours |
+| "Remember me" duration | 30 days |
+| Cookie flags | httpOnly, sameSite=lax, secure (production) |
+| Session store | SQLite (`data/sessions.db`) |
+
+---
+
 ### Read-Only Data Endpoints
 
 | Endpoint | Description |
@@ -235,6 +300,8 @@ The Node.js Express API server (`api/`) provides REST endpoints for data retriev
 | `GET /api/health` | Health check |
 
 ### Referenda Categorization
+
+**Note:** These endpoints require authentication.
 
 #### Update Single Referendum
 ```
@@ -265,6 +332,8 @@ Content-Type: application/json
 Returns: `{ "updated": 2 }` - count of records updated.
 
 ### Child Bounties Categorization
+
+**Note:** These endpoints require authentication.
 
 #### Update Single Child Bounty
 ```
@@ -311,6 +380,8 @@ GET /api/sync/defaults/child-bounties
 Returns CSV content with default category mappings for child bounties.
 
 ### Dashboard CRUD
+
+**Note:** POST, PUT, and DELETE endpoints require authentication.
 
 #### List/Get Dashboards
 ```

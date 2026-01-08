@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { getBounties, getBountyById, upsertBounty, updateBountyCategory, deleteBounty } from "../db/queries.js";
+import { requireAuth } from "../middleware/auth.js";
 
 export const bountiesRouter: Router = Router();
 
@@ -26,7 +27,7 @@ bountiesRouter.get("/:id", (req, res) => {
   }
 });
 
-bountiesRouter.post("/", (req, res) => {
+bountiesRouter.post("/", requireAuth, (req, res) => {
   try {
     const { id } = req.body;
 
@@ -48,7 +49,7 @@ bountiesRouter.post("/", (req, res) => {
   }
 });
 
-bountiesRouter.put("/:id", (req, res) => {
+bountiesRouter.put("/:id", requireAuth, (req, res) => {
   try {
     const urlId = parseInt(req.params.id);
     if (isNaN(urlId)) {
@@ -70,7 +71,7 @@ bountiesRouter.put("/:id", (req, res) => {
   }
 });
 
-bountiesRouter.patch("/:id/category", (req, res) => {
+bountiesRouter.patch("/:id/category", requireAuth, (req, res) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
@@ -86,7 +87,7 @@ bountiesRouter.patch("/:id/category", (req, res) => {
   }
 });
 
-bountiesRouter.delete("/:id", (req, res) => {
+bountiesRouter.delete("/:id", requireAuth, (req, res) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {

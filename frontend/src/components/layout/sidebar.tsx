@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router";
-import { LucideIcon } from "lucide-react";
+import { LucideIcon, LogIn, LogOut, User } from "lucide-react";
 import {
   Vote,
   Wallet,
@@ -19,6 +19,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/auth-context";
+import { Button } from "@/components/ui/button";
 
 interface NavItem {
   name: string;
@@ -84,6 +86,15 @@ const navigation: NavSection[] = [
 export function Sidebar() {
   const location = useLocation();
   const pathname = location.pathname;
+  const { isAuthenticated, user, logout, isLoading } = useAuth();
+
+  // Filter navigation to hide "Manage" section for unauthenticated users
+  const visibleNavigation = navigation.filter((section) => {
+    if (section.title === "Manage" && !isAuthenticated) {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <div className="flex h-screen w-64 flex-col border-r bg-background">
@@ -93,7 +104,7 @@ export function Sidebar() {
         </Link>
       </div>
       <nav className="flex-1 overflow-y-auto p-4">
-        {navigation.map((section, sectionIdx) => (
+        {visibleNavigation.map((section, sectionIdx) => (
           <div key={section.title || sectionIdx} className={cn(sectionIdx > 0 && "mt-6")}>
             {section.title && (
               <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -123,7 +134,34 @@ export function Sidebar() {
           </div>
         ))}
       </nav>
-      <div className="border-t p-4">
+      <div className="border-t p-4 space-y-3">
+        {isLoading ? (
+          <div className="h-8 animate-pulse bg-muted rounded" />
+        ) : isAuthenticated && user ? (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <User className="h-4 w-4" />
+              <span className="truncate max-w-[120px]">{user.username}</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => logout()}
+              className="h-8 w-8 p-0"
+              title="Sign out"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <Link
+            to="/login"
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <LogIn className="h-4 w-4" />
+            Sign in
+          </Link>
+        )}
         <p className="text-xs text-muted-foreground">
           Polkadot Governance Data
         </p>

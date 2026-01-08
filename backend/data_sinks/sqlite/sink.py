@@ -268,6 +268,7 @@ class SQLiteSink(DataSink):
             "Subtreasury",
             "Dashboards",
             "Dashboard Components",
+            "Users",
         ]
 
         for table_name in manual_tables:

@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { getCategories, createCategory, updateCategory, deleteCategory, findOrCreateCategory } from "../db/queries.js";
+import { requireAuth } from "../middleware/auth.js";
 
 export const categoriesRouter: Router = Router();
 
 // Find or create a category by category/subcategory strings
 // Useful for CSV imports and backwards-compatible writes
-categoriesRouter.post("/lookup", (req, res) => {
+categoriesRouter.post("/lookup", requireAuth, (req, res) => {
   try {
     const { category, subcategory } = req.body;
 
@@ -30,7 +31,7 @@ categoriesRouter.get("/", (_req, res) => {
   }
 });
 
-categoriesRouter.post("/", (req, res) => {
+categoriesRouter.post("/", requireAuth, (req, res) => {
   try {
     const { category, subcategory } = req.body;
 
@@ -46,7 +47,7 @@ categoriesRouter.post("/", (req, res) => {
   }
 });
 
-categoriesRouter.put("/:id", (req, res) => {
+categoriesRouter.put("/:id", requireAuth, (req, res) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
@@ -68,7 +69,7 @@ categoriesRouter.put("/:id", (req, res) => {
   }
 });
 
-categoriesRouter.delete("/:id", (req, res) => {
+categoriesRouter.delete("/:id", requireAuth, (req, res) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {

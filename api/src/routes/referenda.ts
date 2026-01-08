@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { getReferenda, updateReferendum, bulkUpdateReferenda, type ReferendumImportItem } from "../db/queries.js";
+import { requireAuth } from "../middleware/auth.js";
 
 export const referendaRouter: Router = Router();
 
@@ -13,7 +14,7 @@ referendaRouter.get("/", (_req, res) => {
 });
 
 // Update a single referendum (all editable fields)
-referendaRouter.patch("/:id", (req, res) => {
+referendaRouter.patch("/:id", requireAuth, (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const { category_id, notes, hide_in_spends } = req.body;
@@ -25,7 +26,7 @@ referendaRouter.patch("/:id", (req, res) => {
 });
 
 // Bulk import from CSV
-referendaRouter.post("/import", (req, res) => {
+referendaRouter.post("/import", requireAuth, (req, res) => {
   try {
     const { items } = req.body as { items: ReferendumImportItem[] };
     if (!Array.isArray(items)) {

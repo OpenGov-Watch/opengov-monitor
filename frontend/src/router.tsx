@@ -22,6 +22,7 @@ const ManageSyncSettingsPage = lazy(() => import("@/pages/manage/sync-settings")
 const DashboardsListPage = lazy(() => import("@/pages/dashboards/index"));
 const DashboardViewPage = lazy(() => import("@/pages/dashboards/view"));
 const DashboardEditPage = lazy(() => import("@/pages/dashboards/edit"));
+const LoginPage = lazy(() => import("@/pages/login"));
 
 function PageSkeleton() {
   return (
@@ -41,6 +42,11 @@ function withSuspense(Component: React.ComponentType) {
 }
 
 export const router = createBrowserRouter([
+  // Login page (outside main layout)
+  {
+    path: "/login",
+    element: withSuspense(LoginPage),
+  },
   {
     path: "/",
     element: <Layout />,
