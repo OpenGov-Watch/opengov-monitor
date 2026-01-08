@@ -29,14 +29,12 @@ RUN pnpm install --frozen-lockfile
 COPY api/ ./api/
 RUN pnpm --filter api build
 
-# Stage 3: Runtime
-FROM debian:bookworm-slim
+# Stage 3: Runtime (use node:20-slim to match build stage Node version)
+FROM node:20-slim
 
-# Install runtime dependencies
+# Install runtime dependencies (Node already included in base image)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx \
-    nodejs \
-    npm \
     python3 \
     python3-pip \
     python3-venv \
