@@ -207,10 +207,12 @@ Formats value based on render type.
 
 ### formatCurrencyValue(value, config)
 
+All currencies use the format `"X,XXX CURRENCY"` (value followed by currency code).
+
 | Value | Currency | Decimals | Expected |
 |-------|----------|----------|----------|
 | `1234567` | DOT | 0 | `"1,234,567 DOT"` |
-| `1234.56` | USD | 0 | `"$1,235"` |
+| `1234.56` | USD | 0 | `"1,235 USD"` |
 | `1234.567` | USDC | 2 | `"1,234.57 USDC"` |
 | `null` | any | any | `"-"` |
 
@@ -241,16 +243,16 @@ Formats value based on render type.
 
 ### formatAbbreviated(value, config)
 
-Formats large numbers with K/M/B suffixes for chart axes.
+Formats large numbers with K/M/B suffixes for chart axes. All currencies use suffix format.
 
 | Value | Currency | Expected |
 |-------|----------|----------|
-| `1500000000` | USD | `"$1.5B"` |
+| `1500000000` | USD | `"1.5B USD"` |
 | `1500000000` | DOT | `"1.5B DOT"` |
-| `2500000` | USD | `"$2.5M"` |
+| `2500000` | USD | `"2.5M USD"` |
 | `2500000` | null | `"2.5M"` |
-| `1500` | USD | `"$1.5K"` |
-| `150` | USD | `"$150"` |
+| `1500` | USD | `"1.5K USD"` |
+| `150` | USD | `"150 USD"` |
 | `null` | any | `"-"` |
 
 **Thresholds:**
@@ -324,3 +326,42 @@ Generates URL for link columns.
 | `status` | `badge` |
 | `beneficiary` | `address` |
 | `title` | `text` |
+
+---
+
+## Dashboard Column Mapping
+
+When dashboard components execute queries with aggregations, the result column names differ from source columns:
+
+| Source Column | Aggregation | Result Column |
+|---------------|-------------|---------------|
+| `USD_latest` | `SUM` | `sum_usd_latest` |
+| `DOT_latest` | `AVG` | `avg_dot_latest` |
+| `amount` | `COUNT` | `count_amount` |
+
+The auto-detection patterns (e.g., `USD_*`) won't match aggregated column names like `sum_usd_latest`.
+
+### Solution: Column Mapping
+
+Dashboard components pass a `columnMapping` prop to charts and tables that maps result column keys back to source columns:
+
+```typescript
+// Built from QueryConfig.columns
+const columnMapping = {
+  "sum_usd_latest": "USD_latest",
+  "avg_dot_latest": "DOT_latest"
+};
+
+// Used in config lookup
+const sourceColumn = columnMapping[resultColumn] ?? resultColumn;
+const config = getColumnConfig(tableName, sourceColumn);
+```
+
+### Components Using Column Mapping
+
+| Component | Prop | Usage |
+|-----------|------|-------|
+| `DashboardDataTable` | `columnMapping` | Cell formatting |
+| `DashboardBarChart` | `columnMapping` | Tooltip & Y-axis formatting |
+| `DashboardLineChart` | `columnMapping` | Tooltip & Y-axis formatting |
+| `DashboardPieChart` | `columnMapping` | Tooltip formatting |
