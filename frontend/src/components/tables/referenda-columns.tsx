@@ -7,8 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatNumber, formatCurrency, formatDate } from "@/lib/utils";
 import type { Referendum, Category } from "@/lib/db/types";
 import {
-  EditableCategoryCell,
-  EditableSubcategoryCell,
+  CategorySelector,
   EditableNotesCell,
   EditableHideCheckbox,
 } from "@/components/data-table/editable-cells";
@@ -34,7 +33,10 @@ function getStatusVariant(
 
 export interface ReferendaColumnsOptions {
   categories: Category[];
-  onUpdate: (id: number, data: Partial<Referendum>) => void;
+  onUpdate: (
+    id: number,
+    data: { category_id?: number | null; notes?: string | null; hide_in_spends?: number | null }
+  ) => void;
 }
 
 export function createReferendaColumns(
@@ -157,40 +159,25 @@ export function createReferendaColumns(
       cell: ({ row }) => formatDate(row.getValue("latest_status_change")),
     },
     {
-      accessorKey: "category",
+      id: "category",
+      accessorFn: (row) =>
+        row.category ? `${row.category} > ${row.subcategory || ""}` : null,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Category" />
       ),
       cell: ({ row }) => (
-        <EditableCategoryCell
-          value={row.original.category}
+        <CategorySelector
+          categoryId={row.original.category_id}
           categories={categories}
-          onChange={(category) => {
-            // When category changes, also clear subcategory
-            onUpdate(row.original.id, { category, subcategory: null });
+          onChange={(category_id) => {
+            onUpdate(row.original.id, { category_id });
           }}
         />
       ),
-      filterFn: (row, id, value) => {
-        const category = row.getValue(id) as string | null;
+      filterFn: (row, _id, value) => {
+        const category = row.original.category;
         return value.includes(category || "");
       },
-    },
-    {
-      accessorKey: "subcategory",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Subcategory" />
-      ),
-      cell: ({ row }) => (
-        <EditableSubcategoryCell
-          value={row.original.subcategory}
-          category={row.original.category}
-          categories={categories}
-          onChange={(subcategory) => {
-            onUpdate(row.original.id, { subcategory });
-          }}
-        />
-      ),
     },
     {
       accessorKey: "notes",

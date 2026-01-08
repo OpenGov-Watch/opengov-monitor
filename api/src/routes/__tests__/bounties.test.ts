@@ -23,11 +23,15 @@ function createApp(): express.Express {
 }
 
 const SCHEMA_SQL = `
+  CREATE TABLE IF NOT EXISTS "Categories" (
+    "id" INTEGER PRIMARY KEY,
+    "category" TEXT,
+    "subcategory" TEXT
+  );
   CREATE TABLE IF NOT EXISTS "Bounties" (
     "id" INTEGER PRIMARY KEY,
     "name" TEXT,
-    "category" TEXT,
-    "subcategory" TEXT,
+    "category_id" INTEGER,
     "remaining_dot" REAL,
     "url" TEXT
   );
@@ -43,6 +47,15 @@ beforeAll(() => {
 
 beforeEach(() => {
   testDb.exec('DELETE FROM "Bounties"');
+  testDb.exec('DELETE FROM "Categories"');
+  // Insert test categories
+  testDb.exec(`
+    INSERT INTO "Categories" (id, category, subcategory)
+    VALUES
+      (1, 'Development', 'Core'),
+      (2, 'Marketing', 'Events'),
+      (3, 'Development', '')
+  `);
 });
 
 afterAll(() => {
@@ -59,9 +72,9 @@ describe("GET /api/bounties", () => {
 
   it("returns all bounties", async () => {
     testDb.exec(`
-      INSERT INTO "Bounties" (id, name, category, subcategory, remaining_dot, url)
-      VALUES (1, 'Bounty 1', 'Development', 'Core', 1000.5, 'https://example.com/1'),
-             (2, 'Bounty 2', 'Marketing', null, 500.0, 'https://example.com/2')
+      INSERT INTO "Bounties" (id, name, category_id, remaining_dot, url)
+      VALUES (1, 'Bounty 1', 1, 1000.5, 'https://example.com/1'),
+             (2, 'Bounty 2', 2, 500.0, 'https://example.com/2')
     `);
 
     const response = await request(app).get("/api/bounties");
@@ -77,8 +90,8 @@ describe("GET /api/bounties", () => {
 describe("GET /api/bounties/:id", () => {
   it("returns single bounty by id", async () => {
     testDb.exec(`
-      INSERT INTO "Bounties" (id, name, category, subcategory, remaining_dot, url)
-      VALUES (1, 'Bounty 1', 'Development', 'Core', 1000.5, 'https://example.com/1')
+      INSERT INTO "Bounties" (id, name, category_id, remaining_dot, url)
+      VALUES (1, 'Bounty 1', 1, 1000.5, 'https://example.com/1')
     `);
 
     const response = await request(app).get("/api/bounties/1");
@@ -86,7 +99,7 @@ describe("GET /api/bounties/:id", () => {
     expect(response.status).toBe(200);
     expect(response.body.id).toBe(1);
     expect(response.body.name).toBe("Bounty 1");
-    expect(response.body.category).toBe("Development");
+    expect(response.body.category_id).toBe(1);
   });
 
   it("returns 404 for non-existent bounty", async () => {
@@ -104,8 +117,7 @@ describe("POST /api/bounties", () => {
       .send({
         id: 1,
         name: "New Bounty",
-        category: "Development",
-        subcategory: "Core",
+        category_id: 1,
         remaining_dot: 1000.0,
         url: "https://example.com/new",
       });
@@ -132,8 +144,8 @@ describe("POST /api/bounties", () => {
 describe("PUT /api/bounties/:id", () => {
   it("updates existing bounty", async () => {
     testDb.exec(`
-      INSERT INTO "Bounties" (id, name, category, subcategory, remaining_dot, url)
-      VALUES (1, 'Original', 'Dev', null, 1000, null)
+      INSERT INTO "Bounties" (id, name, category_id, remaining_dot, url)
+      VALUES (1, 'Original', 3, 1000, null)
     `);
 
     const response = await request(app)
@@ -141,8 +153,7 @@ describe("PUT /api/bounties/:id", () => {
       .send({
         id: 1,
         name: "Updated Bounty",
-        category: "Marketing",
-        subcategory: "Events",
+        category_id: 2,
         remaining_dot: 500.0,
         url: "https://updated.com",
       });
@@ -153,42 +164,40 @@ describe("PUT /api/bounties/:id", () => {
     // Verify update
     const result = testDb.prepare('SELECT * FROM "Bounties" WHERE id = 1').get() as {
       name: string;
-      category: string;
+      category_id: number;
     };
     expect(result.name).toBe("Updated Bounty");
-    expect(result.category).toBe("Marketing");
+    expect(result.category_id).toBe(2);
   });
 });
 
 describe("PATCH /api/bounties/:id/category", () => {
-  it("updates bounty category", async () => {
+  it("updates bounty category_id", async () => {
     testDb.exec(`
-      INSERT INTO "Bounties" (id, name, category, subcategory, remaining_dot, url)
-      VALUES (1, 'Test', null, null, 1000, null)
+      INSERT INTO "Bounties" (id, name, category_id, remaining_dot, url)
+      VALUES (1, 'Test', null, 1000, null)
     `);
 
     const response = await request(app)
       .patch("/api/bounties/1/category")
-      .send({ category: "New Category", subcategory: "New Sub" });
+      .send({ category_id: 1 });
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
 
     // Verify update
-    const result = testDb.prepare('SELECT category, subcategory FROM "Bounties" WHERE id = 1').get() as {
-      category: string;
-      subcategory: string;
+    const result = testDb.prepare('SELECT category_id FROM "Bounties" WHERE id = 1').get() as {
+      category_id: number;
     };
-    expect(result.category).toBe("New Category");
-    expect(result.subcategory).toBe("New Sub");
+    expect(result.category_id).toBe(1);
   });
 });
 
 describe("DELETE /api/bounties/:id", () => {
   it("deletes existing bounty", async () => {
     testDb.exec(`
-      INSERT INTO "Bounties" (id, name, category, subcategory, remaining_dot, url)
-      VALUES (1, 'ToDelete', null, null, 1000, null)
+      INSERT INTO "Bounties" (id, name, category_id, remaining_dot, url)
+      VALUES (1, 'ToDelete', null, 1000, null)
     `);
 
     const response = await request(app).delete("/api/bounties/1");

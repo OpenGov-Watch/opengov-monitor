@@ -102,13 +102,13 @@ describe("API Client", () => {
     it("makes PATCH request with JSON body", async () => {
       mockFetch.mockImplementationOnce(() => mockResponse({ success: true }));
 
-      await api.referenda.update(123, { category: "Category", subcategory: "Subcategory" });
+      await api.referenda.update(123, { category_id: 5 });
 
       expect(mockFetch).toHaveBeenCalledWith(
         "/api/referenda/123",
         expect.objectContaining({
           method: "PATCH",
-          body: JSON.stringify({ category: "Category", subcategory: "Subcategory" }),
+          body: JSON.stringify({ category_id: 5 }),
         })
       );
     });
@@ -184,7 +184,7 @@ describe("API Client", () => {
     it("update sends PATCH to /referenda/:id", async () => {
       mockFetch.mockImplementationOnce(() => mockResponse({ success: true }));
 
-      await api.referenda.update(42, { category: "Dev", subcategory: "Core" });
+      await api.referenda.update(42, { category_id: 1 });
 
       expect(mockFetch).toHaveBeenCalledWith(
         "/api/referenda/42",
@@ -197,7 +197,7 @@ describe("API Client", () => {
     it("encodes identifier in URL", async () => {
       mockFetch.mockImplementationOnce(() => mockResponse({ success: true }));
 
-      await api.childBounties.update("1_23", { category: "Category" });
+      await api.childBounties.update("1_23", { category_id: 1 });
 
       expect(mockFetch).toHaveBeenCalledWith(
         "/api/child-bounties/1_23",
@@ -208,11 +208,45 @@ describe("API Client", () => {
     it("handles special characters in identifier", async () => {
       mockFetch.mockImplementationOnce(() => mockResponse({ success: true }));
 
-      await api.childBounties.update("test/special", { category: "Category" });
+      await api.childBounties.update("test/special", { category_id: 1 });
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining(encodeURIComponent("test/special")),
         expect.any(Object)
+      );
+    });
+  });
+
+  describe("categories namespace", () => {
+    it("lookup sends POST with category and subcategory", async () => {
+      mockFetch.mockImplementationOnce(() =>
+        mockResponse({ id: 1, category: "Development", subcategory: "Core" })
+      );
+
+      const result = await api.categories.lookup("Development", "Core");
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/categories/lookup",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ category: "Development", subcategory: "Core" }),
+        })
+      );
+      expect(result.id).toBe(1);
+    });
+
+    it("lookup handles empty subcategory", async () => {
+      mockFetch.mockImplementationOnce(() =>
+        mockResponse({ id: 2, category: "Marketing", subcategory: "" })
+      );
+
+      await api.categories.lookup("Marketing", "");
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/categories/lookup",
+        expect.objectContaining({
+          body: JSON.stringify({ category: "Marketing", subcategory: "" }),
+        })
       );
     });
   });
@@ -271,7 +305,7 @@ describe("API Client", () => {
     it("updateCategory sends PATCH", async () => {
       mockFetch.mockImplementationOnce(() => mockResponse({ success: true }));
 
-      await api.bounties.updateCategory(1, "Category", "Subcategory");
+      await api.bounties.updateCategory(1, 5);
 
       expect(mockFetch).toHaveBeenCalledWith(
         "/api/bounties/1/category",

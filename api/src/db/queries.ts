@@ -337,6 +337,7 @@ export function getAllSpending(): AllSpending[] {
 
   // Use custom query instead of broken all_spending view
   // Respects hide_in_spends flag for referenda and child bounties
+  // JOINs with Categories table to get category/subcategory names
   const sql = `
     -- Direct Spend: Referenda with DOT value but NO Treasury link
     SELECT
@@ -345,8 +346,8 @@ export function getAllSpending(): AllSpending[] {
         r.latest_status_change,
         r.DOT_latest,
         r.USD_latest,
-        r.category,
-        r.subcategory,
+        rc.category,
+        rc.subcategory,
         r.title,
         r.DOT_component,
         r.USDC_component,
@@ -354,6 +355,7 @@ export function getAllSpending(): AllSpending[] {
         r.url
     FROM Referenda r
     LEFT JOIN Treasury t ON r.id = t.referendumIndex
+    LEFT JOIN Categories rc ON r.category_id = rc.id
     WHERE t.id IS NULL
       AND r.DOT_latest > 0
       AND r.status = 'Executed'
@@ -381,14 +383,15 @@ export function getAllSpending(): AllSpending[] {
     UNION ALL
 
     -- Bounty (Child): Child bounties that have been claimed
+    -- Falls back to parent bounty category if child has none
     SELECT
         'Bounty' AS type,
         'cb-' || cb.identifier AS id,
         cb.latest_status_change,
         cb.DOT AS DOT_latest,
         cb.USD_latest,
-        COALESCE(cb.category, b.category) AS category,
-        COALESCE(cb.subcategory, b.subcategory) AS subcategory,
+        COALESCE(cbc.category, bc.category) AS category,
+        COALESCE(cbc.subcategory, bc.subcategory) AS subcategory,
         cb.description AS title,
         cb.DOT AS DOT_component,
         NULL AS USDC_component,
@@ -396,6 +399,8 @@ export function getAllSpending(): AllSpending[] {
         cb.url
     FROM "Child Bounties" cb
     LEFT JOIN Bounties b ON cb.parentBountyId = b.id
+    LEFT JOIN Categories cbc ON cb.category_id = cbc.id
+    LEFT JOIN Categories bc ON b.category_id = bc.id
     WHERE cb.status = 'Claimed'
       AND (cb.hide_in_spends IS NULL OR cb.hide_in_spends = 0)
 
@@ -408,14 +413,15 @@ export function getAllSpending(): AllSpending[] {
         s.latest_status_change,
         s.DOT_latest,
         s.USD_latest,
-        s.category,
-        s.subcategory,
+        sc.category,
+        sc.subcategory,
         s.title,
         s.DOT_component,
         s.USDC_component,
         s.USDT_component,
         s.url
     FROM Subtreasury s
+    LEFT JOIN Categories sc ON s.category_id = sc.id
 
     UNION ALL
 
@@ -464,8 +470,7 @@ export function getAllSpending(): AllSpending[] {
 // Update Referendum (all editable fields)
 
 export interface ReferendumUpdate {
-  category?: string | null;
-  subcategory?: string | null;
+  category_id?: number | null;
   notes?: string | null;
   hide_in_spends?: number | null;
 }
@@ -475,13 +480,9 @@ export function updateReferendum(id: number, data: ReferendumUpdate): void {
   const setClauses: string[] = [];
   const values: (string | number | null)[] = [];
 
-  if (data.category !== undefined) {
-    setClauses.push("category = ?");
-    values.push(data.category);
-  }
-  if (data.subcategory !== undefined) {
-    setClauses.push("subcategory = ?");
-    values.push(data.subcategory);
+  if (data.category_id !== undefined) {
+    setClauses.push("category_id = ?");
+    values.push(data.category_id);
   }
   if (data.notes !== undefined) {
     setClauses.push("notes = ?");
@@ -498,16 +499,10 @@ export function updateReferendum(id: number, data: ReferendumUpdate): void {
   db.prepare(`UPDATE "${TABLE_NAMES.referenda}" SET ${setClauses.join(", ")} WHERE id = ?`).run(...values);
 }
 
-// Legacy function for backwards compatibility
-export function updateReferendumCategory(id: number, category: string | null, subcategory: string | null): void {
-  updateReferendum(id, { category, subcategory });
-}
-
 // Bulk update referenda from CSV import
 export interface ReferendumImportItem {
   id: number;
-  category?: string | null;
-  subcategory?: string | null;
+  category_id?: number | null;
   notes?: string | null;
   hide_in_spends?: number | null;
 }
@@ -516,7 +511,7 @@ export function bulkUpdateReferenda(items: ReferendumImportItem[]): number {
   const db = getWritableDatabase();
   const stmt = db.prepare(`
     UPDATE "${TABLE_NAMES.referenda}"
-    SET category = ?, subcategory = ?, notes = ?, hide_in_spends = ?
+    SET category_id = ?, notes = ?, hide_in_spends = ?
     WHERE id = ?
   `);
 
@@ -524,8 +519,7 @@ export function bulkUpdateReferenda(items: ReferendumImportItem[]): number {
     let count = 0;
     for (const item of items) {
       const result = stmt.run(
-        item.category ?? null,
-        item.subcategory ?? null,
+        item.category_id ?? null,
         item.notes ?? null,
         item.hide_in_spends ?? null,
         item.id
@@ -541,8 +535,7 @@ export function bulkUpdateReferenda(items: ReferendumImportItem[]): number {
 // Update Child Bounty (all editable fields)
 
 export interface ChildBountyUpdate {
-  category?: string | null;
-  subcategory?: string | null;
+  category_id?: number | null;
   notes?: string | null;
   hide_in_spends?: number | null;
 }
@@ -552,13 +545,9 @@ export function updateChildBounty(identifier: string, data: ChildBountyUpdate): 
   const setClauses: string[] = [];
   const values: (string | number | null)[] = [];
 
-  if (data.category !== undefined) {
-    setClauses.push("category = ?");
-    values.push(data.category);
-  }
-  if (data.subcategory !== undefined) {
-    setClauses.push("subcategory = ?");
-    values.push(data.subcategory);
+  if (data.category_id !== undefined) {
+    setClauses.push("category_id = ?");
+    values.push(data.category_id);
   }
   if (data.notes !== undefined) {
     setClauses.push("notes = ?");
@@ -575,16 +564,10 @@ export function updateChildBounty(identifier: string, data: ChildBountyUpdate): 
   db.prepare(`UPDATE "${TABLE_NAMES.childBounties}" SET ${setClauses.join(", ")} WHERE identifier = ?`).run(...values);
 }
 
-// Legacy function for backwards compatibility
-export function updateChildBountyCategory(identifier: string, category: string | null, subcategory: string | null): void {
-  updateChildBounty(identifier, { category, subcategory });
-}
-
 // Bulk update child bounties from CSV import
 export interface ChildBountyImportItem {
   identifier: string;
-  category?: string | null;
-  subcategory?: string | null;
+  category_id?: number | null;
   notes?: string | null;
   hide_in_spends?: number | null;
 }
@@ -593,7 +576,7 @@ export function bulkUpdateChildBounties(items: ChildBountyImportItem[]): number 
   const db = getWritableDatabase();
   const stmt = db.prepare(`
     UPDATE "${TABLE_NAMES.childBounties}"
-    SET category = ?, subcategory = ?, notes = ?, hide_in_spends = ?
+    SET category_id = ?, notes = ?, hide_in_spends = ?
     WHERE identifier = ?
   `);
 
@@ -601,8 +584,7 @@ export function bulkUpdateChildBounties(items: ChildBountyImportItem[]): number 
     let count = 0;
     for (const item of items) {
       const result = stmt.run(
-        item.category ?? null,
-        item.subcategory ?? null,
+        item.category_id ?? null,
         item.notes ?? null,
         item.hide_in_spends ?? null,
         item.identifier

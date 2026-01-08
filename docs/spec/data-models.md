@@ -52,10 +52,13 @@ A container for holding multiple asset amounts. Used to represent the value of p
 | `{ASSET}_component` | float | Native asset component of proposal |
 | `USDC_component` | float | USDC component of proposal |
 | `USDT_component` | float | USDT component of proposal |
-| `category` | string | Spending category (nullable, manually assigned) |
-| `subcategory` | string | Spending subcategory (nullable, manually assigned) |
+| `category_id` | int | Foreign key to Categories table (nullable) |
 | `notes` | string | User notes for this referendum (nullable) |
 | `hide_in_spends` | int | 1 to hide from spending reports, 0 or null to show |
+
+**Denormalized fields** (populated via JOIN with Categories):
+| `category` | string | Category name from Categories table |
+| `subcategory` | string | Subcategory name from Categories table |
 
 ### Treasury Spend
 
@@ -94,10 +97,13 @@ A container for holding multiple asset amounts. Used to represent the value of p
 | `proposal_time` | datetime | Creation timestamp |
 | `latest_status_change` | datetime | Last status change |
 | `USD_latest` | float | USD value at latest status |
-| `category` | string | Spending category (nullable, manually assigned or inherited from parent bounty) |
-| `subcategory` | string | Spending subcategory (nullable, manually assigned or inherited from parent bounty) |
+| `category_id` | int | Foreign key to Categories table (nullable, or inherited from parent bounty) |
 | `notes` | string | User notes for this child bounty (nullable) |
 | `hide_in_spends` | int | 1 to hide from spending reports, 0 or null to show |
+
+**Denormalized fields** (populated via JOIN with Categories):
+| `category` | string | Category name (from own category_id or parent bounty's category_id) |
+| `subcategory` | string | Subcategory name (from own category_id or parent bounty's category_id) |
 
 ### Fellowship Treasury Spend
 
@@ -316,10 +322,13 @@ Parent bounty records for category inheritance by child bounties. Bounty data is
 |-------|------|-------------|
 | `id` | int | Bounty index from chain (primary key) |
 | `name` | string | Bounty name/title |
-| `category` | string | Assigned category |
-| `subcategory` | string | Assigned subcategory |
+| `category_id` | int | Foreign key to Categories table (nullable) |
 | `remaining_dot` | float | Remaining bounty funds in DOT |
 | `url` | string | Link to bounty on explorer |
+
+**Denormalized fields** (populated via JOIN with Categories):
+| `category` | string | Category name from Categories table |
+| `subcategory` | string | Subcategory name from Categories table |
 
 ### Subtreasury
 
@@ -335,10 +344,13 @@ Manually tracked spending that doesn't fit other categories.
 | `DOT_component` | float | DOT component |
 | `USDC_component` | float | USDC component |
 | `USDT_component` | float | USDT component |
-| `category` | string | Spending category |
-| `subcategory` | string | Spending subcategory |
+| `category_id` | int | Foreign key to Categories table (nullable) |
 | `latest_status_change` | datetime | Last update timestamp |
 | `url` | string | Link to related resource |
+
+**Denormalized fields** (populated via JOIN with Categories):
+| `category` | string | Category name from Categories table |
+| `subcategory` | string | Subcategory name from Categories table |
 
 ---
 

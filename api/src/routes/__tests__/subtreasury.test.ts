@@ -23,6 +23,11 @@ function createApp(): express.Express {
 }
 
 const SCHEMA_SQL = `
+  CREATE TABLE IF NOT EXISTS "Categories" (
+    "id" INTEGER PRIMARY KEY,
+    "category" TEXT,
+    "subcategory" TEXT
+  );
   CREATE TABLE IF NOT EXISTS "Subtreasury" (
     "id" INTEGER PRIMARY KEY,
     "title" TEXT,
@@ -32,8 +37,7 @@ const SCHEMA_SQL = `
     "DOT_component" REAL,
     "USDC_component" REAL,
     "USDT_component" REAL,
-    "category" TEXT,
-    "subcategory" TEXT,
+    "category_id" INTEGER,
     "latest_status_change" TEXT,
     "url" TEXT
   );
@@ -49,6 +53,14 @@ beforeAll(() => {
 
 beforeEach(() => {
   testDb.exec('DELETE FROM "Subtreasury"');
+  testDb.exec('DELETE FROM "Categories"');
+  // Insert test categories
+  testDb.exec(`
+    INSERT INTO "Categories" (id, category, subcategory)
+    VALUES
+      (1, 'Development', 'Core'),
+      (2, 'Marketing', 'Events')
+  `);
 });
 
 afterAll(() => {
@@ -65,9 +77,9 @@ describe("GET /api/subtreasury", () => {
 
   it("returns all subtreasury entries", async () => {
     testDb.exec(`
-      INSERT INTO "Subtreasury" (id, title, description, DOT_latest, category)
-      VALUES (1, 'Entry 1', 'Desc 1', 1000.5, 'Development'),
-             (2, 'Entry 2', 'Desc 2', 500.0, 'Marketing')
+      INSERT INTO "Subtreasury" (id, title, description, DOT_latest, category_id)
+      VALUES (1, 'Entry 1', 'Desc 1', 1000.5, 1),
+             (2, 'Entry 2', 'Desc 2', 500.0, 2)
     `);
 
     const response = await request(app).get("/api/subtreasury");
@@ -81,8 +93,8 @@ describe("GET /api/subtreasury", () => {
 describe("GET /api/subtreasury/:id", () => {
   it("returns single entry by id", async () => {
     testDb.exec(`
-      INSERT INTO "Subtreasury" (id, title, description, DOT_latest, category)
-      VALUES (1, 'Entry 1', 'Description', 1000.5, 'Development')
+      INSERT INTO "Subtreasury" (id, title, description, DOT_latest, category_id)
+      VALUES (1, 'Entry 1', 'Description', 1000.5, 1)
     `);
 
     const response = await request(app).get("/api/subtreasury/1");
@@ -109,8 +121,7 @@ describe("POST /api/subtreasury", () => {
         description: "Description",
         DOT_latest: 1000.0,
         USD_latest: 7500.0,
-        category: "Development",
-        subcategory: "Core",
+        category_id: 1,
       });
 
     expect(response.status).toBe(201);

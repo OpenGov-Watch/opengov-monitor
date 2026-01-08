@@ -16,8 +16,8 @@ childBountiesRouter.get("/", (_req, res) => {
 childBountiesRouter.patch("/:identifier", (req, res) => {
   try {
     const { identifier } = req.params;
-    const { category, subcategory, notes, hide_in_spends } = req.body;
-    updateChildBounty(identifier, { category, subcategory, notes, hide_in_spends });
+    const { category_id, notes, hide_in_spends } = req.body;
+    updateChildBounty(identifier, { category_id, notes, hide_in_spends });
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });

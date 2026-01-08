@@ -27,8 +27,9 @@ const SCHEMA_SQL = `
     "DOT_component" REAL,
     "USDC_component" REAL,
     "USDT_component" REAL,
-    "category" TEXT,
-    "subcategory" TEXT
+    "category_id" INTEGER,
+    "notes" TEXT,
+    "hide_in_spends" INTEGER
   );
 
   CREATE TABLE IF NOT EXISTS "${TABLE_NAMES.treasury}" (
@@ -63,8 +64,9 @@ const SCHEMA_SQL = `
     "proposal_time" TEXT,
     "latest_status_change" TEXT,
     "USD_latest" REAL,
-    "category" TEXT,
-    "subcategory" TEXT
+    "category_id" INTEGER,
+    "notes" TEXT,
+    "hide_in_spends" INTEGER
   );
 
   CREATE TABLE IF NOT EXISTS "${TABLE_NAMES.fellowship}" (
@@ -118,8 +120,7 @@ const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS "${TABLE_NAMES.bounties}" (
     "id" INTEGER PRIMARY KEY,
     "name" TEXT,
-    "category" TEXT,
-    "subcategory" TEXT,
+    "category_id" INTEGER,
     "remaining_dot" REAL,
     "url" TEXT
   );
@@ -133,8 +134,7 @@ const SCHEMA_SQL = `
     "DOT_component" REAL,
     "USDC_component" REAL,
     "USDT_component" REAL,
-    "category" TEXT,
-    "subcategory" TEXT,
+    "category_id" INTEGER,
     "latest_status_change" TEXT,
     "url" TEXT
   );
@@ -271,8 +271,9 @@ export const fixtures = {
       DOT_component: 500,
       USDC_component: 300,
       USDT_component: 200,
-      category: "Development",
-      subcategory: "Infrastructure",
+      category_id: 1,
+      notes: null,
+      hide_in_spends: null,
     },
     {
       id: 2,
@@ -291,8 +292,9 @@ export const fixtures = {
       DOT_component: 1000,
       USDC_component: 600,
       USDT_component: 400,
-      category: null,
-      subcategory: null,
+      category_id: null,
+      notes: null,
+      hide_in_spends: null,
     },
   ],
 
@@ -349,8 +351,9 @@ export const fixtures = {
       proposal_time: "2024-01-01 00:00:00",
       latest_status_change: "2024-01-15 00:00:00",
       USD_latest: 550,
-      category: "Development",
-      subcategory: "Tooling",
+      category_id: 2,
+      notes: null,
+      hide_in_spends: null,
     },
     {
       identifier: "10-2",
@@ -365,8 +368,9 @@ export const fixtures = {
       proposal_time: "2024-02-01 00:00:00",
       latest_status_change: "2024-02-10 00:00:00",
       USD_latest: 1100,
-      category: null,
-      subcategory: null,
+      category_id: null,
+      notes: null,
+      hide_in_spends: null,
     },
   ],
 
@@ -380,8 +384,7 @@ export const fixtures = {
     {
       id: 10,
       name: "Parent Bounty 1",
-      category: "Development",
-      subcategory: "Infrastructure",
+      category_id: 1,
       remaining_dot: 5000,
       url: "https://polkadot.subsquare.io/bounty/10",
     },

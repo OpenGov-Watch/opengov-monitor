@@ -25,9 +25,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Pencil, Trash2, Plus, ExternalLink } from "lucide-react";
+import { Pencil, Trash2, Plus, ExternalLink, ChevronRight } from "lucide-react";
 import type { Subtreasury, Category } from "@/lib/db/types";
-import { formatNumber, formatDate } from "@/lib/utils";
+import { formatNumber, formatDate, cn } from "@/lib/utils";
 
 interface FormData {
   id?: number;
@@ -38,8 +38,8 @@ interface FormData {
   DOT_component: string;
   USDC_component: string;
   USDT_component: string;
-  category: string;
-  subcategory: string;
+  category_id: number | null;
+  selectedCategory: string; // For cascading dropdown UI
   latest_status_change: string;
   url: string;
 }
@@ -52,8 +52,8 @@ const emptyFormData: FormData = {
   DOT_component: "",
   USDC_component: "",
   USDT_component: "",
-  category: "",
-  subcategory: "",
+  category_id: null,
+  selectedCategory: "",
   latest_status_change: "",
   url: "",
 };
@@ -100,6 +100,8 @@ export default function SubtreasuryPage() {
 
   function openEditDialog(entry: Subtreasury) {
     setEditingEntry(entry);
+    // Find the category string from the category_id
+    const cat = categories.find((c) => c.id === entry.category_id);
     setFormData({
       id: entry.id,
       title: entry.title || "",
@@ -109,8 +111,8 @@ export default function SubtreasuryPage() {
       DOT_component: entry.DOT_component?.toString() || "",
       USDC_component: entry.USDC_component?.toString() || "",
       USDT_component: entry.USDT_component?.toString() || "",
-      category: entry.category || "",
-      subcategory: entry.subcategory || "",
+      category_id: entry.category_id,
+      selectedCategory: cat?.category || "",
       latest_status_change: entry.latest_status_change?.slice(0, 10) || "",
       url: entry.url || "",
     });
@@ -129,8 +131,7 @@ export default function SubtreasuryPage() {
       DOT_component: formData.DOT_component ? parseFloat(formData.DOT_component) : null,
       USDC_component: formData.USDC_component ? parseFloat(formData.USDC_component) : null,
       USDT_component: formData.USDT_component ? parseFloat(formData.USDT_component) : null,
-      category: formData.category || null,
-      subcategory: formData.subcategory || null,
+      category_id: formData.category_id,
       latest_status_change: formData.latest_status_change || null,
       url: formData.url || null,
     };
@@ -169,12 +170,30 @@ export default function SubtreasuryPage() {
   }
 
   // Get unique categories for the dropdown
-  const uniqueCategories = [...new Set(categories.map((c) => c.category))];
+  const uniqueCategories = [...new Set(categories.map((c) => c.category))].sort();
 
   // Get subcategories for the selected category
   const availableSubcategories = categories
-    .filter((c) => c.category === formData.category)
-    .map((c) => c.subcategory);
+    .filter((c) => c.category === formData.selectedCategory)
+    .sort((a, b) => a.subcategory.localeCompare(b.subcategory));
+
+  function handleCategoryChange(category: string) {
+    const subs = categories.filter((c) => c.category === category);
+    // Auto-select if only one subcategory
+    if (subs.length === 1) {
+      setFormData({
+        ...formData,
+        selectedCategory: category,
+        category_id: subs[0].id,
+      });
+    } else {
+      setFormData({
+        ...formData,
+        selectedCategory: category,
+        category_id: null,
+      });
+    }
+  }
 
   if (loading) {
     return <div className="p-4">Loading...</div>;
@@ -293,19 +312,22 @@ export default function SubtreasuryPage() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="category">Category</Label>
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <div className="flex items-center gap-2">
                   <Select
-                    value={formData.category}
+                    value={formData.selectedCategory || "__none__"}
                     onValueChange={(value) =>
-                      setFormData({ ...formData, category: value, subcategory: "" })
+                      handleCategoryChange(value === "__none__" ? "" : value)
                     }
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue placeholder="Category" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="__none__">
+                        <span className="text-muted-foreground">None</span>
+                      </SelectItem>
                       {uniqueCategories.map((cat) => (
                         <SelectItem key={cat} value={cat}>
                           {cat}
@@ -313,23 +335,32 @@ export default function SubtreasuryPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="subcategory">Subcategory</Label>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   <Select
-                    value={formData.subcategory}
+                    value={formData.category_id?.toString() || "__none__"}
                     onValueChange={(value) =>
-                      setFormData({ ...formData, subcategory: value })
+                      setFormData({
+                        ...formData,
+                        category_id: value === "__none__" ? null : parseInt(value),
+                      })
                     }
-                    disabled={!formData.category}
+                    disabled={!formData.selectedCategory}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select subcategory" />
+                    <SelectTrigger
+                      className={cn(
+                        "w-[160px]",
+                        !formData.selectedCategory && "opacity-50"
+                      )}
+                    >
+                      <SelectValue placeholder="Subcategory" />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableSubcategories.map((subcat) => (
-                        <SelectItem key={subcat} value={subcat}>
-                          {subcat}
+                      <SelectItem value="__none__">
+                        <span className="text-muted-foreground">None</span>
+                      </SelectItem>
+                      {availableSubcategories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id.toString()}>
+                          {cat.subcategory || "(default)"}
                         </SelectItem>
                       ))}
                     </SelectContent>

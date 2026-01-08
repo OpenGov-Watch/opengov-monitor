@@ -16,8 +16,8 @@ referendaRouter.get("/", (_req, res) => {
 referendaRouter.patch("/:id", (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { category, subcategory, notes, hide_in_spends } = req.body;
-    updateReferendum(id, { category, subcategory, notes, hide_in_spends });
+    const { category_id, notes, hide_in_spends } = req.body;
+    updateReferendum(id, { category_id, notes, hide_in_spends });
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });

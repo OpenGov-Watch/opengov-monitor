@@ -1,3 +1,5 @@
+import type { Category } from "@/lib/db/types";
+
 const API_BASE = "/api";
 
 async function fetchJSON<T>(path: string, options?: RequestInit): Promise<T> {
@@ -21,8 +23,7 @@ export const api = {
     update: (
       id: number,
       data: {
-        category?: string | null;
-        subcategory?: string | null;
+        category_id?: number | null;
         notes?: string | null;
         hide_in_spends?: number | null;
       }
@@ -34,8 +35,7 @@ export const api = {
     import: (
       items: Array<{
         id: number;
-        category?: string | null;
-        subcategory?: string | null;
+        category_id?: number | null;
         notes?: string | null;
         hide_in_spends?: number | null;
       }>
@@ -53,8 +53,7 @@ export const api = {
     update: (
       identifier: string,
       data: {
-        category?: string | null;
-        subcategory?: string | null;
+        category_id?: number | null;
         notes?: string | null;
         hide_in_spends?: number | null;
       }
@@ -66,8 +65,7 @@ export const api = {
     import: (
       items: Array<{
         identifier: string;
-        category?: string | null;
-        subcategory?: string | null;
+        category_id?: number | null;
         notes?: string | null;
         hide_in_spends?: number | null;
       }>
@@ -100,9 +98,9 @@ export const api = {
 
   // CRUD endpoints
   categories: {
-    getAll: () => fetchJSON<unknown[]>("/categories"),
+    getAll: () => fetchJSON<Category[]>("/categories"),
     create: (category: string, subcategory: string) =>
-      fetchJSON("/categories", {
+      fetchJSON<Category>("/categories", {
         method: "POST",
         body: JSON.stringify({ category, subcategory }),
       }),
@@ -113,6 +111,12 @@ export const api = {
       }),
     delete: (id: number) =>
       fetchJSON(`/categories/${id}`, { method: "DELETE" }),
+    // Find or create a category by string names
+    lookup: (category: string, subcategory: string) =>
+      fetchJSON<Category>("/categories/lookup", {
+        method: "POST",
+        body: JSON.stringify({ category, subcategory }),
+      }),
   },
   bounties: {
     getAll: () => fetchJSON<unknown[]>("/bounties"),
@@ -127,10 +131,10 @@ export const api = {
         method: "PUT",
         body: JSON.stringify(data),
       }),
-    updateCategory: (id: number, category: string | null, subcategory: string | null) =>
+    updateCategory: (id: number, category_id: number | null) =>
       fetchJSON(`/bounties/${id}/category`, {
         method: "PATCH",
-        body: JSON.stringify({ category, subcategory }),
+        body: JSON.stringify({ category_id }),
       }),
     delete: (id: number) =>
       fetchJSON(`/bounties/${id}`, { method: "DELETE" }),

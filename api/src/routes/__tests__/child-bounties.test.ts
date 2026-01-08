@@ -26,12 +26,16 @@ function createApp(): express.Express {
 }
 
 const SCHEMA_SQL = `
+  CREATE TABLE IF NOT EXISTS "Categories" (
+    "id" INTEGER PRIMARY KEY,
+    "category" TEXT,
+    "subcategory" TEXT
+  );
   CREATE TABLE IF NOT EXISTS "Child Bounties" (
     "identifier" TEXT PRIMARY KEY,
     "description" TEXT,
     "status" TEXT,
-    "category" TEXT,
-    "subcategory" TEXT,
+    "category_id" INTEGER,
     "notes" TEXT,
     "hide_in_spends" INTEGER
   );
@@ -47,13 +51,22 @@ beforeAll(() => {
 
 beforeEach(() => {
   testDb.exec('DELETE FROM "Child Bounties"');
+  testDb.exec('DELETE FROM "Categories"');
+  // Insert test categories
+  testDb.exec(`
+    INSERT INTO "Categories" (id, category, subcategory)
+    VALUES
+      (1, 'Development', 'SDK'),
+      (2, 'Development', 'Core'),
+      (3, 'Outreach', 'Content')
+  `);
   // Insert test data
   testDb.exec(`
-    INSERT INTO "Child Bounties" (identifier, description, status, category, subcategory)
+    INSERT INTO "Child Bounties" (identifier, description, status, category_id)
     VALUES
-      ('1_23', 'Test CB 1', 'Claimed', NULL, NULL),
-      ('2_45', 'Test CB 2', 'Active', NULL, NULL),
-      ('3_67', 'Test CB 3', 'Pending', 'Development', 'SDK')
+      ('1_23', 'Test CB 1', 'Claimed', NULL),
+      ('2_45', 'Test CB 2', 'Active', NULL),
+      ('3_67', 'Test CB 3', 'Pending', 1)
   `);
 });
 
@@ -72,20 +85,18 @@ describe("GET /api/child-bounties", () => {
 });
 
 describe("PATCH /api/child-bounties/:identifier", () => {
-  it("updates category and subcategory", async () => {
+  it("updates category_id", async () => {
     const response = await request(app)
       .patch("/api/child-bounties/1_23")
-      .send({ category: "Development", subcategory: "Core" });
+      .send({ category_id: 2 });
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
 
     const result = testDb.prepare('SELECT * FROM "Child Bounties" WHERE identifier = ?').get("1_23") as {
-      category: string;
-      subcategory: string;
+      category_id: number;
     };
-    expect(result.category).toBe("Development");
-    expect(result.subcategory).toBe("Core");
+    expect(result.category_id).toBe(2);
   });
 
   it("updates notes", async () => {
@@ -118,8 +129,7 @@ describe("PATCH /api/child-bounties/:identifier", () => {
     const response = await request(app)
       .patch("/api/child-bounties/1_23")
       .send({
-        category: "Outreach",
-        subcategory: "Content",
+        category_id: 3,
         notes: "Full CB update",
         hide_in_spends: 1,
       });
@@ -127,13 +137,11 @@ describe("PATCH /api/child-bounties/:identifier", () => {
     expect(response.status).toBe(200);
 
     const result = testDb.prepare('SELECT * FROM "Child Bounties" WHERE identifier = ?').get("1_23") as {
-      category: string;
-      subcategory: string;
+      category_id: number;
       notes: string;
       hide_in_spends: number;
     };
-    expect(result.category).toBe("Outreach");
-    expect(result.subcategory).toBe("Content");
+    expect(result.category_id).toBe(3);
     expect(result.notes).toBe("Full CB update");
     expect(result.hide_in_spends).toBe(1);
   });
@@ -144,28 +152,28 @@ describe("PATCH /api/child-bounties/:identifier", () => {
 
     const response = await request(app)
       .patch(`/api/child-bounties/${encodeURIComponent("test/special")}`)
-      .send({ category: "Test" });
+      .send({ category_id: 1 });
 
     expect(response.status).toBe(200);
   });
 
-  it("clears category by setting to null", async () => {
+  it("clears category_id by setting to null", async () => {
     // First set a value
     await request(app)
       .patch("/api/child-bounties/1_23")
-      .send({ category: "Development" });
+      .send({ category_id: 1 });
 
     // Then clear it
     const response = await request(app)
       .patch("/api/child-bounties/1_23")
-      .send({ category: null });
+      .send({ category_id: null });
 
     expect(response.status).toBe(200);
 
     const result = testDb.prepare('SELECT * FROM "Child Bounties" WHERE identifier = ?').get("1_23") as {
-      category: string | null;
+      category_id: number | null;
     };
-    expect(result.category).toBeNull();
+    expect(result.category_id).toBeNull();
   });
 });
 
@@ -175,8 +183,8 @@ describe("POST /api/child-bounties/import", () => {
       .post("/api/child-bounties/import")
       .send({
         items: [
-          { identifier: "1_23", category: "Dev", subcategory: "SDK" },
-          { identifier: "2_45", category: "Marketing", subcategory: "Events" },
+          { identifier: "1_23", category_id: 1 },
+          { identifier: "2_45", category_id: 3 },
         ],
       });
 
@@ -185,14 +193,14 @@ describe("POST /api/child-bounties/import", () => {
     expect(response.body.count).toBe(2);
 
     const result1 = testDb.prepare('SELECT * FROM "Child Bounties" WHERE identifier = ?').get("1_23") as {
-      category: string;
+      category_id: number;
     };
-    expect(result1.category).toBe("Dev");
+    expect(result1.category_id).toBe(1);
 
     const result2 = testDb.prepare('SELECT * FROM "Child Bounties" WHERE identifier = ?').get("2_45") as {
-      category: string;
+      category_id: number;
     };
-    expect(result2.category).toBe("Marketing");
+    expect(result2.category_id).toBe(3);
   });
 
   it("handles partial updates in bulk import", async () => {
@@ -228,8 +236,8 @@ describe("POST /api/child-bounties/import", () => {
       .post("/api/child-bounties/import")
       .send({
         items: [
-          { identifier: "999_999", category: "Dev" },
-          { identifier: "1000_1000", category: "Marketing" },
+          { identifier: "999_999", category_id: 1 },
+          { identifier: "1000_1000", category_id: 2 },
         ],
       });
 

@@ -78,8 +78,8 @@ bountiesRouter.patch("/:id/category", (req, res) => {
       return;
     }
 
-    const { category, subcategory } = req.body;
-    updateBountyCategory(id, category, subcategory);
+    const { category_id } = req.body;
+    updateBountyCategory(id, category_id);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });

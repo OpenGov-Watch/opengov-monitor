@@ -1,7 +1,25 @@
 import { Router } from "express";
-import { getCategories, createCategory, updateCategory, deleteCategory } from "../db/queries.js";
+import { getCategories, createCategory, updateCategory, deleteCategory, findOrCreateCategory } from "../db/queries.js";
 
 export const categoriesRouter: Router = Router();
+
+// Find or create a category by category/subcategory strings
+// Useful for CSV imports and backwards-compatible writes
+categoriesRouter.post("/lookup", (req, res) => {
+  try {
+    const { category, subcategory } = req.body;
+
+    if (!category || typeof category !== "string" || category.trim() === "") {
+      res.status(400).json({ error: "category is required" });
+      return;
+    }
+
+    const result = findOrCreateCategory(category.trim(), (subcategory || "").trim());
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
 
 categoriesRouter.get("/", (_req, res) => {
   try {

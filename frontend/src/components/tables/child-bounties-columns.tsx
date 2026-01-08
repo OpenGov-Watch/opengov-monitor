@@ -7,8 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatNumber, formatCurrency, formatDate } from "@/lib/utils";
 import type { ChildBounty, Category } from "@/lib/db/types";
 import {
-  EditableCategoryCell,
-  EditableSubcategoryCell,
+  CategorySelector,
   EditableNotesCell,
   EditableHideCheckbox,
 } from "@/components/data-table/editable-cells";
@@ -33,7 +32,10 @@ function getStatusVariant(
 
 export interface ChildBountiesColumnsOptions {
   categories: Category[];
-  onUpdate: (identifier: string, data: Partial<ChildBounty>) => void;
+  onUpdate: (
+    identifier: string,
+    data: { category_id?: number | null; notes?: string | null; hide_in_spends?: number | null }
+  ) => void;
 }
 
 export function createChildBountiesColumns(
@@ -146,39 +148,25 @@ export function createChildBountiesColumns(
       cell: ({ row }) => formatDate(row.getValue("latest_status_change")),
     },
     {
-      accessorKey: "category",
+      id: "category",
+      accessorFn: (row) =>
+        row.category ? `${row.category} > ${row.subcategory || ""}` : null,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Category" />
       ),
       cell: ({ row }) => (
-        <EditableCategoryCell
-          value={row.original.category}
+        <CategorySelector
+          categoryId={row.original.category_id}
           categories={categories}
-          onChange={(category) => {
-            onUpdate(row.original.identifier, { category, subcategory: null });
+          onChange={(category_id) => {
+            onUpdate(row.original.identifier, { category_id });
           }}
         />
       ),
-      filterFn: (row, id, value) => {
-        const category = row.getValue(id) as string | null;
+      filterFn: (row, _id, value) => {
+        const category = row.original.category;
         return value.includes(category || "");
       },
-    },
-    {
-      accessorKey: "subcategory",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Subcategory" />
-      ),
-      cell: ({ row }) => (
-        <EditableSubcategoryCell
-          value={row.original.subcategory}
-          category={row.original.category}
-          categories={categories}
-          onChange={(subcategory) => {
-            onUpdate(row.original.identifier, { subcategory });
-          }}
-        />
-      ),
     },
     {
       accessorKey: "notes",

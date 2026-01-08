@@ -59,22 +59,25 @@ describe("Database Queries", () => {
     });
 
     it("returns all referenda from database", () => {
+      seedTestData(testDb, TABLE_NAMES.categories, fixtures.categories);
       seedTestData(testDb, TABLE_NAMES.referenda, fixtures.referenda);
       const result = queries.getReferenda();
       expect(result).toHaveLength(2);
     });
 
     it("correctly maps columns with dots (tally.ayes)", () => {
+      seedTestData(testDb, TABLE_NAMES.categories, fixtures.categories);
       seedTestData(testDb, TABLE_NAMES.referenda, fixtures.referenda);
       const result = queries.getReferenda();
       expect(result[0]["tally.ayes"]).toBe(100000);
     });
 
     it("handles NULL values correctly", () => {
+      seedTestData(testDb, TABLE_NAMES.categories, fixtures.categories);
       seedTestData(testDb, TABLE_NAMES.referenda, fixtures.referenda);
       const result = queries.getReferenda();
       const nullCategoryRow = result.find((r) => r.id === 2);
-      expect(nullCategoryRow?.category).toBeNull();
+      expect(nullCategoryRow?.category_id).toBeNull();
     });
   });
 
@@ -98,6 +101,7 @@ describe("Database Queries", () => {
     });
 
     it("returns all child bounties with identifier as primary key", () => {
+      seedTestData(testDb, TABLE_NAMES.categories, fixtures.categories);
       seedTestData(testDb, TABLE_NAMES.childBounties, fixtures.childBounties);
       const result = queries.getChildBounties();
       expect(result).toHaveLength(2);
@@ -244,6 +248,7 @@ describe("Database Queries", () => {
       });
 
       it("returns bounties ordered by id DESC", () => {
+        seedTestData(testDb, TABLE_NAMES.categories, fixtures.categories);
         seedTestData(testDb, TABLE_NAMES.bounties, fixtures.bounties);
         const result = queries.getBounties();
         expect(result).toHaveLength(1);
@@ -252,6 +257,7 @@ describe("Database Queries", () => {
 
     describe("getBountyById", () => {
       it("returns bounty when found", () => {
+        seedTestData(testDb, TABLE_NAMES.categories, fixtures.categories);
         seedTestData(testDb, TABLE_NAMES.bounties, fixtures.bounties);
         const result = queries.getBountyById(10);
         expect(result).toBeDefined();
@@ -269,8 +275,7 @@ describe("Database Queries", () => {
         queries.upsertBounty({
           id: 20,
           name: "New Bounty",
-          category: "Test",
-          subcategory: "Test",
+          category_id: 1,
           remaining_dot: 1000,
           url: "https://example.com",
         });
@@ -282,16 +287,14 @@ describe("Database Queries", () => {
         queries.upsertBounty({
           id: 30,
           name: "Original",
-          category: null,
-          subcategory: null,
+          category_id: null,
           remaining_dot: 500,
           url: null,
         });
         queries.upsertBounty({
           id: 30,
           name: "Updated",
-          category: "Cat",
-          subcategory: "Sub",
+          category_id: 1,
           remaining_dot: 1000,
           url: "https://updated.com",
         });
@@ -306,8 +309,7 @@ describe("Database Queries", () => {
         queries.upsertBounty({
           id: 40,
           name: "ToDelete",
-          category: null,
-          subcategory: null,
+          category_id: null,
           remaining_dot: null,
           url: null,
         });
@@ -341,8 +343,7 @@ describe("Database Queries", () => {
           DOT_component: 500,
           USDC_component: 300,
           USDT_component: 200,
-          category: "Development",
-          subcategory: "Infrastructure",
+          category_id: 1,
           latest_status_change: "2024-01-15 00:00:00",
           url: "https://example.com",
         });
@@ -359,8 +360,7 @@ describe("Database Queries", () => {
           DOT_component: null,
           USDC_component: null,
           USDT_component: null,
-          category: null,
-          subcategory: null,
+          category_id: null,
           latest_status_change: null,
           url: null,
         });
@@ -379,8 +379,7 @@ describe("Database Queries", () => {
           DOT_component: null,
           USDC_component: null,
           USDT_component: null,
-          category: null,
-          subcategory: null,
+          category_id: null,
           latest_status_change: null,
           url: null,
         });
@@ -404,8 +403,7 @@ describe("Database Queries", () => {
           DOT_component: null,
           USDC_component: null,
           USDT_component: null,
-          category: null,
-          subcategory: null,
+          category_id: null,
           latest_status_change: null,
           url: null,
         });
@@ -419,8 +417,7 @@ describe("Database Queries", () => {
           DOT_component: 100,
           USDC_component: 50,
           USDT_component: 50,
-          category: "Test",
-          subcategory: "Test",
+          category_id: 1,
           latest_status_change: "2024-02-01 00:00:00",
           url: "https://updated.com",
         });
@@ -441,8 +438,7 @@ describe("Database Queries", () => {
           DOT_component: null,
           USDC_component: null,
           USDT_component: null,
-          category: null,
-          subcategory: null,
+          category_id: null,
           latest_status_change: null,
           url: null,
         });
@@ -712,44 +708,35 @@ describe("Database Queries", () => {
   });
 
   // ==========================================================================
-  // Category Update Queries
+  // Category Lookup Queries
   // ==========================================================================
 
-  describe("Category Update Queries", () => {
-    describe("updateReferendumCategory", () => {
-      it("updates category and subcategory on referendum", () => {
-        seedTestData(testDb, TABLE_NAMES.referenda, fixtures.referenda);
+  describe("Category Lookup Queries", () => {
+    describe("findOrCreateCategory", () => {
+      it("returns existing category when found", () => {
+        seedTestData(testDb, TABLE_NAMES.categories, fixtures.categories);
 
-        queries.updateReferendumCategory(1, "NewCategory", "NewSubcategory");
+        const result = queries.findOrCreateCategory("Development", "Infrastructure");
 
-        const result = queries.getReferenda();
-        const updated = result.find((r) => r.id === 1);
-        expect(updated?.category).toBe("NewCategory");
-        expect(updated?.subcategory).toBe("NewSubcategory");
+        expect(result.id).toBe(1);
+        expect(result.category).toBe("Development");
+        expect(result.subcategory).toBe("Infrastructure");
       });
 
-      it("can set values to NULL", () => {
-        seedTestData(testDb, TABLE_NAMES.referenda, fixtures.referenda);
+      it("creates new category when not found", () => {
+        const result = queries.findOrCreateCategory("NewCategory", "NewSubcategory");
 
-        queries.updateReferendumCategory(1, null, null);
-
-        const result = queries.getReferenda();
-        const updated = result.find((r) => r.id === 1);
-        expect(updated?.category).toBeNull();
-        expect(updated?.subcategory).toBeNull();
+        expect(result.id).toBeDefined();
+        expect(result.category).toBe("NewCategory");
+        expect(result.subcategory).toBe("NewSubcategory");
       });
-    });
 
-    describe("updateChildBountyCategory", () => {
-      it("updates category and subcategory by identifier", () => {
-        seedTestData(testDb, TABLE_NAMES.childBounties, fixtures.childBounties);
+      it("handles empty subcategory", () => {
+        const result = queries.findOrCreateCategory("Marketing", "");
 
-        queries.updateChildBountyCategory("10-1", "Updated", "Updated");
-
-        const result = queries.getChildBounties();
-        const updated = result.find((cb) => cb.identifier === "10-1");
-        expect(updated?.category).toBe("Updated");
-        expect(updated?.subcategory).toBe("Updated");
+        expect(result.id).toBeDefined();
+        expect(result.category).toBe("Marketing");
+        expect(result.subcategory).toBe("");
       });
     });
   });

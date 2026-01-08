@@ -26,12 +26,16 @@ function createApp(): express.Express {
 }
 
 const SCHEMA_SQL = `
+  CREATE TABLE IF NOT EXISTS "Categories" (
+    "id" INTEGER PRIMARY KEY,
+    "category" TEXT,
+    "subcategory" TEXT
+  );
   CREATE TABLE IF NOT EXISTS "Referenda" (
     "id" INTEGER PRIMARY KEY,
     "title" TEXT,
     "status" TEXT,
-    "category" TEXT,
-    "subcategory" TEXT,
+    "category_id" INTEGER,
     "notes" TEXT,
     "hide_in_spends" INTEGER
   );
@@ -47,13 +51,22 @@ beforeAll(() => {
 
 beforeEach(() => {
   testDb.exec('DELETE FROM "Referenda"');
+  testDb.exec('DELETE FROM "Categories"');
+  // Insert test categories
+  testDb.exec(`
+    INSERT INTO "Categories" (id, category, subcategory)
+    VALUES
+      (1, 'Development', 'Core'),
+      (2, 'Development', 'SDK'),
+      (3, 'Outreach', 'Marketing')
+  `);
   // Insert test data
   testDb.exec(`
-    INSERT INTO "Referenda" (id, title, status, category, subcategory)
+    INSERT INTO "Referenda" (id, title, status, category_id)
     VALUES
-      (1, 'Test Ref 1', 'Executed', NULL, NULL),
-      (2, 'Test Ref 2', 'Approved', NULL, NULL),
-      (3, 'Test Ref 3', 'Ongoing', 'Development', 'Core')
+      (1, 'Test Ref 1', 'Executed', NULL),
+      (2, 'Test Ref 2', 'Approved', NULL),
+      (3, 'Test Ref 3', 'Ongoing', 1)
   `);
 });
 
@@ -72,20 +85,18 @@ describe("GET /api/referenda", () => {
 });
 
 describe("PATCH /api/referenda/:id", () => {
-  it("updates category and subcategory", async () => {
+  it("updates category_id", async () => {
     const response = await request(app)
       .patch("/api/referenda/1")
-      .send({ category: "Development", subcategory: "SDK" });
+      .send({ category_id: 2 });
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
 
     const result = testDb.prepare('SELECT * FROM "Referenda" WHERE id = 1').get() as {
-      category: string;
-      subcategory: string;
+      category_id: number;
     };
-    expect(result.category).toBe("Development");
-    expect(result.subcategory).toBe("SDK");
+    expect(result.category_id).toBe(2);
   });
 
   it("updates notes", async () => {
@@ -118,8 +129,7 @@ describe("PATCH /api/referenda/:id", () => {
     const response = await request(app)
       .patch("/api/referenda/1")
       .send({
-        category: "Outreach",
-        subcategory: "Marketing",
+        category_id: 3,
         notes: "Full update",
         hide_in_spends: 1,
       });
@@ -127,34 +137,32 @@ describe("PATCH /api/referenda/:id", () => {
     expect(response.status).toBe(200);
 
     const result = testDb.prepare('SELECT * FROM "Referenda" WHERE id = 1').get() as {
-      category: string;
-      subcategory: string;
+      category_id: number;
       notes: string;
       hide_in_spends: number;
     };
-    expect(result.category).toBe("Outreach");
-    expect(result.subcategory).toBe("Marketing");
+    expect(result.category_id).toBe(3);
     expect(result.notes).toBe("Full update");
     expect(result.hide_in_spends).toBe(1);
   });
 
-  it("clears category by setting to null", async () => {
+  it("clears category_id by setting to null", async () => {
     // First set a value
     await request(app)
       .patch("/api/referenda/1")
-      .send({ category: "Development" });
+      .send({ category_id: 1 });
 
     // Then clear it
     const response = await request(app)
       .patch("/api/referenda/1")
-      .send({ category: null });
+      .send({ category_id: null });
 
     expect(response.status).toBe(200);
 
     const result = testDb.prepare('SELECT * FROM "Referenda" WHERE id = 1').get() as {
-      category: string | null;
+      category_id: number | null;
     };
-    expect(result.category).toBeNull();
+    expect(result.category_id).toBeNull();
   });
 });
 
@@ -164,8 +172,8 @@ describe("POST /api/referenda/import", () => {
       .post("/api/referenda/import")
       .send({
         items: [
-          { id: 1, category: "Dev", subcategory: "Core" },
-          { id: 2, category: "Marketing", subcategory: "Events" },
+          { id: 1, category_id: 1 },
+          { id: 2, category_id: 3 },
         ],
       });
 
@@ -174,14 +182,14 @@ describe("POST /api/referenda/import", () => {
     expect(response.body.count).toBe(2);
 
     const result1 = testDb.prepare('SELECT * FROM "Referenda" WHERE id = 1').get() as {
-      category: string;
+      category_id: number;
     };
-    expect(result1.category).toBe("Dev");
+    expect(result1.category_id).toBe(1);
 
     const result2 = testDb.prepare('SELECT * FROM "Referenda" WHERE id = 2').get() as {
-      category: string;
+      category_id: number;
     };
-    expect(result2.category).toBe("Marketing");
+    expect(result2.category_id).toBe(3);
   });
 
   it("handles partial updates in bulk import", async () => {
@@ -217,8 +225,8 @@ describe("POST /api/referenda/import", () => {
       .post("/api/referenda/import")
       .send({
         items: [
-          { id: 999, category: "Dev" },
-          { id: 1000, category: "Marketing" },
+          { id: 999, category_id: 1 },
+          { id: 1000, category_id: 2 },
         ],
       });
 

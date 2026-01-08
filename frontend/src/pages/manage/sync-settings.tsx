@@ -24,17 +24,38 @@ export default function SyncSettingsPage() {
   const [status, setStatus] = useState<StatusType>(null);
   const [importing, setImporting] = useState(false);
 
+  // Helper to resolve category strings to category_id
+  async function resolveCategoryId(
+    category: string | null,
+    subcategory: string | null
+  ): Promise<number | null> {
+    if (!category) return null;
+    const result = await api.categories.lookup(category, subcategory || "");
+    return result.id;
+  }
+
   async function handleReferendaUpload() {
     if (!referendaFile) return;
     setImporting(true);
     setStatus(null);
     try {
       const content = await referendaFile.text();
-      const items = parseReferendaCSV(content);
-      if (items.length === 0) {
+      const rawItems = parseReferendaCSV(content);
+      if (rawItems.length === 0) {
         setStatus({ type: "error", message: "No valid rows found in CSV" });
         return;
       }
+
+      // Resolve category strings to category_id
+      const items = await Promise.all(
+        rawItems.map(async (item) => ({
+          id: item.id,
+          category_id: await resolveCategoryId(item.category ?? null, item.subcategory ?? null),
+          notes: item.notes,
+          hide_in_spends: item.hide_in_spends,
+        }))
+      );
+
       const result = await api.referenda.import(items);
       setStatus({
         type: "success",
@@ -57,11 +78,22 @@ export default function SyncSettingsPage() {
     setStatus(null);
     try {
       const content = await childBountiesFile.text();
-      const items = parseChildBountiesCSV(content);
-      if (items.length === 0) {
+      const rawItems = parseChildBountiesCSV(content);
+      if (rawItems.length === 0) {
         setStatus({ type: "error", message: "No valid rows found in CSV" });
         return;
       }
+
+      // Resolve category strings to category_id
+      const items = await Promise.all(
+        rawItems.map(async (item) => ({
+          identifier: item.identifier,
+          category_id: await resolveCategoryId(item.category ?? null, item.subcategory ?? null),
+          notes: item.notes,
+          hide_in_spends: item.hide_in_spends,
+        }))
+      );
+
       const result = await api.childBounties.import(items);
       setStatus({
         type: "success",
@@ -85,11 +117,22 @@ export default function SyncSettingsPage() {
     setStatus(null);
     try {
       const { content } = await api.sync.getDefaultReferenda();
-      const items = parseReferendaCSV(content);
-      if (items.length === 0) {
+      const rawItems = parseReferendaCSV(content);
+      if (rawItems.length === 0) {
         setStatus({ type: "error", message: "No valid rows in default file" });
         return;
       }
+
+      // Resolve category strings to category_id
+      const items = await Promise.all(
+        rawItems.map(async (item) => ({
+          id: item.id,
+          category_id: await resolveCategoryId(item.category ?? null, item.subcategory ?? null),
+          notes: item.notes,
+          hide_in_spends: item.hide_in_spends,
+        }))
+      );
+
       const result = await api.referenda.import(items);
       setStatus({
         type: "success",
@@ -107,11 +150,22 @@ export default function SyncSettingsPage() {
     setStatus(null);
     try {
       const { content } = await api.sync.getDefaultChildBounties();
-      const items = parseChildBountiesCSV(content);
-      if (items.length === 0) {
+      const rawItems = parseChildBountiesCSV(content);
+      if (rawItems.length === 0) {
         setStatus({ type: "error", message: "No valid rows in default file" });
         return;
       }
+
+      // Resolve category strings to category_id
+      const items = await Promise.all(
+        rawItems.map(async (item) => ({
+          identifier: item.identifier,
+          category_id: await resolveCategoryId(item.category ?? null, item.subcategory ?? null),
+          notes: item.notes,
+          hide_in_spends: item.hide_in_spends,
+        }))
+      );
+
       const result = await api.childBounties.import(items);
       setStatus({
         type: "success",

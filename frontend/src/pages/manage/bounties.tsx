@@ -24,9 +24,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Pencil, Plus, ExternalLink } from "lucide-react";
+import { Pencil, Plus, ExternalLink, ChevronRight } from "lucide-react";
 import type { Bounty, Category } from "@/lib/db/types";
-import { formatNumber } from "@/lib/utils";
+import { formatNumber, cn } from "@/lib/utils";
 
 export default function BountiesPage() {
   const [bounties, setBounties] = useState<Bounty[]>([]);
@@ -37,8 +37,8 @@ export default function BountiesPage() {
   const [formData, setFormData] = useState({
     id: 0,
     name: "",
-    category: "",
-    subcategory: "",
+    category_id: null as number | null,
+    selectedCategory: "", // For cascading dropdown UI
     remaining_dot: 0,
     url: "",
   });
@@ -74,8 +74,8 @@ export default function BountiesPage() {
     setFormData({
       id: 0,
       name: "",
-      category: "",
-      subcategory: "",
+      category_id: null,
+      selectedCategory: "",
       remaining_dot: 0,
       url: "",
     });
@@ -84,11 +84,13 @@ export default function BountiesPage() {
 
   function openEditDialog(bounty: Bounty) {
     setEditingBounty(bounty);
+    // Find the category string from the category_id
+    const cat = categories.find((c) => c.id === bounty.category_id);
     setFormData({
       id: bounty.id,
       name: bounty.name || "",
-      category: bounty.category || "",
-      subcategory: bounty.subcategory || "",
+      category_id: bounty.category_id,
+      selectedCategory: cat?.category || "",
       remaining_dot: bounty.remaining_dot || 0,
       url: bounty.url || "",
     });
@@ -105,8 +107,7 @@ export default function BountiesPage() {
         body: JSON.stringify({
           id: formData.id,
           name: formData.name || null,
-          category: formData.category || null,
-          subcategory: formData.subcategory || null,
+          category_id: formData.category_id,
           remaining_dot: formData.remaining_dot || null,
           url: formData.url || null,
         }),
@@ -120,12 +121,30 @@ export default function BountiesPage() {
   }
 
   // Get unique categories for the dropdown
-  const uniqueCategories = [...new Set(categories.map((c) => c.category))];
+  const uniqueCategories = [...new Set(categories.map((c) => c.category))].sort();
 
   // Get subcategories for the selected category
   const availableSubcategories = categories
-    .filter((c) => c.category === formData.category)
-    .map((c) => c.subcategory);
+    .filter((c) => c.category === formData.selectedCategory)
+    .sort((a, b) => a.subcategory.localeCompare(b.subcategory));
+
+  function handleCategoryChange(category: string) {
+    const subs = categories.filter((c) => c.category === category);
+    // Auto-select if only one subcategory
+    if (subs.length === 1) {
+      setFormData({
+        ...formData,
+        selectedCategory: category,
+        category_id: subs[0].id,
+      });
+    } else {
+      setFormData({
+        ...formData,
+        selectedCategory: category,
+        category_id: null,
+      });
+    }
+  }
 
   if (loading) {
     return <div className="p-4">Loading...</div>;
@@ -180,45 +199,59 @@ export default function BountiesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <Select
-                  value={formData.category}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, category: value, subcategory: "" })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {uniqueCategories.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {cat}
+                <Label>Category</Label>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={formData.selectedCategory || "__none__"}
+                    onValueChange={(value) =>
+                      handleCategoryChange(value === "__none__" ? "" : value)
+                    }
+                  >
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">
+                        <span className="text-muted-foreground">None</span>
                       </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="subcategory">Subcategory</Label>
-                <Select
-                  value={formData.subcategory}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, subcategory: value })
-                  }
-                  disabled={!formData.category}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select subcategory" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableSubcategories.map((subcat) => (
-                      <SelectItem key={subcat} value={subcat}>
-                        {subcat}
+                      {uniqueCategories.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <Select
+                    value={formData.category_id?.toString() || "__none__"}
+                    onValueChange={(value) =>
+                      setFormData({
+                        ...formData,
+                        category_id: value === "__none__" ? null : parseInt(value),
+                      })
+                    }
+                    disabled={!formData.selectedCategory}
+                  >
+                    <SelectTrigger
+                      className={cn(
+                        "w-[160px]",
+                        !formData.selectedCategory && "opacity-50"
+                      )}
+                    >
+                      <SelectValue placeholder="Subcategory" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">
+                        <span className="text-muted-foreground">None</span>
                       </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      {availableSubcategories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id.toString()}>
+                          {cat.subcategory || "(default)"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="remaining_dot">Remaining DOT</Label>

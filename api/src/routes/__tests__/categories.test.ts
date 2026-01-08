@@ -158,6 +158,89 @@ describe("DELETE /api/Categories/:id", () => {
   });
 });
 
+describe("POST /api/categories/lookup", () => {
+  it("returns existing category when found", async () => {
+    testDb.exec(`
+      INSERT INTO "Categories" (id, category, subcategory)
+      VALUES (1, 'Development', 'Core')
+    `);
+
+    const response = await request(app)
+      .post("/api/categories/lookup")
+      .send({ category: "Development", subcategory: "Core" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.id).toBe(1);
+    expect(response.body.category).toBe("Development");
+    expect(response.body.subcategory).toBe("Core");
+  });
+
+  it("creates new category when not found", async () => {
+    const response = await request(app)
+      .post("/api/categories/lookup")
+      .send({ category: "NewCategory", subcategory: "NewSub" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.id).toBeDefined();
+    expect(response.body.category).toBe("NewCategory");
+    expect(response.body.subcategory).toBe("NewSub");
+
+    // Verify it was created in the database
+    const result = testDb.prepare('SELECT * FROM "Categories" WHERE category = ?').get("NewCategory") as {
+      subcategory: string;
+    };
+    expect(result.subcategory).toBe("NewSub");
+  });
+
+  it("handles empty subcategory", async () => {
+    const response = await request(app)
+      .post("/api/categories/lookup")
+      .send({ category: "Development", subcategory: "" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.category).toBe("Development");
+    expect(response.body.subcategory).toBe("");
+  });
+
+  it("handles missing subcategory", async () => {
+    const response = await request(app)
+      .post("/api/categories/lookup")
+      .send({ category: "Development" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.category).toBe("Development");
+    expect(response.body.subcategory).toBe("");
+  });
+
+  it("returns 400 when category is missing", async () => {
+    const response = await request(app)
+      .post("/api/categories/lookup")
+      .send({ subcategory: "Sub" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain("category is required");
+  });
+
+  it("returns 400 when category is empty", async () => {
+    const response = await request(app)
+      .post("/api/categories/lookup")
+      .send({ category: "", subcategory: "Sub" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain("category is required");
+  });
+
+  it("trims whitespace from category and subcategory", async () => {
+    const response = await request(app)
+      .post("/api/categories/lookup")
+      .send({ category: "  Development  ", subcategory: "  Core  " });
+
+    expect(response.status).toBe(200);
+    expect(response.body.category).toBe("Development");
+    expect(response.body.subcategory).toBe("Core");
+  });
+});
+
 describe("Validation", () => {
   describe("POST /api/categories", () => {
     it("returns 400 when category is missing", async () => {
