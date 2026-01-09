@@ -70,7 +70,12 @@ export default function ChildBountiesPage() {
       {loading ? (
         <DataTableSkeleton />
       ) : (
-        <DataTable columns={columns} data={data} tableName="child-bounties" />
+        <DataTable
+          columns={columns}
+          data={data}
+          tableName="child-bounties"
+          defaultSorting={[{ id: "identifier", desc: true }]}
+        />
       )}
     </div>
   );

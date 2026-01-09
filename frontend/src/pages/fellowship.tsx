@@ -38,7 +38,12 @@ export default function FellowshipPage() {
       {loading ? (
         <DataTableSkeleton />
       ) : (
-        <DataTable columns={fellowshipColumns} data={data} tableName="fellowship" />
+        <DataTable
+          columns={fellowshipColumns}
+          data={data}
+          tableName="fellowship"
+          defaultSorting={[{ id: "id", desc: true }]}
+        />
       )}
     </div>
   );

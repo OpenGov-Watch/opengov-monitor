@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   ColumnDef,
+  SortingState,
   flexRender,
   getCoreRowModel,
   getFacetedRowModel,
@@ -38,6 +39,7 @@ interface DataTableProps<TData, TValue> {
   tableName: string;
   footerCells?: FooterCell[];
   footerLabel?: string;
+  defaultSorting?: SortingState;
 }
 
 export function DataTable<TData, TValue>({
@@ -46,6 +48,7 @@ export function DataTable<TData, TValue>({
   tableName,
   footerCells,
   footerLabel,
+  defaultSorting,
 }: DataTableProps<TData, TValue>) {
   // View state management
   const {
@@ -62,7 +65,7 @@ export function DataTable<TData, TValue>({
     saveViewState,
     loadViewState,
     clearViewState,
-  } = useViewState(tableName);
+  } = useViewState(tableName, { defaultSorting });
 
   const table = useReactTable({
     data,

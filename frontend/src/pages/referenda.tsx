@@ -65,7 +65,12 @@ export default function ReferendaPage() {
       {loading ? (
         <DataTableSkeleton />
       ) : (
-        <DataTable columns={columns} data={data} tableName="referenda" />
+        <DataTable
+          columns={columns}
+          data={data}
+          tableName="referenda"
+          defaultSorting={[{ id: "id", desc: true }]}
+        />
       )}
     </div>
   );

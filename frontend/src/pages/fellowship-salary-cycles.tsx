@@ -38,7 +38,12 @@ export default function FellowshipSalaryCyclesPage() {
       {loading ? (
         <DataTableSkeleton />
       ) : (
-        <DataTable columns={fellowshipSalaryCyclesColumns} data={data} tableName="fellowship-salary-cycles" />
+        <DataTable
+          columns={fellowshipSalaryCyclesColumns}
+          data={data}
+          tableName="fellowship-salary-cycles"
+          defaultSorting={[{ id: "cycle", desc: true }]}
+        />
       )}
     </div>
   );

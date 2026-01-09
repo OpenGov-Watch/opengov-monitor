@@ -33,14 +33,19 @@ function decodeViewState(encoded: string): ViewState | null {
   }
 }
 
-export function useViewState(tableName: string) {
+interface UseViewStateOptions {
+  defaultSorting?: SortingState;
+}
+
+export function useViewState(tableName: string, options: UseViewStateOptions = {}) {
+  const { defaultSorting = [] } = options;
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const initialLoadDone = useRef(false);
 
-  // Initialize state
-  const [sorting, setSorting] = useState<SortingState>([]);
+  // Initialize state with defaults
+  const [sorting, setSorting] = useState<SortingState>(defaultSorting);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [globalFilter, setGlobalFilter] = useState("");
@@ -114,7 +119,7 @@ export function useViewState(tableName: string) {
   // Clear view state
   const clearViewState = useCallback(() => {
     localStorage.removeItem(STORAGE_PREFIX + tableName);
-    setSorting([]);
+    setSorting(defaultSorting);
     setColumnFilters([]);
     setColumnVisibility({});
     setGlobalFilter("");
@@ -122,7 +127,7 @@ export function useViewState(tableName: string) {
 
     // Clear URL params
     navigate(location.pathname, { replace: true });
-  }, [tableName, navigate, location.pathname]);
+  }, [tableName, navigate, location.pathname, defaultSorting]);
 
   // Get list of saved views
   const getSavedViews = useCallback((): string[] => {

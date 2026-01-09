@@ -38,7 +38,12 @@ export default function TreasuryPage() {
       {loading ? (
         <DataTableSkeleton />
       ) : (
-        <DataTable columns={treasuryColumns} data={data} tableName="treasury" />
+        <DataTable
+          columns={treasuryColumns}
+          data={data}
+          tableName="treasury"
+          defaultSorting={[{ id: "id", desc: true }]}
+        />
       )}
     </div>
   );
