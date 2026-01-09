@@ -1,8 +1,15 @@
 import express from "express";
 import cors from "cors";
 import session from "express-session";
+import detectPort from "detect-port";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { createSessionStore } from "./db/session-store.js";
 import { ensureUsersTable } from "./db/auth-queries.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Import route handlers
 import { authRouter } from "./routes/auth.js";
@@ -23,7 +30,8 @@ import { statsRouter } from "./routes/stats.js";
 import { syncRouter } from "./routes/sync.js";
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const DEFAULT_PORT = parseInt(process.env.PORT || "3001", 10);
+const PORT_FILE = path.join(__dirname, "../../data/.api-port");
 
 // Ensure Users table exists on startup
 ensureUsersTable();
@@ -83,11 +91,46 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(500).json({ error: err.message });
 });
 
-// Bind to 127.0.0.1 explicitly to avoid dual-stack issues on Windows
-const server = app.listen(PORT as number, "127.0.0.1", () => {
-  console.log(`API server running on http://127.0.0.1:${PORT}`);
-});
+// Start server with dynamic port detection
+async function startServer() {
+  const port = await detectPort(DEFAULT_PORT);
 
-// Set keep-alive timeout to help with connection reuse
-server.keepAliveTimeout = 65000;
-server.headersTimeout = 66000;
+  // Bind to 127.0.0.1 explicitly to avoid dual-stack issues on Windows
+  const server = app.listen(port, "127.0.0.1", () => {
+    console.log(`API server running on http://127.0.0.1:${port}`);
+
+    // Write port to file for frontend to read
+    try {
+      fs.mkdirSync(path.dirname(PORT_FILE), { recursive: true });
+      fs.writeFileSync(PORT_FILE, String(port));
+    } catch (err) {
+      console.error("Failed to write port file:", err);
+    }
+  });
+
+  // Set keep-alive timeout to help with connection reuse
+  server.keepAliveTimeout = 65000;
+  server.headersTimeout = 66000;
+
+  // Cleanup port file on exit
+  const cleanup = () => {
+    try {
+      if (fs.existsSync(PORT_FILE)) {
+        fs.unlinkSync(PORT_FILE);
+      }
+    } catch {
+      // Ignore cleanup errors
+    }
+  };
+
+  process.on("SIGINT", () => {
+    cleanup();
+    process.exit(0);
+  });
+  process.on("SIGTERM", () => {
+    cleanup();
+    process.exit(0);
+  });
+}
+
+startServer();

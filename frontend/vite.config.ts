@@ -1,6 +1,20 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import fs from "fs";
+
+function getApiPort(): number {
+  const portFile = path.resolve(__dirname, "../data/.api-port");
+  try {
+    const port = parseInt(fs.readFileSync(portFile, "utf-8").trim(), 10);
+    if (!isNaN(port)) {
+      return port;
+    }
+  } catch {
+    // Port file doesn't exist yet, use default
+  }
+  return 3001;
+}
 
 export default defineConfig({
   plugins: [react()],
@@ -11,10 +25,10 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    strictPort: true,
+    strictPort: false, // Allow fallback to next available port
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:3001",
+        target: `http://127.0.0.1:${getApiPort()}`,
         changeOrigin: true,
         // Handle proxy errors gracefully
         configure: (proxy) => {

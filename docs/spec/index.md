@@ -219,7 +219,7 @@ pnpm users add admin
 | `OPENGOV_MONITOR_SPREADSHEET_ID` | Backend | Google Spreadsheet ID |
 | `OPENGOV_MONITOR_CREDENTIALS` | Backend | Google credentials JSON |
 | `OPENGOV_MONITOR_LOG_DB` | Backend | Log database path |
-| `PORT` | API | API server port (default: 3001) |
+| `PORT` | API | API server preferred port (default: 3001, auto-finds free port) |
 | `DATABASE_PATH` | API | SQLite path (default: `../data/polkadot.db`) |
 | `SESSION_SECRET` | API | Session encryption secret (32+ chars) |
 
@@ -362,13 +362,15 @@ docker compose exec opengov-monitor /app/backend/.venv/bin/python /app/backend/s
 ### Local Development (without Docker)
 
 ```bash
-# From root - starts both API and frontend
+# From root - starts both API and frontend with dynamic port allocation
 pnpm run dev
 
 # Or individually
-pnpm api:dev       # API server on :3001
-pnpm frontend:dev  # Frontend on :3000
+pnpm api:dev       # API server on :3001 (or next available port)
+pnpm frontend:dev  # Frontend on :3000 (or next available port)
 ```
+
+**Dynamic Port Allocation:** The dev script automatically finds available ports if the defaults (3001 for API, 3000 for frontend) are in use. The API writes its port to `data/.api-port`, which the frontend reads for proxy configuration.
 
 ### Backend (Data Fetching)
 
