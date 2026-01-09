@@ -144,6 +144,29 @@ export function transformToBarData(
   valueColumns: string[],
   tableName?: string
 ): { data: BarChartData[]; bars: { dataKey: string; name: string }[] } {
+  if (data.length === 0) {
+    return { data: [], bars: [] };
+  }
+
+  // Check if we need to pivot: look for a categorical column among valueColumns
+  // A categorical column is one where the first non-null value is a non-numeric string
+  const categoricalCol = valueColumns.find((col) => {
+    // Check first few rows to find a non-null value
+    for (const row of data.slice(0, 10)) {
+      const val = row[col];
+      if (val === null || val === undefined) continue;
+      return typeof val === "string" && isNaN(Number(val));
+    }
+    return false;
+  });
+  const numericCols = valueColumns.filter((col) => col !== categoricalCol);
+
+  // If we have a categorical column and at least one numeric column, pivot the data
+  if (categoricalCol && numericCols.length > 0) {
+    return pivotBarData(data, labelColumn, numericCols[0], categoricalCol);
+  }
+
+  // Standard transformation: each valueColumn becomes a bar series
   const barData = data.map((row) => {
     const item: BarChartData = {
       name: String(row[labelColumn] ?? "Unknown"),
@@ -157,6 +180,61 @@ export function transformToBarData(
   const bars = valueColumns.map((col) => ({
     dataKey: col,
     name: tableName ? getColumnDisplayName(tableName, col) : col,
+  }));
+
+  return { data: barData, bars };
+}
+
+/**
+ * Pivot data for stacked/grouped bar charts.
+ * Transforms rows like:
+ *   { quarter: "2024-Q1", value: 1000, category: "Dev" }
+ *   { quarter: "2024-Q1", value: 500, category: "Ops" }
+ * Into:
+ *   { name: "2024-Q1", Dev: 1000, Ops: 500 }
+ */
+function pivotBarData(
+  data: Record<string, unknown>[],
+  labelColumn: string,
+  valueColumn: string,
+  seriesColumn: string
+): { data: BarChartData[]; bars: { dataKey: string; name: string }[] } {
+  // Get unique series values (categories) in order of appearance
+  const seriesValues: string[] = [];
+  const seenSeries = new Set<string>();
+  for (const row of data) {
+    const series = String(row[seriesColumn] ?? "Unknown");
+    if (!seenSeries.has(series)) {
+      seenSeries.add(series);
+      seriesValues.push(series);
+    }
+  }
+
+  // Group data by label (e.g., quarter)
+  const grouped = new Map<string, BarChartData>();
+  for (const row of data) {
+    const label = String(row[labelColumn] ?? "Unknown");
+    const series = String(row[seriesColumn] ?? "Unknown");
+    const value = Number(row[valueColumn]) || 0;
+
+    if (!grouped.has(label)) {
+      const item: BarChartData = { name: label };
+      // Initialize all series to 0
+      for (const s of seriesValues) {
+        item[s] = 0;
+      }
+      grouped.set(label, item);
+    }
+
+    const item = grouped.get(label)!;
+    item[series] = (Number(item[series]) || 0) + value;
+  }
+
+  const barData = Array.from(grouped.values());
+
+  const bars = seriesValues.map((series) => ({
+    dataKey: series,
+    name: series,
   }));
 
   return { data: barData, bars };

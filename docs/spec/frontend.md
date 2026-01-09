@@ -595,6 +595,15 @@ The dashboard feature allows users to create custom visualizations using a visua
 - **Inline Editing**: Edit dashboard name and description directly in edit mode
 - **Auto-scroll & Highlight**: New/duplicated components trigger smooth scroll and pulse highlight animation
 
+### Chart Data Transformation
+
+Bar charts (stacked/grouped) automatically pivot data when needed:
+
+- **Input**: Long format with categorical column (e.g., `quarter | sum_usd | category`)
+- **Output**: Wide format with categories as series (e.g., `quarter | Development | Outreach`)
+
+The `transformToBarData` function detects categorical columns by checking if values are non-numeric strings, then pivots automatically. This allows queries with `GROUP BY quarter, category` to render as stacked bars without manual transformation.
+
 ### Query Builder
 
 The query builder provides a visual interface for constructing database queries:
