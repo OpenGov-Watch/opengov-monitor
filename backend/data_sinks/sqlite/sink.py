@@ -139,8 +139,8 @@ class SQLiteSink(DataSink):
                     r.latest_status_change,
                     r.DOT_latest,
                     r.USD_latest,
-                    r.category,
-                    r.subcategory,
+                    cat.category,
+                    cat.subcategory,
                     r.title,
                     r.DOT_component,
                     r.USDC_component,
@@ -148,6 +148,7 @@ class SQLiteSink(DataSink):
                     r.url
                 FROM Referenda r
                 LEFT JOIN Treasury t ON r.id = t.referendumIndex
+                LEFT JOIN Categories cat ON r.category_id = cat.id
                 WHERE t.id IS NULL
                   AND r.DOT_latest > 0
                   AND r.status = 'Executed'
@@ -161,8 +162,8 @@ class SQLiteSink(DataSink):
                     t.latest_status_change,
                     t.DOT_latest,
                     t.USD_latest,
-                    r.category,
-                    r.subcategory,
+                    cat.category,
+                    cat.subcategory,
                     t.description AS title,
                     t.DOT_component,
                     t.USDC_component,
@@ -170,6 +171,7 @@ class SQLiteSink(DataSink):
                     t.url
                 FROM Treasury t
                 LEFT JOIN Referenda r ON t.referendumIndex = r.id
+                LEFT JOIN Categories cat ON r.category_id = cat.id
                 WHERE t.status IN ('Paid', 'Processed')
 
                 UNION ALL
@@ -181,8 +183,8 @@ class SQLiteSink(DataSink):
                     cb.latest_status_change,
                     cb.DOT AS DOT_latest,
                     cb.USD_latest,
-                    COALESCE(cb.category, b.category) AS category,
-                    COALESCE(cb.subcategory, b.subcategory) AS subcategory,
+                    COALESCE(cb_cat.category, b_cat.category) AS category,
+                    COALESCE(cb_cat.subcategory, b_cat.subcategory) AS subcategory,
                     cb.description AS title,
                     cb.DOT AS DOT_component,
                     NULL AS USDC_component,
@@ -190,6 +192,8 @@ class SQLiteSink(DataSink):
                     cb.url
                 FROM "Child Bounties" cb
                 LEFT JOIN Bounties b ON cb.parentBountyId = b.id
+                LEFT JOIN Categories cb_cat ON cb.category_id = cb_cat.id
+                LEFT JOIN Categories b_cat ON b.category_id = b_cat.id
                 WHERE cb.status = 'Claimed'
 
                 UNION ALL
@@ -201,14 +205,15 @@ class SQLiteSink(DataSink):
                     s.latest_status_change,
                     s.DOT_latest,
                     s.USD_latest,
-                    s.category,
-                    s.subcategory,
+                    c.category,
+                    c.subcategory,
                     s.title,
                     s.DOT_component,
                     s.USDC_component,
                     s.USDT_component,
                     s.url
                 FROM Subtreasury s
+                LEFT JOIN Categories c ON s.category_id = c.id
 
                 UNION ALL
 
