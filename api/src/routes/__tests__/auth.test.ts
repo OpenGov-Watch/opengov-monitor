@@ -26,15 +26,23 @@ vi.mock("bcrypt", () => ({
   },
 }));
 
-function createApp(): express.Express {
+function createApp(options?: { trustProxy?: boolean; secureCookie?: boolean }): express.Express {
   const app = express();
+
+  if (options?.trustProxy) {
+    app.set("trust proxy", 1);
+  }
+
   app.use(express.json());
   app.use(
     session({
       secret: "test-secret",
       resave: false,
       saveUninitialized: false,
-      cookie: { secure: false },
+      cookie: {
+        secure: options?.secureCookie ?? false,
+        sameSite: "lax",
+      },
     })
   );
   app.use("/api/auth", authRouter);
@@ -173,5 +181,50 @@ describe("Session flow", () => {
     // Check auth status
     const meRes = await agent.get("/api/auth/me");
     expect(meRes.body.authenticated).toBe(false);
+  });
+});
+
+describe("Reverse proxy session handling", () => {
+  it("sets Secure cookie flag when trust proxy is enabled with X-Forwarded-Proto: https", async () => {
+    // Simulate production: trust proxy enabled, secure cookies required
+    const proxyApp = createApp({ trustProxy: true, secureCookie: true });
+
+    // Login with X-Forwarded-Proto: https (simulating nginx)
+    const loginRes = await request(proxyApp)
+      .post("/api/auth/login")
+      .set("X-Forwarded-Proto", "https")
+      .send({ username: "admin", password: "password123" });
+
+    expect(loginRes.status).toBe(200);
+    expect(loginRes.body.success).toBe(true);
+
+    // Verify session cookie is set with Secure flag
+    // This is the critical check: with trust proxy + X-Forwarded-Proto: https,
+    // the cookie MUST have Secure flag for browsers to persist it
+    const cookies = loginRes.headers["set-cookie"];
+    expect(cookies).toBeDefined();
+    expect(cookies.some((c: string) => c.includes("Secure"))).toBe(true);
+    expect(cookies.some((c: string) => c.includes("SameSite=Lax"))).toBe(true);
+  });
+
+  it("does NOT set Secure cookie flag without trust proxy (production misconfiguration)", async () => {
+    // Without trust proxy, Express doesn't see HTTPS and won't set secure cookie
+    // This test documents the bug we fixed: missing trust proxy = broken sessions
+    const noProxyApp = createApp({ trustProxy: false, secureCookie: true });
+
+    // Login with X-Forwarded-Proto: https but trust proxy disabled
+    const loginRes = await request(noProxyApp)
+      .post("/api/auth/login")
+      .set("X-Forwarded-Proto", "https")
+      .send({ username: "admin", password: "password123" });
+
+    expect(loginRes.status).toBe(200);
+
+    // Cookie should NOT have Secure flag because Express doesn't trust the proxy
+    // In production, this would cause session loss on reload (the original bug)
+    const cookies = loginRes.headers["set-cookie"];
+    if (cookies) {
+      expect(cookies.some((c: string) => c.includes("Secure"))).toBe(false);
+    }
   });
 });
