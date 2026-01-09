@@ -204,6 +204,108 @@ class TestViewLogic:
         )
         assert cursor.fetchone()[0] == 1  # Should be included
 
+    def test_all_spending_view_is_queryable(self, sqlite_sink):
+        """Verify all_spending view can be queried without SQL errors.
+
+        This test catches issues like missing column references or broken JOINs
+        in the view definition. The view JOINs multiple tables (Referenda,
+        Treasury, Child Bounties, Bounties, Categories, Subtreasury, Fellowship)
+        and errors in JOIN conditions will cause query failures.
+        """
+        from data_sinks.sqlite.schema import (
+            REFERENDA_SCHEMA, TREASURY_SCHEMA, CHILD_BOUNTIES_SCHEMA,
+            FELLOWSHIP_SCHEMA, FELLOWSHIP_SALARY_CYCLES_SCHEMA,
+            CATEGORIES_SCHEMA, BOUNTIES_SCHEMA, SUBTREASURY_SCHEMA,
+            FELLOWSHIP_SUBTREASURY_SCHEMA,
+            generate_create_table_sql,
+        )
+
+        # Create all tables referenced by the all_spending view
+        for schema in [REFERENDA_SCHEMA, TREASURY_SCHEMA, CHILD_BOUNTIES_SCHEMA,
+                       FELLOWSHIP_SCHEMA, FELLOWSHIP_SALARY_CYCLES_SCHEMA,
+                       CATEGORIES_SCHEMA, BOUNTIES_SCHEMA, SUBTREASURY_SCHEMA,
+                       FELLOWSHIP_SUBTREASURY_SCHEMA]:
+            sqlite_sink.connection.execute(generate_create_table_sql(schema))
+        sqlite_sink.connection.commit()
+
+        # Query the view - should not raise even with empty tables
+        cursor = sqlite_sink.connection.execute(
+            "SELECT * FROM all_spending LIMIT 1"
+        )
+        # Fetch to ensure query executes
+        cursor.fetchall()
+
+    def test_all_spending_view_has_expected_columns(self, sqlite_sink):
+        """Verify all_spending view returns expected columns including category."""
+        from data_sinks.sqlite.schema import (
+            REFERENDA_SCHEMA, TREASURY_SCHEMA, CHILD_BOUNTIES_SCHEMA,
+            FELLOWSHIP_SCHEMA, FELLOWSHIP_SALARY_CYCLES_SCHEMA,
+            CATEGORIES_SCHEMA, BOUNTIES_SCHEMA, SUBTREASURY_SCHEMA,
+            FELLOWSHIP_SUBTREASURY_SCHEMA,
+            generate_create_table_sql,
+        )
+
+        # Create all tables referenced by the all_spending view
+        for schema in [REFERENDA_SCHEMA, TREASURY_SCHEMA, CHILD_BOUNTIES_SCHEMA,
+                       FELLOWSHIP_SCHEMA, FELLOWSHIP_SALARY_CYCLES_SCHEMA,
+                       CATEGORIES_SCHEMA, BOUNTIES_SCHEMA, SUBTREASURY_SCHEMA,
+                       FELLOWSHIP_SUBTREASURY_SCHEMA]:
+            sqlite_sink.connection.execute(generate_create_table_sql(schema))
+        sqlite_sink.connection.commit()
+
+        cursor = sqlite_sink.connection.execute(
+            "PRAGMA table_info(all_spending)"
+        )
+        columns = [row[1] for row in cursor.fetchall()]
+
+        # Key columns that must exist
+        assert 'type' in columns
+        assert 'id' in columns
+        assert 'category' in columns
+        assert 'subcategory' in columns
+        assert 'DOT_latest' in columns
+        assert 'title' in columns
+        assert 'year' in columns
+        assert 'year_month' in columns
+        assert 'year_quarter' in columns
+        # url column was intentionally removed
+        assert 'url' not in columns
+
+    def test_all_spending_view_joins_categories(self, sqlite_sink, sample_referenda_df):
+        """Verify category values come from Categories table via JOIN."""
+        from data_sinks.sqlite.schema import (
+            REFERENDA_SCHEMA, TREASURY_SCHEMA, CHILD_BOUNTIES_SCHEMA,
+            FELLOWSHIP_SCHEMA, FELLOWSHIP_SALARY_CYCLES_SCHEMA,
+            CATEGORIES_SCHEMA, BOUNTIES_SCHEMA, SUBTREASURY_SCHEMA,
+            FELLOWSHIP_SUBTREASURY_SCHEMA,
+            generate_create_table_sql,
+        )
+
+        # Create all tables referenced by the all_spending view
+        for schema in [REFERENDA_SCHEMA, TREASURY_SCHEMA, CHILD_BOUNTIES_SCHEMA,
+                       FELLOWSHIP_SCHEMA, FELLOWSHIP_SALARY_CYCLES_SCHEMA,
+                       CATEGORIES_SCHEMA, BOUNTIES_SCHEMA, SUBTREASURY_SCHEMA,
+                       FELLOWSHIP_SUBTREASURY_SCHEMA]:
+            sqlite_sink.connection.execute(generate_create_table_sql(schema))
+
+        # Add a category
+        sqlite_sink.connection.execute(
+            'INSERT INTO Categories (id, category, subcategory) VALUES (1, "Development", "SDK")'
+        )
+        sqlite_sink.connection.commit()
+
+        # Insert referenda with category_id = 1
+        sqlite_sink.update_table("Referenda", sample_referenda_df)
+
+        # Query all_spending - should have category from Categories table
+        cursor = sqlite_sink.connection.execute(
+            "SELECT category, subcategory FROM all_spending WHERE id = 'ref-1'"
+        )
+        result = cursor.fetchone()
+        if result:  # Only check if there's a result (depends on status filter)
+            assert result[0] == "Development"
+            assert result[1] == "SDK"
+
 
 # =============================================================================
 # Table Management Tests

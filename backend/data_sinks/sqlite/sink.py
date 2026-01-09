@@ -144,8 +144,7 @@ class SQLiteSink(DataSink):
                     r.title,
                     r.DOT_component,
                     r.USDC_component,
-                    r.USDT_component,
-                    r.url
+                    r.USDT_component
                 FROM Referenda r
                 LEFT JOIN Treasury t ON r.id = t.referendumIndex
                 LEFT JOIN Categories cat ON r.category_id = cat.id
@@ -167,8 +166,7 @@ class SQLiteSink(DataSink):
                     t.description AS title,
                     t.DOT_component,
                     t.USDC_component,
-                    t.USDT_component,
-                    t.url
+                    t.USDT_component
                 FROM Treasury t
                 LEFT JOIN Referenda r ON t.referendumIndex = r.id
                 LEFT JOIN Categories cat ON r.category_id = cat.id
@@ -188,8 +186,7 @@ class SQLiteSink(DataSink):
                     cb.description AS title,
                     cb.DOT AS DOT_component,
                     NULL AS USDC_component,
-                    NULL AS USDT_component,
-                    cb.url
+                    NULL AS USDT_component
                 FROM "Child Bounties" cb
                 LEFT JOIN Bounties b ON cb.parentBountyId = b.id
                 LEFT JOIN Categories cb_cat ON cb.category_id = cb_cat.id
@@ -210,8 +207,7 @@ class SQLiteSink(DataSink):
                     s.title,
                     s.DOT_component,
                     s.USDC_component,
-                    s.USDT_component,
-                    s.url
+                    s.USDT_component
                 FROM Subtreasury s
                 LEFT JOIN Categories c ON s.category_id = c.id
 
@@ -229,8 +225,7 @@ class SQLiteSink(DataSink):
                     'Fellowship Salary Cycle ' || c.cycle AS title,
                     c.registered_paid_amount_dot AS DOT_component,
                     NULL AS USDC_component,
-                    NULL AS USDT_component,
-                    c.url
+                    NULL AS USDT_component
                 FROM "Fellowship Salary Cycles" c
                 WHERE c.end_time IS NOT NULL
 
@@ -248,8 +243,7 @@ class SQLiteSink(DataSink):
                     f.description AS title,
                     f.DOT AS DOT_component,
                     NULL AS USDC_component,
-                    NULL AS USDT_component,
-                    f.url
+                    NULL AS USDT_component
                 FROM Fellowship f
                 WHERE f.status IN ('Paid', 'Approved')
             ) AS spending

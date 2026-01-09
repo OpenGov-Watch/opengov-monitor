@@ -217,7 +217,6 @@ BOUNTIES_SCHEMA = TableSchema(
         "name": "TEXT",
         "category_id": "INTEGER",
         "remaining_dot": "REAL",
-        "url": "TEXT",
     },
     primary_key="id",
     indexes=[
@@ -239,7 +238,6 @@ SUBTREASURY_SCHEMA = TableSchema(
         "USDT_component": "REAL",
         "category_id": "INTEGER",
         "latest_status_change": "TIMESTAMP",
-        "url": "TEXT",
     },
     primary_key="id",
     indexes=[
