@@ -496,6 +496,19 @@ Pre-built accessible components from shadcn/ui:
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import fs from "fs";
+
+// Read API port from file written by API server on startup
+function getApiPort(): number {
+  const portFile = path.resolve(__dirname, "../data/.api-port");
+  try {
+    const port = parseInt(fs.readFileSync(portFile, "utf-8").trim(), 10);
+    if (!isNaN(port)) return port;
+  } catch {
+    // Port file doesn't exist yet, use default
+  }
+  return 3001;
+}
 
 export default defineConfig({
   plugins: [react()],
@@ -506,9 +519,10 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    strictPort: false, // Allow fallback to next available port
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:3001",
+        target: `http://127.0.0.1:${getApiPort()}`,
         changeOrigin: true,
       },
     },
@@ -516,7 +530,7 @@ export default defineConfig({
 });
 ```
 
-The dev server proxies all `/api/*` requests to the Express API server on port 3001.
+The dev server proxies all `/api/*` requests to the Express API server. The API port is read dynamically from `data/.api-port` (written by the API server on startup), enabling automatic port discovery when default ports are in use.
 
 ---
 

@@ -1,4 +1,10 @@
-1. Data Architecture
+# Report Workflow (Legacy)
+
+> **Note:** This document describes the legacy Google Sheets-based reporting workflow. The current application uses SQLite for data storage and a web dashboard for visualization. This document is retained for historical reference only.
+
+---
+
+## 1. Data Architecture
 Sheet Hierarchy & Data Flow
 ┌─────────────────────────────────────────────────────────────────────┐
 │                        RAW DATA SOURCES                             │

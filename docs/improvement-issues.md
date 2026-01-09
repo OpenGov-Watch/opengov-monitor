@@ -164,15 +164,15 @@ Column display names and formatting are partially hardcoded across multiple file
 
 ## Documentation Gaps
 
-### 13. Add API Documentation
-**Location**: `docs/`
+### 13. Add OpenAPI Specification
+**Location**: `docs/`, `api/`
 
-No formal API documentation (OpenAPI/Swagger).
+Prose API documentation exists in `docs/spec/api-reference.md`, but no machine-readable OpenAPI/Swagger spec for tooling integration.
 
 **Tasks**:
-- [ ] Generate OpenAPI spec from routes
-- [ ] Add endpoint examples
-- [ ] Document query builder schema
+- [ ] Generate OpenAPI spec from routes (or write manually)
+- [ ] Add Swagger UI for interactive exploration
+- [ ] Keep spec in sync with api-reference.md
 
 ---
 

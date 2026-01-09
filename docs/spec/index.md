@@ -8,7 +8,7 @@ OpenGov Monitor is a monorepo containing a data aggregation backend, REST API, a
 
 | Component | Purpose | Technology |
 |-----------|---------|------------|
-| **Backend** | Fetch governance data, enrich with prices, store | Python, Flask, SQLite |
+| **Backend** | Fetch governance data, enrich with prices, store | Python, SQLite |
 | **API** | REST API serving data to frontend | Node.js, Express, better-sqlite3 |
 | **Frontend** | Interactive data exploration dashboard | Vite, React, React Router, TanStack Table |
 
