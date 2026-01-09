@@ -82,7 +82,7 @@ class TestSchemaRegistry:
     """Tests for the schema registry."""
 
     def test_schema_registry_contains_all_predefined_schemas(self):
-        """Verify all 14 schemas are in the registry."""
+        """Verify all 15 schemas are in the registry."""
         expected_tables = [
             "Referenda",
             "Treasury",
@@ -98,8 +98,9 @@ class TestSchemaRegistry:
             "Dashboards",
             "Dashboard Components",
             "Query Cache",
+            "Users",
         ]
-        assert len(SCHEMA_REGISTRY) == 14
+        assert len(SCHEMA_REGISTRY) == 15
         for table in expected_tables:
             assert table in SCHEMA_REGISTRY, f"Missing schema for '{table}'"
 
@@ -248,7 +249,7 @@ class TestGenerateCreateIndexesSql:
         assert "idx_referenda_status" in index_names
         assert "idx_referenda_track" in index_names
         assert "idx_referenda_proposal_time" in index_names
-        assert "idx_referenda_category" in index_names
+        assert "idx_referenda_category_id" in index_names
 
     def test_generate_create_indexes_sql_quoted_names(self):
         """Verify index and column names are quoted."""

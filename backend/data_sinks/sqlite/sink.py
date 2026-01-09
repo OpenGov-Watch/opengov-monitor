@@ -92,7 +92,7 @@ class SQLiteSink(DataSink):
         self._connection.execute('''
             CREATE VIEW outstanding_claims AS
             SELECT
-                id, url, referendumIndex, status, description,
+                id, referendumIndex, status, description,
                 DOT_proposal_time, USD_proposal_time,
                 DOT_latest, USD_latest,
                 DOT_component, USDC_component, USDT_component,
@@ -110,7 +110,7 @@ class SQLiteSink(DataSink):
         self._connection.execute('''
             CREATE VIEW expired_claims AS
             SELECT
-                id, url, referendumIndex, status, description,
+                id, referendumIndex, status, description,
                 DOT_proposal_time, USD_proposal_time,
                 DOT_latest, USD_latest,
                 DOT_component, USDC_component, USDT_component,

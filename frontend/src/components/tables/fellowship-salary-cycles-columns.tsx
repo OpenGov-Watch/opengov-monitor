@@ -3,6 +3,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { formatNumber, formatDate } from "@/lib/utils";
+import { subsquareUrls } from "@/lib/urls";
 import type { FellowshipSalaryCycle } from "@/lib/db/types";
 
 export const fellowshipSalaryCyclesColumns: ColumnDef<FellowshipSalaryCycle>[] = [
@@ -11,19 +12,16 @@ export const fellowshipSalaryCyclesColumns: ColumnDef<FellowshipSalaryCycle>[] =
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Cycle" />
     ),
-    cell: ({ row }) => {
-      const url = row.original.url;
-      return (
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-medium hover:underline text-blue-600"
-        >
-          #{row.getValue("cycle")}
-        </a>
-      );
-    },
+    cell: ({ row }) => (
+      <a
+        href={subsquareUrls.salaryCycle(row.original.cycle)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-medium hover:underline text-blue-600"
+      >
+        #{row.getValue("cycle")}
+      </a>
+    ),
   },
   {
     accessorKey: "budget_dot",

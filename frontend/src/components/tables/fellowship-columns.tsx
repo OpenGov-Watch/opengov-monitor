@@ -5,6 +5,7 @@ import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { DataTableFacetedFilter } from "@/components/data-table/faceted-filter";
 import { Badge } from "@/components/ui/badge";
 import { formatNumber, formatCurrency, formatDate } from "@/lib/utils";
+import { subsquareUrls } from "@/lib/urls";
 import type { Fellowship } from "@/lib/db/types";
 
 function getStatusVariant(
@@ -31,7 +32,14 @@ export const fellowshipColumns: ColumnDef<Fellowship>[] = [
       <DataTableColumnHeader column={column} title="ID" />
     ),
     cell: ({ row }) => (
-      <div className="font-medium w-[60px]">{row.getValue("id")}</div>
+      <a
+        href={subsquareUrls.fellowship(row.original.id)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-medium w-[60px] hover:underline text-blue-600"
+      >
+        {row.getValue("id")}
+      </a>
     ),
   },
   {
@@ -40,18 +48,14 @@ export const fellowshipColumns: ColumnDef<Fellowship>[] = [
       <DataTableColumnHeader column={column} title="Description" />
     ),
     cell: ({ row }) => {
-      const url = row.original.url;
       const description = row.getValue("description") as string;
       return (
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="max-w-[400px] truncate block hover:underline text-blue-600"
+        <div
+          className="max-w-[400px] truncate"
           title={description}
         >
           {description || "No description"}
-        </a>
+        </div>
       );
     },
   },

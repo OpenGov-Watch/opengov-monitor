@@ -585,7 +585,7 @@ class TestReadQueryUtilities:
         result = sqlite_sink.read_table("Referenda")
         # Should have all columns from schema
         assert 'id' in result.columns
-        assert 'url' in result.columns
+        assert 'title' in result.columns
         assert 'tally.ayes' in result.columns
 
     def test_read_table_empty_table(self, populated_sink):
@@ -745,6 +745,6 @@ class TestEdgeCases:
         sqlite_sink.update_table("Referenda", sample_df_with_nan)
         result = sqlite_sink.read_table("Referenda")
 
-        # Check NULL values
-        null_url_row = result[result['id'] == 2]
-        assert pd.isna(null_url_row['url'].iloc[0]) or null_url_row['url'].iloc[0] is None
+        # Check NULL values - title is None for row with id=3
+        null_title_row = result[result['id'] == 3]
+        assert pd.isna(null_title_row['title'].iloc[0]) or null_title_row['title'].iloc[0] is None

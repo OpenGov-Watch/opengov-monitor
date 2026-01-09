@@ -5,6 +5,7 @@ import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { DataTableFacetedFilter } from "@/components/data-table/faceted-filter";
 import { Badge } from "@/components/ui/badge";
 import { formatNumber, formatCurrency, formatDate } from "@/lib/utils";
+import { subsquareUrls } from "@/lib/urls";
 import type { ChildBounty, Category } from "@/lib/db/types";
 import {
   CategorySelector,
@@ -54,7 +55,14 @@ export function createChildBountiesColumns(
         <DataTableColumnHeader column={column} title="ID" />
       ),
       cell: ({ row }) => (
-        <div className="font-medium w-[80px]">{row.getValue("identifier")}</div>
+        <a
+          href={subsquareUrls.childBounty(row.original.identifier)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium w-[80px] hover:underline text-blue-600"
+        >
+          {row.getValue("identifier")}
+        </a>
       ),
     },
     {
@@ -74,18 +82,14 @@ export function createChildBountiesColumns(
         <DataTableColumnHeader column={column} title="Description" />
       ),
       cell: ({ row }) => {
-        const url = row.original.url;
         const description = row.getValue("description") as string;
         return (
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="max-w-[350px] truncate block hover:underline text-blue-600"
+          <div
+            className="max-w-[350px] truncate"
             title={description}
           >
             {description || "No description"}
-          </a>
+          </div>
         );
       },
     },

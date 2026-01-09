@@ -48,7 +48,6 @@ def populated_sink(sqlite_sink):
 def sample_referenda_df():
     """Sample DataFrame matching REFERENDA_SCHEMA."""
     return pd.DataFrame({
-        'url': ['https://polkadot.subsquare.io/referenda/1', 'https://polkadot.subsquare.io/referenda/2'],
         'title': ['Test Referendum 1', 'Test Referendum 2'],
         'status': ['Executed', 'Ongoing'],
         'DOT_proposal_time': [1000.0, 2000.0],
@@ -63,8 +62,9 @@ def sample_referenda_df():
         'DOT_component': [500.0, 1000.0],
         'USDC_component': [300.0, 600.0],
         'USDT_component': [200.0, 400.0],
-        'category': ['Development', None],
-        'subcategory': ['Infrastructure', None],
+        'category_id': [1, None],
+        'notes': ['Some notes', None],
+        'hide_in_spends': [0, 0],
     }, index=pd.Index([1, 2], name='id'))
 
 
@@ -77,7 +77,6 @@ def sample_treasury_df():
     upcoming = now + timedelta(days=5)
 
     return pd.DataFrame({
-        'url': ['https://polkadot.subsquare.io/treasury/1', 'https://polkadot.subsquare.io/treasury/2', 'https://polkadot.subsquare.io/treasury/3'],
         'referendumIndex': [1, 2, 3],
         'status': ['Approved', 'Approved', 'Approved'],
         'description': ['Active claim', 'Upcoming claim', 'Expired claim'],
@@ -99,7 +98,6 @@ def sample_treasury_df():
 def sample_child_bounties_df():
     """Sample DataFrame matching CHILD_BOUNTIES_SCHEMA."""
     return pd.DataFrame({
-        'url': ['https://polkadot.subsquare.io/child-bounty/1', 'https://polkadot.subsquare.io/child-bounty/2'],
         'index': [1, 2],
         'parentBountyId': [10, 10],
         'status': ['Claimed', 'Pending'],
@@ -110,8 +108,9 @@ def sample_child_bounties_df():
         'proposal_time': [datetime(2024, 1, 1), datetime(2024, 2, 1)],
         'latest_status_change': [datetime(2024, 1, 15), datetime(2024, 2, 10)],
         'USD_latest': [550.0, 1100.0],
-        'category': ['Development', None],
-        'subcategory': ['Tooling', None],
+        'category_id': [1, None],
+        'notes': ['Some notes', None],
+        'hide_in_spends': [0, 0],
     }, index=pd.Index(['10-1', '10-2'], name='identifier'))
 
 
@@ -119,7 +118,6 @@ def sample_child_bounties_df():
 def sample_fellowship_df():
     """Sample DataFrame matching FELLOWSHIP_SCHEMA."""
     return pd.DataFrame({
-        'url': ['https://collectives.subsquare.io/fellowship/1'],
         'status': ['Approved'],
         'description': ['Fellowship Treasury Spend'],
         'DOT': [5000.0],
@@ -134,7 +132,6 @@ def sample_fellowship_df():
 def sample_df_with_nan():
     """DataFrame containing NaN/NaT values for edge case testing."""
     return pd.DataFrame({
-        'url': ['https://example.com/1', None, 'https://example.com/3'],
         'title': ['Title 1', 'Title 2', None],
         'DOT_latest': [100.0, np.nan, 300.0],
         'proposal_time': [datetime(2024, 1, 1), pd.NaT, datetime(2024, 3, 1)],
@@ -149,7 +146,6 @@ def sample_df_with_nan():
 def sample_df_with_unicode():
     """DataFrame containing unicode characters."""
     return pd.DataFrame({
-        'url': ['https://example.com/1'],
         'title': ['Test with émojis 🚀 and spëcial çharacters ñ'],
         'description': ['日本語テスト Chinese: 中文 Korean: 한국어'],
         'status': ['Executed'],
@@ -162,7 +158,6 @@ def sample_df_with_unicode():
 def sample_df_with_datetimes():
     """DataFrame with various datetime formats."""
     return pd.DataFrame({
-        'url': ['https://example.com/1', 'https://example.com/2'],
         'proposal_time': [datetime(2024, 1, 1, 12, 30, 45), datetime(2024, 6, 15, 0, 0, 0)],
         'latest_status_change': [pd.Timestamp('2024-01-15T10:30:00'), pd.Timestamp('2024-06-20')],
         'status': ['Executed', 'Ongoing'],
@@ -174,7 +169,7 @@ def sample_df_with_datetimes():
 @pytest.fixture
 def empty_df():
     """Empty DataFrame for testing edge cases."""
-    return pd.DataFrame(columns=['id', 'url', 'title', 'status'])
+    return pd.DataFrame(columns=['id', 'title', 'status'])
 
 
 @pytest.fixture
@@ -182,7 +177,6 @@ def large_df():
     """Large DataFrame for batch testing (1000 rows)."""
     n = 1000
     return pd.DataFrame({
-        'url': [f'https://example.com/{i}' for i in range(n)],
         'title': [f'Test {i}' for i in range(n)],
         'status': ['Executed' if i % 2 == 0 else 'Ongoing' for i in range(n)],
         'track': ['Treasurer' if i % 3 == 0 else 'SmallSpender' for i in range(n)],

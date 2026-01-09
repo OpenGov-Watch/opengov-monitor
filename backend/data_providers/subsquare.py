@@ -101,7 +101,6 @@ DATA TRANSFORMATION:
 - Timestamps converted from blockTime (seconds) * 1e6 to UTC datetime
 - Asset amounts denominated using network-specific decimals
 - USD values calculated using historical prices at proposal/execution time
-- Hyperlinks generated for spreadsheet integration
 """
 
 from .data_provider import DataProvider
@@ -420,10 +419,9 @@ class SubsquareProvider(DataProvider):
         df["tally.ayes"] = df.apply(lambda x: self.network_info.apply_denomination(x["onchainData"]["tally"]["ayes"], self.network_info.native_asset), axis=1)
         df["tally.nays"] = df.apply(lambda x: self.network_info.apply_denomination(x["onchainData"]["tally"]["nays"], self.network_info.native_asset), axis=1)
         df["track"] = df["onchainData"].apply(_determineTrack)
-        df["url"] = df["id"].apply(lambda x:f'=HYPERLINK("{self.network_info.referenda_url}{x}", {x})')
 
         df.set_index("id", inplace=True)
-        df = df[["url", "title", "status", f"{native_asset_name}_proposal_time", "USD_proposal_time", "track", "tally.ayes", "tally.nays", "proposal_time", "latest_status_change", f"{native_asset_name}_latest", "USD_latest", f"{native_asset_name}_component", "USDC_component", "USDT_component"]]
+        df = df[["title", "status", f"{native_asset_name}_proposal_time", "USD_proposal_time", "track", "tally.ayes", "tally.nays", "proposal_time", "latest_status_change", f"{native_asset_name}_latest", "USD_latest", f"{native_asset_name}_component", "USDC_component", "USDT_component"]]
 
         return df
 
@@ -511,12 +509,11 @@ class SubsquareProvider(DataProvider):
         df["validFrom"] = df["onchainData"].apply(lambda x: _estimate_block_datetime_from_block_number(x["meta"]["validFrom"]))
         df["expireAt"] = df["onchainData"].apply(lambda x: _estimate_block_datetime_from_block_number(x["meta"]["expireAt"]))
 
-        df["url"] = df["id"].apply(lambda x:f'=HYPERLINK("{self.network_info.treasury_spends_url}{x}", {x})')
         df.set_index("id", inplace=True)
-        df = df[["url", "referendumIndex", "status", "description", 
-                 f"{native_asset_name}_proposal_time", "USD_proposal_time", 
-                 "proposal_time", "latest_status_change", 
-                 f"{native_asset_name}_latest", "USD_latest", 
+        df = df[["referendumIndex", "status", "description",
+                 f"{native_asset_name}_proposal_time", "USD_proposal_time",
+                 "proposal_time", "latest_status_change",
+                 f"{native_asset_name}_latest", "USD_latest",
                  f"{native_asset_name}_component", "USDC_component", "USDT_component",
                  "validFrom", "expireAt"]]
 
@@ -573,10 +570,9 @@ class SubsquareProvider(DataProvider):
         df["proposal_time"] = pd.to_datetime(df["onchainData"].apply(lambda x: x["timeline"][0]["indexer"]["blockTime"]*1e6), utc=True)
         df["latest_status_change"] = pd.to_datetime(df["onchainData"].apply(lambda x: x["timeline"][-1]["indexer"]["blockTime"]*1e6), utc=True)
         df["USD_proposal_time"] = df.apply(self._get_value_converter(AssetKind.USDC, "proposal_time"), axis=1)
-        df["USD_latest"] = df.apply(self._get_value_converter(AssetKind.USDC, "latest_status_change"), axis=1)        
-        df["url"] = df["id"].apply(lambda x:f'=HYPERLINK("{self.network_info.fellowship_treasury_spend_url}{x}", {x})')
+        df["USD_latest"] = df.apply(self._get_value_converter(AssetKind.USDC, "latest_status_change"), axis=1)
         df.set_index("id", inplace=True)
-        df = df[["url", "status", "description", "DOT", "USD_proposal_time", "proposal_time", "latest_status_change", "USD_latest"]]
+        df = df[["status", "description", "DOT", "USD_proposal_time", "proposal_time", "latest_status_change", "USD_latest"]]
 
         return df
 
@@ -652,12 +648,11 @@ class SubsquareProvider(DataProvider):
         df["USD_proposal_time"] = df.apply(self._get_value_converter(AssetKind.USDC, "proposal_time"), axis=1)
         df["USD_latest"] = df.apply(self._get_value_converter(AssetKind.USDC, "latest_status_change"), axis=1)        
         df["description"] = df["onchainData"].apply(lambda x: x["description"])
-        df["beneficiary"] = df["onchainData"].apply(lambda x: x["address"])    
+        df["beneficiary"] = df["onchainData"].apply(lambda x: x["address"])
         df["identifier"] = df.apply(lambda row: f'{row["parentBountyId"]}_{row["index"]}', axis=1)
-        df["url"] = df["identifier"].apply(lambda x: f'=HYPERLINK("{self.network_info.child_bounty_url}{x}", "{x}")')
 
         df.set_index("identifier", inplace=True)
-        df = df[["url", "index", "parentBountyId", "status", "description", "DOT", "USD_proposal_time", "beneficiary", "proposal_time", "latest_status_change", "USD_latest"]]
+        df = df[["index", "parentBountyId", "status", "description", "DOT", "USD_proposal_time", "beneficiary", "proposal_time", "latest_status_change", "USD_latest"]]
 
         return df
 
@@ -728,15 +723,12 @@ class SubsquareProvider(DataProvider):
         df['end_block'] = df['endIndexer'].apply(lambda x: x.get('blockHeight', 0) if isinstance(x, dict) else None)
         df['start_time'] = pd.to_datetime(df['startIndexer'].apply(lambda x: x.get('blockTime', 0) * 1e6 if isinstance(x, dict) else None), utc=True)
         df['end_time'] = pd.to_datetime(df['endIndexer'].apply(lambda x: x.get('blockTime', 0) * 1e6 if isinstance(x, dict) else None), utc=True)
-        
-        # Create URL for reference
-        df['url'] = df['cycle'].apply(lambda x: f'=HYPERLINK("https://collectives.subsquare.io/fellowship/salary/cycles/{x}", "{x}")')
-        
+
         # Set index and select final columns
         df.set_index('cycle', inplace=True)
-        df = df[['url', 'budget_dot', 'registeredCount', 'registeredPaidCount', 
+        df = df[['budget_dot', 'registeredCount', 'registeredPaidCount',
                 'registered_paid_amount_dot', 'total_registrations_dot', 'unregistered_paid_dot',
-                'registration_period', 'payout_period', 'start_block', 'end_block', 
+                'registration_period', 'payout_period', 'start_block', 'end_block',
                 'start_time', 'end_time']]
         
         return df
@@ -968,15 +960,10 @@ class SubsquareProvider(DataProvider):
         df['who_name'] = ''
         df['beneficiary_name'] = ''
 
-        # URL links to the cycle page
-        df['url'] = df['cycle'].apply(
-            lambda x: f'=HYPERLINK("https://collectives.subsquare.io/fellowship/salary/cycles/{x}", "{x}")'
-        )
-
         df.set_index('payment_id', inplace=True)
         return df[['cycle', 'who', 'who_name', 'beneficiary', 'beneficiary_name',
                    'amount_dot', 'salary_dot', 'rank', 'is_active',
-                   'block_height', 'block_time', 'url']]
+                   'block_height', 'block_time']]
 
     def fetch_fellowship_members(self):
         """

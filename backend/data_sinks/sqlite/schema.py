@@ -26,7 +26,6 @@ REFERENDA_SCHEMA = TableSchema(
     name="Referenda",
     columns={
         "id": "INTEGER",
-        "url": "TEXT",
         "title": "TEXT",
         "status": "TEXT",
         "DOT_proposal_time": "REAL",
@@ -59,7 +58,6 @@ TREASURY_SCHEMA = TableSchema(
     name="Treasury",
     columns={
         "id": "INTEGER",
-        "url": "TEXT",
         "referendumIndex": "INTEGER",
         "status": "TEXT",
         "description": "TEXT",
@@ -87,7 +85,6 @@ CHILD_BOUNTIES_SCHEMA = TableSchema(
     name="Child Bounties",
     columns={
         "identifier": "TEXT",
-        "url": "TEXT",
         "index": "INTEGER",
         "parentBountyId": "INTEGER",
         "status": "TEXT",
@@ -115,7 +112,6 @@ FELLOWSHIP_SCHEMA = TableSchema(
     name="Fellowship",
     columns={
         "id": "INTEGER",
-        "url": "TEXT",
         "status": "TEXT",
         "description": "TEXT",
         "DOT": "REAL",
@@ -135,7 +131,6 @@ FELLOWSHIP_SALARY_CYCLES_SCHEMA = TableSchema(
     name="Fellowship Salary Cycles",
     columns={
         "cycle": "INTEGER",
-        "url": "TEXT",
         "budget_dot": "REAL",
         "registeredCount": "INTEGER",
         "registeredPaidCount": "INTEGER",
@@ -191,7 +186,6 @@ FELLOWSHIP_SALARY_PAYMENTS_SCHEMA = TableSchema(
         "is_active": "INTEGER",
         "block_height": "INTEGER",
         "block_time": "TIMESTAMP",
-        "url": "TEXT",
     },
     primary_key="payment_id",
     indexes=[
@@ -258,7 +252,6 @@ FELLOWSHIP_SUBTREASURY_SCHEMA = TableSchema(
     name="Fellowship Subtreasury",
     columns={
         "id": "INTEGER",
-        "url": "TEXT",
         "title": "TEXT",
         "status": "TEXT",
         "DOT_proposal_time": "REAL",

@@ -5,6 +5,7 @@ import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { DataTableFacetedFilter } from "@/components/data-table/faceted-filter";
 import { Badge } from "@/components/ui/badge";
 import { formatNumber, formatCurrency, formatDate } from "@/lib/utils";
+import { subsquareUrls } from "@/lib/urls";
 import type { Referendum, Category } from "@/lib/db/types";
 import {
   CategorySelector,
@@ -55,7 +56,14 @@ export function createReferendaColumns(
         <DataTableColumnHeader column={column} title="ID" />
       ),
       cell: ({ row }) => (
-        <div className="font-medium w-[60px]">{row.getValue("id")}</div>
+        <a
+          href={subsquareUrls.referenda(row.original.id)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium w-[60px] hover:underline text-blue-600"
+        >
+          {row.getValue("id")}
+        </a>
       ),
     },
     {
@@ -63,20 +71,14 @@ export function createReferendaColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Title" />
       ),
-      cell: ({ row }) => {
-        const url = row.original.url;
-        return (
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="max-w-[400px] truncate block hover:underline text-blue-600"
-            title={row.getValue("title")}
-          >
-            {row.getValue("title")}
-          </a>
-        );
-      },
+      cell: ({ row }) => (
+        <div
+          className="max-w-[400px] truncate"
+          title={row.getValue("title")}
+        >
+          {row.getValue("title")}
+        </div>
+      ),
     },
     {
       accessorKey: "status",
