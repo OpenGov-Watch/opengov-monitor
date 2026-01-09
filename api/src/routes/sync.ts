@@ -5,8 +5,8 @@ import { fileURLToPath } from "url";
 
 export const syncRouter: Router = Router();
 
-// Get the data directory path
-function getDataPath(): string {
+// Get the data directory path - exported for testing
+export function getDataPath(): string {
   // In production (Docker), CWD is /app/api, so go up one level to /app
   // In development, use relative path from compiled location
   if (process.env.NODE_ENV === "production") {
