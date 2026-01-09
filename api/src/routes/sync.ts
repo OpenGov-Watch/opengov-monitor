@@ -5,12 +5,17 @@ import { fileURLToPath } from "url";
 
 export const syncRouter: Router = Router();
 
-// Get the data directory path (relative to api/)
+// Get the data directory path
 function getDataPath(): string {
+  // In production (Docker), use CWD which is /app
+  // In development, use relative path from compiled location
+  if (process.env.NODE_ENV === "production") {
+    return join(process.cwd(), "data", "defaults");
+  }
   // In ES modules, we need to compute __dirname
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = dirname(__filename);
-  // Go up from api/src/routes to api/, then to root, then to data/
+  // Go up from api/dist/routes to api/, then to root, then to data/
   return join(__dirname, "..", "..", "..", "data", "defaults");
 }
 
