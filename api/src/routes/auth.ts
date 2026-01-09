@@ -49,12 +49,20 @@ authRouter.post("/login", async (req, res) => {
       req.session.cookie.maxAge = SESSION_DEFAULT;
     }
 
-    res.json({
-      success: true,
-      user: {
-        id: user.id,
-        username: user.username,
-      },
+    // Explicitly save session before responding to ensure persistence
+    req.session.save((err) => {
+      if (err) {
+        console.error("Failed to save session:", err);
+        res.status(500).json({ error: "Failed to create session" });
+        return;
+      }
+      res.json({
+        success: true,
+        user: {
+          id: user.id,
+          username: user.username,
+        },
+      });
     });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
