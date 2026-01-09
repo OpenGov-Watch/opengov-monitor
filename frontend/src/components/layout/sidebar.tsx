@@ -101,7 +101,7 @@ export function Sidebar() {
   useEffect(() => {
     fetch("/api/dashboards")
       .then((res) => res.json())
-      .then((data) => setDashboards(data))
+      .then((data) => setDashboards(Array.isArray(data) ? data : []))
       .catch(() => setDashboards([]));
   }, []);
 

@@ -365,12 +365,24 @@ docker compose exec opengov-monitor /app/backend/.venv/bin/python /app/backend/s
 # From root - starts both API and frontend with dynamic port allocation
 pnpm run dev
 
+# Alternative: start both in parallel (faster, but requires ports to be free)
+pnpm run dev:parallel
+
 # Or individually
 pnpm api:dev       # API server on :3001 (or next available port)
 pnpm frontend:dev  # Frontend on :3000 (or next available port)
+
+# Use custom preferred port
+PORT=4000 pnpm api:dev
 ```
 
-**Dynamic Port Allocation:** The dev script automatically finds available ports if the defaults (3001 for API, 3000 for frontend) are in use. The API writes its port to `data/.api-port`, which the frontend reads for proxy configuration.
+**Startup Flow:**
+1. `pnpm run dev` starts the API server first
+2. API finds an available port (default 3001) and writes it to `data/.api-port`
+3. Once the port file exists, the frontend starts
+4. Frontend reads the port file to configure its API proxy
+
+**Note:** When running services individually, start the API before the frontend so the port file exists when Vite loads.
 
 ### Backend (Data Fetching)
 
