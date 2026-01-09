@@ -7,10 +7,10 @@ export const syncRouter: Router = Router();
 
 // Get the data directory path
 function getDataPath(): string {
-  // In production (Docker), use CWD which is /app
+  // In production (Docker), CWD is /app/api, so go up one level to /app
   // In development, use relative path from compiled location
   if (process.env.NODE_ENV === "production") {
-    return join(process.cwd(), "data", "defaults");
+    return join(process.cwd(), "..", "data", "defaults");
   }
   // In ES modules, we need to compute __dirname
   const __filename = fileURLToPath(import.meta.url);
