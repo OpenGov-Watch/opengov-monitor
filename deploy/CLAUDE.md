@@ -84,6 +84,28 @@ gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
 3. Image pushed to `ghcr.io` with `:prod` tag
 4. `deploy-service` command pulls and restarts container on server
 
+## Check CI/CD Status
+
+**Always use `gh` CLI** - WebFetch gives unreliable results for GitHub Actions pages.
+
+```bash
+# List recent runs
+gh run list --limit 5
+
+# View failed run logs
+gh run view <run-id> --log-failed
+
+# Search for specific errors
+gh run view <run-id> --log-failed 2>&1 | grep -i "error\|failed"
+
+# Watch a run in progress
+gh run watch <run-id>
+```
+
+Common build failures:
+- **Missing TypeScript types**: Install `@types/package` or upgrade to version with built-in types
+- **Native module issues**: Check node version matches between build and runtime stages in Dockerfile
+
 ## Legacy Files (Do Not Use)
 
 These are from the pre-containerized setup:
