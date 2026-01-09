@@ -20,6 +20,7 @@ exploration/
 
 # Local data
 data/
+!data/defaults/
 logs/
 
 # Environment files
