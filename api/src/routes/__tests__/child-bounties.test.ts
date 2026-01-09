@@ -36,8 +36,13 @@ const SCHEMA_SQL = `
     "category" TEXT,
     "subcategory" TEXT
   );
+  CREATE TABLE IF NOT EXISTS "Bounties" (
+    "id" INTEGER PRIMARY KEY,
+    "name" TEXT
+  );
   CREATE TABLE IF NOT EXISTS "Child Bounties" (
     "identifier" TEXT PRIMARY KEY,
+    "parentBountyId" INTEGER,
     "description" TEXT,
     "status" TEXT,
     "category_id" INTEGER,
@@ -57,6 +62,7 @@ beforeAll(() => {
 beforeEach(() => {
   testDb.exec('DELETE FROM "Child Bounties"');
   testDb.exec('DELETE FROM "Categories"');
+  testDb.exec('DELETE FROM "Bounties"');
   // Insert test categories
   testDb.exec(`
     INSERT INTO "Categories" (id, category, subcategory)
@@ -65,13 +71,21 @@ beforeEach(() => {
       (2, 'Development', 'Core'),
       (3, 'Outreach', 'Content')
   `);
+  // Insert test bounties
+  testDb.exec(`
+    INSERT INTO "Bounties" (id, name)
+    VALUES
+      (1, 'DeFi Bounty'),
+      (2, 'SDK Bounty'),
+      (3, 'Marketing Bounty')
+  `);
   // Insert test data
   testDb.exec(`
-    INSERT INTO "Child Bounties" (identifier, description, status, category_id)
+    INSERT INTO "Child Bounties" (identifier, parentBountyId, description, status, category_id)
     VALUES
-      ('1_23', 'Test CB 1', 'Claimed', NULL),
-      ('2_45', 'Test CB 2', 'Active', NULL),
-      ('3_67', 'Test CB 3', 'Pending', 1)
+      ('1_23', 1, 'Test CB 1', 'Claimed', NULL),
+      ('2_45', 2, 'Test CB 2', 'Active', NULL),
+      ('3_67', 3, 'Test CB 3', 'Pending', 1)
   `);
 });
 

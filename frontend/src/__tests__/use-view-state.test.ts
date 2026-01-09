@@ -62,7 +62,7 @@ describe("useViewState", () => {
       expect(result.current.columnFilters).toEqual([]);
       expect(result.current.columnVisibility).toEqual({});
       expect(result.current.globalFilter).toBe("");
-      expect(result.current.pagination).toEqual({ pageIndex: 0, pageSize: 20 });
+      expect(result.current.pagination).toEqual({ pageIndex: 0, pageSize: 100 });
     });
 
     it("loads state from URL query param if present", () => {
@@ -92,7 +92,7 @@ describe("useViewState", () => {
 
       // Should fall back to defaults
       expect(result.current.sorting).toEqual([]);
-      expect(result.current.pagination).toEqual({ pageIndex: 0, pageSize: 20 });
+      expect(result.current.pagination).toEqual({ pageIndex: 0, pageSize: 100 });
     });
   });
 
@@ -270,7 +270,7 @@ describe("useViewState", () => {
       expect(result.current.columnFilters).toEqual([]);
       expect(result.current.columnVisibility).toEqual({});
       expect(result.current.globalFilter).toBe("");
-      expect(result.current.pagination).toEqual({ pageIndex: 0, pageSize: 20 });
+      expect(result.current.pagination).toEqual({ pageIndex: 0, pageSize: 100 });
     });
 
     it("clears URL params", () => {

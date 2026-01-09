@@ -55,10 +55,10 @@ export default function ReferendaPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Referenda</h1>
-        <p className="text-muted-foreground">
+    <div className="flex flex-col flex-1 min-h-0 gap-4">
+      <div className="flex-shrink-0">
+        <h1 className="text-2xl font-bold tracking-tight">Referenda</h1>
+        <p className="text-muted-foreground text-sm">
           Browse and filter Polkadot governance referenda
         </p>
       </div>

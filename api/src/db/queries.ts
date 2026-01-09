@@ -36,9 +36,10 @@ export function getTreasury(): TreasurySpend[] {
 export function getChildBounties(): ChildBounty[] {
   const db = getDatabase();
   return db.prepare(`
-    SELECT cb.*, c.category, c.subcategory
+    SELECT cb.*, c.category, c.subcategory, b.name as parentBountyName
     FROM "${TABLE_NAMES.childBounties}" cb
     LEFT JOIN "${TABLE_NAMES.categories}" c ON cb.category_id = c.id
+    LEFT JOIN "${TABLE_NAMES.bounties}" b ON cb.parentBountyId = b.id
   `).all() as ChildBounty[];
 }
 

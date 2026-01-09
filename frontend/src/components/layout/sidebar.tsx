@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router";
 import { useState, useEffect } from "react";
-import { LucideIcon, LogIn, LogOut, User } from "lucide-react";
+import { LucideIcon, LogIn, LogOut, User, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Vote,
   Wallet,
@@ -96,6 +96,14 @@ export function Sidebar() {
   const pathname = location.pathname;
   const { isAuthenticated, user, logout, isLoading } = useAuth();
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
+  const [collapsed, setCollapsed] = useState(() => {
+    return localStorage.getItem("sidebar-collapsed") === "true";
+  });
+
+  // Persist collapsed state
+  useEffect(() => {
+    localStorage.setItem("sidebar-collapsed", String(collapsed));
+  }, [collapsed]);
 
   // Fetch dashboards list
   useEffect(() => {
@@ -112,16 +120,52 @@ export function Sidebar() {
   ];
 
   return (
-    <div className="flex h-screen w-64 flex-col border-r bg-background">
-      <div className="flex h-16 items-center border-b px-6">
-        <Link to="/" className="text-xl font-bold">
-          OpenGov Monitor
+    <div
+      className={cn(
+        "flex h-screen flex-col border-r bg-background transition-all duration-200",
+        collapsed ? "w-14" : "w-64"
+      )}
+    >
+      <div
+        className={cn(
+          "flex h-12 items-center border-b",
+          collapsed ? "justify-center px-1" : "justify-between px-4"
+        )}
+      >
+        <Link
+          to="/"
+          className={cn("font-bold", collapsed ? "text-sm" : "text-lg")}
+          title={collapsed ? "OpenGov Monitor" : undefined}
+        >
+          {collapsed ? "OG" : "OpenGov Monitor"}
         </Link>
+        {!collapsed && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setCollapsed(true)}
+            className="h-7 w-7 p-0"
+            title="Collapse sidebar"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+        )}
       </div>
-      <nav className="flex-1 overflow-y-auto p-4">
+      {collapsed && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setCollapsed(false)}
+          className="mx-auto mt-2 h-7 w-7 p-0"
+          title="Expand sidebar"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      )}
+      <nav className={cn("flex-1 overflow-y-auto", collapsed ? "p-2" : "p-4")}>
         {visibleNavigation.map((section, sectionIdx) => (
           <div key={section.title || sectionIdx} className={cn(sectionIdx > 0 && "mt-6")}>
-            {section.title && (
+            {section.title && !collapsed && (
               <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 {section.title}
               </h3>
@@ -133,15 +177,17 @@ export function Sidebar() {
                   <Link
                     key={item.name}
                     to={item.href}
+                    title={collapsed ? item.name : undefined}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                      "flex items-center rounded-lg text-sm font-medium transition-colors",
+                      collapsed ? "justify-center p-2" : "gap-3 px-3 py-2",
                       isActive
                         ? "bg-secondary text-secondary-foreground"
                         : "text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
                     )}
                   >
-                    <item.icon className="h-4 w-4" />
-                    {item.name}
+                    <item.icon className="h-4 w-4 flex-shrink-0" />
+                    {!collapsed && item.name}
                   </Link>
                 );
               })}
@@ -151,14 +197,18 @@ export function Sidebar() {
 
         {/* Dashboards section - always visible, dynamic list */}
         <div className="mt-6">
-          <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Dashboards
-          </h3>
+          {!collapsed && (
+            <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Dashboards
+            </h3>
+          )}
           <div className="space-y-1">
             {dashboards.length === 0 ? (
-              <p className="px-3 py-2 text-sm text-muted-foreground italic">
-                No dashboards
-              </p>
+              !collapsed && (
+                <p className="px-3 py-2 text-sm text-muted-foreground italic">
+                  No dashboards
+                </p>
+              )
             ) : (
               dashboards.map((dashboard) => {
                 const href = `/dashboards/${dashboard.id}`;
@@ -167,15 +217,17 @@ export function Sidebar() {
                   <Link
                     key={dashboard.id}
                     to={href}
+                    title={collapsed ? dashboard.name : undefined}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                      "flex items-center rounded-lg text-sm font-medium transition-colors",
+                      collapsed ? "justify-center p-2" : "gap-3 px-3 py-2",
                       isActive
                         ? "bg-secondary text-secondary-foreground"
                         : "text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
                     )}
                   >
-                    <LayoutDashboard className="h-4 w-4" />
-                    {dashboard.name}
+                    <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
+                    {!collapsed && dashboard.name}
                   </Link>
                 );
               })
@@ -183,15 +235,22 @@ export function Sidebar() {
           </div>
         </div>
       </nav>
-      <div className="border-t p-4 space-y-3">
+      <div className={cn("border-t space-y-3", collapsed ? "p-2" : "p-4")}>
         {isLoading ? (
           <div className="h-8 animate-pulse bg-muted rounded" />
         ) : isAuthenticated && user ? (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <User className="h-4 w-4" />
-              <span className="truncate max-w-[120px]">{user.username}</span>
-            </div>
+          <div
+            className={cn(
+              "flex items-center",
+              collapsed ? "justify-center" : "justify-between"
+            )}
+          >
+            {!collapsed && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <User className="h-4 w-4" />
+                <span className="truncate max-w-[120px]">{user.username}</span>
+              </div>
+            )}
             <Button
               variant="ghost"
               size="sm"
@@ -205,15 +264,19 @@ export function Sidebar() {
         ) : (
           <Link
             to="/login"
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            title={collapsed ? "Sign in" : undefined}
+            className={cn(
+              "flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors",
+              collapsed ? "justify-center" : "gap-2"
+            )}
           >
             <LogIn className="h-4 w-4" />
-            Sign in
+            {!collapsed && "Sign in"}
           </Link>
         )}
-        <p className="text-xs text-muted-foreground">
-          Polkadot Governance Data
-        </p>
+        {!collapsed && (
+          <p className="text-xs text-muted-foreground">Polkadot Governance Data</p>
+        )}
       </div>
     </div>
   );

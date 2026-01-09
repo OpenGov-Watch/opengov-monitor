@@ -51,7 +51,7 @@ export function useViewState(tableName: string, options: UseViewStateOptions = {
   const [globalFilter, setGlobalFilter] = useState("");
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
-    pageSize: 20,
+    pageSize: 100,
   });
 
   // Load from URL only on initial mount
@@ -123,7 +123,7 @@ export function useViewState(tableName: string, options: UseViewStateOptions = {
     setColumnFilters([]);
     setColumnVisibility({});
     setGlobalFilter("");
-    setPagination({ pageIndex: 0, pageSize: 20 });
+    setPagination({ pageIndex: 0, pageSize: 100 });
 
     // Clear URL params
     navigate(location.pathname, { replace: true });

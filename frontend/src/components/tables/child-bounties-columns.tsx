@@ -70,11 +70,15 @@ export function createChildBountiesColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Parent" />
       ),
-      cell: ({ row }) => (
-        <span className="text-muted-foreground">
-          #{row.getValue("parentBountyId")}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const name = row.original.parentBountyName;
+        const id = row.getValue("parentBountyId");
+        return (
+          <span className="text-muted-foreground" title={name ? `#${id}` : undefined}>
+            {name || `#${id}`}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "description",
@@ -125,21 +129,6 @@ export function createChildBountiesColumns(
           {formatCurrency(row.getValue("USD_proposal_time"))}
         </div>
       ),
-    },
-    {
-      accessorKey: "beneficiary",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Beneficiary" />
-      ),
-      cell: ({ row }) => {
-        const beneficiary = row.getValue("beneficiary") as string;
-        if (!beneficiary) return "-";
-        return (
-          <span className="font-mono text-xs" title={beneficiary}>
-            {beneficiary.slice(0, 8)}...{beneficiary.slice(-6)}
-          </span>
-        );
-      },
     },
     {
       accessorKey: "proposal_time",

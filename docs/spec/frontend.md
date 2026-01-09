@@ -102,8 +102,8 @@ frontend/src/
 │   │   └── types.ts
 │   │
 │   └── layout/
-│       ├── Layout.tsx            # Root layout with sidebar
-│       └── sidebar.tsx           # Navigation sidebar
+│       ├── Layout.tsx            # Root layout with sidebar (full-height flex)
+│       └── sidebar.tsx           # Collapsible navigation sidebar
 │
 ├── hooks/
 │   └── use-view-state.ts         # Table state persistence
@@ -259,7 +259,7 @@ export interface Referendum {
 │                                                                    │
 │  ┌─────────────────────────────────────────────────────────────┐  │
 │  │                       Pagination                             │  │
-│  │  100 rows │ Rows: [20 ▼] │ Page 1 of 5 │ < 1 2 3 >           │  │
+│  │  100 rows │ Rows: [100 ▼] │ Page 1 of 5 │ < 1 2 3 >          │  │
 │  └─────────────────────────────────────────────────────────────┘  │
 └───────────────────────────────────────────────────────────────────┘
 
@@ -361,7 +361,7 @@ interface ViewState {
   columnFilters: ColumnFiltersState;
   columnVisibility: VisibilityState;
   globalFilter: string;
-  pagination: PaginationState;
+  pagination: PaginationState;  // Default: pageSize 100
 }
 ```
 

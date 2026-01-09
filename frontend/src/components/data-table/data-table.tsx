@@ -92,7 +92,7 @@ export function DataTable<TData, TValue>({
   });
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col flex-1 min-h-0 gap-4">
       <DataTableToolbar
         table={table}
         globalFilter={globalFilter}
@@ -102,8 +102,8 @@ export function DataTable<TData, TValue>({
         onClearView={clearViewState}
         tableName={tableName}
       />
-      <div className="rounded-md border">
-        <Table>
+      <div className="flex-1 min-h-0 rounded-md border">
+        <Table wrapperClassName="h-full">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
