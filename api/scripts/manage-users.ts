@@ -144,8 +144,8 @@ async function addUser(username: string): Promise<void> {
   }
 
   const password = await promptPassword("Enter password: ");
-  if (!password || password.length < 8) {
-    console.error("Error: Password must be at least 8 characters");
+  if (!password) {
+    console.error("Error: Password is required");
     db.close();
     process.exit(1);
   }

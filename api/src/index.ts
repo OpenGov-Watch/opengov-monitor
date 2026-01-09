@@ -36,6 +36,9 @@ const PORT_FILE = path.join(__dirname, "../../data/.api-port");
 // Ensure Users table exists on startup
 ensureUsersTable();
 
+// Trust proxy for secure cookies behind nginx/reverse proxy
+app.set("trust proxy", 1);
+
 // Middleware
 app.use(
   cors({
