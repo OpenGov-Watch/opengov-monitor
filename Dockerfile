@@ -75,6 +75,9 @@ RUN chmod 0644 /etc/cron.d/opengov-sync \
 # Create data directory
 RUN mkdir -p /data
 
+# Copy default CSV files for sync functionality
+COPY data/defaults/ ./data/defaults/
+
 # Environment variables
 ENV NODE_ENV=production
 ENV PORT=3001
