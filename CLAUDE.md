@@ -123,6 +123,7 @@ Requires `pnpm.onlyBuiltDependencies` in root package.json to allow native build
 | Backend specifics | [backend/CLAUDE.md](backend/CLAUDE.md) |
 | API specifics | [api/CLAUDE.md](api/CLAUDE.md) |
 | Frontend specifics | [frontend/CLAUDE.md](frontend/CLAUDE.md) |
+| Deployment & container | [deploy/CLAUDE.md](deploy/CLAUDE.md) |
 
 ## Authentication
 
