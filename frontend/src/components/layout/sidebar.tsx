@@ -76,6 +76,7 @@ const authenticatedNavigation: NavSection[] = [
   {
     title: "Manage",
     items: [
+      { name: "Dashboards", href: "/dashboards", icon: LayoutDashboard },
       { name: "Categories", href: "/manage/categories", icon: Tags },
       { name: "Bounties", href: "/manage/bounties", icon: Coins },
       { name: "Subtreasury", href: "/manage/subtreasury", icon: FileBox },

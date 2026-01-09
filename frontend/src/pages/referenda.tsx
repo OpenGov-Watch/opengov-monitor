@@ -3,6 +3,7 @@ import { api } from "@/api/client";
 import { createReferendaColumns } from "@/components/tables/referenda-columns";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
+import { useAuth } from "@/contexts/auth-context";
 import type { Referendum, Category } from "@/lib/db/types";
 
 export default function ReferendaPage() {
@@ -10,6 +11,7 @@ export default function ReferendaPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     Promise.all([api.referenda.getAll(), api.categories.getAll()])
@@ -38,8 +40,9 @@ export default function ReferendaPage() {
       createReferendaColumns({
         categories,
         onUpdate: handleUpdate,
+        isAuthenticated,
       }),
-    [categories]
+    [categories, isAuthenticated]
   );
 
   if (error) {

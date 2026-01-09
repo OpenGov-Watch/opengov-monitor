@@ -3,6 +3,7 @@ import { api } from "@/api/client";
 import { createChildBountiesColumns } from "@/components/tables/child-bounties-columns";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
+import { useAuth } from "@/contexts/auth-context";
 import type { ChildBounty, Category } from "@/lib/db/types";
 
 export default function ChildBountiesPage() {
@@ -10,6 +11,7 @@ export default function ChildBountiesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     Promise.all([api.childBounties.getAll(), api.categories.getAll()])
@@ -43,8 +45,9 @@ export default function ChildBountiesPage() {
       createChildBountiesColumns({
         categories,
         onUpdate: handleUpdate,
+        isAuthenticated,
       }),
-    [categories]
+    [categories, isAuthenticated]
   );
 
   if (error) {

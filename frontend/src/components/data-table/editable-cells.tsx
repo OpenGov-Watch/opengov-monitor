@@ -232,3 +232,54 @@ export function CategorySelector({
     </div>
   );
 }
+
+// Read-only display components for unauthenticated users
+
+interface ReadOnlyCategorySelectorProps {
+  categoryId: number | null;
+  categories: Category[];
+}
+
+export function ReadOnlyCategorySelector({
+  categoryId,
+  categories,
+}: ReadOnlyCategorySelectorProps) {
+  const current = categories.find((c) => c.id === categoryId);
+  if (!current) {
+    return <span className="text-muted-foreground text-xs">-</span>;
+  }
+  return (
+    <span className="text-xs">
+      {current.category}
+      {current.subcategory && (
+        <>
+          <ChevronRight className="inline h-3 w-3 mx-0.5 text-muted-foreground" />
+          {current.subcategory}
+        </>
+      )}
+    </span>
+  );
+}
+
+interface ReadOnlyNotesCellProps {
+  value: string | null;
+}
+
+export function ReadOnlyNotesCell({ value }: ReadOnlyNotesCellProps) {
+  if (!value) {
+    return <span className="text-muted-foreground">-</span>;
+  }
+  return (
+    <span className="text-sm max-w-[120px] truncate block" title={value}>
+      {value}
+    </span>
+  );
+}
+
+interface ReadOnlyHideCheckboxProps {
+  value: number | null;
+}
+
+export function ReadOnlyHideCheckbox({ value }: ReadOnlyHideCheckboxProps) {
+  return <Checkbox checked={value === 1} disabled className="opacity-60" />;
+}

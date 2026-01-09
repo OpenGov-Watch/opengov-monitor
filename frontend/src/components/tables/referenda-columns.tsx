@@ -10,6 +10,9 @@ import {
   CategorySelector,
   EditableNotesCell,
   EditableHideCheckbox,
+  ReadOnlyCategorySelector,
+  ReadOnlyNotesCell,
+  ReadOnlyHideCheckbox,
 } from "@/components/data-table/editable-cells";
 
 function getStatusVariant(
@@ -37,12 +40,13 @@ export interface ReferendaColumnsOptions {
     id: number,
     data: { category_id?: number | null; notes?: string | null; hide_in_spends?: number | null }
   ) => void;
+  isAuthenticated?: boolean;
 }
 
 export function createReferendaColumns(
   options: ReferendaColumnsOptions
 ): ColumnDef<Referendum>[] {
-  const { categories, onUpdate } = options;
+  const { categories, onUpdate, isAuthenticated = false } = options;
 
   return [
     {
@@ -165,15 +169,21 @@ export function createReferendaColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Category" />
       ),
-      cell: ({ row }) => (
-        <CategorySelector
-          categoryId={row.original.category_id}
-          categories={categories}
-          onChange={(category_id) => {
-            onUpdate(row.original.id, { category_id });
-          }}
-        />
-      ),
+      cell: ({ row }) =>
+        isAuthenticated ? (
+          <CategorySelector
+            categoryId={row.original.category_id}
+            categories={categories}
+            onChange={(category_id) => {
+              onUpdate(row.original.id, { category_id });
+            }}
+          />
+        ) : (
+          <ReadOnlyCategorySelector
+            categoryId={row.original.category_id}
+            categories={categories}
+          />
+        ),
       filterFn: (row, _id, value) => {
         const category = row.original.category;
         return value.includes(category || "");
@@ -184,26 +194,32 @@ export function createReferendaColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Notes" />
       ),
-      cell: ({ row }) => (
-        <EditableNotesCell
-          value={row.original.notes}
-          onChange={(notes) => {
-            onUpdate(row.original.id, { notes });
-          }}
-        />
-      ),
+      cell: ({ row }) =>
+        isAuthenticated ? (
+          <EditableNotesCell
+            value={row.original.notes}
+            onChange={(notes) => {
+              onUpdate(row.original.id, { notes });
+            }}
+          />
+        ) : (
+          <ReadOnlyNotesCell value={row.original.notes} />
+        ),
     },
     {
       accessorKey: "hide_in_spends",
       header: () => <span title="Hide in spending reports">Hide</span>,
-      cell: ({ row }) => (
-        <EditableHideCheckbox
-          value={row.original.hide_in_spends}
-          onChange={(hide_in_spends) => {
-            onUpdate(row.original.id, { hide_in_spends });
-          }}
-        />
-      ),
+      cell: ({ row }) =>
+        isAuthenticated ? (
+          <EditableHideCheckbox
+            value={row.original.hide_in_spends}
+            onChange={(hide_in_spends) => {
+              onUpdate(row.original.id, { hide_in_spends });
+            }}
+          />
+        ) : (
+          <ReadOnlyHideCheckbox value={row.original.hide_in_spends} />
+        ),
     },
   ];
 }
