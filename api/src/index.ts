@@ -123,9 +123,32 @@ app.use("/api/query", queryRouter);
 app.use("/api/stats", statsRouter);
 app.use("/api/sync", syncRouter);
 
+// Helper to sanitize request body for logging
+function sanitizeRequestBody(body: any): any {
+  if (!body || typeof body !== "object") return body;
+
+  const sensitiveFields = ["password", "token", "secret", "apiKey", "api_key", "accessToken", "refreshToken"];
+  const sanitized = { ...body };
+
+  for (const field of sensitiveFields) {
+    if (field in sanitized) {
+      sanitized[field] = "[REDACTED]";
+    }
+  }
+
+  return sanitized;
+}
+
 // Error handling
-app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error("Error:", err.message);
+  console.error("Stack:", err.stack);
+  console.error("Request:", {
+    method: req.method,
+    url: req.url,
+    body: sanitizeRequestBody(req.body),
+    query: req.query,
+  });
   res.status(500).json({ error: err.message });
 });
 

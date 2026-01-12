@@ -23,6 +23,9 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    sourcemap: true, // Generate and reference source maps in production
+  },
   server: {
     port: 3000,
     strictPort: false, // Allow fallback to next available port
