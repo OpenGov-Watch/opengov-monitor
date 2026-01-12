@@ -24,7 +24,7 @@ export default defineConfig({
     },
   },
   build: {
-    sourcemap: "hidden", // Generate source maps but don't reference them in bundle
+    sourcemap: true, // Generate and reference source maps in production
   },
   server: {
     port: 3000,
