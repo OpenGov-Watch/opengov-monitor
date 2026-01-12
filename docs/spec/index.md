@@ -222,6 +222,8 @@ pnpm users add admin
 | `PORT` | API | API server preferred port (default: 3001, auto-finds free port) |
 | `DATABASE_PATH` | API | SQLite path (default: `../data/polkadot.db`) |
 | `SESSION_SECRET` | API | Session encryption secret (32+ chars) |
+| `CORS_ORIGINS` | API | Comma-separated allowed CORS origins |
+| `CROSS_ORIGIN_AUTH` | API | Set to `true` for cross-origin cookie auth |
 
 ### config.yaml (Backend)
 

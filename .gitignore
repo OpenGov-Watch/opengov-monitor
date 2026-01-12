@@ -90,6 +90,7 @@ pnpm-debug.log*
 # Claude Code
 .claude/plans/
 .claude/settings.local.json
+tmpclaude-*-cwd
 
 # Exploration / scratch file
 nul

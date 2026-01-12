@@ -173,13 +173,46 @@ export default function ReferendaPage() {
 
 ---
 
+## API Configuration
+
+The frontend supports dynamic API server selection via `ApiProvider` context.
+
+### Runtime Configuration
+
+API presets are defined in `public/config.json`:
+
+```json
+{
+  "apiPresets": {
+    "local": "/api",
+    "production": "https://your-domain.com/api"
+  },
+  "defaultPreset": "local"
+}
+```
+
+### URL Parameter Selection
+
+Switch API servers via URL parameter:
+- Preset name: `?api=production`
+- Port number: `?api=3002` → `http://localhost:3002/api`
+- Full URL: `?api=https://custom.example.com/api`
+
+Selection persists to localStorage across sessions.
+
+### Development Sidebar
+
+In dev mode (`import.meta.env.DEV`), a dropdown in the sidebar allows switching between configured API presets.
+
+---
+
 ## API Client
 
 The API client (`src/api/client.ts`) provides typed fetch functions for all endpoints:
 
 ```typescript
 // api/client.ts
-const API_BASE = "/api";
+let apiBase = "/api";  // Dynamic, set by ApiProvider
 
 export const api = {
   referenda: {

@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router";
 import { useState, useEffect } from "react";
-import { LucideIcon, LogIn, LogOut, User, ChevronLeft, ChevronRight } from "lucide-react";
+import { LucideIcon, LogIn, LogOut, User, ChevronLeft, ChevronRight, Server, ChevronDown } from "lucide-react";
 import {
   Vote,
   Wallet,
@@ -20,7 +20,15 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
+import { useApi } from "@/contexts/api-context";
+import { getApiBase } from "@/api/client";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface NavItem {
   name: string;
@@ -95,6 +103,7 @@ export function Sidebar() {
   const location = useLocation();
   const pathname = location.pathname;
   const { isAuthenticated, user, logout, isLoading } = useAuth();
+  const { apiBase, presets, currentPreset, setApi } = useApi();
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [collapsed, setCollapsed] = useState(() => {
     return localStorage.getItem("sidebar-collapsed") === "true";
@@ -105,13 +114,13 @@ export function Sidebar() {
     localStorage.setItem("sidebar-collapsed", String(collapsed));
   }, [collapsed]);
 
-  // Fetch dashboards list
+  // Fetch dashboards list (using dynamic API base)
   useEffect(() => {
-    fetch("/api/dashboards")
+    fetch(`${getApiBase()}/dashboards`)
       .then((res) => res.json())
       .then((data) => setDashboards(Array.isArray(data) ? data : []))
       .catch(() => setDashboards([]));
-  }, []);
+  }, [apiBase]); // Re-fetch when API changes
 
   // Build navigation based on auth state
   const visibleNavigation = [
@@ -273,6 +282,46 @@ export function Sidebar() {
             <LogIn className="h-4 w-4" />
             {!collapsed && "Sign in"}
           </Link>
+        )}
+        {/* API selector - only visible in development */}
+        {import.meta.env.DEV && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "w-full justify-between text-xs text-muted-foreground hover:text-foreground",
+                  collapsed && "p-0 h-8 w-8"
+                )}
+                title={collapsed ? `API: ${currentPreset || apiBase}` : undefined}
+              >
+                <span className="flex items-center gap-1.5">
+                  <Server className="h-3 w-3" />
+                  {!collapsed && (
+                    <span className="truncate max-w-[140px]">
+                      {currentPreset || apiBase}
+                    </span>
+                  )}
+                </span>
+                {!collapsed && <ChevronDown className="h-3 w-3 opacity-50" />}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              {Object.entries(presets).map(([name, url]) => (
+                <DropdownMenuItem
+                  key={name}
+                  onClick={() => setApi(name)}
+                  className={cn(currentPreset === name && "bg-accent")}
+                >
+                  <span className="font-medium">{name}</span>
+                  <span className="ml-2 text-xs text-muted-foreground truncate">
+                    {url}
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
         {!collapsed && (
           <p className="text-xs text-muted-foreground">Polkadot Governance Data</p>

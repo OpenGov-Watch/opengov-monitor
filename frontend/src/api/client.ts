@@ -1,9 +1,18 @@
 import type { Category } from "@/lib/db/types";
 
-const API_BASE = "/api";
+// Dynamic API base - can be changed at runtime via setApiBase()
+let apiBase = "/api";
+
+export function setApiBase(base: string) {
+  apiBase = base;
+}
+
+export function getApiBase(): string {
+  return apiBase;
+}
 
 async function fetchJSON<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(`${apiBase}${path}`, {
     headers: {
       "Content-Type": "application/json",
     },

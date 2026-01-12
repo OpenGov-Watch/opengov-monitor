@@ -217,6 +217,41 @@ Note: CoinGecko has rate limits on the free tier.
 
 The Node.js Express API server (`api/`) provides REST endpoints for data retrieval and CRUD operations. The API runs on port 3001 and the frontend proxies requests to it.
 
+### Rate Limiting
+
+The API uses tiered rate limiting to protect against abuse:
+
+| Tier | Limit | Scope | Endpoints |
+|------|-------|-------|-----------|
+| General | 1000 req/15min | All `/api/*` | All endpoints |
+| Write | 100 req/15min | POST, PUT, PATCH, DELETE | All except auth |
+| Auth | 10 failed/15min | Login attempts | `/api/auth/login` |
+
+Rate limit headers are included in responses:
+- `RateLimit-Limit`: Maximum requests allowed
+- `RateLimit-Remaining`: Requests remaining in window
+- `RateLimit-Reset`: Seconds until limit resets
+
+When rate limited, returns 429 with:
+```json
+{ "error": "Too many requests, please try again later" }
+```
+
+### CORS Configuration
+
+CORS origins are configured via environment variable:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CORS_ORIGINS` | localhost:3000,5173 | Comma-separated allowed origins |
+| `CROSS_ORIGIN_AUTH` | `false` | Enable `sameSite: none` for cross-origin cookies |
+
+**Production example:**
+```bash
+CORS_ORIGINS=https://your-domain.com,https://api.your-domain.com
+CROSS_ORIGIN_AUTH=true  # Required for cross-origin cookie auth
+```
+
 ### Authentication
 
 The API uses server-side sessions for authentication. All mutating endpoints (POST, PUT, PATCH, DELETE) on protected routes require authentication.

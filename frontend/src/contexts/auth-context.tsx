@@ -8,6 +8,7 @@
  */
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { getApiBase } from "@/api/client";
 
 interface User {
   id: number;
@@ -34,7 +35,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Check auth status on mount
   useEffect(() => {
-    fetch("/api/auth/me", { credentials: "include" })
+    fetch(`${getApiBase()}/auth/me`, { credentials: "include" })
       .then((res) => res.json())
       .then((data) => {
         if (data.authenticated && data.user) {
@@ -57,7 +58,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     rememberMe = false
   ): Promise<boolean> {
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch(`${getApiBase()}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -79,7 +80,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   async function logout(): Promise<void> {
     try {
-      await fetch("/api/auth/logout", {
+      await fetch(`${getApiBase()}/auth/logout`, {
         method: "POST",
         credentials: "include",
       });

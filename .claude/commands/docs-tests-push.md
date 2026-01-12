@@ -7,3 +7,4 @@
 - do `git add`. Add only files that relate to your changes
 - `git commit` and `git push`
 - NEVER do `git reset`, instead ask the user for help/clarification
+- if you are pushing to the `production` branch, follow up with the /check-github-action-runs command
