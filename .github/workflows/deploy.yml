@@ -66,4 +66,5 @@ jobs:
       - name: Deploy to server
         run: |
           gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
+            --ssh-flag="-o StrictHostKeyChecking=no" \
             --command="sudo /usr/local/bin/deploy-service opengov-monitor"
