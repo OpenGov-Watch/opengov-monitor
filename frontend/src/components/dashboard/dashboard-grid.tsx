@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
-import { Responsive, WidthProvider, Layout, Layouts } from "react-grid-layout";
+import { useCallback, useEffect, useRef } from "react";
+import RGL, { WidthProvider, Layout } from "react-grid-layout";
+import type { Layouts } from "react-grid-layout";
 import { DashboardComponent } from "./dashboard-component";
 import type {
   DashboardComponent as DashboardComponentType,
@@ -10,7 +11,7 @@ import type {
 
 import "react-grid-layout/css/styles.css";
 
-const ResponsiveGridLayout = WidthProvider(Responsive);
+const ResponsiveGridLayout = WidthProvider(RGL.Responsive);
 
 interface DashboardGridProps {
   components: DashboardComponentType[];
