@@ -1,0 +1,748 @@
+id,category,subcategory,notes,hide_in_spends
+1,Development,,,0
+4,Outreach,Content Creation & Distribution,,0
+5,Business Development,Protocol Subsidies,,0
+6,Development,Multisig,,0
+7,Operations,Other,,0
+8,Development,Wallets,,0
+13,Development,Governance,,0
+14,Talent & Education,Trainings & Hackathon,,0
+15,Operations,Data Services & Indexing,,0
+20,Operations,Explorers,,0
+21,Development,Wallets,,0
+22,Business Development,Protocol Subsidies,,0
+24,Development,Smart Contracts,,0
+25,Operations,Governance,,0
+26,Operations,Governance,,0
+27,Operations,Governance,,0
+28,Operations,Governance,,0
+31,Operations,Governance,,0
+32,Talent & Education,Trainings & Hackathon,,0
+35,Outreach,Content Creation & Distribution,,0
+36,Talent & Education,Trainings & Hackathon,,0
+37,Outreach,Content Creation & Distribution,,0
+43,Talent & Education,Trainings & Hackathon,,0
+44,Operations,Governance,,0
+45,Operations,RPCs and Nodes,,0
+48,Operations,Governance,,0
+49,Operations,Governance,,0
+54,Outreach,Content Creation & Distribution,,0
+57,Talent & Education,Education,,0
+62,Development,Wallets,,0
+68,Development,Software Development,,0
+72,Development,Software Development,,0
+73,Operations,Governance,,0
+77,Development,Light Clients,,0
+79,Development,Polkadot Protocol & SDK,,0
+82,Operations,RPCs and Nodes,,0
+83,Development,Polkadot Protocol & SDK,,0
+85,Outreach,Content Creation & Distribution,,0
+90,Development,Polkadot Protocol & SDK,,0
+93,Business Development,NFTs,,0
+94,Development,Polkadot Protocol & SDK,,0
+95,Outreach,Ambassadors & Agents,,0
+97,Development,Explorers,,0
+98,Outreach,Content Creation & Distribution,,0
+100,Development,Software Development,,0
+103,Talent & Education,Trainings & Hackathon,,0
+105,Development,Polkadot Protocol & SDK,,0
+108,Development,Polkadot Protocol & SDK,,0
+112,Operations,Governance,,0
+113,Operations,Governance,,0
+114,Operations,Governance,,0
+115,Operations,Governance,,0
+118,Development,SDKs,,0
+119,Business Development,Protocol Subsidies,,0
+120,Development,Multisig,,0
+123,Operations,Governance,,0
+124,Development,Smart Contracts,,0
+125,Development,Wallets,,0
+134,Outreach,Content Creation & Distribution,,0
+136,Development,Polkadot Protocol & SDK,,0
+137,Development,Smart Contracts,,0
+140,Business Development,DeFi & Fintech Integrations,,0
+141,Talent & Education,Recruiting,,0
+145,Operations,Data Services & Indexing,,0
+152,Outreach,Content Creation & Distribution,,0
+153,Development,Smart Contracts,,0
+155,Outreach,Ambassadors & Agents,,0
+156,Operations,RPCs and Nodes,,0
+158,Outreach,Content Creation & Distribution,,0
+160,Outreach,Content Creation & Distribution,,0
+161,Development,SDKs,,0
+162,Development,Software Development,,0
+164,Development,Polkadot Protocol & SDK,,0
+165,Development,Explorers,,0
+167,Development,SDKs,,0
+168,Outreach,Content Creation & Distribution,,0
+170,Outreach,Content Creation & Distribution,,0
+171,Development,Polkadot Protocol & SDK,,0
+172,Development,Governance,,0
+175,Development,Data Services & Indexing,,0
+176,Development,Polkadot Protocol & SDK,,0
+177,Business Development,Games,,0
+178,Outreach,Content Creation & Distribution,,0
+179,Talent & Education,PBA,,0
+181,Operations,Explorers,,0
+183,Operations,Governance,,0
+184,Outreach,Content Creation & Distribution,,0
+185,Talent & Education,Trainings & Hackathon,,0
+187,Talent & Education,Trainings & Hackathon,,0
+190,Outreach,Ambassadors & Agents,,0
+191,Operations,RPCs and Nodes,,0
+193,Outreach,Content Creation & Distribution,,0
+194,Business Development,Business Development,,0
+196,Outreach,Content Creation & Distribution,,0
+197,Development,Polkadot Protocol & SDK,,0
+198,Outreach,Content Creation & Distribution,,0
+200,Talent & Education,Incubation,,0
+201,Development,Polkadot Protocol & SDK,,0
+202,Research,Governance,,0
+207,Development,Polkadot Protocol & SDK,,0
+209,Research,Research,,0
+210,Development,Polkadot Protocol & SDK,,0
+214,Outreach,Advertising/Digital Ads,,0
+215,Development,Polkadot Protocol & SDK,,0
+216,Talent & Education,Trainings & Hackathon,,0
+217,Outreach,Ambassadors & Agents,,0
+218,Outreach,Content Creation & Distribution,,0
+219,Outreach,Content Creation & Distribution,,0
+221,Talent & Education,Education,,0
+222,Outreach,Advertising,,0
+223,Outreach,Events/Conference Attendance & Side Events,,0
+225,Outreach,Content Creation & Distribution,,0
+226,Outreach,Content Creation & Distribution,,0
+227,Outreach,Events/Conference Attendance & Side Events,,0
+230,Outreach,Ambassadors & Agents,,0
+231,,,,1
+232,Talent & Education,Trainings & Hackathon,,0
+234,Outreach,Events/Conference Attendance & Side Events,,0
+237,Development,Multisig,,0
+240,Outreach,Content Creation & Distribution,,0
+242,Outreach,Content Creation & Distribution,,0
+243,Outreach,Content Creation & Distribution,,0
+244,Talent & Education,Education,,0
+245,Talent & Education,Trainings & Hackathon,,0
+247,Outreach,Advertising/Influencers,,0
+248,Operations,Data Services & Indexing,,0
+249,Outreach,Advertising/Influencers,,0
+255,Outreach,Content Creation & Distribution,,0
+258,Outreach,Content Creation & Distribution,,0
+259,Outreach,Content Creation & Distribution,,0
+260,Outreach,Content Creation & Distribution,,0
+261,Outreach,Content Creation & Distribution,,0
+262,Outreach,Content Creation & Distribution,,0
+263,Outreach,Content Creation & Distribution,,0
+267,Outreach,Content Creation & Distribution,,0
+269,Outreach,Content Creation & Distribution,,0
+271,Outreach,Advertising/Influencers,,0
+279,Development,Smart Contracts,,0
+288,Operations,RPCs and Nodes,,0
+290,Development,Polkadot Protocol & SDK,,0
+298,Outreach,Advertising/Digital Ads,,0
+302,Development,Wallets,,0
+304,Outreach,Advertising/Influencers,,0
+307,Outreach,Content Creation & Distribution,,0
+310,Development,Wallets,,0
+311,Operations,Explorers,,0
+312,Business Development,Protocol Subsidies,,0
+320,Development,Polkadot Protocol & SDK,,0
+324,Outreach,Advertising/Digital Ads,,0
+325,Outreach,Advertising/Influencers,,0
+328,Outreach,Content Creation & Distribution,,0
+331,Outreach,Content Creation & Distribution,,0
+332,Development,Polkadot Protocol & SDK,,0
+334,Research,Governance,,0
+338,Outreach,Events/Conference Attendance & Side Events,,0
+342,Outreach,Advertising/Influencers,,0
+343,Business Development,DeFi & Fintech Integrations,,0
+344,Outreach,Advertising/Influencers,,0
+345,Outreach,Content Creation & Distribution,,0
+346,Operations,RPCs and Nodes,,0
+347,Talent & Education,PBA,,0
+349,Talent & Education,Trainings & Hackathon,,0
+350,Outreach,Events/Conference Hosting,,0
+352,,PBA,,0
+355,Operations,Staking,,0
+356,Outreach,Advertising/Digital Ads,,0
+357,Outreach,Advertising/Digital Ads,,0
+358,Development,SDKs,,0
+359,Talent & Education,Education,,0
+360,Development,Smart Contracts,,0
+361,Outreach,Events/Meetups,,0
+362,Development,Software Development,,0
+363,Operations,RPCs and Nodes,,0
+364,Talent & Education,Education,,0
+365,Outreach,Content Creation & Distribution,,0
+366,Development,Data Services & Indexing,,0
+368,Outreach,Events/Meetups,,0
+369,Outreach,Content Creation & Distribution,,0
+370,Business Development,DeFi & Fintech Integrations,,0
+371,Talent & Education,Trainings & Hackathon,,0
+372,Operations,Data Services & Indexing,,0
+373,Development,Governance,,0
+374,Outreach,Advertising/Influencers,,0
+375,Talent & Education,PBA,,0
+376,Outreach,Advertising/Influencers,,0
+377,Business Development,NFTs,,0
+378,Operations,Governance,,0
+379,Business Development,NFTs,,0
+382,Outreach,Advertising/Influencers,,0
+385,Outreach,Advertising/Digital Ads,,0
+387,Outreach,Events/Conference Hosting,,0
+389,Outreach,Advertising/Influencers,,0
+391,Outreach,Advertising/Digital Ads,,0
+393,Development,Polkadot Protocol & SDK,,0
+396,Development,Software Development,,0
+397,Operations,SDKs,,0
+406,Outreach,Events/Conference Attendance & Side Events,,0
+408,Development,Smart Contracts,,0
+409,Talent & Education,Trainings & Hackathon,,0
+411,Outreach,Events/Conference Hosting,,0
+412,Business Development,DeFi & Fintech Integrations,,0
+415,Outreach,Content Creation & Distribution,,0
+417,Outreach,Advertising/Digital Ads,,0
+418,Outreach,Ambassadors & Agents,,0
+420,Outreach,Content Creation & Distribution,,0
+421,Talent & Education,Trainings & Hackathon,,0
+422,Business Development,NFTs,,0
+425,Outreach,Advertising/Influencers,,0
+426,Development,Privacy,,0
+429,Development,Polkadot Protocol & SDK,,0
+432,Economy,Loans,,1
+433,Development,Polkadot Protocol & SDK,,0
+436,Development,Polkadot Protocol & SDK,,0
+439,Development,SDKs,,0
+441,Research,Governance,,0
+442,Development,Polkadot Protocol & SDK,,0
+446,Outreach,Advertising/Physical Ads,,0
+447,Outreach,Advertising/Platform Integrations,,0
+448,Development,Wallets,,0
+450,Business Development,Governance,,0
+451,Research,Polkadot Protocol & SDK,,0
+457,Economy,Stablecoins,,1
+459,Research,Governance,,0
+460,Research,Governance,,0
+461,Outreach,Content Creation & Distribution,,0
+462,Development,Multisig,,0
+463,Talent & Education,Trainings & Hackathon,,0
+464,Operations,Infrastructure,,0
+465,Development,Polkadot Protocol & SDK,,0
+467,Development,Polkadot Protocol & SDK,,0
+468,Development,Data Services & Indexing,,0
+469,Business Development,Games,,0
+470,Business Development,Games,,0
+471,Business Development,Business Development,,0
+472,Outreach,Content Creation & Distribution,,0
+473,Outreach,Advertising/Influencers,,0
+476,Outreach,Content Creation & Distribution,,0
+477,Outreach,Events/Conference Hosting,,0
+478,Outreach,Content Creation & Distribution,,0
+480,Development,Polkadot Protocol & SDK,,0
+482,Development,Software Development,,0
+483,Operations,Governance,,0
+484,Outreach,Ambassadors & Agents,,1
+485,Outreach,Anti-Scam,,0
+486,Outreach,Content Creation & Distribution,,0
+488,,,,1
+490,Talent & Education,Trainings & Hackathon,,0
+491,Outreach,Events/Meetups,,0
+492,Outreach,Events/Conference Attendance & Side Events,,0
+493,Business Development,DeFi & Fintech Integrations,,0
+494,Development,Protocol Subsidies,,0
+496,Business Development,Software Development,,0
+499,Outreach,Advertising/Digital Ads,,0
+502,Business Development,Governance,,0
+503,Talent & Education,Trainings & Hackathon,,0
+504,Development,Governance,,0
+506,Business Development,Business Development,,0
+508,Business Development,DeFi & Fintech Integrations,,0
+512,Outreach,Events/Conference Attendance & Side Events,,0
+514,Outreach,Advertising/Sponsorships,,0
+518,Development,Polkadot Protocol & SDK,,0
+519,Operations,Staking,,0
+520,Outreach,Events/Conference Attendance & Side Events,,0
+526,Business Development,Business Development,,0
+527,Operations,Staking,,0
+529,,,,1
+532,Outreach,Content Creation & Distribution,,0
+533,Outreach,Events/Meetups,,0
+538,Development,Polkadot Protocol & SDK,,0
+539,Talent & Education,Trainings & Hackathon,,0
+540,Research,Infrastructure,,0
+541,Development,Software Development,,0
+542,Development,Governance,,0
+544,Development,Wallets,,0
+552,Development,Data Services & Indexing,,0
+554,Outreach,Events/Conference Attendance & Side Events,,0
+555,Outreach,Events/Conference Attendance & Side Events,,0
+557,Business Development,Business Development,,0
+558,Business Development,Games,,0
+559,Development,Software Development,,0
+560,Economy,Market Operations,,1
+561,Economy,DeFi Incentives,,0
+567,Outreach,Games,,0
+568,Talent & Education,Trainings & Hackathon,,0
+569,Outreach,Content Creation & Distribution,,0
+571,Development,Polkadot Protocol & SDK,,0
+573,Outreach,Content Creation & Distribution,,0
+574,Operations,Anti-Scam,,1
+576,Research,Research,,0
+578,Development,Polkadot Protocol & SDK,,0
+579,Development,Polkadot Protocol & SDK,,0
+580,Economy,DeFi Incentives,,0
+582,Development,Software Development,,0
+584,Talent & Education,PBA,,0
+585,Development,Polkadot Protocol & SDK,,0
+588,Development,Polkadot Protocol & SDK,,0
+589,Development,Polkadot Protocol & SDK,,0
+591,Outreach,Events/Conference Attendance & Side Events,,0
+593,,,,1
+596,,,,1
+597,Outreach,Advertising/Digital Ads,,0
+599,Research,Software Services,,0
+600,Outreach,Social Media & Community Management,,0
+601,Outreach,Ambassadors & Agents,,0
+610,Development,Polkadot Protocol & SDK,,0
+611,Development,Wallets,,0
+613,Business Development,Business Development,,0
+616,Outreach,Advertising/Sponsorships,,0
+617,Outreach,Content Creation & Distribution,,0
+618,Development,Data Services & Indexing,,0
+619,Development,Smart Contracts,,0
+621,Development,Governance,,0
+622,Development,Polkadot Protocol & SDK,,0
+627,Talent & Education,Education,,0
+628,Research,Governance,,0
+629,Development,Polkadot Protocol & SDK,,0
+631,Development,Governance,,0
+632,Outreach,Advertising/Influencers,,0
+633,Outreach,Content Creation & Distribution,,0
+634,Research,Governance,,0
+638,Development,Polkadot Protocol & SDK,,0
+641,Outreach,Social Media & Community Management,,0
+642,Operations,SDKs,,0
+643,Business Development,Games,,1
+644,Outreach,Advertising/Sponsorships,,0
+651,Outreach,Advertising/Digital Ads,,0
+654,Development,Smart Contracts,,0
+656,Outreach,Advertising/Physical Ads,,0
+657,Business Development,Business Development,,0
+659,Outreach,Events/Meetups,,0
+660,Economy,DeFi Incentives,,0
+662,Outreach,Events/Conference Attendance & Side Events,,0
+663,Development,SDKs,,0
+666,Development,Polkadot Protocol & SDK,,0
+667,Outreach,Content Creation & Distribution,,0
+668,Outreach,Content Creation & Distribution,,0
+670,Development,Polkadot Protocol & SDK,,0
+671,Outreach,Events/Conference Attendance & Side Events,,0
+672,Development,Wallets,,0
+673,Operations,Staking,,0
+674,Outreach,Events/Conference Attendance & Side Events,,0
+675,Business Development,Business Development,,0
+676,Development,Wallets,,0
+677,Outreach,Events/Conference Attendance & Side Events,,0
+681,Development,Polkadot Protocol & SDK,,0
+683,Development,Smart Contracts,,0
+685,Outreach,Content Creation & Distribution,,0
+687,Business Development,DeFi & Fintech Integrations,,0
+690,Business Development,Business Development,,0
+692,,,,1
+695,Development,Polkadot Protocol & SDK,,0
+698,Outreach,Events/Conference Attendance & Side Events,,0
+699,Research,Governance,,0
+700,Business Development,DevRel,,0
+703,Talent & Education,Trainings & Hackathon,"expired, superseded by 1579",1
+709,Development,Polkadot Protocol & SDK,,0
+711,Outreach,Events/Conference Attendance & Side Events,,0
+715,Outreach,Ambassadors & Agents,,0
+717,Development,Polkadot Protocol & SDK,,0
+719,Outreach,Events/Conference Attendance & Side Events,,0
+720,Outreach,Events/Conference Attendance & Side Events,,0
+721,Outreach,Advertising/Digital Ads,,0
+723,Development,Smart Contracts,,0
+725,Outreach,Content Creation & Distribution,,0
+728,Outreach,Content Creation & Distribution,,0
+729,Development,Polkadot Protocol & SDK,,0
+730,Operations,Governance,,0
+733,Outreach,Events/Conference Hosting,,0
+735,Outreach,Events/Conference Attendance & Side Events,,0
+737,Outreach,NFTs,,0
+738,Talent & Education,PBA,,0
+741,,,,1
+742,Outreach,Advertising/Digital Ads,,0
+748,Economy,Loans,,1
+749,Development,Polkadot Protocol & SDK,,0
+751,Outreach,Events/Conference Attendance & Side Events,,0
+753,Outreach,Advertising/Sponsorships,,0
+756,Operations,Governance,,0
+759,Operations,RPCs and Nodes,,0
+760,Outreach,Advertising/Physical Ads,,0
+761,Outreach,Events/Conference Attendance & Side Events,,0
+762,Outreach,Advertising/Sponsorships,,0
+763,Outreach,Content Creation & Distribution,,0
+764,Outreach,Advertising/Sponsorships,,0
+766,Research,Governance,,0
+767,Outreach,Ambassadors & Agents,,0
+768,Talent & Education,Trainings & Hackathon,,0
+772,Outreach,Advertising/Influencers,,0
+773,Business Development,NFTs,,0
+775,Outreach,Events,,1
+776,Development,Polkadot Protocol & SDK,,0
+778,Development,Polkadot Protocol & SDK,,0
+779,Development,Smart Contracts,,0
+783,Development,Polkadot Protocol & SDK,,0
+789,Business Development,Business Development,,0
+792,Development,Polkadot Protocol & SDK,,0
+793,Business Development,Business Development,,0
+796,Development,Software Development,,0
+797,Research,Security,,0
+798,Outreach,Content Creation & Distribution,,0
+799,Outreach,Advertising/Digital Ads,,0
+803,Outreach,Social Media & Community Management,,0
+809,Operations,Governance,,0
+812,Development,SDKs,,0
+816,Development,Polkadot Protocol & SDK,,0
+818,Business Development,Business Development,,0
+821,Outreach,Events/Conference Attendance & Side Events,,0
+827,Operations,Governance,,0
+830,Research,Security,,0
+831,Development,Governance,,0
+832,,,,1
+833,Outreach,Advertising,,0
+835,Outreach,Events/Conference Attendance & Side Events,,0
+837,Business Development,DeFi & Fintech Integrations,,0
+838,Business Development,Business Development,,0
+839,Operations,Explorers,,0
+842,Outreach,Content Creation & Distribution,,0
+843,Outreach,Advertising/Physical Ads,,0
+844,Outreach,Events/Conference Attendance & Side Events,,0
+846,Outreach,Advertising/Digital Ads,,0
+847,Talent & Education,Developer Onboarding,,0
+848,Outreach,Events/Conference Attendance & Side Events,,0
+849,Operations,Governance,,0
+855,Outreach,Events/Meetups,,0
+856,Outreach,Advertising/Platform Integrations,,0
+865,Development,Polkadot Protocol & SDK,,0
+886,Development,Wallets,,0
+892,Development,Polkadot Protocol & SDK,,0
+893,Outreach,Events/Conference Attendance & Side Events,,0
+895,Outreach,Advertising/Sponsorships,,0
+897,Talent & Education,Trainings & Hackathon,,0
+904,Development,Software Development,,0
+905,Outreach,Advertising/Platform Integrations,,0
+911,Development,Governance,,0
+914,Talent & Education,Education,,0
+915,Development,Software Development,,0
+918,Development,Privacy,,0
+922,Outreach,Market Research,,0
+925,Development,Polkadot Protocol & SDK,,0
+931,Outreach,Advertising/Sponsorships,,0
+933,Development,Wallets,,0
+938,Outreach,Social Media & Community Management,,0
+942,Development,Smart Contracts,,0
+943,Talent & Education,Trainings & Hackathon,,0
+944,Development,Bridge,,0
+947,Outreach,Content Creation & Distribution,,0
+948,Development,SDKs,,0
+955,Development,Polkadot Protocol & SDK,,0
+961,Outreach,Events/Conference Attendance & Side Events,,0
+965,Development,Smart Contracts,,0
+968,,,,1
+970,Development,Data Services & Indexing,,0
+971,Development,Polkadot Protocol & SDK,,0
+985,Development,SDKs,,0
+987,Development,Polkadot Protocol & SDK,,0
+995,Operations,Data Services & Indexing,,0
+997,Development,Privacy,,0
+1001,Development,Governance,,0
+1006,,,,1
+1019,Research,Governance,,0
+1021,Development,Polkadot Protocol & SDK,,0
+1025,Outreach,Ambassadors & Agents,,0
+1031,Development,Polkadot Protocol & SDK,,0
+1035,Business Development,DeFi & Fintech Integrations,,0
+1037,Outreach,Content Creation & Distribution,,0
+1044,Outreach,Ambassadors & Agents,,0
+1045,Research,Security,,0
+1052,Talent & Education,Education,,0
+1054,Outreach,Advertising,,0
+1055,Development,Polkadot Protocol & SDK,,0
+1056,Operations,Explorers,,0
+1057,Outreach,Events/Meetups,,0
+1060,Development,Explorers,,0
+1061,Development,Polkadot Protocol & SDK,,0
+1068,Development,SDKs,,0
+1069,Research,Governance,,0
+1071,Operations,Ecosystem Services,,0
+1074,,,,1
+1076,Development,Wallets,,0
+1077,Outreach,Advertising/Digital Ads,,0
+1079,Outreach,Content Creation & Distribution,,0
+1082,Operations,Legal,,0
+1088,Development,Polkadot Protocol & SDK,,0
+1090,Outreach,Market Research,,0
+1091,Outreach,Content Creation & Distribution,,0
+1095,Research,Smart Contracts,,0
+1099,Development,SDKs,,0
+1100,Development,Explorers,,0
+1102,Business Development,DeFi & Fintech Integrations,,0
+1103,Development,Polkadot Protocol & SDK,,0
+1104,Economy,Stablecoins,,1
+1113,Outreach,Events/Conference Hosting,,0
+1114,Business Development,Protocol Subsidies,,0
+1118,Development,Wallets,,0
+1122,Economy,Market Operations,"since Centrifuge repaid a part of the spend, we will do a cleaned up line in the aggregated spends sheet",1
+1123,Development,Smart Contracts,,0
+1124,Business Development,NFTs,,0
+1125,Talent & Education,PBA,,0
+1126,Development,Polkadot Protocol & SDK,,0
+1130,Outreach,Content Creation & Distribution,,0
+1132,Operations,Data Services & Indexing,,0
+1134,Development,Polkadot Protocol & SDK,,0
+1135,Talent & Education,Trainings & Hackathon,,0
+1136,Outreach,Advertising/Influencers,,0
+1141,Business Development,Music & Entertainment,,0
+1149,Development,Data Services & Indexing,,0
+1150,Development,Protocol Subsidies,,0
+1165,Development,Software Development,,0
+1166,,,,1
+1167,Talent & Education,Education,,0
+1168,Development,Polkadot Protocol & SDK,,0
+1169,Research,Polkadot Protocol & SDK,,0
+1170,Business Development,NFTs,,0
+1173,Outreach,Social Media & Community Management,,0
+1174,Outreach,Ambassadors & Agents,,0
+1181,Development,Polkadot Protocol & SDK,,0
+1193,Operations,Data Services & Indexing,,0
+1194,Business Development,Business Development,,0
+1206,Outreach,Content Creation & Distribution,,0
+1210,Business Development,GovTech,,0
+1217,Development,,,0
+1220,Outreach,Content Creation & Distribution,,0
+1223,Business Development,Business Development,,0
+1224,Business Development,Business Development,,0
+1225,Development,Governance,,0
+1230,Business Development,NFTs,,0
+1231,Development,Polkadot Protocol & SDK,,0
+1232,Development,Wallets,,0
+1233,Development,Polkadot Protocol & SDK,,0
+1235,Development,,,0
+1236,Development,Polkadot Protocol & SDK,,0
+1237,Outreach,Content Creation & Distribution,,0
+1240,Outreach,Content Creation & Distribution,,0
+1242,Development,,,0
+1244,Development,Polkadot Protocol & SDK,,0
+1251,Development,Polkadot Protocol & SDK,,0
+1252,Development,Data Services & Indexing,,0
+1253,Development,Polkadot Protocol & SDK,,0
+1258,Outreach,Content Creation & Distribution,,0
+1260,Outreach,Social Media & Community Management,,0
+1262,Business Development,NFTs,,0
+1263,Development,Polkadot Protocol & SDK,,0
+1266,Development,SDKs,,0
+1268,Development,Polkadot Protocol & SDK,,0
+1270,Operations,Governance,,0
+1273,Talent & Education,Developer Onboarding,,0
+1275,Outreach,,,0
+1276,Outreach,Ambassadors & Agents,,0
+1278,,,,1
+1284,Outreach,Ambassadors & Agents,,0
+1287,Outreach,Ambassadors & Agents,,1
+1288,Development,,,0
+1290,Development,Polkadot Protocol & SDK,,0
+1291,Development,Polkadot Protocol & SDK,,0
+1292,Development,Polkadot Protocol & SDK,,0
+1293,Development,Polkadot Protocol & SDK,,0
+1294,Development,Polkadot Protocol & SDK,,0
+1295,Development,Polkadot Protocol & SDK,,0
+1296,Development,Polkadot Protocol & SDK,,0
+1299,Outreach,Ambassadors & Agents,,0
+1301,Development,RPCs and Nodes,,0
+1305,Development,Multisig,,0
+1306,Development,,,0
+1307,Development,,,0
+1309,Business Development,Business Development,,0
+1312,Talent & Education,Trainings & Hackathon,,0
+1314,Talent & Education,Trainings & Hackathon,,0
+1315,Business Development,Protocol Subsidies,,0
+1316,Development,Polkadot Protocol & SDK,,0
+1317,Development,,,0
+1320,Development,Polkadot Protocol & SDK,,0
+1321,Development,,,0
+1323,Development,Polkadot Protocol & SDK,,0
+1324,Development,Polkadot Protocol & SDK,,0
+1327,Development,Polkadot Protocol & SDK,,0
+1329,Development,Polkadot Protocol & SDK,,0
+1330,Outreach,Ambassadors & Agents,,0
+1333,Development,Polkadot Protocol & SDK,,0
+1334,Development,SDKs,,0
+1335,Development,Polkadot Protocol & SDK,,0
+1337,Development,,,0
+1338,Development,Polkadot Protocol & SDK,,0
+1340,Development,Software Development,,0
+1343,Development,Developer Tooling,,0
+1344,Development,Polkadot Protocol & SDK,,0
+1347,Outreach,Ambassadors & Agents,,0
+1352,Outreach,Ambassadors & Agents,,0
+1353,Outreach,Content Creation & Distribution,,0
+1354,Development,Polkadot Protocol & SDK,,0
+1355,Development,Polkadot Protocol & SDK,,0
+1356,Development,Polkadot Protocol & SDK,,0
+1358,Outreach,Ambassadors & Agents,,0
+1360,Development,Polkadot Protocol & SDK,,0
+1362,Research,Governance,,0
+1366,Operations,Explorers,,0
+1367,,,,1
+1369,Development,Polkadot Protocol & SDK,,0
+1370,Operations,Staking,,0
+1371,Development,Account Abstraction,,0
+1378,Development,Polkadot Protocol & SDK,,0
+1379,Development,Polkadot Protocol & SDK,,0
+1380,Outreach,Ambassadors & Agents,,0
+1381,Development,Data Services & Indexing,,0
+1383,Business Development,Software Development,,0
+1385,Development,Polkadot Protocol & SDK,,0
+1390,Development,Wallets,"expired, superseded by  1513",1
+1391,Development,Wallets,,0
+1392,Outreach,Events/Conference Attendance & Side Events,,0
+1395,,,,1
+1396,Development,Polkadot Protocol & SDK,,0
+1397,Outreach,Ambassadors & Agents,,0
+1399,Outreach,Events/Conference Attendance & Side Events,,0
+1402,Development,Polkadot Protocol & SDK,,0
+1403,Development,Polkadot Protocol & SDK,,0
+1405,Outreach,Advertising/Influencers,,0
+1408,Development,Polkadot Protocol & SDK,,0
+1410,Development,Software Development,,0
+1412,Outreach,Advertising/Platform Integrations,,0
+1413,Development,Software Development,,0
+1425,Business Development,Privacy,,0
+1429,Development,Polkadot Protocol & SDK,,0
+1430,Development,Polkadot Protocol & SDK,,0
+1431,Development,Polkadot Protocol & SDK,,0
+1439,Economy,DeFi Incentives,,0
+1440,Development,Data Services & Indexing,,0
+1446,Development,Polkadot Protocol & SDK,,0
+1447,Operations,Data Services & Indexing,,0
+1451,Development,Polkadot Protocol & SDK,,0
+1454,Development,Polkadot Protocol & SDK,,0
+1455,Operations,Explorers,,0
+1456,Development,Polkadot Protocol & SDK,,0
+1457,Development,Polkadot Protocol & SDK,,0
+1460,Development,Polkadot Protocol & SDK,,0
+1461,Development,Polkadot Protocol & SDK,,0
+1462,Development,Polkadot Protocol & SDK,,0
+1463,Operations,Explorers,,0
+1465,Development,Smart Contracts,,0
+1467,Outreach,Content Creation & Distribution,,0
+1470,Development,Polkadot Protocol & SDK,,0
+1471,Development,Polkadot Protocol & SDK,,0
+1473,Outreach,Ambassadors & Agents,,0
+1475,Development,Explorers,,0
+1476,Operations,Governance,,0
+1477,Development,SDKs,,0
+1479,,,,1
+1482,Outreach,Advertising/Sponsorships,,0
+1485,,,,1
+1487,,,,1
+1490,,,,1
+1491,,,,1
+1492,Talent & Education,Developer Onboarding,,0
+1493,,,,1
+1497,Talent & Education,PBA,,0
+1501,,,,1
+1502,Operations,Other,,0
+1503,Development,Software Development,,0
+1508,Development,Software Development,,0
+1511,Development,Polkadot Protocol & SDK,,0
+1512,Development,Polkadot Protocol & SDK,,0
+1513,Development,Wallets,,0
+1515,Development,Polkadot Protocol & SDK,,0
+1516,,,,1
+1518,Development,Privacy,,0
+1519,Outreach,Ambassadors & Agents,,0
+1521,Operations,Governance,,0
+1522,Outreach,Content Creation & Distribution,,0
+1524,Development,Polkadot Protocol & SDK,,0
+1526,Operations,Data Services & Indexing,,0
+1530,Research,Polkadot Protocol & SDK,,0
+1531,Research,Governance,,0
+1534,Development,Polkadot Protocol & SDK,,0
+1535,Business Development,Business Development,,0
+1537,Outreach,Ambassadors & Agents,,0
+1538,,,,1
+1540,Business Development,Business Development,,0
+1541,Development,Protocol Subsidies,,0
+1542,Economy,DeFi Incentives,"since Hydration repaid a part of the spend, we will do a cleaned up line in the aggregated spends sheet",1
+1543,Business Development,Games,,0
+1544,Business Development,Business Development,,0
+1551,Development,Polkadot Protocol & SDK,,0
+1553,Outreach,Ambassadors & Agents,,0
+1554,Development,Polkadot Protocol & SDK,,0
+1556,Development,Polkadot Protocol & SDK,,0
+1559,Business Development,Protocol Subsidies,,0
+1560,Talent & Education,Trainings & Hackathon,,0
+1562,Business Development,NFTs,,0
+1565,Development,Polkadot Protocol & SDK,,0
+1566,Development,Smart Contracts,,0
+1569,Outreach,Ambassadors & Agents,,0
+1571,Development,Polkadot Protocol & SDK,,0
+1572,Development,Multisig,,0
+1573,Development,Wallets,,0
+1579,Talent & Education,Trainings & Hackathon,,0
+1583,Development,Developer Tooling,,0
+1584,,,,1
+1586,Business Development,DeFi & Fintech Integrations,,0
+1589,Development,Developer Tooling,,0
+1591,Operations,Governance,,0
+1594,Development,Governance,,0
+1595,Development,Software Development,,0
+1605,Outreach,Ambassadors & Agents,,0
+1606,Outreach,Ambassadors & Agents,,0
+1612,Development,Governance,,0
+1613,Outreach,Ambassadors & Agents,,0
+1618,Outreach,Ambassadors & Agents,,0
+1619,Development,SDKs,,0
+1625,Development,SDKs,,0
+1628,Development,Polkadot Protocol & SDK,,0
+1630,Outreach,Ambassadors & Agents,,0
+1634,Business Development,Business Development,,0
+1637,Business Development,Protocol Subsidies,,0
+1638,Talent & Education,Developer Onboarding,,0
+1640,,,,1
+1641,Development,Developer Tooling,,0
+1643,Research,Governance,,0
+1651,,,,1
+1652,Research,Governance,,0
+1657,Development,Polkadot Protocol & SDK,,0
+1659,Outreach,Ambassadors & Agents,,0
+1662,,,,1
+1667,Development,Bridge,,0
+1670,Development,Software Development,,0
+1673,Outreach,Ambassadors & Agents,,0
+1674,Outreach,Ambassadors & Agents,,0
+1676,Research,Legal,,0
+1681,Business Development,Business Development,,0
+1683,Business Development,Business Development,,0
+1684,Outreach,Events/Conference Hosting,,0
+1686,Business Development,Business Development,,0
+1687,,,,1
+1689,Development,Polkadot Protocol & SDK,,0
+1690,Development,Polkadot Protocol & SDK,,0
+1693,Talent & Education,Developer Onboarding,,0
+1695,Development,Bridge,,0
+1696,Development,Bridge,,0
+1699,Development,Polkadot Protocol & SDK,,0
+1702,Development,Wallets,,0
+1704,Outreach,Ambassadors & Agents,,0
+1708,Operations,Governance,,0
+1727,Operations,Explorers,,0
+1729,,,,1
+1734,,,,1
+1743,,,,1
+1745,Development,Wallets,,0
+1748,Talent & Education,Ambassadors & Agents,,0
+1758,,,,1
+1766,Operations,Software Services,,0

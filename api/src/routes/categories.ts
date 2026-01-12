@@ -1,0 +1,85 @@
+import { Router } from "express";
+import { getCategories, createCategory, updateCategory, deleteCategory, findOrCreateCategory } from "../db/queries.js";
+import { requireAuth } from "../middleware/auth.js";
+
+export const categoriesRouter: Router = Router();
+
+// Find or create a category by category/subcategory strings
+// Useful for CSV imports and backwards-compatible writes
+categoriesRouter.post("/lookup", requireAuth, (req, res) => {
+  try {
+    const { category, subcategory } = req.body;
+
+    if (!category || typeof category !== "string" || category.trim() === "") {
+      res.status(400).json({ error: "category is required" });
+      return;
+    }
+
+    const result = findOrCreateCategory(category.trim(), (subcategory || "").trim());
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+categoriesRouter.get("/", (_req, res) => {
+  try {
+    const data = getCategories();
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+categoriesRouter.post("/", requireAuth, (req, res) => {
+  try {
+    const { category, subcategory } = req.body;
+
+    if (!category || typeof category !== "string" || category.trim() === "") {
+      res.status(400).json({ error: "category is required" });
+      return;
+    }
+
+    const result = createCategory(category, subcategory);
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+categoriesRouter.put("/:id", requireAuth, (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid id format" });
+      return;
+    }
+
+    const { category, subcategory } = req.body;
+
+    if (!category || typeof category !== "string" || category.trim() === "") {
+      res.status(400).json({ error: "category is required" });
+      return;
+    }
+
+    updateCategory(id, category, subcategory);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+categoriesRouter.delete("/:id", requireAuth, (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid id format" });
+      return;
+    }
+
+    deleteCategory(id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});

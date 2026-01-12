@@ -1,0 +1,8 @@
+# OpenGov Monitor - Hourly data sync from Subsquare
+# This file should be placed in /etc/cron.d/opengov-sync
+
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+# Sync governance data every hour at minute 0
+0 * * * * opengov cd /home/opengov/backend && .venv/bin/python scripts/run_sqlite.py --db /home/opengov/data/polkadot.db >> /var/log/opengov-sync.log 2>&1

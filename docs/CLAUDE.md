@@ -1,0 +1,5 @@
+- When updating docs, please consider that they are directed at an expert audience. Don't explain basics, and don't explain what can be looked up in the code or things that are common sense. Rather, show how it works and how it connects.
+- avoid text duplication between docs files, README, and CLAUDE.md
+- CLAUDE.md is intended to give the agent just enough context to navigate the repo and find enough info
+- use subfolder CLAUDE.md files to give additional context for how to use and navigate the folder
+- use README.md when the info is intended for everyone
