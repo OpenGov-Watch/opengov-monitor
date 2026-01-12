@@ -5,7 +5,6 @@ import { Row, flexRender } from "@tanstack/react-table";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 
 interface DataTableCardProps<TData> {
   row: Row<TData>;
@@ -29,7 +28,9 @@ export function DataTableCard<TData>({ row }: DataTableCardProps<TData>) {
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 {typeof cell.column.columnDef.header === 'string'
                   ? cell.column.columnDef.header
-                  : flexRender(cell.column.columnDef.header, cell.getContext())}
+                  : typeof cell.column.columnDef.header === 'function'
+                  ? cell.column.columnDef.header({ column: cell.column, header: cell.column.parent?.header, table: cell.getContext().table })
+                  : null}
               </span>
               <div className="text-sm mt-1">
                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -48,7 +49,9 @@ export function DataTableCard<TData>({ row }: DataTableCardProps<TData>) {
                     <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                       {typeof cell.column.columnDef.header === 'string'
                         ? cell.column.columnDef.header
-                        : flexRender(cell.column.columnDef.header, cell.getContext())}
+                        : typeof cell.column.columnDef.header === 'function'
+                        ? cell.column.columnDef.header({ column: cell.column, header: cell.column.parent?.header, table: cell.getContext().table })
+                        : null}
                     </span>
                     <div className="text-sm mt-1">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
