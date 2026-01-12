@@ -124,8 +124,15 @@ app.use("/api/stats", statsRouter);
 app.use("/api/sync", syncRouter);
 
 // Error handling
-app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error("Error:", err.message);
+  console.error("Stack:", err.stack);
+  console.error("Request:", {
+    method: req.method,
+    url: req.url,
+    body: req.body,
+    query: req.query,
+  });
   res.status(500).json({ error: err.message });
 });
 

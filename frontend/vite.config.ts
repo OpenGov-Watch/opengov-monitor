@@ -23,6 +23,9 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    sourcemap: "hidden", // Generate source maps but don't reference them in bundle
+  },
   server: {
     port: 3000,
     strictPort: false, // Allow fallback to next available port
