@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import GridLayout, { Layout } from "react-grid-layout";
+import { Responsive, WidthProvider, Layout, Layouts } from "react-grid-layout";
 import { DashboardComponent } from "./dashboard-component";
 import type {
   DashboardComponent as DashboardComponentType,
@@ -9,6 +9,8 @@ import type {
 } from "@/lib/db/types";
 
 import "react-grid-layout/css/styles.css";
+
+const ResponsiveGridLayout = WidthProvider(Responsive);
 
 interface DashboardGridProps {
   components: DashboardComponentType[];
@@ -21,7 +23,9 @@ interface DashboardGridProps {
   width?: number;
 }
 
-const COLS = 12;
+// Responsive breakpoints and column counts
+const BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 };
+const COLS = { lg: 12, md: 8, sm: 4, xs: 2, xxs: 1 };
 const ROW_HEIGHT = 80;
 
 export function DashboardGrid({
@@ -32,9 +36,7 @@ export function DashboardGrid({
   onEditComponent,
   onDuplicateComponent,
   onDeleteComponent,
-  width = 1200,
 }: DashboardGridProps) {
-  const [containerWidth, setContainerWidth] = useState(width);
   const gridRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom when new component is added
@@ -51,27 +53,52 @@ export function DashboardGrid({
     }
   }, [highlightComponentId, components]);
 
-  // Convert components to grid layout
-  const layout: Layout[] = components.map((comp) => {
-    const gridConfig: GridConfig = JSON.parse(comp.grid_config);
-    return {
-      i: String(comp.id),
-      x: gridConfig.x,
-      y: gridConfig.y,
-      w: gridConfig.w,
-      h: gridConfig.h,
-      minW: 2,
-      minH: 2,
-      static: !editable,
+  // Convert components to grid layout for all breakpoints
+  const generateLayouts = (): Layouts => {
+    const baseLayout: Layout[] = components.map((comp) => {
+      const gridConfig: GridConfig = JSON.parse(comp.grid_config);
+      return {
+        i: String(comp.id),
+        x: gridConfig.x,
+        y: gridConfig.y,
+        w: gridConfig.w,
+        h: gridConfig.h,
+        minW: 2,
+        minH: 2,
+        static: !editable,
+      };
+    });
+
+    // Generate responsive layouts
+    // For smaller screens, adjust width to fit within column constraints
+    const adjustLayout = (layout: Layout[], maxCols: number): Layout[] => {
+      return layout.map(item => ({
+        ...item,
+        w: Math.min(item.w, maxCols),
+        x: Math.min(item.x, Math.max(0, maxCols - item.w)),
+      }));
     };
-  });
+
+    return {
+      lg: baseLayout,
+      md: adjustLayout(baseLayout, COLS.md),
+      sm: adjustLayout(baseLayout, COLS.sm),
+      xs: adjustLayout(baseLayout, COLS.xs),
+      xxs: baseLayout.map(item => ({ ...item, w: 1, x: 0 })), // Stack everything on mobile
+    };
+  };
+
+  const layouts = generateLayouts();
 
   const handleLayoutChange = useCallback(
-    (newLayout: Layout[]) => {
+    (currentLayout: Layout[], allLayouts: Layouts) => {
       if (!editable || !onLayoutChange) return;
 
+      // Only update based on the lg (desktop) layout
+      const lgLayout = allLayouts.lg || currentLayout;
+
       // Find changed items and update
-      for (const item of newLayout) {
+      for (const item of lgLayout) {
         const componentId = parseInt(item.i, 10);
         const oldComponent = components.find((c) => c.id === componentId);
         if (!oldComponent) continue;
@@ -96,19 +123,6 @@ export function DashboardGrid({
     [components, editable, onLayoutChange]
   );
 
-  // Measure container width
-  const containerRef = useCallback((node: HTMLDivElement | null) => {
-    if (node) {
-      const resizeObserver = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          setContainerWidth(entry.contentRect.width);
-        }
-      });
-      resizeObserver.observe(node);
-      return () => resizeObserver.disconnect();
-    }
-  }, []);
-
   if (components.length === 0) {
     return (
       <div className="flex items-center justify-center h-64 border-2 border-dashed rounded-lg text-muted-foreground">
@@ -120,16 +134,13 @@ export function DashboardGrid({
   }
 
   return (
-    <div ref={(node) => {
-      containerRef(node);
-      (gridRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
-    }} className="w-full">
-      <GridLayout
+    <div ref={gridRef} className="w-full">
+      <ResponsiveGridLayout
         className="layout"
-        layout={layout}
+        layouts={layouts}
+        breakpoints={BREAKPOINTS}
         cols={COLS}
         rowHeight={ROW_HEIGHT}
-        width={containerWidth}
         isDraggable={editable}
         isResizable={editable}
         onLayoutChange={handleLayoutChange}
@@ -154,7 +165,7 @@ export function DashboardGrid({
             />
           </div>
         ))}
-      </GridLayout>
+      </ResponsiveGridLayout>
     </div>
   );
 }

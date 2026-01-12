@@ -29,6 +29,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 interface NavItem {
   name: string;
@@ -99,7 +105,12 @@ const authenticatedNavigation: NavSection[] = [
   },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  isMobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps = {}) {
   const location = useLocation();
   const pathname = location.pathname;
   const { isAuthenticated, user, logout, isLoading } = useAuth();
@@ -128,13 +139,54 @@ export function Sidebar() {
     ...(isAuthenticated ? authenticatedNavigation : []),
   ];
 
-  return (
-    <div
-      className={cn(
-        "flex h-screen flex-col border-r bg-background transition-all duration-200",
-        collapsed ? "w-14" : "w-64"
+  const handleLinkClick = () => {
+    // Close mobile drawer when clicking a link
+    if (onMobileClose) {
+      onMobileClose();
+    }
+  };
+
+  const sidebarContent = (
+    <div className="flex h-full flex-col bg-background">
+      {/* Mobile Sheet uses its own header, desktop sidebar has embedded header */}
+      {!isMobileOpen && (
+        <div
+          className={cn(
+            "flex h-12 items-center border-b",
+            collapsed ? "justify-center px-1" : "justify-between px-4"
+          )}
+        >
+          <Link
+            to="/"
+            className={cn("font-bold", collapsed ? "text-sm" : "text-lg")}
+            title={collapsed ? "OpenGov Monitor" : undefined}
+          >
+            {collapsed ? "OG" : "OpenGov Monitor"}
+          </Link>
+          {!collapsed && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setCollapsed(true)}
+              className="h-7 w-7 p-0"
+              title="Collapse sidebar"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       )}
-    >
+      {!isMobileOpen && collapsed && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setCollapsed(false)}
+          className="mx-auto mt-2 h-7 w-7 p-0"
+          title="Expand sidebar"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      )}
       <div
         className={cn(
           "flex h-12 items-center border-b",
@@ -171,10 +223,10 @@ export function Sidebar() {
           <ChevronRight className="h-4 w-4" />
         </Button>
       )}
-      <nav className={cn("flex-1 overflow-y-auto", collapsed ? "p-2" : "p-4")}>
+      <nav className={cn("flex-1 overflow-y-auto", isMobileOpen ? "p-4" : (collapsed ? "p-2" : "p-4"))}>
         {visibleNavigation.map((section, sectionIdx) => (
           <div key={section.title || sectionIdx} className={cn(sectionIdx > 0 && "mt-6")}>
-            {section.title && !collapsed && (
+            {section.title && (!collapsed || isMobileOpen) && (
               <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 {section.title}
               </h3>
@@ -186,17 +238,18 @@ export function Sidebar() {
                   <Link
                     key={item.name}
                     to={item.href}
-                    title={collapsed ? item.name : undefined}
+                    onClick={handleLinkClick}
+                    title={collapsed && !isMobileOpen ? item.name : undefined}
                     className={cn(
                       "flex items-center rounded-lg text-sm font-medium transition-colors",
-                      collapsed ? "justify-center p-2" : "gap-3 px-3 py-2",
+                      (collapsed && !isMobileOpen) ? "justify-center p-2" : "gap-3 px-3 py-2",
                       isActive
                         ? "bg-secondary text-secondary-foreground"
                         : "text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
                     )}
                   >
                     <item.icon className="h-4 w-4 flex-shrink-0" />
-                    {!collapsed && item.name}
+                    {(!collapsed || isMobileOpen) && item.name}
                   </Link>
                 );
               })}
@@ -206,14 +259,14 @@ export function Sidebar() {
 
         {/* Dashboards section - always visible, dynamic list */}
         <div className="mt-6">
-          {!collapsed && (
+          {(!collapsed || isMobileOpen) && (
             <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Dashboards
             </h3>
           )}
           <div className="space-y-1">
             {dashboards.length === 0 ? (
-              !collapsed && (
+              (!collapsed || isMobileOpen) && (
                 <p className="px-3 py-2 text-sm text-muted-foreground italic">
                   No dashboards
                 </p>
@@ -226,17 +279,18 @@ export function Sidebar() {
                   <Link
                     key={dashboard.id}
                     to={href}
-                    title={collapsed ? dashboard.name : undefined}
+                    onClick={handleLinkClick}
+                    title={collapsed && !isMobileOpen ? dashboard.name : undefined}
                     className={cn(
                       "flex items-center rounded-lg text-sm font-medium transition-colors",
-                      collapsed ? "justify-center p-2" : "gap-3 px-3 py-2",
+                      (collapsed && !isMobileOpen) ? "justify-center p-2" : "gap-3 px-3 py-2",
                       isActive
                         ? "bg-secondary text-secondary-foreground"
                         : "text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
                     )}
                   >
                     <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
-                    {!collapsed && dashboard.name}
+                    {(!collapsed || isMobileOpen) && dashboard.name}
                   </Link>
                 );
               })
@@ -244,17 +298,17 @@ export function Sidebar() {
           </div>
         </div>
       </nav>
-      <div className={cn("border-t space-y-3", collapsed ? "p-2" : "p-4")}>
+      <div className={cn("border-t space-y-3", isMobileOpen ? "p-4" : (collapsed ? "p-2" : "p-4"))}>
         {isLoading ? (
           <div className="h-8 animate-pulse bg-muted rounded" />
         ) : isAuthenticated && user ? (
           <div
             className={cn(
               "flex items-center",
-              collapsed ? "justify-center" : "justify-between"
+              (collapsed && !isMobileOpen) ? "justify-center" : "justify-between"
             )}
           >
-            {!collapsed && (
+            {(!collapsed || isMobileOpen) && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <User className="h-4 w-4" />
                 <span className="truncate max-w-[120px]">{user.username}</span>
@@ -273,14 +327,15 @@ export function Sidebar() {
         ) : (
           <Link
             to="/login"
-            title={collapsed ? "Sign in" : undefined}
+            onClick={handleLinkClick}
+            title={collapsed && !isMobileOpen ? "Sign in" : undefined}
             className={cn(
               "flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors",
-              collapsed ? "justify-center" : "gap-2"
+              (collapsed && !isMobileOpen) ? "justify-center" : "gap-2"
             )}
           >
             <LogIn className="h-4 w-4" />
-            {!collapsed && "Sign in"}
+            {(!collapsed || isMobileOpen) && "Sign in"}
           </Link>
         )}
         {/* API selector - only visible in development */}
@@ -292,19 +347,19 @@ export function Sidebar() {
                 size="sm"
                 className={cn(
                   "w-full justify-between text-xs text-muted-foreground hover:text-foreground",
-                  collapsed && "p-0 h-8 w-8"
+                  (collapsed && !isMobileOpen) && "p-0 h-8 w-8"
                 )}
-                title={collapsed ? `API: ${currentPreset || apiBase}` : undefined}
+                title={(collapsed && !isMobileOpen) ? `API: ${currentPreset || apiBase}` : undefined}
               >
                 <span className="flex items-center gap-1.5">
                   <Server className="h-3 w-3" />
-                  {!collapsed && (
+                  {(!collapsed || isMobileOpen) && (
                     <span className="truncate max-w-[140px]">
                       {currentPreset || apiBase}
                     </span>
                   )}
                 </span>
-                {!collapsed && <ChevronDown className="h-3 w-3 opacity-50" />}
+                {(!collapsed || isMobileOpen) && <ChevronDown className="h-3 w-3 opacity-50" />}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
@@ -323,10 +378,36 @@ export function Sidebar() {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        {!collapsed && (
+        {(!collapsed || isMobileOpen) && (
           <p className="text-xs text-muted-foreground">Polkadot Governance Data</p>
         )}
       </div>
+    </div>
+  );
+
+  // Mobile: render as Sheet drawer
+  if (isMobileOpen !== undefined && onMobileClose) {
+    return (
+      <Sheet open={isMobileOpen} onOpenChange={onMobileClose}>
+        <SheetContent side="left" className="p-0 w-64">
+          <SheetHeader className="p-4 border-b">
+            <SheetTitle>Menu</SheetTitle>
+          </SheetHeader>
+          {sidebarContent}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  // Desktop: render as fixed sidebar
+  return (
+    <div
+      className={cn(
+        "hidden lg:flex h-screen flex-col border-r bg-background transition-all duration-200",
+        collapsed ? "w-14" : "w-64"
+      )}
+    >
+      {sidebarContent}
     </div>
   );
 }
