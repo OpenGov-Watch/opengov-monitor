@@ -29,6 +29,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+} from "@/components/ui/sheet";
 
 interface NavItem {
   name: string;
@@ -99,7 +103,13 @@ const authenticatedNavigation: NavSection[] = [
   },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  isMobileOpen?: boolean;
+  onMobileClose?: () => void;
+  isMobile?: boolean;
+}
+
+export function Sidebar({ isMobileOpen, onMobileClose, isMobile = false }: SidebarProps = {}) {
   const location = useLocation();
   const pathname = location.pathname;
   const { isAuthenticated, user, logout, isLoading } = useAuth();
@@ -113,6 +123,13 @@ export function Sidebar() {
   useEffect(() => {
     localStorage.setItem("sidebar-collapsed", String(collapsed));
   }, [collapsed]);
+
+  // Close mobile drawer on navigation
+  useEffect(() => {
+    if (isMobile && onMobileClose) {
+      onMobileClose();
+    }
+  }, [pathname, isMobile, onMobileClose]);
 
   // Fetch dashboards list (using dynamic API base)
   useEffect(() => {
@@ -128,11 +145,13 @@ export function Sidebar() {
     ...(isAuthenticated ? authenticatedNavigation : []),
   ];
 
-  return (
+  // Sidebar content component (shared between desktop and mobile)
+  const sidebarContent = (
     <div
       className={cn(
-        "flex h-screen flex-col border-r bg-background transition-all duration-200",
-        collapsed ? "w-14" : "w-64"
+        "flex h-full flex-col bg-background transition-all duration-200",
+        !isMobile && "border-r",
+        !isMobile && (collapsed ? "w-14" : "w-64")
       )}
     >
       <div
@@ -329,4 +348,17 @@ export function Sidebar() {
       </div>
     </div>
   );
+
+  // On mobile, wrap in Sheet; on desktop, render directly
+  if (isMobile) {
+    return (
+      <Sheet open={isMobileOpen} onOpenChange={(open) => !open && onMobileClose?.()}>
+        <SheetContent side="left" className="w-64 p-0">
+          {sidebarContent}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  return sidebarContent;
 }

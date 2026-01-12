@@ -75,3 +75,24 @@
   animation: highlight-pulse 0.6s ease-in-out 3;
   border-radius: var(--radius);
 }
+
+/* Mobile optimizations */
+@media (max-width: 1024px) {
+  /* Ensure minimum touch target size of 44x44px on mobile */
+  button,
+  a[role="button"],
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Better scroll behavior on mobile */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Prevent text size adjustment on orientation change */
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+}

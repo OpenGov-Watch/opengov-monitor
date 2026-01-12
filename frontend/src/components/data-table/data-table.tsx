@@ -26,12 +26,15 @@ import {
 
 import { DataTablePagination } from "./pagination";
 import { DataTableToolbar } from "./toolbar";
+import { DataTableCard } from "./data-table-card";
 import { useViewState } from "@/hooks/use-view-state";
 
 export interface FooterCell {
   columnId: string;
   value: React.ReactNode;
 }
+
+export type ViewMode = "table" | "card";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -40,6 +43,7 @@ interface DataTableProps<TData, TValue> {
   footerCells?: FooterCell[];
   footerLabel?: string;
   defaultSorting?: SortingState;
+  cardViewPrimaryFields?: string[];
 }
 
 export function DataTable<TData, TValue>({
@@ -49,7 +53,21 @@ export function DataTable<TData, TValue>({
   footerCells,
   footerLabel,
   defaultSorting,
+  cardViewPrimaryFields,
 }: DataTableProps<TData, TValue>) {
+  // View mode state (persisted in localStorage)
+  const [viewMode, setViewMode] = React.useState<ViewMode>(() => {
+    const saved = localStorage.getItem(`${tableName}-view-mode`);
+    // Default to card view on mobile, table on desktop
+    const isMobile = window.innerWidth < 768;
+    return (saved as ViewMode) || (isMobile ? "card" : "table");
+  });
+
+  // Persist view mode
+  React.useEffect(() => {
+    localStorage.setItem(`${tableName}-view-mode`, viewMode);
+  }, [viewMode, tableName]);
+
   // View state management
   const {
     sorting,
@@ -91,6 +109,10 @@ export function DataTable<TData, TValue>({
     globalFilterFn: "includesString",
   });
 
+  // Determine primary fields for card view
+  const primaryFields = cardViewPrimaryFields ||
+    columns.slice(0, 3).map((col: any) => col.id || col.accessorKey).filter(Boolean);
+
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4">
       <DataTableToolbar
@@ -101,80 +123,108 @@ export function DataTable<TData, TValue>({
         onLoadView={loadViewState}
         onClearView={clearViewState}
         tableName={tableName}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
       />
-      <div className="flex-1 min-h-0 rounded-md border">
-        <Table wrapperClassName="h-full">
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </TableHead>
+
+      {/* Table View */}
+      {viewMode === "table" && (
+        <>
+          <div className="flex-1 min-h-0 rounded-md border overflow-auto">
+            <Table wrapperClassName="h-full">
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <TableHead key={header.id}>
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                      </TableHead>
+                    ))}
+                  </TableRow>
                 ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  No results.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-          {footerCells && footerCells.length > 0 && (
-            <TableFooter>
-              <TableRow className="bg-muted/50 font-medium">
-                {table.getVisibleLeafColumns().map((column, index) => {
-                  const footerCell = footerCells.find(
-                    (fc) => fc.columnId === column.id
-                  );
-                  const hasFooterValue = footerCell?.value !== undefined;
-                  return (
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow key={row.id}>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
                     <TableCell
-                      key={column.id}
-                      className={
-                        index === 0
-                          ? "font-bold"
-                          : hasFooterValue
-                            ? "text-right"
-                            : ""
-                      }
+                      colSpan={columns.length}
+                      className="h-24 text-center"
                     >
-                      {index === 0
-                        ? footerLabel || "GRAND TOTAL"
-                        : footerCell?.value ?? ""}
+                      No results.
                     </TableCell>
-                  );
-                })}
-              </TableRow>
-            </TableFooter>
+                  </TableRow>
+                )}
+              </TableBody>
+              {footerCells && footerCells.length > 0 && (
+                <TableFooter>
+                  <TableRow className="bg-muted/50 font-medium">
+                    {table.getVisibleLeafColumns().map((column, index) => {
+                      const footerCell = footerCells.find(
+                        (fc) => fc.columnId === column.id
+                      );
+                      const hasFooterValue = footerCell?.value !== undefined;
+                      return (
+                        <TableCell
+                          key={column.id}
+                          className={
+                            index === 0
+                              ? "font-bold"
+                              : hasFooterValue
+                                ? "text-right"
+                                : ""
+                          }
+                        >
+                          {index === 0
+                            ? footerLabel || "GRAND TOTAL"
+                            : footerCell?.value ?? ""}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                </TableFooter>
+              )}
+            </Table>
+          </div>
+        </>
+      )}
+
+      {/* Card View */}
+      {viewMode === "card" && (
+        <div className="flex-1 min-h-0 overflow-auto">
+          {table.getRowModel().rows?.length ? (
+            table.getRowModel().rows.map((row) => (
+              <DataTableCard
+                key={row.id}
+                row={row}
+                primaryFields={primaryFields}
+              />
+            ))
+          ) : (
+            <div className="flex items-center justify-center h-24 text-center text-muted-foreground">
+              No results.
+            </div>
           )}
-        </Table>
-      </div>
+        </div>
+      )}
+
       <DataTablePagination table={table} />
     </div>
   );
