@@ -226,9 +226,11 @@ function buildSelectClause(config: QueryConfig, availableColumns: string[]): str
     const colName = sanitizeColumnName(col.column);
     if (col.aggregateFunction) {
       const alias = col.alias || `${col.aggregateFunction.toLowerCase()}_${col.column.replace(/[.\s]/g, "_")}`;
-      parts.push(`${col.aggregateFunction}(${colName}) AS "${alias}"`);
+      const safeAlias = sanitizeAlias(alias);
+      parts.push(`${col.aggregateFunction}(${colName}) AS "${safeAlias}"`);
     } else {
-      parts.push(col.alias ? `${colName} AS "${col.alias}"` : colName);
+      const safeAlias = col.alias ? sanitizeAlias(col.alias) : null;
+      parts.push(safeAlias ? `${colName} AS "${safeAlias}"` : colName);
     }
   }
 
