@@ -1,15 +1,94 @@
-# Use the official Python image from the Docker Hub
-FROM python:3.9-slim
+# Stage 1: Build frontend
+FROM node:20-alpine AS frontend-build
 
-# Set the working directory in the container
 WORKDIR /app
 
-# Copy the requirements file (if you have one) and install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN npm install -g pnpm
 
-# Copy the rest of your app's code
-COPY . .
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY frontend/package.json ./frontend/
 
-# Run the Python script
-CMD ["python", "main.py"]
+RUN pnpm install --frozen-lockfile
+
+COPY frontend/ ./frontend/
+RUN pnpm --filter opengov-monitor-frontend build
+
+# Stage 2: Build API (use debian-based image for glibc compatibility with runtime)
+FROM node:20-slim AS api-build
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
+RUN npm install -g pnpm
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY api/package.json ./api/
+
+RUN pnpm install --frozen-lockfile
+
+COPY api/ ./api/
+RUN pnpm --filter api build
+
+# Stage 3: Runtime (use node:20-slim to match build stage Node version)
+FROM node:20-slim
+
+# Install runtime dependencies (Node already included in base image)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nginx \
+    python3 \
+    python3-pip \
+    python3-venv \
+    supervisor \
+    cron \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app directory
+WORKDIR /app
+
+# Copy built frontend to nginx
+COPY --from=frontend-build /app/frontend/dist /var/www/html
+
+# Copy built API (pnpm hoists node_modules to root, but symlinks are in api/node_modules)
+COPY --from=api-build /app/api/dist ./api/dist
+COPY --from=api-build /app/api/package.json ./api/
+COPY --from=api-build /app/api/scripts ./api/scripts
+COPY --from=api-build /app/node_modules ./node_modules
+COPY --from=api-build /app/api/node_modules ./api/node_modules
+
+# Copy Python backend
+COPY backend/ ./backend/
+
+# Install Python dependencies
+RUN python3 -m venv /app/backend/.venv \
+    && /app/backend/.venv/bin/pip install --no-cache-dir -r /app/backend/requirements.txt
+
+# Copy configuration files
+COPY deploy/nginx-container.conf /etc/nginx/sites-available/default
+COPY deploy/supervisord.conf /etc/supervisor/conf.d/opengov.conf
+COPY deploy/sync-cron /etc/cron.d/opengov-sync
+
+# Setup cron
+RUN chmod 0644 /etc/cron.d/opengov-sync \
+    && crontab /etc/cron.d/opengov-sync
+
+# Create data directory
+RUN mkdir -p /data
+
+# Copy default CSV files for sync functionality
+COPY data/defaults/ ./data/defaults/
+
+# Environment variables
+ENV NODE_ENV=production
+ENV PORT=3001
+ENV DATABASE_PATH=/data/polkadot.db
+
+# Expose port
+EXPOSE 80
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost/api/health || exit 1
+
+# Start supervisord
+CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]

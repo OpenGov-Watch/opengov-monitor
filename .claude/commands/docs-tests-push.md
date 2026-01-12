@@ -1,0 +1,10 @@
+- update docs/ and docs/spec if you haven't done so yet
+- update the unit tests
+- make sure you considered updates to the DOCKERFILE and any potential migrations
+- run the tests. only fix issues related to the features you built. if you encounter other issues, STOP and tell the user what's going on
+- do a `git diff` and check the files to commit
+- update `.gitignore` if neccessary
+- do `git add`. Add only files that relate to your changes
+- `git commit` and `git push`
+- NEVER do `git reset`, instead ask the user for help/clarification
+- if you are pushing to the `production` branch, follow up with the /check-github-action-runs command

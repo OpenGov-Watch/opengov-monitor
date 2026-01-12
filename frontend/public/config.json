@@ -1,0 +1,7 @@
+{
+  "apiPresets": {
+    "local": "/api",
+    "production": "https://polkadot-treasury-monitor.cypherpunk.agency/api"
+  },
+  "defaultPreset": "local"
+}
