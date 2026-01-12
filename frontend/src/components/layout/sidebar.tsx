@@ -187,42 +187,6 @@ export function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps = 
           <ChevronRight className="h-4 w-4" />
         </Button>
       )}
-      <div
-        className={cn(
-          "flex h-12 items-center border-b",
-          collapsed ? "justify-center px-1" : "justify-between px-4"
-        )}
-      >
-        <Link
-          to="/"
-          className={cn("font-bold", collapsed ? "text-sm" : "text-lg")}
-          title={collapsed ? "OpenGov Monitor" : undefined}
-        >
-          {collapsed ? "OG" : "OpenGov Monitor"}
-        </Link>
-        {!collapsed && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setCollapsed(true)}
-            className="h-7 w-7 p-0"
-            title="Collapse sidebar"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
-      {collapsed && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setCollapsed(false)}
-          className="mx-auto mt-2 h-7 w-7 p-0"
-          title="Expand sidebar"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      )}
       <nav className={cn("flex-1 overflow-y-auto", isMobileOpen ? "p-4" : (collapsed ? "p-2" : "p-4"))}>
         {visibleNavigation.map((section, sectionIdx) => (
           <div key={section.title || sectionIdx} className={cn(sectionIdx > 0 && "mt-6")}>
