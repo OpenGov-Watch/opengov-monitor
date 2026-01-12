@@ -53,12 +53,10 @@ fetch_limits:
 
 - Cycles: `/fellowship/salary/cycles/{cycle}` - aggregate per cycle
 - Claimants: `/fellowship/salary/claimants` - current snapshot
-- Payments: `/fellowship/salary/cycles/{cycle}/feeds` - payment events
-  - **blockTime uses milliseconds** (not seconds like other endpoints)
-  - Filter for `event: "Paid"`
+- Payments: `/fellowship/salary/cycles/{cycle}/feeds` - filter for `event: "Paid"`
 
 ## References
 
 - [Data models](../docs/spec/data-models.md) - Table schemas, views
-- [Business logic](../docs/spec/business-logic.md) - Value extraction, XCM parsing
-- [Subsquare parsing](../docs/spec/subsquare-parsing.md) - API response mapping
+- [Business rules](../docs/spec/business-rules.md) - Value extraction, XCM parsing
+- [Gotchas](../docs/gotchas.md) - External API quirks (timestamp units, etc.)

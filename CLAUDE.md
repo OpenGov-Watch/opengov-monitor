@@ -60,11 +60,11 @@ python scripts/run_sqlite.py --db ../data/polkadot.db
 
 | Topic | Location |
 |-------|----------|
-| Architecture, config, deployment | [docs/spec/index.md](docs/spec/index.md) |
-| Data models, tables, views | [docs/spec/data-models.md](docs/spec/data-models.md) |
-| API endpoints | [docs/spec/api-reference.md](docs/spec/api-reference.md) |
-| Frontend details | [docs/spec/frontend.md](docs/spec/frontend.md) |
-| Subsquare parsing | [docs/spec/subsquare-parsing.md](docs/spec/subsquare-parsing.md) |
+| System overview | [docs/architecture.md](docs/architecture.md) |
+| Project-specific quirks | [docs/gotchas.md](docs/gotchas.md) |
+| Entity schemas | [docs/spec/data-models.md](docs/spec/data-models.md) |
+| Business logic rules | [docs/spec/business-rules.md](docs/spec/business-rules.md) |
+| API validation | [docs/spec/validation.md](docs/spec/validation.md) |
 
 ## Tool Usage
 

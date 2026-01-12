@@ -64,5 +64,5 @@ Start both with `pnpm run dev` from root, or API won't be available.
 
 ## References
 
-- [Frontend architecture](../docs/spec/frontend.md) - Full component details, all routes
-- [Formatting spec](../docs/spec/formatting.md) - Column rendering, export functions
+- [Data models](../docs/spec/data-models.md) - Table schemas, views
+- [Gotchas](../docs/gotchas.md) - Project-specific quirks

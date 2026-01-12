@@ -43,22 +43,10 @@ deploy/         Docker deployment configuration
 
 | Topic | Location |
 |-------|----------|
-| Full specification | [docs/spec/index.md](docs/spec/index.md) |
+| System overview | [docs/architecture.md](docs/architecture.md) |
 | Data models | [docs/spec/data-models.md](docs/spec/data-models.md) |
-| API reference | [docs/spec/api-reference.md](docs/spec/api-reference.md) |
-| Frontend architecture | [docs/spec/frontend.md](docs/spec/frontend.md) |
-
-## Troubleshooting
-
-**Database not found:** Run the backend data fetch first.
-
-**Port conflicts (Windows):**
-```bash
-netstat -ano | findstr :3001
-taskkill /F /PID <pid>
-```
-
-**better-sqlite3 build issues:** `pnpm rebuild better-sqlite3` (may need VS Build Tools on Windows)
+| Business rules | [docs/spec/business-rules.md](docs/spec/business-rules.md) |
+| Troubleshooting | [docs/gotchas.md](docs/gotchas.md) |
 
 ## License
 
