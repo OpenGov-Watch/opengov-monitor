@@ -26,6 +26,7 @@ import {
 
 import { DataTablePagination } from "./pagination";
 import { DataTableToolbar } from "./toolbar";
+import { DataTableCard } from "./data-table-card";
 import { useViewState } from "@/hooks/use-view-state";
 
 export interface FooterCell {
@@ -50,6 +51,19 @@ export function DataTable<TData, TValue>({
   footerLabel,
   defaultSorting,
 }: DataTableProps<TData, TValue>) {
+  // View mode state (table vs card)
+  const [viewMode, setViewMode] = React.useState<"table" | "card">(() => {
+    // Check for mobile screen and default to card view
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const stored = localStorage.getItem(`${tableName}-view-mode`);
+    return stored ? (stored as "table" | "card") : (isMobile ? "card" : "table");
+  });
+
+  // Persist view mode preference
+  React.useEffect(() => {
+    localStorage.setItem(`${tableName}-view-mode`, viewMode);
+  }, [viewMode, tableName]);
+
   // View state management
   const {
     sorting,
@@ -101,80 +115,100 @@ export function DataTable<TData, TValue>({
         onLoadView={loadViewState}
         onClearView={clearViewState}
         tableName={tableName}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
       />
-      <div className="flex-1 min-h-0 rounded-md border">
-        <Table wrapperClassName="h-full">
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
+
+      {viewMode === "card" ? (
+        // Card view - mobile-optimized
+        <div className="flex-1 min-h-0 overflow-auto">
+          {table.getRowModel().rows?.length ? (
+            table.getRowModel().rows.map((row) => (
+              <DataTableCard key={row.id} row={row} />
+            ))
+          ) : (
+            <div className="flex items-center justify-center h-24 text-muted-foreground">
+              No results.
+            </div>
+          )}
+        </div>
+      ) : (
+        // Table view - desktop
+        <div className="flex-1 min-h-0 rounded-md border">
+          <Table wrapperClassName="h-full">
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </TableHead>
                   ))}
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  No results.
-                </TableCell>
-              </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-24 text-center"
+                  >
+                    No results.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+            {footerCells && footerCells.length > 0 && (
+              <TableFooter>
+                <TableRow className="bg-muted/50 font-medium">
+                  {table.getVisibleLeafColumns().map((column, index) => {
+                    const footerCell = footerCells.find(
+                      (fc) => fc.columnId === column.id
+                    );
+                    const hasFooterValue = footerCell?.value !== undefined;
+                    return (
+                      <TableCell
+                        key={column.id}
+                        className={
+                          index === 0
+                            ? "font-bold"
+                            : hasFooterValue
+                              ? "text-right"
+                              : ""
+                        }
+                      >
+                        {index === 0
+                          ? footerLabel || "GRAND TOTAL"
+                          : footerCell?.value ?? ""}
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              </TableFooter>
             )}
-          </TableBody>
-          {footerCells && footerCells.length > 0 && (
-            <TableFooter>
-              <TableRow className="bg-muted/50 font-medium">
-                {table.getVisibleLeafColumns().map((column, index) => {
-                  const footerCell = footerCells.find(
-                    (fc) => fc.columnId === column.id
-                  );
-                  const hasFooterValue = footerCell?.value !== undefined;
-                  return (
-                    <TableCell
-                      key={column.id}
-                      className={
-                        index === 0
-                          ? "font-bold"
-                          : hasFooterValue
-                            ? "text-right"
-                            : ""
-                      }
-                    >
-                      {index === 0
-                        ? footerLabel || "GRAND TOTAL"
-                        : footerCell?.value ?? ""}
-                    </TableCell>
-                  );
-                })}
-              </TableRow>
-            </TableFooter>
-          )}
-        </Table>
-      </div>
+          </Table>
+        </div>
+      )}
+
       <DataTablePagination table={table} />
     </div>
   );
