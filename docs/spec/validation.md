@@ -121,6 +121,105 @@ Referenda, Treasury, Child Bounties, Fellowship, Fellowship Salary Cycles, Fello
 
 ---
 
+## Advanced Table Query Parameters
+
+All table endpoints (Referenda, Treasury, Child Bounties, Fellowship, etc.) support advanced filtering, sorting, and grouping via query parameters.
+
+### Query Parameters
+
+| Parameter | Type | Validation | Error |
+|-----------|------|------------|-------|
+| `filters` | JSON string | Must be valid AdvancedFilterGroup | `"Failed to parse filters: {error}"` |
+| `sorts` | JSON string | Must be array of SortCondition | `"Failed to parse sorts: {error}"` |
+| `groupBy` | string | Must be valid column name | `"Invalid column: {column}"` |
+| `limit` | integer | 1-10,000 | `"Invalid limit value"` |
+| `offset` | integer | >= 0 | `"Invalid offset value"` |
+
+### Filter Validation
+
+**AdvancedFilterGroup structure:**
+```json
+{
+  "combinator": "AND" | "OR",
+  "conditions": [/* AdvancedFilterCondition or nested AdvancedFilterGroup */]
+}
+```
+
+**AdvancedFilterCondition structure:**
+```json
+{
+  "column": "column_name",
+  "operator": "=" | "!=" | ">" | "<" | ">=" | "<=" | "LIKE" | "NOT LIKE" | "IN" | "NOT IN" | "IS NULL" | "IS NOT NULL" | "BETWEEN",
+  "value": /* depends on operator */
+}
+```
+
+**Filter Limits:**
+- Max nesting depth: 10 levels
+- Max conditions per group: 100
+- All column names must exist in table schema
+
+**Operator-specific validation:**
+- `IN`, `NOT IN`: value must be non-empty array
+- `BETWEEN`: value must be array with exactly 2 elements
+- `LIKE`, `NOT LIKE`: value must be string
+- `IS NULL`, `IS NOT NULL`: value ignored
+- Comparison operators (`=`, `!=`, etc.): value must not be null/array
+
+**Errors:**
+- `"Filter nesting too deep (max 10 levels)"`
+- `"Too many filter conditions (max 100)"`
+- `"Invalid column: {column}. Column does not exist in table."`
+- `"Invalid operator: {operator}"`
+- `"IN operator requires an array value"`
+- `"IN operator requires at least one value"`
+- `"BETWEEN operator requires an array with exactly 2 values"`
+- `"Operator {op} requires a non-null value. Use IS NULL instead."`
+
+### Sort Validation
+
+**SortCondition structure:**
+```json
+{ "column": "column_name", "direction": "ASC" | "DESC" }
+```
+
+**Validation:**
+- All columns must exist in table schema
+- Direction must be "ASC" or "DESC"
+
+**Errors:**
+- `"Invalid column: {column}. Column does not exist in table."`
+- `"Invalid sort direction: {direction}"`
+
+### Security
+
+**Critical:** All filter compilation uses parameterized queries to prevent SQL injection.
+
+**Column name validation:**
+- Must match pattern: `^[a-zA-Z0-9_.\s]+$`
+- Must exist in table schema (whitelist validation)
+
+**Blocked in filter expressions:**
+- Semicolons, SQL comments (`--`, `/**/`)
+- SQL keywords: UNION, SELECT, INSERT, UPDATE, DELETE, DROP, CREATE, ALTER, EXEC, ATTACH, DETACH, PRAGMA, VACUUM, REINDEX
+
+**Example valid filter request:**
+```
+GET /api/referenda?filters=%7B%22combinator%22%3A%22AND%22%2C%22conditions%22%3A%5B%7B%22column%22%3A%22status%22%2C%22operator%22%3A%22%3D%22%2C%22value%22%3A%22Executed%22%7D%5D%7D
+```
+
+Decoded filters:
+```json
+{
+  "combinator": "AND",
+  "conditions": [
+    { "column": "status", "operator": "=", "value": "Executed" }
+  ]
+}
+```
+
+---
+
 ## Edge Cases
 
 | Scenario | Behavior |
@@ -130,3 +229,6 @@ Referenda, Treasury, Child Bounties, Fellowship, Fellowship Salary Cycles, Fello
 | null description | Accepted, stored as null |
 | Empty filter array | Valid, no WHERE clause |
 | Limit > 10,000 | Capped to 10,000 |
+| No query parameters | Returns all data (backward compatible) |
+| Empty filter group conditions | Valid, no WHERE clause |
+| Deeply nested filters (>10 levels) | 500, `"Filter nesting too deep"` |

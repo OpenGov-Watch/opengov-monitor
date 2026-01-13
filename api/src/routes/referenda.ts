@@ -1,13 +1,26 @@
 import { Router } from "express";
 import { getReferenda, updateReferendum, bulkUpdateReferenda, type ReferendumImportItem } from "../db/queries.js";
 import { requireAuth } from "../middleware/auth.js";
+import { buildTableQuery, parseTableQueryParams } from "../db/table-query-builder.js";
+import type { Referendum } from "../db/types.js";
 
 export const referendaRouter: Router = Router();
 
-referendaRouter.get("/", (_req, res) => {
+referendaRouter.get("/", (req, res) => {
   try {
-    const data = getReferenda();
-    res.json(data);
+    // Check if advanced query parameters are provided
+    const hasAdvancedParams = req.query.filters || req.query.sorts || req.query.groupBy;
+
+    if (hasAdvancedParams) {
+      // Use new advanced query builder
+      const options = parseTableQueryParams(req.query);
+      const { data } = buildTableQuery<Referendum>("Referenda", options);
+      res.json(data);
+    } else {
+      // Use legacy query (maintains backward compatibility)
+      const data = getReferenda();
+      res.json(data);
+    }
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }

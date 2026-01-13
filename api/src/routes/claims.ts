@@ -1,21 +1,45 @@
 import { Router } from "express";
 import { getOutstandingClaims, getExpiredClaims } from "../db/queries.js";
+import { buildTableQuery, parseTableQueryParams } from "../db/table-query-builder.js";
+import type { OutstandingClaim, ExpiredClaim } from "../db/types.js";
 
 export const claimsRouter: Router = Router();
 
-claimsRouter.get("/outstanding", (_req, res) => {
+claimsRouter.get("/outstanding", (req, res) => {
   try {
-    const data = getOutstandingClaims();
-    res.json(data);
+    // Check if advanced query parameters are provided
+    const hasAdvancedParams = req.query.filters || req.query.sorts || req.query.groupBy;
+
+    if (hasAdvancedParams) {
+      // Use new advanced query builder
+      const options = parseTableQueryParams(req.query);
+      const { data } = buildTableQuery<OutstandingClaim>("outstanding_claims", options);
+      res.json(data);
+    } else {
+      // Use legacy query (maintains backward compatibility)
+      const data = getOutstandingClaims();
+      res.json(data);
+    }
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }
 });
 
-claimsRouter.get("/expired", (_req, res) => {
+claimsRouter.get("/expired", (req, res) => {
   try {
-    const data = getExpiredClaims();
-    res.json(data);
+    // Check if advanced query parameters are provided
+    const hasAdvancedParams = req.query.filters || req.query.sorts || req.query.groupBy;
+
+    if (hasAdvancedParams) {
+      // Use new advanced query builder
+      const options = parseTableQueryParams(req.query);
+      const { data } = buildTableQuery<ExpiredClaim>("expired_claims", options);
+      res.json(data);
+    } else {
+      // Use legacy query (maintains backward compatibility)
+      const data = getExpiredClaims();
+      res.json(data);
+    }
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }

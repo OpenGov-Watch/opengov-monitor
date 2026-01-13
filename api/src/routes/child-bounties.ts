@@ -1,13 +1,26 @@
 import { Router } from "express";
 import { getChildBounties, updateChildBounty, bulkUpdateChildBounties, type ChildBountyImportItem } from "../db/queries.js";
 import { requireAuth } from "../middleware/auth.js";
+import { buildTableQuery, parseTableQueryParams } from "../db/table-query-builder.js";
+import type { ChildBounty } from "../db/types.js";
 
 export const childBountiesRouter: Router = Router();
 
-childBountiesRouter.get("/", (_req, res) => {
+childBountiesRouter.get("/", (req, res) => {
   try {
-    const data = getChildBounties();
-    res.json(data);
+    // Check if advanced query parameters are provided
+    const hasAdvancedParams = req.query.filters || req.query.sorts || req.query.groupBy;
+
+    if (hasAdvancedParams) {
+      // Use new advanced query builder
+      const options = parseTableQueryParams(req.query);
+      const { data } = buildTableQuery<ChildBounty>("Child Bounties", options);
+      res.json(data);
+    } else {
+      // Use legacy query (maintains backward compatibility)
+      const data = getChildBounties();
+      res.json(data);
+    }
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }

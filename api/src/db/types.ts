@@ -323,8 +323,78 @@ export interface FilterCondition {
     | "LIKE"
     | "IN"
     | "IS NULL"
-    | "IS NOT NULL";
+    | "IS NOT NULL"
+    | "NOT IN"
+    | "NOT LIKE"
+    | "BETWEEN";
   value: string | number | string[] | null;
+}
+
+// Advanced Filter Types for Notion-like filtering
+export type FilterOperator =
+  | "="
+  | "!="
+  | ">"
+  | "<"
+  | ">="
+  | "<="
+  | "LIKE"
+  | "NOT LIKE"
+  | "IN"
+  | "NOT IN"
+  | "IS NULL"
+  | "IS NOT NULL"
+  | "BETWEEN";
+
+export type FilterCombinator = "AND" | "OR";
+
+export interface AdvancedFilterCondition {
+  column: string;
+  operator: FilterOperator;
+  value: string | number | string[] | [number, number] | [string, string] | null;
+}
+
+export interface AdvancedFilterGroup {
+  combinator: FilterCombinator;
+  conditions: (AdvancedFilterCondition | AdvancedFilterGroup)[];
+}
+
+// Sort configuration for multi-column sorting
+export interface SortCondition {
+  column: string;
+  direction: "ASC" | "DESC";
+}
+
+// Grouping configuration
+export interface GroupConfig {
+  column: string;
+  aggregations?: {
+    column: string;
+    function: "COUNT" | "SUM" | "AVG" | "MIN" | "MAX";
+    alias?: string;
+  }[];
+}
+
+// Table view state for save/load
+export interface TableViewState {
+  name: string;
+  filters?: AdvancedFilterGroup;
+  sorts?: SortCondition[];
+  grouping?: GroupConfig;
+  columnVisibility?: Record<string, boolean>;
+  pagination?: {
+    pageIndex: number;
+    pageSize: number;
+  };
+}
+
+// API request parameters for enhanced table features
+export interface TableQueryParams {
+  filters?: string; // JSON-encoded AdvancedFilterGroup
+  sorts?: string; // JSON-encoded SortCondition[]
+  groupBy?: string; // Column name to group by
+  limit?: number;
+  offset?: number;
 }
 
 export interface OrderByConfig {
