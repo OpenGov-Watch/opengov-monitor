@@ -41,11 +41,11 @@ jobs:
             actions: read
 
           # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
-          prompt: |
-            Before committing, always run:
-            1. npm run build
-            2. npm test
-            Only commit if both pass. If they fail, fix and retry.
+          #prompt: |
+          #  Before committing, always run:
+          #  1. npm run build
+          #  2. npm test
+          #  Only commit if both pass. If they fail, fix and retry.
 
           # Optional: Add claude_args to customize behavior and configuration
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
