@@ -267,6 +267,24 @@ FELLOWSHIP_SUBTREASURY_SCHEMA = TableSchema(
     ]
 )
 
+# Schema for Treasury Netflows (manual quarterly imports)
+TREASURY_NETFLOWS_SCHEMA = TableSchema(
+    name="Treasury Netflows",
+    columns={
+        "month": "TEXT",                    # YYYY-MM format
+        "asset_name": "TEXT",               # DOT, USDC, USDT
+        "flow_type": "TEXT",                # fees, inflation, proposals, bounties, etc.
+        "amount_usd": "REAL",               # USD value
+        "amount_dot_equivalent": "REAL",    # DOT equivalent value
+    },
+    primary_key="month",  # Not truly unique, composite key via index
+    indexes=[
+        ("idx_netflows_month", ["month"]),
+        ("idx_netflows_asset", ["asset_name"]),
+        ("idx_netflows_type", ["flow_type"]),
+    ]
+)
+
 # Schema for Dashboards (user-created dashboard definitions)
 DASHBOARDS_SCHEMA = TableSchema(
     name="Dashboards",
@@ -346,6 +364,7 @@ SCHEMA_REGISTRY: Dict[str, TableSchema] = {
     "Bounties": BOUNTIES_SCHEMA,
     "Subtreasury": SUBTREASURY_SCHEMA,
     "Fellowship Subtreasury": FELLOWSHIP_SUBTREASURY_SCHEMA,
+    "Treasury Netflows": TREASURY_NETFLOWS_SCHEMA,
     "Dashboards": DASHBOARDS_SCHEMA,
     "Dashboard Components": DASHBOARD_COMPONENTS_SCHEMA,
     "Query Cache": QUERY_CACHE_SCHEMA,

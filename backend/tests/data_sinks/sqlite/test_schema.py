@@ -24,6 +24,7 @@ from data_sinks.sqlite.schema import (
     BOUNTIES_SCHEMA,
     SUBTREASURY_SCHEMA,
     FELLOWSHIP_SUBTREASURY_SCHEMA,
+    TREASURY_NETFLOWS_SCHEMA,
     DASHBOARDS_SCHEMA,
     DASHBOARD_COMPONENTS_SCHEMA,
     QUERY_CACHE_SCHEMA,
@@ -95,12 +96,13 @@ class TestSchemaRegistry:
             "Bounties",
             "Subtreasury",
             "Fellowship Subtreasury",
+            "Treasury Netflows",
             "Dashboards",
             "Dashboard Components",
             "Query Cache",
             "Users",
         ]
-        assert len(SCHEMA_REGISTRY) == 15
+        assert len(SCHEMA_REGISTRY) == 16
         for table in expected_tables:
             assert table in SCHEMA_REGISTRY, f"Missing schema for '{table}'"
 
@@ -325,6 +327,28 @@ class TestSchemaContentValidation:
         assert schema.columns["grid_config"] == "TEXT"
         assert schema.columns["chart_config"] == "TEXT"
         assert "dashboard_id" in schema.columns
+
+    def test_treasury_netflows_schema_structure(self):
+        """Verify TREASURY_NETFLOWS_SCHEMA columns and indexes."""
+        schema = TREASURY_NETFLOWS_SCHEMA
+        assert schema.name == "Treasury Netflows"
+        assert schema.primary_key == "month"
+        assert "month" in schema.columns
+        assert "asset_name" in schema.columns
+        assert "flow_type" in schema.columns
+        assert "amount_usd" in schema.columns
+        assert "amount_dot_equivalent" in schema.columns
+        assert schema.columns["month"] == "TEXT"
+        assert schema.columns["asset_name"] == "TEXT"
+        assert schema.columns["flow_type"] == "TEXT"
+        assert schema.columns["amount_usd"] == "REAL"
+        assert schema.columns["amount_dot_equivalent"] == "REAL"
+        # Should have 3 indexes: month, asset_name, flow_type
+        assert len(schema.indexes) == 3
+        index_names = [idx[0] for idx in schema.indexes]
+        assert "idx_netflows_month" in index_names
+        assert "idx_netflows_asset" in index_names
+        assert "idx_netflows_type" in index_names
 
     def test_all_schemas_have_primary_key_in_columns(self):
         """Verify all schemas have their primary key defined in columns."""

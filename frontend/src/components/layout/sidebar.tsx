@@ -17,6 +17,7 @@ import {
   FileBox,
   LayoutDashboard,
   RefreshCw,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
@@ -76,6 +77,7 @@ const staticNavigation: NavSection[] = [
     items: [
       { name: "Outstanding Claims", href: "/outstanding-claims", icon: Clock },
       { name: "Expired Claims", href: "/expired-claims", icon: TimerOff },
+      { name: "Treasury Netflows", href: "/treasury-netflows", icon: TrendingUp },
     ],
   },
 ];

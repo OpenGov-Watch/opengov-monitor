@@ -1,0 +1,166 @@
+# Frontend Table System User Stories
+
+## Core User Roles
+
+1. **Data Explorer** - Governance analyst exploring full datasets to discover patterns
+2. **Dashboard Designer** - User creating custom visual dashboards combining tables and charts
+3. **Mobile User** - Accessing governance data on mobile devices
+4. **Admin/Curator** - Authenticated user maintaining data quality through inline edits
+5. **Researcher** - Exporting filtered data for external analysis
+
+---
+
+## User Stories
+
+### US-1: Data Exploration
+
+**As a** governance analyst
+**I want to** explore large datasets with sorting, filtering, and search
+**So that** I can discover patterns in treasury spending and referendum outcomes
+
+**Acceptance Criteria:**
+- Global search across all visible columns
+- Sorting
+  - Sort by any column (ascending/descending/none cycle)
+  - Sort by multiple columns (shift+click, or via a composer)
+- Filtering
+  - Combine one or more faceted filters (in nestable groups with AND/OR logic)
+  - Clear all filters with one click
+- Grouping
+  - Group by one column
+- Results update immediately without page reload
+- URL reflects current exploration state
+
+---
+
+### US-2: View Management
+
+**As a** regular user
+**I want to** save and share custom table views
+**So that** I can quickly access my common analysis scenarios and collaborate with colleagues
+
+**Acceptance Criteria:**
+- Save current state (filters, sorting, visibility, search) as named view
+- Load saved views from dropdown (desktop) or tabs (mobile)
+- Share view via URL (base64-encoded state in query param)
+- Set default view per table (persisted in localStorage)
+- Delete unwanted views
+- View state includes pagination settings
+
+---
+
+### US-3: Data Export
+
+**As a** researcher
+**I want to** export filtered data to CSV/JSON
+**So that** I can perform external analysis in Excel, R, or Python
+
+**Acceptance Criteria:**
+- Export respects current filters (only visible rows)
+- Export includes visible columns only (respects column visibility)
+- Both CSV (with proper quote escaping) and JSON formats supported
+- Filename includes table name for organization
+- Export button available in toolbar
+
+---
+
+### US-4: Mobile Access
+
+**As a** mobile user
+**I want to** view tables in card layout
+**So that** I can access governance data on small screens without horizontal scrolling
+
+**Acceptance Criteria:**
+- Auto-detect mobile viewport (<768px)
+- Card view shows first 3 columns prominently
+- Expandable "Show details" section for remaining columns
+- Toggle between table/card view manually
+- View mode preference persisted in localStorage per table
+- All features (search, filter, sort) work in card mode
+
+---
+
+### US-5: Inline Editing
+
+**As an** authenticated admin
+**I want to** edit data inline (categories, notes, visibility flags)
+**So that** I can maintain data quality without leaving the table view
+
+**Acceptance Criteria:**
+- Editable cells for categories, notes, hidden flags
+- Changes save automatically on blur
+- Visual feedback during save
+- Only visible when authenticated
+- Read-only display for unauthenticated users (component pairs: EditableCell ↔ ReadOnlyCell)
+- CategorySelector supports cascading category → subcategory with auto-select
+
+---
+
+### US-6: Dashboard Tables
+
+**As a** dashboard designer
+**I want to** embed tables in visual dashboards
+**So that** I can combine tabular data with charts in a unified view
+
+**Acceptance Criteria:**
+- Table fits in react-grid-layout cell with fixed dimensions
+- Works with constrained width/height (no overflow breaks)
+- Resize/drag doesn't break layout
+- All exploration features (sort, filter, export) work in constrained space
+- Toolbar adapts to narrow widths (collapsed/compact mode)
+- Scrollable content within fixed container
+
+---
+
+### US-7: Query-Driven Tables
+
+**As a** dashboard creator
+**I want to** define tables using custom SQL queries
+**So that** I can create aggregated views (e.g., GROUP BY, calculated columns)
+
+**Acceptance Criteria:**
+- Auto-generate columns from query results (unknown schema)
+- Support expression columns (e.g., `sum_amount`, `avg_value`)
+- Apply centralized formatting rules (currency, dates, numbers) via column mapping
+- Preview results before saving to dashboard
+- Handle any query result shape (dynamic column count/types)
+- QueryBuilder provides visual SQL construction
+
+**Current Support:**
+- Main DataTable: ❌ Static schemas only (pre-defined columns)
+- Dashboard Table: ✅ Full query support with auto-columns
+
+---
+
+### US-8: Column Management
+
+**As a** data explorer
+**I want to** show/hide columns dynamically
+**So that** I can focus on relevant data and reduce visual clutter
+
+**Acceptance Criteria:**
+- Dropdown shows all hideable columns (requires `accessorFn` defined)
+- Toggle visibility with checkbox
+- State persisted in view (localStorage + URL)
+- Column order preserved when hiding/showing
+- Display column IDs with underscores/dots converted to spaces
+
+**Current Support:**
+- Main DataTable: ✅ Full support via DataTableColumnVisibility
+- Dashboard Table: ❌ All columns always visible
+
+---
+
+### US-9: Pagination
+
+**As a** user viewing large datasets
+**I want to** paginate results efficiently
+**So that** I can navigate thousands of rows without performance issues
+
+**Acceptance Criteria:**
+- Configurable page size (10, 20, 30, 50, 100 rows)
+- First/Previous/Next/Last navigation buttons
+- Current page indicator (e.g., "Page 3 of 47")
+- Row count display (e.g., "1,234 rows")
+- State persisted in view
+- Last button hidden on mobile to save space

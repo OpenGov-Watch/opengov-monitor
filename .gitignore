@@ -83,6 +83,7 @@ out/
 .turbo/
 dist/
 pnpm-debug.log*
+.vite/
 
 # Build artifacts
 *.local
