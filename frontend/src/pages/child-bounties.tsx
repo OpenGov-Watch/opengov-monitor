@@ -4,7 +4,23 @@ import { createChildBountiesColumns } from "@/components/tables/child-bounties-c
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
 import { useAuth } from "@/contexts/auth-context";
+import { SavedView } from "@/hooks/use-view-state";
 import type { ChildBounty, Category } from "@/lib/db/types";
+
+// Default views for Child Bounties
+const defaultChildBountiesViews: SavedView[] = [
+  {
+    name: "All",
+    state: {
+      sorting: [{ id: "identifier", desc: true }],
+      columnFilters: [],
+      columnVisibility: {},
+      globalFilter: "",
+      pagination: { pageIndex: 0, pageSize: 100 },
+    },
+    isDefault: true,
+  },
+];
 
 export default function ChildBountiesPage() {
   const [data, setData] = useState<ChildBounty[]>([]);
@@ -75,6 +91,7 @@ export default function ChildBountiesPage() {
           data={data}
           tableName="child-bounties"
           defaultSorting={[{ id: "identifier", desc: true }]}
+          defaultViews={defaultChildBountiesViews}
         />
       )}
     </div>
