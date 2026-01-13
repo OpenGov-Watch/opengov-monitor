@@ -5,8 +5,11 @@
     "dev": "node scripts/dev.mjs",
     "dev:parallel": "concurrently -k -n api,frontend -c blue,green \"pnpm api:dev\" \"pnpm frontend:dev\"",
     "build": "pnpm -r run build",
+    "test": "pnpm -r run test",
     "api:dev": "pnpm --filter api run dev",
-    "frontend:dev": "pnpm --filter opengov-monitor-frontend run dev"
+    "frontend:dev": "pnpm --filter opengov-monitor-frontend run dev",
+    "migrate": "cd backend && python migrations/migration_runner.py --db ../data/polkadot.db",
+    "migrate:create": "cd backend && python migrations/create_migration.py"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

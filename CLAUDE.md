@@ -8,6 +8,7 @@ pnpm monorepo: Python backend (data fetching) → SQLite → Express API → Rea
 backend/           Python data pipeline (see backend/CLAUDE.md)
 ├── data_providers/   Subsquare, price, identity fetching
 ├── data_sinks/       SQLite storage
+├── migrations/       Database migration system
 ├── scripts/          run_sqlite.py, fetch_salaries.py
 └── config.yaml       Fetch limits, salary toggle
 
@@ -37,6 +38,7 @@ docs/spec/         Detailed specifications
 | Add new page | `frontend/src/router.tsx`, `frontend/src/pages/` |
 | Modify data fetching | `backend/data_providers/subsquare.py` |
 | Database schema | `backend/data_sinks/sqlite/schema.py`, `api/src/db/types.ts` |
+| Database migrations | `backend/migrations/versions/`, use `pnpm migrate:create` |
 
 ## Commands
 
@@ -44,10 +46,16 @@ docs/spec/         Detailed specifications
 pnpm run dev          # Start API + frontend (dynamic ports)
 pnpm api:dev          # API only (:3001)
 pnpm frontend:dev     # Frontend only (:3000)
+pnpm run build        # Build all packages (API + frontend)
+pnpm test             # Run all tests (API + frontend)
 
 # Backend data sync
 cd backend && source .venv/bin/activate
 python scripts/run_sqlite.py --db ../data/polkadot.db
+
+# Database migrations
+pnpm migrate              # Run pending migrations
+pnpm migrate:create --name add_field --type sql  # Create new migration
 ```
 
 ## Gotchas
@@ -66,14 +74,14 @@ python scripts/run_sqlite.py --db ../data/polkadot.db
 | Frontend table system | [docs/spec/frontend/tables.md](docs/spec/frontend/tables.md) |
 | Backend business rules | [backend/docs/spec/business-rules.md](backend/docs/spec/business-rules.md) |
 | API validation | [api/docs/spec/validation.md](api/docs/spec/validation.md) |
+| Database migrations | [docs/spec/migrations.md](docs/spec/migrations.md), [backend/migrations/README.md](backend/migrations/README.md) |
 
 ## Tool Usage
-
 - Bash: Don't chain commands with `&&`. Run them sequentially instead.
 
 ## Before Committing
 Always run these commands and ensure they pass before committing:
-- Build: `npm run build`  
-- Test: `npm test`
+- Build: `pnpm run build`  
+- Test: `pnpm test`
 
 If either fails, fix the issues before committing.
