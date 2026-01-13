@@ -129,12 +129,51 @@ def execute_sql_migration(
     migration: Migration,
     logger: logging.Logger
 ) -> int:
-    """Execute SQL migration file. Returns execution time in ms."""
+    """
+    Execute SQL migration file within a transaction.
+
+    IMPORTANT: We do NOT use executescript() because it auto-commits,
+    which breaks transaction rollback on failure. Instead, we execute
+    each statement individually within the existing transaction.
+    """
     version, name, file_path = migration
     sql = file_path.read_text()
 
     start_time = time.time()
-    conn.executescript(sql)
+    cursor = conn.cursor()
+
+    # Split SQL into individual statements
+    # This is a simple splitter - assumes statements end with semicolon
+    # For complex SQL with semicolons in strings, consider using sqlparse library
+    statements = []
+    current_statement = []
+
+    for line in sql.split('\n'):
+        # Remove SQL comments (simple heuristic: lines starting with --)
+        # Note: This doesn't handle inline comments or comments in strings
+        stripped = line.strip()
+        if stripped.startswith('--') or not stripped:
+            continue
+
+        current_statement.append(line)
+
+        # Check if line ends with semicolon (statement terminator)
+        if stripped.endswith(';'):
+            statement = '\n'.join(current_statement).strip()
+            if statement:
+                statements.append(statement)
+            current_statement = []
+
+    # Handle any remaining statement without trailing semicolon
+    if current_statement:
+        statement = '\n'.join(current_statement).strip()
+        if statement:
+            statements.append(statement)
+
+    # Execute each statement within the transaction
+    for statement in statements:
+        cursor.execute(statement)
+
     execution_time = int((time.time() - start_time) * 1000)
 
     return execution_time
@@ -177,6 +216,10 @@ def run_migration(
     logger.info(f"Running migration {version}: {name}")
 
     try:
+        # Explicitly begin transaction
+        # This ensures ALL statements (including DDL like CREATE TABLE) are in the transaction
+        conn.execute("BEGIN")
+
         # Execute migration based on file type
         if file_path.suffix == '.sql':
             execution_time = execute_sql_migration(conn, migration, logger)
@@ -229,8 +272,11 @@ def main():
     logger.info(f"Migrations directory: {migrations_dir}")
     logger.info(f"Database: {args.db}")
 
-    # Connect to database
+    # Connect to database with deferred transaction mode
+    # This ensures that execute() statements are wrapped in transactions
+    # and can be rolled back on failure
     conn = sqlite3.connect(args.db)
+    conn.isolation_level = 'DEFERRED'  # Enable transaction mode
 
     try:
         # Ensure migrations table exists

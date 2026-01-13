@@ -33,6 +33,8 @@ def temp_db():
     db_file.close()
 
     conn = sqlite3.connect(db_path)
+    # Use DEFERRED transaction mode to match production behavior
+    conn.isolation_level = 'DEFERRED'
     yield conn, db_path
 
     conn.close()
@@ -356,6 +358,65 @@ class TestExecuteSqlMigration:
         assert execution_time >= 0
         cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='test_table'")
         assert cursor.fetchone() is not None
+
+    def test_executes_multiple_statements(self, temp_db, temp_migrations_dir):
+        """Test that multiple SQL statements are executed in sequence."""
+        conn, _ = temp_db
+        logger = setup_logging()
+
+        versions_dir = temp_migrations_dir / "versions"
+        file_path = versions_dir / "001_multi.sql"
+        file_path.write_text("""
+            -- Create table
+            CREATE TABLE test1 (id INTEGER PRIMARY KEY);
+
+            -- Create another table
+            CREATE TABLE test2 (id INTEGER PRIMARY KEY);
+
+            -- Insert data
+            INSERT INTO test1 (id) VALUES (1);
+            INSERT INTO test2 (id) VALUES (2);
+        """)
+
+        migration = (1, "multi", file_path)
+        execution_time = execute_sql_migration(conn, migration, logger)
+
+        assert execution_time >= 0
+        # Verify both tables exist
+        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='test1'")
+        assert cursor.fetchone() is not None
+        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='test2'")
+        assert cursor.fetchone() is not None
+
+    def test_transaction_rollback_on_multi_statement_failure(self, temp_db, temp_migrations_dir):
+        """Test that ALL statements roll back when one fails in a multi-statement migration."""
+        conn, _ = temp_db
+        ensure_migrations_table(conn)
+        logger = setup_logging()
+
+        versions_dir = temp_migrations_dir / "versions"
+        file_path = versions_dir / "001_partial_fail.sql"
+        # First statement succeeds, second and third fail
+        file_path.write_text("""
+            CREATE TABLE should_rollback (id INTEGER PRIMARY KEY);
+            INSERT INTO should_rollback (id) VALUES (1);
+            INVALID SQL SYNTAX HERE;
+        """)
+
+        migration = (1, "partial_fail", file_path)
+
+        # run_migration should fail and rollback
+        with pytest.raises(SystemExit):
+            run_migration(conn, migration, logger)
+
+        # Verify the table was NOT created (rollback worked)
+        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='should_rollback'")
+        result = cursor.fetchone()
+        assert result is None, f"Table should not exist after rollback, but found: {result}"
+
+        # Verify migration was NOT recorded
+        cursor = conn.execute("SELECT COUNT(*) FROM schema_migrations WHERE version = 1")
+        assert cursor.fetchone()[0] == 0, "Migration should not be recorded after failure"
 
     def test_returns_execution_time(self, temp_db, temp_migrations_dir):
         """Test that execution time is returned in milliseconds."""
