@@ -3,3 +3,7 @@
 - CLAUDE.md is intended to give the agent just enough context to navigate the repo and find enough info
 - use subfolder CLAUDE.md files to give additional context for how to use and navigate the folder
 - use README.md when the info is intended for everyone
+
+
+
+spec/ is only for specification, not documentation
