@@ -49,93 +49,9 @@ describe("Database Queries", () => {
   });
 
   // ==========================================================================
-  // Read Queries
+  // Read Queries (removed - now using POST /api/query/execute)
+  // See query-ui-pages.test.ts for comprehensive tests of the new query system
   // ==========================================================================
-
-  describe("getReferenda", () => {
-    it("returns empty array when no data exists", () => {
-      const result = queries.getReferenda();
-      expect(result).toEqual([]);
-    });
-
-    it("returns all referenda from database", () => {
-      seedTestData(testDb, TABLE_NAMES.categories, fixtures.categories);
-      seedTestData(testDb, TABLE_NAMES.referenda, fixtures.referenda);
-      const result = queries.getReferenda();
-      expect(result).toHaveLength(2);
-    });
-
-    it("correctly maps columns with dots (tally.ayes)", () => {
-      seedTestData(testDb, TABLE_NAMES.categories, fixtures.categories);
-      seedTestData(testDb, TABLE_NAMES.referenda, fixtures.referenda);
-      const result = queries.getReferenda();
-      expect(result[0]["tally.ayes"]).toBe(100000);
-    });
-
-    it("handles NULL values correctly", () => {
-      seedTestData(testDb, TABLE_NAMES.categories, fixtures.categories);
-      seedTestData(testDb, TABLE_NAMES.referenda, fixtures.referenda);
-      const result = queries.getReferenda();
-      const nullCategoryRow = result.find((r) => r.id === 2);
-      expect(nullCategoryRow?.category_id).toBeNull();
-    });
-  });
-
-  describe("getTreasury", () => {
-    it("returns empty array when no data exists", () => {
-      const result = queries.getTreasury();
-      expect(result).toEqual([]);
-    });
-
-    it("returns all treasury spends from database", () => {
-      seedTestData(testDb, TABLE_NAMES.treasury, fixtures.treasury);
-      const result = queries.getTreasury();
-      expect(result).toHaveLength(2);
-    });
-  });
-
-  describe("getChildBounties", () => {
-    it("returns empty array when no data exists", () => {
-      const result = queries.getChildBounties();
-      expect(result).toEqual([]);
-    });
-
-    it("returns all child bounties with identifier as primary key", () => {
-      seedTestData(testDb, TABLE_NAMES.categories, fixtures.categories);
-      seedTestData(testDb, TABLE_NAMES.childBounties, fixtures.childBounties);
-      const result = queries.getChildBounties();
-      expect(result).toHaveLength(2);
-      expect(result[0].identifier).toBe("10-1");
-    });
-  });
-
-  // ==========================================================================
-  // View Queries
-  // ==========================================================================
-
-  describe("getOutstandingClaims", () => {
-    it("returns empty array when no approved claims exist", () => {
-      const result = queries.getOutstandingClaims();
-      expect(result).toEqual([]);
-    });
-
-    it("only includes Approved status with future expiry", () => {
-      seedTestData(testDb, TABLE_NAMES.treasury, fixtures.treasury);
-      const result = queries.getOutstandingClaims();
-      // Only the first record has status=Approved and future expiry
-      expect(result.length).toBeGreaterThanOrEqual(1);
-      result.forEach((claim) => {
-        expect(claim.status).toBe("Approved");
-      });
-    });
-  });
-
-  describe("getExpiredClaims", () => {
-    it("returns empty array when no expired claims exist", () => {
-      const result = queries.getExpiredClaims();
-      expect(result).toEqual([]);
-    });
-  });
 
   // ==========================================================================
   // Metadata Queries

@@ -221,19 +221,52 @@ function validateQueryConfig(config: QueryConfig): string | null {
   return null;
 }
 
-function sanitizeColumnName(name: string): string {
+function sanitizeColumnName(name: string, sourceTable?: string): string {
   if (!/^[a-zA-Z0-9_.\s]+$/.test(name)) {
     throw new Error(`Invalid column name: ${name}`);
   }
+
+  // Handle table.column format (e.g., "Referenda.id" or "c.category")
+  // But NOT columns with dots in their names (e.g., "tally.ayes")
+  const lastDotIndex = name.lastIndexOf('.');
+  if (lastDotIndex > 0 && lastDotIndex < name.length - 1) {
+    // Check if this might be a column-with-dots by seeing if it exists in source table
+    if (sourceTable) {
+      try {
+        const availableColumns = getTableColumns(sourceTable);
+        if (availableColumns.includes(name)) {
+          // It's a column name with dots, quote the whole thing
+          return `"${name}"`;
+        }
+      } catch {
+        // If we can't get columns, proceed with table.column logic
+      }
+    }
+
+    // It's a table.column reference, quote separately: "Referenda"."id"
+    const tablePart = name.substring(0, lastDotIndex);
+    const columnPart = name.substring(lastDotIndex + 1);
+    return `"${tablePart}"."${columnPart}"`;
+  }
+
   return `"${name}"`;
 }
 
 function buildSelectClause(config: QueryConfig, availableColumns: string[]): string {
   const parts: string[] = [];
+  const hasJoins = config.joins && config.joins.length > 0;
 
   // Regular columns
   for (const col of config.columns || []) {
-    const colName = sanitizeColumnName(col.column);
+    // If column doesn't have a table prefix (no dot before last segment) and we have JOINs,
+    // prefix with source table to avoid ambiguity
+    let columnRef = col.column;
+    if (hasJoins && !columnRef.includes('.')) {
+      // Column from source table without prefix - add table name
+      columnRef = `${config.sourceTable}.${columnRef}`;
+    }
+
+    const colName = sanitizeColumnName(columnRef, config.sourceTable);
     if (col.aggregateFunction) {
       const alias = col.alias || `${col.aggregateFunction.toLowerCase()}_${col.column.replace(/[.\s]/g, "_")}`;
       const safeAlias = sanitizeAlias(alias);
@@ -258,7 +291,8 @@ function buildSelectClause(config: QueryConfig, availableColumns: string[]): str
 }
 
 function buildWhereClause(
-  filters: FilterCondition[]
+  filters: FilterCondition[],
+  sourceTable?: string
 ): { clause: string; params: (string | number)[] } {
   if (!filters || filters.length === 0) {
     return { clause: "", params: [] };
@@ -268,7 +302,7 @@ function buildWhereClause(
   const params: (string | number)[] = [];
 
   for (const filter of filters) {
-    const colName = sanitizeColumnName(filter.column);
+    const colName = sanitizeColumnName(filter.column, sourceTable);
 
     switch (filter.operator) {
       case "IS NULL":
@@ -296,19 +330,32 @@ function buildWhereClause(
   };
 }
 
-function buildGroupByClause(groupBy?: string[]): string {
+function buildGroupByClause(groupBy?: string[], sourceTable?: string): string {
   if (!groupBy || groupBy.length === 0) {
     return "";
   }
-  return `GROUP BY ${groupBy.map((col) => sanitizeColumnName(col)).join(", ")}`;
+  return `GROUP BY ${groupBy.map((col) => sanitizeColumnName(col, sourceTable)).join(", ")}`;
 }
 
-function buildOrderByClause(orderBy?: { column: string; direction: "ASC" | "DESC" }[]): string {
+function buildOrderByClause(
+  orderBy?: { column: string; direction: "ASC" | "DESC" }[],
+  config?: QueryConfig
+): string {
   if (!orderBy || orderBy.length === 0) {
     return "";
   }
+
+  const hasJoins = config?.joins && config.joins.length > 0;
+
   return `ORDER BY ${orderBy
-    .map((o) => `${sanitizeColumnName(o.column)} ${o.direction}`)
+    .map((o) => {
+      let columnRef = o.column;
+      // Prefix with source table if no prefix and JOINs present
+      if (hasJoins && config && !columnRef.includes('.')) {
+        columnRef = `${config.sourceTable}.${columnRef}`;
+      }
+      return `${sanitizeColumnName(columnRef, config?.sourceTable)} ${o.direction}`;
+    })
     .join(", ")}`;
 }
 
@@ -346,9 +393,9 @@ function buildQuery(config: QueryConfig): { sql: string; params: (string | numbe
   const selectClause = buildSelectClause(config, availableColumns);
   const tableName = `"${config.sourceTable}"`;
   const joinClause = buildJoinClause(config.joins);
-  const { clause: whereClause, params } = buildWhereClause(config.filters || []);
-  const groupByClause = buildGroupByClause(config.groupBy);
-  const orderByClause = buildOrderByClause(config.orderBy);
+  const { clause: whereClause, params } = buildWhereClause(config.filters || [], config.sourceTable);
+  const groupByClause = buildGroupByClause(config.groupBy, config.sourceTable);
+  const orderByClause = buildOrderByClause(config.orderBy, config);
   const limit = Math.min(config.limit || MAX_ROWS, MAX_ROWS);
 
   const sql = [

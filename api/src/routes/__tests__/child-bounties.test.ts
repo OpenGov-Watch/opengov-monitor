@@ -93,15 +93,8 @@ afterAll(() => {
   testDb.close();
 });
 
-describe("GET /api/child-bounties", () => {
-  it("returns all child bounties", async () => {
-    const response = await request(app).get("/api/child-bounties");
-
-    expect(response.status).toBe(200);
-    expect(response.body).toHaveLength(3);
-    expect(response.body[0].identifier).toBe("1_23");
-  });
-});
+// GET endpoint removed - now using POST /api/query/execute
+// See query-ui-pages.test.ts for tests of the new query system
 
 describe("PATCH /api/child-bounties/:identifier", () => {
   it("updates category_id", async () => {
