@@ -27,7 +27,8 @@ import {
 import { DataTablePagination } from "./pagination";
 import { DataTableToolbar } from "./toolbar";
 import { DataTableCard } from "./data-table-card";
-import { useViewState } from "@/hooks/use-view-state";
+import { ViewSelector } from "./view-selector";
+import { useViewState, SavedView } from "@/hooks/use-view-state";
 
 export interface FooterCell {
   columnId: string;
@@ -41,6 +42,7 @@ interface DataTableProps<TData, TValue> {
   footerCells?: FooterCell[];
   footerLabel?: string;
   defaultSorting?: SortingState;
+  defaultViews?: SavedView[];
 }
 
 export function DataTable<TData, TValue>({
@@ -50,6 +52,7 @@ export function DataTable<TData, TValue>({
   footerCells,
   footerLabel,
   defaultSorting,
+  defaultViews,
 }: DataTableProps<TData, TValue>) {
   // View mode state (table vs card)
   const [viewMode, setViewMode] = React.useState<"table" | "card">(() => {
@@ -76,10 +79,13 @@ export function DataTable<TData, TValue>({
     setGlobalFilter,
     pagination,
     setPagination,
-    saveViewState,
-    loadViewState,
+    currentViewName,
+    getSavedViews,
+    saveView,
+    loadView,
+    deleteView,
     clearViewState,
-  } = useViewState(tableName, { defaultSorting });
+  } = useViewState(tableName, { defaultSorting, defaultViews });
 
   const table = useReactTable({
     data,
@@ -107,12 +113,17 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4">
+      <ViewSelector
+        views={getSavedViews()}
+        currentViewName={currentViewName}
+        onSelectView={loadView}
+        onSaveView={saveView}
+        onDeleteView={deleteView}
+      />
       <DataTableToolbar
         table={table}
         globalFilter={globalFilter}
         setGlobalFilter={setGlobalFilter}
-        onSaveView={saveViewState}
-        onLoadView={loadViewState}
         onClearView={clearViewState}
         tableName={tableName}
         viewMode={viewMode}

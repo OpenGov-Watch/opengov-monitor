@@ -4,7 +4,23 @@ import { createReferendaColumns } from "@/components/tables/referenda-columns";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
 import { useAuth } from "@/contexts/auth-context";
+import { SavedView } from "@/hooks/use-view-state";
 import type { Referendum, Category } from "@/lib/db/types";
+
+// Default views for Referenda
+const defaultReferendaViews: SavedView[] = [
+  {
+    name: "All",
+    state: {
+      sorting: [{ id: "id", desc: true }],
+      columnFilters: [],
+      columnVisibility: {},
+      globalFilter: "",
+      pagination: { pageIndex: 0, pageSize: 100 },
+    },
+    isDefault: true,
+  },
+];
 
 export default function ReferendaPage() {
   const [data, setData] = useState<Referendum[]>([]);
@@ -70,6 +86,7 @@ export default function ReferendaPage() {
           data={data}
           tableName="referenda"
           defaultSorting={[{ id: "id", desc: true }]}
+          defaultViews={defaultReferendaViews}
         />
       )}
     </div>

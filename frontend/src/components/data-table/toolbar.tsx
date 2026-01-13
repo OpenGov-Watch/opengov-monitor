@@ -1,7 +1,7 @@
 "use client";
 
 import { Table } from "@tanstack/react-table";
-import { X, Download, Save, FolderOpen, RotateCcw, Table as TableIcon, LayoutGrid } from "lucide-react";
+import { X, Download, RotateCcw, Table as TableIcon, LayoutGrid } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,8 +19,6 @@ interface DataTableToolbarProps<TData> {
   table: Table<TData>;
   globalFilter: string;
   setGlobalFilter: (value: string) => void;
-  onSaveView: () => void;
-  onLoadView: () => void;
   onClearView: () => void;
   tableName: string;
   viewMode?: "table" | "card";
@@ -31,8 +29,6 @@ export function DataTableToolbar<TData>({
   table,
   globalFilter,
   setGlobalFilter,
-  onSaveView,
-  onLoadView,
   onClearView,
   tableName,
   viewMode = "table",
@@ -106,15 +102,7 @@ export function DataTableToolbar<TData>({
         )}
 
         <div className="hidden md:flex items-center space-x-2">
-          {/* View State Management */}
-          <Button variant="outline" size="sm" onClick={onSaveView} className="h-8">
-            <Save className="mr-2 h-4 w-4" />
-            <span className="hidden lg:inline">Save View</span>
-          </Button>
-          <Button variant="outline" size="sm" onClick={onLoadView} className="h-8">
-            <FolderOpen className="mr-2 h-4 w-4" />
-            <span className="hidden lg:inline">Load View</span>
-          </Button>
+          {/* Reset View */}
           <Button variant="outline" size="sm" onClick={onClearView} className="h-8">
             <RotateCcw className="mr-2 h-4 w-4" />
             <span className="hidden lg:inline">Reset</span>
