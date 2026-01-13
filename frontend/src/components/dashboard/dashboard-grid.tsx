@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import GridLayout from "react-grid-layout";
+import GridLayout from "react-grid-layout/legacy";
 import type { Layout, Layouts } from "react-grid-layout";
 import { DashboardComponent } from "./dashboard-component";
 import type {
