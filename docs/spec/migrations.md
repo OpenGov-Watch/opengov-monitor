@@ -356,464 +356,105 @@ CREATE INDEX "idx_referenda_track" ON "Referenda" ("track");
 
 ### `migration_runner.py`
 
-Main migration orchestrator:
+**Location**: [`backend/migrations/migration_runner.py`](../../backend/migrations/migration_runner.py)
 
-```python
-"""
-Database migration runner for OpenGov Monitor.
+Main migration orchestrator with the following responsibilities:
 
-Discovers and executes pending database migrations in version order.
-"""
-import argparse
-import hashlib
-import logging
-import sqlite3
-import sys
-from pathlib import Path
-from typing import List, Tuple, Optional
-import time
+**Core Functions:**
+- `discover_migrations()`: Scans versions/ directory, parses filenames
+- `validate_migrations()`: Checks for gaps, duplicates, modified checksums
+- `execute_sql_migration()`: Runs SQL files within transactions (statement-by-statement)
+- `execute_python_migration()`: Imports and calls `up()` function
+- `run_migration()`: Wraps execution in explicit transaction with rollback on failure
 
-# Migration file structure
-Migration = Tuple[int, str, Path]  # (version, name, file_path)
+**Key Implementation Details:**
+- Uses SHA256 checksums to detect modified migrations
+- Validates sequential version numbers (detects gaps)
+- Explicit `BEGIN` transaction for atomic rollback
+- Avoids `executescript()` to prevent auto-commit issues
+- Records execution time and checksum in `schema_migrations`
 
-def setup_logging():
-    """Configure logging for migration runner."""
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    return logging.getLogger('migration_runner')
-
-def ensure_migrations_table(conn: sqlite3.Connection):
-    """Create schema_migrations table if it doesn't exist."""
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS schema_migrations (
-            version INTEGER PRIMARY KEY,
-            name TEXT NOT NULL,
-            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            checksum TEXT NOT NULL,
-            execution_time_ms INTEGER
-        )
-    """)
-    conn.commit()
-
-def discover_migrations(migrations_dir: Path) -> List[Migration]:
-    """Find all migration files in versions directory."""
-    versions_dir = migrations_dir / 'versions'
-    if not versions_dir.exists():
-        return []
-
-    migrations = []
-    for file_path in sorted(versions_dir.glob('*')):
-        if file_path.suffix not in ['.sql', '.py']:
-            continue
-
-        # Parse version from filename: 001_description.sql
-        name = file_path.stem
-        parts = name.split('_', 1)
-        if len(parts) < 2:
-            continue
-
-        try:
-            version = int(parts[0])
-            description = parts[1]
-            migrations.append((version, description, file_path))
-        except ValueError:
-            continue
-
-    return sorted(migrations, key=lambda m: m[0])
-
-def compute_checksum(file_path: Path) -> str:
-    """Compute SHA256 checksum of migration file."""
-    return hashlib.sha256(file_path.read_bytes()).hexdigest()
-
-def get_applied_migrations(conn: sqlite3.Connection) -> dict:
-    """Get dictionary of applied migrations: {version: checksum}."""
-    cursor = conn.execute(
-        "SELECT version, checksum FROM schema_migrations ORDER BY version"
-    )
-    return {row[0]: row[1] for row in cursor.fetchall()}
-
-def validate_migrations(
-    migrations: List[Migration],
-    applied: dict,
-    logger: logging.Logger
-) -> List[Migration]:
-    """
-    Validate migration consistency and return pending migrations.
-
-    Checks:
-    - No gaps in version numbers
-    - No duplicate versions
-    - Applied migrations haven't been modified (checksum match)
-    """
-    if not migrations:
-        logger.info("No migrations found")
-        return []
-
-    # Check for gaps
-    versions = [m[0] for m in migrations]
-    expected = list(range(1, len(versions) + 1))
-    if versions != expected:
-        logger.error(f"Gap in migration versions. Expected {expected}, got {versions}")
-        sys.exit(1)
-
-    # Check for duplicates
-    if len(versions) != len(set(versions)):
-        logger.error("Duplicate migration versions found")
-        sys.exit(1)
-
-    # Verify applied migrations haven't changed
-    for version, name, file_path in migrations:
-        if version in applied:
-            current_checksum = compute_checksum(file_path)
-            if current_checksum != applied[version]:
-                logger.error(
-                    f"Migration {version} ({name}) has been modified after being applied. "
-                    f"Create a new migration instead."
-                )
-                sys.exit(1)
-
-    # Return pending migrations (not yet applied)
-    pending = [m for m in migrations if m[0] not in applied]
-    return pending
-
-def execute_sql_migration(
-    conn: sqlite3.Connection,
-    migration: Migration,
-    logger: logging.Logger
-) -> int:
-    """Execute SQL migration file. Returns execution time in ms."""
-    version, name, file_path = migration
-    sql = file_path.read_text()
-
-    start_time = time.time()
-    conn.executescript(sql)
-    execution_time = int((time.time() - start_time) * 1000)
-
-    return execution_time
-
-def execute_python_migration(
-    conn: sqlite3.Connection,
-    migration: Migration,
-    logger: logging.Logger
-) -> int:
-    """Execute Python migration file. Returns execution time in ms."""
-    version, name, file_path = migration
-
-    # Import the migration module
-    import importlib.util
-    spec = importlib.util.spec_from_file_location(f"migration_{version}", file_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-
-    if not hasattr(module, 'up'):
-        logger.error(f"Migration {version} missing 'up' function")
-        sys.exit(1)
-
-    start_time = time.time()
-    module.up(conn)
-    execution_time = int((time.time() - start_time) * 1000)
-
-    return execution_time
-
-def run_migration(
-    conn: sqlite3.Connection,
-    migration: Migration,
-    logger: logging.Logger
-):
-    """Execute a single migration and record it."""
-    version, name, file_path = migration
-    checksum = compute_checksum(file_path)
-
-    logger.info(f"Running migration {version}: {name}")
-
-    try:
-        # Execute migration based on file type
-        if file_path.suffix == '.sql':
-            execution_time = execute_sql_migration(conn, migration, logger)
-        elif file_path.suffix == '.py':
-            execution_time = execute_python_migration(conn, migration, logger)
-        else:
-            logger.error(f"Unknown migration file type: {file_path.suffix}")
-            sys.exit(1)
-
-        # Record successful migration
-        conn.execute(
-            """
-            INSERT INTO schema_migrations (version, name, checksum, execution_time_ms)
-            VALUES (?, ?, ?, ?)
-            """,
-            (version, name, checksum, execution_time)
-        )
-        conn.commit()
-
-        logger.info(f"Migration {version} completed in {execution_time}ms")
-
-    except Exception as e:
-        conn.rollback()
-        logger.error(f"Migration {version} failed: {e}", exc_info=True)
-        sys.exit(1)
-
-def main():
-    parser = argparse.ArgumentParser(description='Run database migrations')
-    parser.add_argument(
-        '--db',
-        default='../data/polkadot.db',
-        help='Path to SQLite database'
-    )
-    parser.add_argument(
-        '--migrations-dir',
-        default=None,
-        help='Path to migrations directory (default: same dir as script)'
-    )
-    args = parser.parse_args()
-
-    logger = setup_logging()
-
-    # Determine migrations directory
-    if args.migrations_dir:
-        migrations_dir = Path(args.migrations_dir)
-    else:
-        migrations_dir = Path(__file__).parent
-
-    logger.info(f"Migrations directory: {migrations_dir}")
-    logger.info(f"Database: {args.db}")
-
-    # Connect to database
-    conn = sqlite3.connect(args.db)
-
-    try:
-        # Ensure migrations table exists
-        ensure_migrations_table(conn)
-
-        # Discover migration files
-        migrations = discover_migrations(migrations_dir)
-        logger.info(f"Found {len(migrations)} migration files")
-
-        # Get applied migrations
-        applied = get_applied_migrations(conn)
-        logger.info(f"Already applied: {len(applied)} migrations")
-
-        # Validate and get pending migrations
-        pending = validate_migrations(migrations, applied, logger)
-
-        if not pending:
-            logger.info("No pending migrations. Database is up to date.")
-            return
-
-        logger.info(f"Pending migrations: {len(pending)}")
-
-        # Execute pending migrations
-        for migration in pending:
-            run_migration(conn, migration, logger)
-
-        logger.info("All migrations completed successfully")
-
-    finally:
-        conn.close()
-
-if __name__ == '__main__':
-    main()
-```
+See [`backend/migrations/migration_runner.py`](../../backend/migrations/migration_runner.py) for implementation.
 
 ### `create_migration.py`
 
-Helper to create new migration files:
+Helper to create new migration files with proper naming and templates.
 
-```python
-"""
-Create a new migration file with proper naming and template.
-"""
-import argparse
-from pathlib import Path
-from datetime import datetime
+**Key functions:**
+- `get_next_version()`: Finds max version + 1
+- `create_migration()`: Generates file with template
 
-SQL_TEMPLATE = """-- Migration: {description}
--- Version: {version:03d}
--- Created: {timestamp}
+See [`backend/migrations/create_migration.py`](../../backend/migrations/create_migration.py) for implementation.
 
--- Add your SQL statements below
+### `baseline.py`
 
-"""
-
-PYTHON_TEMPLATE = '''"""
-Migration: {description}
-Version: {version:03d}
-Created: {timestamp}
-"""
-import sqlite3
-
-def up(conn: sqlite3.Connection) -> None:
-    """Apply the migration."""
-    cursor = conn.cursor()
-
-    # Add your migration logic here
-
-    conn.commit()
-
-def down(conn: sqlite3.Connection) -> None:
-    """Rollback the migration (optional)."""
-    pass
-'''
-
-def get_next_version(migrations_dir: Path) -> int:
-    """Determine the next migration version number."""
-    versions_dir = migrations_dir / 'versions'
-    if not versions_dir.exists():
-        versions_dir.mkdir(parents=True)
-        return 1
-
-    max_version = 0
-    for file_path in versions_dir.glob('*'):
-        if file_path.suffix not in ['.sql', '.py']:
-            continue
-        try:
-            version = int(file_path.stem.split('_')[0])
-            max_version = max(max_version, version)
-        except (ValueError, IndexError):
-            continue
-
-    return max_version + 1
-
-def create_migration(
-    name: str,
-    migration_type: str,
-    migrations_dir: Path
-):
-    """Create a new migration file."""
-    version = get_next_version(migrations_dir)
-    timestamp = datetime.now().isoformat()
-
-    # Format filename
-    filename = f"{version:03d}_{name}.{migration_type}"
-    file_path = migrations_dir / 'versions' / filename
-
-    # Choose template
-    if migration_type == 'sql':
-        template = SQL_TEMPLATE
-    else:
-        template = PYTHON_TEMPLATE
-
-    # Write file
-    content = template.format(
-        description=name.replace('_', ' ').title(),
-        version=version,
-        timestamp=timestamp
-    )
-    file_path.write_text(content)
-
-    print(f"Created migration: {file_path}")
-    print(f"Version: {version}")
-
-def main():
-    parser = argparse.ArgumentParser(description='Create a new migration file')
-    parser.add_argument(
-        '--name',
-        required=True,
-        help='Migration name (snake_case)'
-    )
-    parser.add_argument(
-        '--type',
-        choices=['sql', 'py'],
-        default='sql',
-        help='Migration type (default: sql)'
-    )
-    parser.add_argument(
-        '--migrations-dir',
-        default=None,
-        help='Path to migrations directory'
-    )
-    args = parser.parse_args()
-
-    # Determine migrations directory
-    if args.migrations_dir:
-        migrations_dir = Path(args.migrations_dir)
-    else:
-        migrations_dir = Path(__file__).parent
-
-    create_migration(args.name, args.type, migrations_dir)
-
-if __name__ == '__main__':
-    main()
-```
-
-## Testing Strategy
-
-### Unit Tests
-
-Test individual migration runner functions:
-
-```python
-# backend/tests/migrations/test_migration_runner.py
-import pytest
-from backend.migrations.migration_runner import (
-    discover_migrations,
-    compute_checksum,
-    validate_migrations
-)
-
-def test_discover_migrations(tmp_path):
-    """Test migration file discovery."""
-    versions_dir = tmp_path / 'versions'
-    versions_dir.mkdir()
-
-    # Create test migration files
-    (versions_dir / '001_initial.sql').write_text("CREATE TABLE test;")
-    (versions_dir / '002_add_field.sql').write_text("ALTER TABLE test ADD COLUMN x;")
-
-    migrations = discover_migrations(tmp_path)
-    assert len(migrations) == 2
-    assert migrations[0][0] == 1
-    assert migrations[1][0] == 2
-```
-
-### Integration Tests
-
-Test full migration workflow on test database:
-
-```python
-def test_migration_workflow(tmp_path):
-    """Test complete migration workflow."""
-    db_path = tmp_path / 'test.db'
-    # Create test migrations
-    # Run migration_runner
-    # Verify schema_migrations table
-    # Verify schema changes applied
-```
-
-### Manual Testing Checklist
-
-Before deploying migrations:
-
-- [ ] Run migrations on empty database (fresh start)
-- [ ] Run migrations on database with existing data
-- [ ] Verify API still works after migrations
-- [ ] Verify frontend still loads data correctly
-- [ ] Check migration logs for errors
-- [ ] Verify schema_migrations table is correct
-
-## Rollback Strategy
-
-### Automated Rollback (Optional)
-
-Implement `down()` functions in Python migrations to enable rollback:
+Marks migrations as applied without executing them (for existing databases):
 
 ```bash
-pnpm migrate:rollback --version 4
+python baseline.py --db /data/polkadot.db --version N
 ```
 
-This would execute the `down()` function of migration 004 and remove its entry from `schema_migrations`.
+See [`backend/migrations/baseline.py`](../../backend/migrations/baseline.py) for implementation.
 
-**Note**: Rollback is optional and may not always be possible (e.g., after data deletion).
+## Migration Helper Scripts
 
-### Manual Rollback
+The migration system consists of three Python scripts in `backend/migrations/`:
 
-For production issues:
+### `migration_runner.py`
 
-1. **Immediate**: Restore database from backup
-2. **Fix-forward**: Create a new migration to undo the changes
-3. **Rebuild**: In extreme cases, rebuild database from source data
+**Purpose**: Main orchestrator that discovers, validates, and executes pending migrations
+
+**Key functions**:
+- `discover_migrations()` - Finds all migration files in versions/
+- `validate_migrations()` - Checks for gaps, duplicates, modified migrations
+- `execute_sql_migration()` - Runs SQL migrations in transaction
+- `execute_python_migration()` - Imports and executes Python migration modules
+- `run_migration()` - Orchestrates execution and records in schema_migrations
+
+**Transaction handling**:
+- Uses explicit `BEGIN` transaction for all migrations
+- Rolls back atomically on any failure
+- Sets `isolation_level='DEFERRED'` for proper SQLite transaction mode
+
+See [migration_runner.py](../../backend/migrations/migration_runner.py) for implementation.
+
+### `create_migration.py`
+
+Helper script to generate new migration files:
+- Determines next sequential version number
+- Creates file with proper naming convention (NNN_description.{sql|py})
+- Populates with template based on type
+- See [create_migration.py](../../backend/migrations/create_migration.py)
+
+### `baseline.py`
+
+Marks existing migrations as applied without executing them:
+- Used when deploying to existing databases
+- Inserts records into schema_migrations with correct checksums
+- See [baseline.py](../../backend/migrations/baseline.py)
+
+## Docker Integration
+
+### Wrapper Script Approach
+
+To prevent race conditions where the API starts before migrations complete, we use a wrapper script:
+
+**`deploy/run-migrations-then-api.sh`**:
+- Runs migrations first
+- Only starts API if migrations succeed
+- Prevents SQLite lock conflicts
+- See [run-migrations-then-api.sh](../../deploy/run-migrations-then-api.sh)
+
+**`deploy/supervisord.conf`**:
+```ini
+[program:api]
+command=/bin/bash /app/deploy/run-migrations-then-api.sh
+environment=NODE_ENV="production",PORT="3001",DATABASE_PATH="/data/polkadot.db"
+autostart=true
+autorestart=true
+```
+
+This ensures migrations always complete before API serves requests.
 
 ## Security Considerations
 
@@ -913,10 +554,11 @@ The baseline script:
 
 This migration system provides:
 
-- **Automated deployment**: Migrations run on Docker startup
+- **Automated deployment**: Migrations run before API via wrapper script
 - **Local testing**: Test migrations before deploying via `pnpm migrate`
 - **Version control**: All schema changes tracked in git
-- **Safety**: Checksum validation and transaction rollback
-- **Flexibility**: Support both SQL and Python migrations
+- **Safety**: Transaction-based execution with checksum validation
+- **Flexibility**: Support for both SQL and Python migrations
+- **Baseline support**: Deploy to existing databases without conflicts
 
-The system integrates cleanly with the existing Docker workflow and requires minimal changes to the deployment pipeline.
+The system integrates cleanly with the Docker workflow and prevents race conditions through sequential execution.
