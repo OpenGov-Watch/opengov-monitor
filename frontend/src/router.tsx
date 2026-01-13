@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from "react-router";
 import { Layout } from "@/components/layout/Layout";
+import { RequireAuth } from "@/components/auth/require-auth";
 
 // Lazy load pages
 import { lazy, Suspense } from "react";
@@ -67,7 +68,7 @@ export const router = createBrowserRouter([
       { path: "manage/sync", element: withSuspense(ManageSyncSettingsPage) },
       { path: "dashboards", element: withSuspense(DashboardsListPage) },
       { path: "dashboards/:id", element: withSuspense(DashboardViewPage) },
-      { path: "dashboards/:id/edit", element: withSuspense(DashboardEditPage) },
+      { path: "dashboards/:id/edit", element: <RequireAuth>{withSuspense(DashboardEditPage)}</RequireAuth> },
     ],
   },
 ]);

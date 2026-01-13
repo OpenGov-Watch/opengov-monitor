@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/contexts/auth-context";
 import {
   Table,
   TableBody,
@@ -36,6 +37,7 @@ const emptyFormData: FormData = {
 
 export default function DashboardsPage() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -106,13 +108,14 @@ export default function DashboardsPage() {
             Create and manage custom dashboards with charts and tables
           </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={openAddDialog}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Dashboard
-            </Button>
-          </DialogTrigger>
+        {isAuthenticated && (
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={openAddDialog}>
+                <Plus className="mr-2 h-4 w-4" />
+                New Dashboard
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create Dashboard</DialogTitle>
@@ -154,7 +157,8 @@ export default function DashboardsPage() {
               </div>
             </form>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        )}
       </div>
 
       <div className="rounded-md border">
@@ -165,7 +169,7 @@ export default function DashboardsPage() {
               <TableHead>Name</TableHead>
               <TableHead>Description</TableHead>
               <TableHead>Last Updated</TableHead>
-              <TableHead className="w-[60px]"></TableHead>
+              {isAuthenticated && <TableHead className="w-[60px]"></TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -185,19 +189,21 @@ export default function DashboardsPage() {
                 <TableCell className="font-mono text-sm">
                   {formatDateTime(dashboard.updated_at)}
                 </TableCell>
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(dashboard.id);
-                    }}
-                    title="Delete dashboard"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </TableCell>
+                {isAuthenticated && (
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(dashboard.id);
+                      }}
+                      title="Delete dashboard"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
             {dashboards.length === 0 && (

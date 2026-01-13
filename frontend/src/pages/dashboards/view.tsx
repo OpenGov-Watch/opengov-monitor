@@ -3,11 +3,13 @@ import { useParams, Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { DashboardGrid } from "@/components/dashboard";
 import { Pencil, ArrowLeft } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
 import type { Dashboard, DashboardComponent } from "@/lib/db/types";
 
 export default function DashboardViewPage() {
   const params = useParams();
   const dashboardId = parseInt(params.id as string, 10);
+  const { isAuthenticated } = useAuth();
 
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [components, setComponents] = useState<DashboardComponent[]>([]);
@@ -76,12 +78,14 @@ export default function DashboardViewPage() {
             )}
           </div>
         </div>
-        <Button asChild>
-          <Link to={`/dashboards/${dashboardId}/edit`}>
-            <Pencil className="mr-2 h-4 w-4" />
-            Edit Dashboard
-          </Link>
-        </Button>
+        {isAuthenticated && (
+          <Button asChild>
+            <Link to={`/dashboards/${dashboardId}/edit`}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit Dashboard
+            </Link>
+          </Button>
+        )}
       </div>
 
       <DashboardGrid components={components} editable={false} />
