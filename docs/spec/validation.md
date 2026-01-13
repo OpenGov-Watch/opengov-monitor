@@ -96,6 +96,7 @@ Error: `"name, type, query_config (for non-text), and grid_config are required"`
 - Max length: 500 chars
 - Blocked patterns: `;`, `--`, `/*`, UNION, SELECT, INSERT, UPDATE, DELETE, DROP, CREATE, ALTER, EXEC, ATTACH, DETACH, PRAGMA
 - Column references must exist in selected table
+- Alias must match: `^[a-zA-Z_][a-zA-Z0-9_]*$`
 
 Errors:
 - `"Expression cannot be empty"`
@@ -103,6 +104,16 @@ Errors:
 - `"Invalid expression alias: {alias}. Use only letters, numbers, and underscores."`
 - `"Invalid expression \"{alias}\": Expression contains blocked pattern: {pattern}"`
 - `"Invalid expression \"{alias}\": Unknown column or function: {id}"`
+
+### Regular Column Alias Validation
+
+**Security:** All column aliases are sanitized to prevent SQL injection (see [Security Threat Model](security-threat-model.md#critical-sql-injection-in-query-builder)).
+
+- Alias pattern: `^[a-zA-Z_][a-zA-Z0-9_]*$` (alphanumeric + underscore, must start with letter/underscore)
+- Aggregate function aliases follow same validation
+
+Errors:
+- `"Invalid alias: {alias}. Use only letters, numbers, and underscores."`
 
 ### Whitelisted Tables
 

@@ -1368,3 +1368,204 @@ describe("Expression Column Security Tests", () => {
     });
   });
 });
+
+// ===========================================================================
+// Regular Column Alias Security Tests (Issue #15)
+// ===========================================================================
+describe("Regular Column Alias Security Tests", () => {
+  describe("SQL Injection Prevention in Regular Column Aliases", () => {
+    it("accepts valid alphanumeric alias", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id", alias: "referendum_id" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toBeDefined();
+    });
+
+    it("accepts alias with underscores", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "DOT_latest", alias: "dot_amount_latest" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(200);
+    });
+
+    it("accepts alias starting with underscore", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id", alias: "_private_id" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(200);
+    });
+
+    it("rejects SQL injection: quote and FROM clause", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id", alias: 'foo" FROM secret_data --' }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain("Invalid alias");
+    });
+
+    it("rejects alias with semicolon", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id", alias: "id; DROP TABLE secret_data" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain("Invalid alias");
+    });
+
+    it("rejects alias with SQL comment", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id", alias: "id--comment" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain("Invalid alias");
+    });
+
+    it("rejects alias with spaces", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id", alias: "bad alias" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain("Invalid alias");
+    });
+
+    it("rejects alias with parentheses", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id", alias: "func()" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain("Invalid alias");
+    });
+
+    it("rejects alias starting with number", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id", alias: "123invalid" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain("Invalid alias");
+    });
+
+    it("rejects alias with single quote", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id", alias: "id'malicious" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain("Invalid alias");
+    });
+
+    it("rejects alias with double quote", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id", alias: 'id"malicious' }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain("Invalid alias");
+    });
+  });
+
+  describe("Aggregate Function Alias Security", () => {
+    it("accepts valid alias with aggregate function", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id", aggregateFunction: "COUNT", alias: "total_count" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(200);
+    });
+
+    it("auto-generates safe alias when not provided", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "DOT_latest", aggregateFunction: "SUM" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.sql).toContain("sum_DOT_latest");
+    });
+
+    it("rejects SQL injection in aggregate alias", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id", aggregateFunction: "COUNT", alias: 'total" FROM secret_data --' }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain("Invalid alias");
+    });
+
+    it("rejects semicolon in aggregate alias", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id", aggregateFunction: "COUNT", alias: "cnt; DROP TABLE secret_data" }],
+          filters: [],
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain("Invalid alias");
+    });
+  });
+});
