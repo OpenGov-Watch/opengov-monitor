@@ -29,7 +29,7 @@ export function DataTableCard<TData>({ row }: DataTableCardProps<TData>) {
                 {typeof cell.column.columnDef.header === 'string'
                   ? cell.column.columnDef.header
                   : typeof cell.column.columnDef.header === 'function'
-                  ? cell.column.columnDef.header({ column: cell.column, header: cell.column.parent?.header, table: cell.getContext().table })
+                  ? flexRender(cell.column.columnDef.header, cell.getContext())
                   : null}
               </span>
               <div className="text-sm mt-1">
@@ -50,7 +50,7 @@ export function DataTableCard<TData>({ row }: DataTableCardProps<TData>) {
                       {typeof cell.column.columnDef.header === 'string'
                         ? cell.column.columnDef.header
                         : typeof cell.column.columnDef.header === 'function'
-                        ? cell.column.columnDef.header({ column: cell.column, header: cell.column.parent?.header, table: cell.getContext().table })
+                        ? flexRender(cell.column.columnDef.header, cell.getContext())
                         : null}
                     </span>
                     <div className="text-sm mt-1">
