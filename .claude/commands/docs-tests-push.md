@@ -1,4 +1,4 @@
-- update docs/ and docs/spec if you haven't done so yet
+- update docs/ and docs/spec if you haven't done so yet. docs should be as terse as possible. you are documenting for experts and only need to document the specialties of this project, not explain anything.
 - update the unit tests
 - make sure you considered updates to the DOCKERFILE and any potential migrations
 - run the tests. only fix issues related to the features you built. if you encounter other issues, STOP and tell the user what's going on
