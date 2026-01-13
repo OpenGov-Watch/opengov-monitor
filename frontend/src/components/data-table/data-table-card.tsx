@@ -28,9 +28,7 @@ export function DataTableCard<TData>({ row }: DataTableCardProps<TData>) {
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 {typeof cell.column.columnDef.header === 'string'
                   ? cell.column.columnDef.header
-                  : typeof cell.column.columnDef.header === 'function'
-                  ? flexRender(cell.column.columnDef.header, cell.getContext())
-                  : null}
+                  : cell.column.id}
               </span>
               <div className="text-sm mt-1">
                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -49,9 +47,7 @@ export function DataTableCard<TData>({ row }: DataTableCardProps<TData>) {
                     <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                       {typeof cell.column.columnDef.header === 'string'
                         ? cell.column.columnDef.header
-                        : typeof cell.column.columnDef.header === 'function'
-                        ? flexRender(cell.column.columnDef.header, cell.getContext())
-                        : null}
+                        : cell.column.id}
                     </span>
                     <div className="text-sm mt-1">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}

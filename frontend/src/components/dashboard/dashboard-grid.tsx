@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import ReactGridLayout from "react-grid-layout/legacy";
-import type { Layout } from "react-grid-layout";
+import { WidthProvider, Responsive, type Layout, type LayoutItem } from "react-grid-layout/legacy";
 import { DashboardComponent } from "./dashboard-component";
 import type {
   DashboardComponent as DashboardComponentType,
@@ -11,12 +10,12 @@ import type {
 
 import "react-grid-layout/css/styles.css";
 
-// Define Layouts type for responsive breakpoints
+// Define Layouts type for responsive breakpoints (Layout is already an array)
 type Layouts = {
-  [breakpoint: string]: Layout[];
+  [breakpoint: string]: Layout;
 };
 
-const ResponsiveGridLayout = ReactGridLayout.WidthProvider(ReactGridLayout.Responsive);
+const ResponsiveGridLayout = WidthProvider(Responsive);
 
 interface DashboardGridProps {
   components: DashboardComponentType[];
@@ -61,7 +60,7 @@ export function DashboardGrid({
 
   // Convert components to grid layout for all breakpoints
   const generateLayouts = (): Layouts => {
-    const baseLayout: Layout[] = components.map((comp) => {
+    const baseLayout: LayoutItem[] = components.map((comp) => {
       const gridConfig: GridConfig = JSON.parse(comp.grid_config);
       return {
         i: String(comp.id),
@@ -77,7 +76,7 @@ export function DashboardGrid({
 
     // Generate responsive layouts
     // For smaller screens, adjust width to fit within column constraints
-    const adjustLayout = (layout: Layout[], maxCols: number): Layout[] => {
+    const adjustLayout = (layout: LayoutItem[], maxCols: number): LayoutItem[] => {
       return layout.map(item => ({
         ...item,
         w: Math.min(item.w, maxCols),
@@ -97,7 +96,7 @@ export function DashboardGrid({
   const layouts = generateLayouts();
 
   const handleLayoutChange = useCallback(
-    (currentLayout: Layout[], allLayouts: Layouts) => {
+    (currentLayout: Layout, allLayouts: Partial<Record<string, Layout>>) => {
       if (!editable || !onLayoutChange) return;
 
       // Only update based on the lg (desktop) layout
