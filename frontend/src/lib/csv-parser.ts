@@ -20,6 +20,14 @@ export interface ChildBountyCsvRow {
   hide_in_spends: number;
 }
 
+export interface NetflowCsvRow {
+  month: string;
+  asset_name: string;
+  flow_type: string;
+  amount_usd: number;
+  amount_dot_equivalent: number;
+}
+
 /**
  * Parse a single CSV line, handling quoted values with commas
  */
@@ -149,4 +157,29 @@ export function parseChildBountiesCSV(content: string): ChildBountyCsvRow[] {
       return { identifier, category, subcategory, notes, hide_in_spends };
     })
     .filter((row) => row.identifier !== "");
+}
+
+/**
+ * Parse treasury netflows CSV content.
+ * Expected format: month, asset_name, flow_type, amount_usd, amount_dot_equivalent
+ */
+export function parseTreasuryNetflowsCSV(content: string): NetflowCsvRow[] {
+  const rows = parseCSV(content);
+  return rows
+    .map((row) => {
+      const month = row.month?.trim() || "";
+      const asset_name = row.asset_name?.trim() || "";
+      const flow_type = row.flow_type?.trim() || "";
+      const amount_usd = parseFloat(row.amount_usd || "0");
+      const amount_dot_equivalent = parseFloat(row.amount_dot_equivalent || "0");
+
+      return {
+        month,
+        asset_name,
+        flow_type,
+        amount_usd: isNaN(amount_usd) ? 0 : amount_usd,
+        amount_dot_equivalent: isNaN(amount_dot_equivalent) ? 0 : amount_dot_equivalent
+      };
+    })
+    .filter((row) => row.month && row.asset_name && row.flow_type);
 }

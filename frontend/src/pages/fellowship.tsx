@@ -1,31 +1,55 @@
-import { useEffect, useState } from "react";
-import { api } from "@/api/client";
-import { fellowshipColumns } from "@/components/tables/fellowship-columns";
+import { useMemo } from "react";
 import { DataTable } from "@/components/data-table/data-table";
-import { DataTableSkeleton } from "@/components/data-table/skeleton";
+import { QueryConfig } from "@/lib/db/types";
+import { subsquareUrls } from "@/lib/urls";
 import type { Fellowship } from "@/lib/db/types";
 
 export default function FellowshipPage() {
-  const [data, setData] = useState<Fellowship[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryConfig: QueryConfig = useMemo(() => ({
+    sourceTable: "Fellowship",
+    columns: [
+      { column: "id" },
+      { column: "url" },
+      { column: "description" },
+      { column: "status" },
+      { column: "DOT" },
+      { column: "USD_proposal_time" },
+      { column: "proposal_time" },
+      { column: "latest_status_change" },
+      { column: "USD_latest" },
+    ],
+    filters: [],
+    orderBy: [{ column: "id", direction: "DESC" }],
+    limit: 1000
+  }), []);
 
-  useEffect(() => {
-    api.fellowship
-      .getAll()
-      .then((res) => setData(res as Fellowship[]))
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (error) {
-    return (
-      <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-        <h2 className="font-semibold text-destructive">Error</h2>
-        <p className="text-sm text-muted-foreground mt-1">{error}</p>
-      </div>
-    );
-  }
+  const columnOverrides = useMemo(() => ({
+    id: {
+      cell: ({ row }: { row: any }) => (
+        <a
+          href={subsquareUrls.fellowship(row.original.id)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium w-[60px] hover:underline text-blue-600"
+        >
+          {row.original.id}
+        </a>
+      ),
+    },
+    description: {
+      cell: ({ row }: { row: any }) => {
+        const description = row.original.description as string;
+        return (
+          <div
+            className="max-w-[400px] truncate"
+            title={description}
+          >
+            {description || "No description"}
+          </div>
+        );
+      },
+    },
+  }), []);
 
   return (
     <div className="space-y-6">
@@ -35,16 +59,14 @@ export default function FellowshipPage() {
           Browse and filter fellowship treasury spends
         </p>
       </div>
-      {loading ? (
-        <DataTableSkeleton />
-      ) : (
-        <DataTable
-          columns={fellowshipColumns}
-          data={data}
-          tableName="fellowship"
-          defaultSorting={[{ id: "id", desc: true }]}
-        />
-      )}
+      <DataTable<Fellowship>
+        mode="query"
+        queryConfig={queryConfig}
+        tableName="fellowship"
+        facetedFilters={["status"]}
+        columnOverrides={columnOverrides}
+        defaultSorting={[{ id: "id", desc: true }]}
+      />
     </div>
   );
 }

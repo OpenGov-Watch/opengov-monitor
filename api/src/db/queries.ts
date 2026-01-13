@@ -19,64 +19,15 @@ import type {
 } from "./types";
 import { TABLE_NAMES, VIEW_NAMES } from "./types";
 
-export function getReferenda(): Referendum[] {
-  const db = getDatabase();
-  return db.prepare(`
-    SELECT r.*, c.category, c.subcategory
-    FROM "${TABLE_NAMES.referenda}" r
-    LEFT JOIN "${TABLE_NAMES.categories}" c ON r.category_id = c.id
-  `).all() as Referendum[];
-}
-
-export function getTreasury(): TreasurySpend[] {
-  const db = getDatabase();
-  return db.prepare(`SELECT * FROM "${TABLE_NAMES.treasury}"`).all() as TreasurySpend[];
-}
-
-export function getChildBounties(): ChildBounty[] {
-  const db = getDatabase();
-  return db.prepare(`
-    SELECT cb.*, c.category, c.subcategory, b.name as parentBountyName
-    FROM "${TABLE_NAMES.childBounties}" cb
-    LEFT JOIN "${TABLE_NAMES.categories}" c ON cb.category_id = c.id
-    LEFT JOIN "${TABLE_NAMES.bounties}" b ON cb.parentBountyId = b.id
-  `).all() as ChildBounty[];
-}
-
-export function getFellowship(): Fellowship[] {
-  const db = getDatabase();
-  return db.prepare(`SELECT * FROM "${TABLE_NAMES.fellowship}"`).all() as Fellowship[];
-}
-
-export function getFellowshipSalaryCycles(): FellowshipSalaryCycle[] {
-  const db = getDatabase();
-  return db
-    .prepare(`SELECT * FROM "${TABLE_NAMES.fellowshipSalaryCycles}"`)
-    .all() as FellowshipSalaryCycle[];
-}
-
-export function getFellowshipSalaryClaimants(): FellowshipSalaryClaimant[] {
-  const db = getDatabase();
-  return db
-    .prepare(`SELECT * FROM "${TABLE_NAMES.fellowshipSalaryClaimants}"`)
-    .all() as FellowshipSalaryClaimant[];
-}
-
-// Database Views
-
-export function getOutstandingClaims(): OutstandingClaim[] {
-  const db = getDatabase();
-  return db
-    .prepare(`SELECT * FROM "${VIEW_NAMES.outstandingClaims}" ORDER BY validFrom ASC`)
-    .all() as OutstandingClaim[];
-}
-
-export function getExpiredClaims(): ExpiredClaim[] {
-  const db = getDatabase();
-  return db
-    .prepare(`SELECT * FROM "${VIEW_NAMES.expiredClaims}" ORDER BY validFrom DESC`)
-    .all() as ExpiredClaim[];
-}
+// Removed query functions for pages migrated to QueryConfig mode:
+// - getReferenda() - Use POST /api/query/execute
+// - getTreasury() - Use POST /api/query/execute
+// - getChildBounties() - Use POST /api/query/execute
+// - getFellowship() - Use POST /api/query/execute
+// - getFellowshipSalaryCycles() - Use POST /api/query/execute
+// - getFellowshipSalaryClaimants() - Use POST /api/query/execute
+// - getOutstandingClaims() - Use POST /api/query/execute
+// - getExpiredClaims() - Use POST /api/query/execute
 
 // Get table names that exist in the database
 export function getTableNames(): string[] {
@@ -320,6 +271,51 @@ export function updateSubtreasury(entry: Omit<Subtreasury, "category" | "subcate
 export function deleteSubtreasury(id: number): void {
   const db = getWritableDatabase();
   db.prepare(`DELETE FROM "${TABLE_NAMES.subtreasury}" WHERE id = ?`).run(id);
+}
+
+// Treasury Netflows
+
+export function getTreasuryNetflows(): TreasuryNetflow[] {
+  const db = getDatabase();
+  return db
+    .prepare(`SELECT * FROM "${TABLE_NAMES.treasuryNetflows}" ORDER BY month DESC, asset_name, flow_type`)
+    .all() as TreasuryNetflow[];
+}
+
+export interface NetflowImportItem {
+  month: string;
+  asset_name: string;
+  flow_type: string;
+  amount_usd: number;
+  amount_dot_equivalent: number;
+}
+
+export function replaceAllNetflows(items: NetflowImportItem[]): number {
+  const db = getWritableDatabase();
+
+  // Full table replacement strategy for quarterly updates
+  const deleteAll = db.prepare(`DELETE FROM "${TABLE_NAMES.treasuryNetflows}"`);
+  const insert = db.prepare(`
+    INSERT INTO "${TABLE_NAMES.treasuryNetflows}"
+    (month, asset_name, flow_type, amount_usd, amount_dot_equivalent)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+
+  const replaceTransaction = db.transaction((items: NetflowImportItem[]) => {
+    deleteAll.run();
+    for (const item of items) {
+      insert.run(
+        item.month,
+        item.asset_name,
+        item.flow_type,
+        item.amount_usd,
+        item.amount_dot_equivalent
+      );
+    }
+  });
+
+  replaceTransaction(items);
+  return items.length;
 }
 
 // Fellowship Subtreasury (read-only, fetched from API)

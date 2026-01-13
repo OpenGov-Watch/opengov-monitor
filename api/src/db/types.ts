@@ -161,6 +161,14 @@ export interface Subtreasury {
   url: string | null;
 }
 
+export interface TreasuryNetflow {
+  month: string;                    // YYYY-MM format
+  asset_name: string;
+  flow_type: string;
+  amount_usd: number;
+  amount_dot_equivalent: number;
+}
+
 export interface FellowshipSubtreasury {
   id: number;
   url: string | null;
@@ -295,10 +303,23 @@ export interface ExpressionColumn {
   alias: string; // Required display name for the result column
 }
 
+export interface JoinCondition {
+  left: string;           // Left side column (e.g., "Referenda.category_id")
+  right: string;          // Right side column (e.g., "c.id")
+}
+
+export interface JoinConfig {
+  type: 'LEFT' | 'INNER' | 'RIGHT';
+  table: string;          // Table name to join (e.g., "Categories")
+  alias?: string;         // Optional alias (e.g., "c")
+  on: JoinCondition;      // Join condition
+}
+
 export interface QueryConfig {
   sourceTable: string;
   columns: ColumnSelection[];
   expressionColumns?: ExpressionColumn[];
+  joins?: JoinConfig[];     // Array of joins
   filters: FilterCondition[];
   groupBy?: string[];
   orderBy?: OrderByConfig[];
@@ -363,6 +384,7 @@ export const TABLE_NAMES = {
   bounties: "Bounties",
   subtreasury: "Subtreasury",
   fellowshipSubtreasury: "Fellowship Subtreasury",
+  treasuryNetflows: "Treasury Netflows",
   // Dashboard tables
   dashboards: "Dashboards",
   dashboardComponents: "Dashboard Components",

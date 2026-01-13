@@ -166,6 +166,23 @@ export const api = {
       fetchJSON(`/subtreasury/${id}`, { method: "DELETE" }),
   },
 
+  treasuryNetflows: {
+    getAll: () => fetchJSON<unknown[]>("/treasury-netflows"),
+    import: (
+      items: Array<{
+        month: string;
+        asset_name: string;
+        flow_type: string;
+        amount_usd: number;
+        amount_dot_equivalent: number;
+      }>
+    ) =>
+      fetchJSON<{ success: boolean; count: number }>("/treasury-netflows/import", {
+        method: "POST",
+        body: JSON.stringify({ items }),
+      }),
+  },
+
   // Dashboards
   dashboards: {
     getAll: () => fetchJSON<unknown[]>("/dashboards"),
@@ -220,5 +237,6 @@ export const api = {
   sync: {
     getDefaultReferenda: () => fetchJSON<{ content: string }>("/sync/defaults/referenda"),
     getDefaultChildBounties: () => fetchJSON<{ content: string }>("/sync/defaults/child-bounties"),
+    getDefaultTreasuryNetflows: () => fetchJSON<{ content: string }>("/sync/defaults/treasury-netflows"),
   },
 };

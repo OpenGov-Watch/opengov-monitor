@@ -1,17 +1,10 @@
 import { Router } from "express";
-import { getReferenda, updateReferendum, bulkUpdateReferenda, type ReferendumImportItem } from "../db/queries.js";
+import { updateReferendum, bulkUpdateReferenda, type ReferendumImportItem } from "../db/queries.js";
 import { requireAuth } from "../middleware/auth.js";
 
 export const referendaRouter: Router = Router();
 
-referendaRouter.get("/", (_req, res) => {
-  try {
-    const data = getReferenda();
-    res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
-  }
-});
+// GET endpoint removed - use POST /api/query/execute with sourceTable: "Referenda"
 
 // Update a single referendum (all editable fields)
 referendaRouter.patch("/:id", requireAuth, (req, res) => {

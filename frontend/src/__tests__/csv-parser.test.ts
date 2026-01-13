@@ -9,6 +9,7 @@ import {
   parseCSV,
   parseReferendaCSV,
   parseChildBountiesCSV,
+  parseTreasuryNetflowsCSV,
 } from "../lib/csv-parser";
 
 describe("CSV Parser", () => {
@@ -234,6 +235,164 @@ invalid,Outreach
       const result = parseChildBountiesCSV(csv);
 
       expect(result[0].notes).toBe("Test note");
+    });
+  });
+
+  describe("parseTreasuryNetflowsCSV", () => {
+    it("parses basic treasury netflows format", () => {
+      const csv = `month,asset_name,flow_type,amount_usd,amount_dot_equivalent
+2025-01,DOT,fees,1000.50,500.25
+2025-01,USDC,proposals,-500.00,-250.00`;
+
+      const result = parseTreasuryNetflowsCSV(csv);
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({
+        month: "2025-01",
+        asset_name: "DOT",
+        flow_type: "fees",
+        amount_usd: 1000.50,
+        amount_dot_equivalent: 500.25,
+      });
+      expect(result[1]).toEqual({
+        month: "2025-01",
+        asset_name: "USDC",
+        flow_type: "proposals",
+        amount_usd: -500.00,
+        amount_dot_equivalent: -250.00,
+      });
+    });
+
+    it("handles negative values correctly", () => {
+      const csv = `month,asset_name,flow_type,amount_usd,amount_dot_equivalent
+2025-02,DOT,proposals,-1500.75,-750.50`;
+
+      const result = parseTreasuryNetflowsCSV(csv);
+
+      expect(result[0].amount_usd).toBe(-1500.75);
+      expect(result[0].amount_dot_equivalent).toBe(-750.50);
+    });
+
+    it("handles zero values", () => {
+      const csv = `month,asset_name,flow_type,amount_usd,amount_dot_equivalent
+2025-03,DOT,fees,0,0`;
+
+      const result = parseTreasuryNetflowsCSV(csv);
+
+      expect(result[0].amount_usd).toBe(0);
+      expect(result[0].amount_dot_equivalent).toBe(0);
+    });
+
+    it("handles large numbers", () => {
+      const csv = `month,asset_name,flow_type,amount_usd,amount_dot_equivalent
+2025-04,DOT,inflation,1000000.99,500000.50`;
+
+      const result = parseTreasuryNetflowsCSV(csv);
+
+      expect(result[0].amount_usd).toBe(1000000.99);
+      expect(result[0].amount_dot_equivalent).toBe(500000.50);
+    });
+
+    it("handles empty amount fields as zero", () => {
+      const csv = `month,asset_name,flow_type,amount_usd,amount_dot_equivalent
+2025-05,DOT,fees,,
+2025-05,USDC,proposals,100,`;
+
+      const result = parseTreasuryNetflowsCSV(csv);
+
+      expect(result[0].amount_usd).toBe(0);
+      expect(result[0].amount_dot_equivalent).toBe(0);
+      expect(result[1].amount_usd).toBe(100);
+      expect(result[1].amount_dot_equivalent).toBe(0);
+    });
+
+    it("handles invalid numeric values as zero", () => {
+      const csv = `month,asset_name,flow_type,amount_usd,amount_dot_equivalent
+2025-06,DOT,fees,invalid,not_a_number`;
+
+      const result = parseTreasuryNetflowsCSV(csv);
+
+      expect(result[0].amount_usd).toBe(0);
+      expect(result[0].amount_dot_equivalent).toBe(0);
+    });
+
+    it("filters out rows with missing required fields", () => {
+      const csv = `month,asset_name,flow_type,amount_usd,amount_dot_equivalent
+2025-07,DOT,fees,100,50
+,USDC,proposals,200,100
+2025-07,,proposals,300,150
+2025-07,DOT,,400,200
+2025-08,USDT,bounties,500,250`;
+
+      const result = parseTreasuryNetflowsCSV(csv);
+
+      // Only first and last rows should pass (have month, asset_name, and flow_type)
+      expect(result).toHaveLength(2);
+      expect(result[0].month).toBe("2025-07");
+      expect(result[0].asset_name).toBe("DOT");
+      expect(result[1].month).toBe("2025-08");
+      expect(result[1].asset_name).toBe("USDT");
+    });
+
+    it("trims whitespace from text fields", () => {
+      const csv = `month,asset_name,flow_type,amount_usd,amount_dot_equivalent
+  2025-09  ,  DOT  ,  fees  ,100,50`;
+
+      const result = parseTreasuryNetflowsCSV(csv);
+
+      expect(result[0].month).toBe("2025-09");
+      expect(result[0].asset_name).toBe("DOT");
+      expect(result[0].flow_type).toBe("fees");
+    });
+
+    it("handles multiple flow types for same month/asset", () => {
+      const csv = `month,asset_name,flow_type,amount_usd,amount_dot_equivalent
+2025-10,DOT,fees,100,50
+2025-10,DOT,inflation,200,100
+2025-10,DOT,proposals,-50,-25`;
+
+      const result = parseTreasuryNetflowsCSV(csv);
+
+      expect(result).toHaveLength(3);
+      expect(result[0].flow_type).toBe("fees");
+      expect(result[1].flow_type).toBe("inflation");
+      expect(result[2].flow_type).toBe("proposals");
+    });
+
+    it("handles multiple assets for same month", () => {
+      const csv = `month,asset_name,flow_type,amount_usd,amount_dot_equivalent
+2025-11,DOT,fees,100,50
+2025-11,USDC,fees,200,100
+2025-11,USDT,fees,300,150`;
+
+      const result = parseTreasuryNetflowsCSV(csv);
+
+      expect(result).toHaveLength(3);
+      expect(result[0].asset_name).toBe("DOT");
+      expect(result[1].asset_name).toBe("USDC");
+      expect(result[2].asset_name).toBe("USDT");
+    });
+
+    it("handles decimal precision", () => {
+      const csv = `month,asset_name,flow_type,amount_usd,amount_dot_equivalent
+2025-12,DOT,fees,1234.567890,9876.543210`;
+
+      const result = parseTreasuryNetflowsCSV(csv);
+
+      expect(result[0].amount_usd).toBe(1234.56789);
+      expect(result[0].amount_dot_equivalent).toBe(9876.54321);
+    });
+
+    it("returns empty array for CSV with only headers", () => {
+      const csv = `month,asset_name,flow_type,amount_usd,amount_dot_equivalent`;
+
+      const result = parseTreasuryNetflowsCSV(csv);
+
+      expect(result).toEqual([]);
+    });
+
+    it("returns empty array for empty content", () => {
+      expect(parseTreasuryNetflowsCSV("")).toEqual([]);
     });
   });
 });

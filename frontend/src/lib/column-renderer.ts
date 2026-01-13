@@ -115,6 +115,14 @@ function autoDetectConfig(columnName: string): ColumnRenderConfig {
     return { render: "currency", currency: "USDT", decimals: 2 };
   }
 
+  // Tally patterns (voting)
+  if (name === "tally.ayes" || name.endsWith(".ayes")) {
+    return { render: "number", color: "green", decimals: 0 };
+  }
+  if (name === "tally.nays" || name.endsWith(".nays")) {
+    return { render: "number", color: "red", decimals: 0 };
+  }
+
   // Date patterns
   if (name.includes("_time") || name.includes("_date") || name === "createdat") {
     return { render: "date", format: "date" };

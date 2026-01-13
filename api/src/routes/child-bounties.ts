@@ -1,17 +1,10 @@
 import { Router } from "express";
-import { getChildBounties, updateChildBounty, bulkUpdateChildBounties, type ChildBountyImportItem } from "../db/queries.js";
+import { updateChildBounty, bulkUpdateChildBounties, type ChildBountyImportItem } from "../db/queries.js";
 import { requireAuth } from "../middleware/auth.js";
 
 export const childBountiesRouter: Router = Router();
 
-childBountiesRouter.get("/", (_req, res) => {
-  try {
-    const data = getChildBounties();
-    res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
-  }
-});
+// GET endpoint removed - use POST /api/query/execute with sourceTable: "Child Bounties"
 
 // Update a single child bounty (all editable fields)
 childBountiesRouter.patch("/:identifier", requireAuth, (req, res) => {

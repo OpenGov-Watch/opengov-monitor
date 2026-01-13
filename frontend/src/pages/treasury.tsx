@@ -1,9 +1,7 @@
-import { useEffect, useState } from "react";
-import { api } from "@/api/client";
-import { treasuryColumns } from "@/components/tables/treasury-columns";
+import { useMemo } from "react";
 import { DataTable } from "@/components/data-table/data-table";
-import { DataTableSkeleton } from "@/components/data-table/skeleton";
 import { SavedView } from "@/hooks/use-view-state";
+import { QueryConfig } from "@/lib/db/types";
 import type { TreasurySpend } from "@/lib/db/types";
 
 // Default views for Treasury
@@ -33,26 +31,46 @@ const defaultTreasuryViews: SavedView[] = [
 ];
 
 export default function TreasuryPage() {
-  const [data, setData] = useState<TreasurySpend[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryConfig: QueryConfig = useMemo(() => ({
+    sourceTable: "Treasury",
+    columns: [
+      { column: "id" },
+      { column: "url" },
+      { column: "referendumIndex" },
+      { column: "status" },
+      { column: "description" },
+      { column: "DOT_proposal_time" },
+      { column: "USD_proposal_time" },
+      { column: "DOT_latest" },
+      { column: "USD_latest" },
+      { column: "DOT_component" },
+      { column: "USDC_component" },
+      { column: "USDT_component" },
+      { column: "proposal_time" },
+      { column: "latest_status_change" },
+      { column: "validFrom" },
+      { column: "expireAt" },
+    ],
+    filters: [],
+    orderBy: [{ column: "id", direction: "DESC" }],
+    limit: 1000
+  }), []);
 
-  useEffect(() => {
-    api.treasury
-      .getAll()
-      .then((res) => setData(res as TreasurySpend[]))
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (error) {
-    return (
-      <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-        <h2 className="font-semibold text-destructive">Error</h2>
-        <p className="text-sm text-muted-foreground mt-1">{error}</p>
-      </div>
-    );
-  }
+  const columnOverrides = useMemo(() => ({
+    description: {
+      cell: ({ row }: { row: any }) => {
+        const description = row.original.description as string;
+        return (
+          <div
+            className="max-w-[400px] truncate"
+            title={description}
+          >
+            {description || "No description"}
+          </div>
+        );
+      },
+    },
+  }), []);
 
   return (
     <div className="space-y-6">
@@ -62,17 +80,15 @@ export default function TreasuryPage() {
           Browse and filter treasury spend proposals
         </p>
       </div>
-      {loading ? (
-        <DataTableSkeleton />
-      ) : (
-        <DataTable
-          columns={treasuryColumns}
-          data={data}
-          tableName="treasury"
-          defaultSorting={[{ id: "id", desc: true }]}
-          defaultViews={defaultTreasuryViews}
-        />
-      )}
+      <DataTable<TreasurySpend>
+        mode="query"
+        queryConfig={queryConfig}
+        tableName="treasury"
+        facetedFilters={["status"]}
+        columnOverrides={columnOverrides}
+        defaultSorting={[{ id: "id", desc: true }]}
+        defaultViews={defaultTreasuryViews}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getDatabase } from "../db/index.js";
-import type { QueryConfig, FilterCondition, ExpressionColumn } from "../db/types.js";
+import type { QueryConfig, FilterCondition, ExpressionColumn, JoinConfig } from "../db/types.js";
 
 export const queryRouter: Router = Router();
 
@@ -13,7 +13,9 @@ const ALLOWED_SOURCES = new Set([
   "Fellowship Salary Cycles",
   "Fellowship Salary Claimants",
   "categories",
+  "Categories",  // For JOINs
   "bounties",
+  "Bounties",    // For JOINs
   "subtreasury",
   "Fellowship Subtreasury",
   "outstanding_claims",
@@ -208,6 +210,14 @@ function validateQueryConfig(config: QueryConfig): string | null {
     }
   }
 
+  // Validate joins
+  for (const join of config.joins || []) {
+    const joinError = validateJoinConfig(join);
+    if (joinError) {
+      return joinError;
+    }
+  }
+
   return null;
 }
 
@@ -302,12 +312,40 @@ function buildOrderByClause(orderBy?: { column: string; direction: "ASC" | "DESC
     .join(", ")}`;
 }
 
+function validateJoinConfig(join: JoinConfig): string | null {
+  const allowedTypes = new Set(['LEFT', 'INNER', 'RIGHT']);
+  if (!allowedTypes.has(join.type)) {
+    return `Invalid join type: ${join.type}`;
+  }
+  if (!ALLOWED_SOURCES.has(join.table)) {
+    return `Invalid join table: ${join.table}`;
+  }
+  if (!join.on || !join.on.left || !join.on.right) {
+    return 'Join condition must have left and right columns';
+  }
+  return null;
+}
+
+function buildJoinClause(joins?: JoinConfig[]): string {
+  if (!joins || joins.length === 0) return "";
+
+  return joins.map((join) => {
+    const tableName = sanitizeColumnName(join.table);
+    const alias = join.alias || "";
+    const tableExpr = alias ? `${tableName} AS ${alias}` : tableName;
+    const leftCol = sanitizeColumnName(join.on.left);
+    const rightCol = sanitizeColumnName(join.on.right);
+    return `${join.type} JOIN ${tableExpr} ON ${leftCol} = ${rightCol}`;
+  }).join(" ");
+}
+
 function buildQuery(config: QueryConfig): { sql: string; params: (string | number)[] } {
   // Get available columns for expression validation
   const availableColumns = getTableColumns(config.sourceTable);
 
   const selectClause = buildSelectClause(config, availableColumns);
   const tableName = `"${config.sourceTable}"`;
+  const joinClause = buildJoinClause(config.joins);
   const { clause: whereClause, params } = buildWhereClause(config.filters || []);
   const groupByClause = buildGroupByClause(config.groupBy);
   const orderByClause = buildOrderByClause(config.orderBy);
@@ -316,6 +354,7 @@ function buildQuery(config: QueryConfig): { sql: string; params: (string | numbe
   const sql = [
     `SELECT ${selectClause}`,
     `FROM ${tableName}`,
+    joinClause,
     whereClause,
     groupByClause,
     orderByClause,

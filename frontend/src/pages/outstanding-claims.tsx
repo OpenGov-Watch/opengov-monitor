@@ -1,45 +1,124 @@
-import { useEffect, useState } from "react";
-import { api } from "@/api/client";
-import { outstandingClaimsColumns } from "@/components/tables/outstanding-claims-columns";
+import { useMemo } from "react";
 import { DataTable } from "@/components/data-table/data-table";
-import { DataTableSkeleton } from "@/components/data-table/skeleton";
+import { Badge } from "@/components/ui/badge";
+import type { QueryConfig } from "@/lib/db/types";
 import type { OutstandingClaim } from "@/lib/db/types";
 
+function getExpiryVariant(
+  daysUntilExpiry: number | null
+): "default" | "secondary" | "destructive" | "outline" | "success" | "warning" {
+  if (daysUntilExpiry === null) return "outline";
+  if (daysUntilExpiry <= 7) return "destructive";
+  if (daysUntilExpiry <= 30) return "warning";
+  return "success";
+}
+
 export default function OutstandingClaimsPage() {
-  const [data, setData] = useState<OutstandingClaim[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryConfig: QueryConfig = useMemo(
+    () => ({
+      sourceTable: "outstanding_claims",
+      columns: [
+        { column: "validFrom" },
+        { column: "DOT_component" },
+        { column: "USDT_component" },
+        { column: "USDC_component" },
+        { column: "id" },
+        { column: "referendumIndex" },
+        { column: "description" },
+        { column: "url" },
+        { column: "expireAt" },
+        { column: "latest_status_change" },
+        { column: "days_until_expiry" },
+      ],
+      filters: [],
+      orderBy: [{ column: "days_until_expiry", direction: "ASC" }],
+      limit: 1000,
+    }),
+    []
+  );
 
-  useEffect(() => {
-    api.claims
-      .getOutstanding()
-      .then((res) => setData(res as OutstandingClaim[]))
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (error) {
-    return (
-      <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-        <h2 className="font-semibold text-destructive">Error</h2>
-        <p className="text-sm text-muted-foreground mt-1">{error}</p>
-      </div>
-    );
-  }
+  const columnOverrides = useMemo(
+    () => ({
+      id: {
+        cell: ({ row }: { row: any }) => {
+          const id = row.original.id;
+          return (
+            <a
+              href={`https://polkadot.subsquare.io/treasury/spends/${id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-blue-600 hover:underline"
+            >
+              #{id}
+            </a>
+          );
+        },
+      },
+      referendumIndex: {
+        cell: ({ row }: { row: any }) => {
+          const refIndex = row.original.referendumIndex;
+          return refIndex ? (
+            <a
+              href={`https://polkadot.subsquare.io/referenda/${refIndex}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline"
+            >
+              #{refIndex}
+            </a>
+          ) : (
+            "-"
+          );
+        },
+      },
+      description: {
+        cell: ({ row }: { row: any }) => {
+          const url = row.original.url;
+          const description = row.original.description;
+          return (
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="max-w-[350px] truncate block hover:underline text-blue-600"
+              title={description}
+            >
+              {description || "No description"}
+            </a>
+          );
+        },
+      },
+      days_until_expiry: {
+        cell: ({ row }: { row: any }) => {
+          const days = row.original.days_until_expiry;
+          const variant = getExpiryVariant(days);
+          return (
+            <Badge variant={variant} className="font-mono">
+              {days !== null ? `${days} days` : "-"}
+            </Badge>
+          );
+        },
+      },
+    }),
+    []
+  );
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Outstanding Claims</h1>
+        <h1 className="text-3xl font-bold tracking-tight">
+          Outstanding Claims
+        </h1>
         <p className="text-muted-foreground">
           Approved treasury claims not yet expired
         </p>
       </div>
-      {loading ? (
-        <DataTableSkeleton />
-      ) : (
-        <DataTable columns={outstandingClaimsColumns} data={data} tableName="outstanding-claims" />
-      )}
+      <DataTable<OutstandingClaim>
+        mode="query"
+        queryConfig={queryConfig}
+        tableName="outstanding-claims"
+        columnOverrides={columnOverrides}
+      />
     </div>
   );
 }

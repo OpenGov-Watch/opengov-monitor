@@ -161,6 +161,14 @@ export interface Subtreasury {
   url: string | null;
 }
 
+export interface TreasuryNetflow {
+  month: string;                    // YYYY-MM format
+  asset_name: string;
+  flow_type: string;
+  amount_usd: number;
+  amount_dot_equivalent: number;
+}
+
 export interface FellowshipSubtreasury {
   id: number;
   url: string | null;
@@ -295,10 +303,23 @@ export interface ExpressionColumn {
   alias: string; // Required display name for the result column
 }
 
+export interface JoinCondition {
+  left: string;           // Left side column (e.g., "Referenda.category_id")
+  right: string;          // Right side column (e.g., "c.id")
+}
+
+export interface JoinConfig {
+  type: 'LEFT' | 'INNER' | 'RIGHT';
+  table: string;          // Table name to join (e.g., "Categories")
+  alias?: string;         // Optional alias (e.g., "c")
+  on: JoinCondition;      // Join condition
+}
+
 export interface QueryConfig {
   sourceTable: string;
   columns: ColumnSelection[];
   expressionColumns?: ExpressionColumn[];
+  joins?: JoinConfig[];     // Array of joins
   filters: FilterCondition[];
   groupBy?: string[];
   orderBy?: OrderByConfig[];
@@ -339,4 +360,23 @@ export interface ChartConfig {
   showLegend?: boolean;
   showTooltip?: boolean;
   content?: string; // Markdown content for text components
+}
+
+// Edit Config for DataTable Auto-Column Generation
+
+export type EditableColumnType =
+  | 'category-selector'
+  | 'text'
+  | 'checkbox';
+
+export interface EditableColumnConfig {
+  type: EditableColumnType;
+  onUpdate: (id: any, value: any) => void | Promise<void>;
+  categories?: Category[];  // For category-selector
+  placeholder?: string;     // For text
+}
+
+export interface DataTableEditConfig {
+  editableColumns: Record<string, EditableColumnConfig>;
+  idField?: string;  // Default: "id"
 }
