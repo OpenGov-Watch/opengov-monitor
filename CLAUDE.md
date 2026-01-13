@@ -57,6 +57,7 @@ python scripts/run_sqlite.py --db ../data/polkadot.db
 pnpm migrate              # Run pending migrations
 pnpm migrate:create --name add_field --type sql  # Create new migration
 pnpm migrate:baseline --version N  # Mark migrations up to N as applied (for existing DBs)
+# Note: Windows users change .venv/bin/python to .venv/Scripts/python.exe in package.json
 ```
 
 ## Gotchas
