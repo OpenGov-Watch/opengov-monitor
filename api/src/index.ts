@@ -40,28 +40,12 @@ ensureUsersTable();
 // Trust proxy for secure cookies behind nginx/reverse proxy
 app.set("trust proxy", 1);
 
-// CORS configuration - origins from environment variable
-// Production: Set CORS_ORIGINS=https://your-domain.com in environment
-const ALLOWED_ORIGINS = process.env.CORS_ORIGINS
-  ? process.env.CORS_ORIGINS.split(",").map((s) => s.trim())
-  : [
-      // Development defaults
-      "http://localhost:3000",
-      "http://localhost:5173",
-      "http://127.0.0.1:3000",
-      "http://127.0.0.1:5173",
-    ];
-
+// CORS configuration - allow all origins
+// In production, nginx proxies make requests same-origin from browser perspective
+// CSRF protection should be used instead of CORS for cookie-based auth security
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like same-origin or curl)
-      if (!origin || ALLOWED_ORIGINS.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
+    origin: true, // Allow all origins
     credentials: true, // Required for cookies
   })
 );
