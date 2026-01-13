@@ -1,0 +1,2 @@
+# This directory contains migration files
+# Migrations are numbered sequentially: 001_name.sql, 002_name.py, etc.
