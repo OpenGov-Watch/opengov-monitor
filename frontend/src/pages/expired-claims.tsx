@@ -112,7 +112,6 @@ export default function ExpiredClaimsPage() {
         </p>
       </div>
       <DataTable<ExpiredClaim>
-        mode="query"
         queryConfig={queryConfig}
         tableName="expired-claims"
         columnOverrides={columnOverrides}

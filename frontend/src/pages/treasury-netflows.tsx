@@ -1,31 +1,60 @@
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
 import { DataTable } from "@/components/data-table/data-table";
-import { treasuryNetflowsColumns } from "@/components/tables/treasury-netflows-columns";
-import { api } from "@/api/client";
-import { Loader2 } from "lucide-react";
-import type { TreasuryNetflow } from "@/lib/db/types";
+import type { TreasuryNetflow, QueryConfig } from "@/lib/db/types";
 
 export default function TreasuryNetflowsPage() {
-  const [data, setData] = useState<TreasuryNetflow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryConfig: QueryConfig = useMemo(
+    () => ({
+      sourceTable: "treasury_netflows",
+      columns: [
+        { column: "month" },
+        { column: "asset_name" },
+        { column: "flow_type" },
+        { column: "amount_usd" },
+        { column: "amount_dot_equivalent" },
+      ],
+      filters: [],
+      orderBy: [{ column: "month", direction: "DESC" }],
+      limit: 10000,
+    }),
+    []
+  );
 
-  useEffect(() => {
-    api.treasuryNetflows
-      .getAll()
-      .then((result) => setData(result as TreasuryNetflow[]))
-      .catch((error) => {
-        console.error("Failed to load treasury netflows:", error);
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  const columnOverrides = useMemo(
+    () => ({
+      month: {
+        header: "Month",
+      },
+      asset_name: {
+        header: "Asset",
+      },
+      flow_type: {
+        header: "Flow Type",
+      },
+      amount_usd: {
+        header: "Amount (USD)",
+        cell: ({ row }: { row: any }) => {
+          const value = row.original.amount_usd as number;
+          const formatted = Math.abs(value).toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          });
+          return value < 0 ? `-$${formatted}` : `$${formatted}`;
+        },
+      },
+      amount_dot_equivalent: {
+        header: "Amount (DOT)",
+        cell: ({ row }: { row: any }) => {
+          const value = row.original.amount_dot_equivalent as number;
+          return value.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          });
+        },
+      },
+    }),
+    []
+  );
 
   return (
     <div className="space-y-4">
@@ -35,10 +64,10 @@ export default function TreasuryNetflowsPage() {
           Quarterly treasury flow data tracking inflows and outflows by asset and type
         </p>
       </div>
-      <DataTable
-        columns={treasuryNetflowsColumns}
-        data={data}
+      <DataTable<TreasuryNetflow>
+        queryConfig={queryConfig}
         tableName="treasury-netflows"
+        columnOverrides={columnOverrides}
       />
     </div>
   );

@@ -23,6 +23,7 @@ interface DataTableToolbarProps<TData> {
   tableName: string;
   viewMode?: "table" | "card";
   onViewModeChange?: (mode: "table" | "card") => void;
+  compactMode?: boolean;
 }
 
 export function DataTableToolbar<TData>({
@@ -33,6 +34,7 @@ export function DataTableToolbar<TData>({
   tableName,
   viewMode = "table",
   onViewModeChange,
+  compactMode = false,
 }: DataTableToolbarProps<TData>) {
   const isFiltered =
     table.getState().columnFilters.length > 0 || globalFilter.length > 0;
@@ -50,14 +52,22 @@ export function DataTableToolbar<TData>({
   };
 
   return (
-    <div className="flex items-center justify-between gap-2 flex-wrap">
-      <div className="flex flex-1 items-center space-x-2 min-w-0">
+    <div className={cn(
+      "flex items-center justify-between flex-wrap",
+      compactMode ? "gap-1" : "gap-2"
+    )}>
+      <div className={cn(
+        "flex flex-1 items-center min-w-0",
+        compactMode ? "space-x-1" : "space-x-2"
+      )}>
         {/* Global Search */}
         <Input
           placeholder="Search all columns..."
           value={globalFilter}
           onChange={(e) => setGlobalFilter(e.target.value)}
-          className="h-8 w-full sm:w-[250px]"
+          className={cn(
+            compactMode ? "h-7 w-full sm:w-[150px]" : "h-8 w-full sm:w-[250px]"
+          )}
         />
 
         {/* Clear Filters */}
@@ -68,7 +78,10 @@ export function DataTableToolbar<TData>({
               table.resetColumnFilters();
               setGlobalFilter("");
             }}
-            className="h-8 px-2 lg:px-3"
+            className={cn(
+              "px-2 lg:px-3",
+              compactMode ? "h-7" : "h-8"
+            )}
           >
             Reset
             <X className="ml-2 h-4 w-4" />
@@ -76,7 +89,10 @@ export function DataTableToolbar<TData>({
         )}
       </div>
 
-      <div className="flex items-center space-x-2 flex-shrink-0">
+      <div className={cn(
+        "flex items-center flex-shrink-0",
+        compactMode ? "space-x-1" : "space-x-2"
+      )}>
         {/* View Mode Toggle */}
         {onViewModeChange && (
           <div className="flex items-center border rounded-md">
@@ -84,7 +100,11 @@ export function DataTableToolbar<TData>({
               variant={viewMode === "table" ? "secondary" : "ghost"}
               size="sm"
               onClick={() => onViewModeChange("table")}
-              className={cn("h-8 px-3 rounded-r-none", viewMode === "table" && "bg-secondary")}
+              className={cn(
+                "px-3 rounded-r-none",
+                compactMode ? "h-7" : "h-8",
+                viewMode === "table" && "bg-secondary"
+              )}
               title="Table view"
             >
               <TableIcon className="h-4 w-4" />
@@ -93,7 +113,11 @@ export function DataTableToolbar<TData>({
               variant={viewMode === "card" ? "secondary" : "ghost"}
               size="sm"
               onClick={() => onViewModeChange("card")}
-              className={cn("h-8 px-3 rounded-l-none", viewMode === "card" && "bg-secondary")}
+              className={cn(
+                "px-3 rounded-l-none",
+                compactMode ? "h-7" : "h-8",
+                viewMode === "card" && "bg-secondary"
+              )}
               title="Card view"
             >
               <LayoutGrid className="h-4 w-4" />
@@ -101,18 +125,24 @@ export function DataTableToolbar<TData>({
           </div>
         )}
 
-        <div className="hidden md:flex items-center space-x-2">
-          {/* Reset View */}
-          <Button variant="outline" size="sm" onClick={onClearView} className="h-8">
-            <RotateCcw className="mr-2 h-4 w-4" />
-            <span className="hidden lg:inline">Reset</span>
-          </Button>
-        </div>
+        {!compactMode && (
+          <div className="hidden md:flex items-center space-x-2">
+            {/* Reset View */}
+            <Button variant="outline" size="sm" onClick={onClearView} className="h-8">
+              <RotateCcw className="mr-2 h-4 w-4" />
+              <span className="hidden lg:inline">Reset</span>
+            </Button>
+          </div>
+        )}
 
         {/* Export Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8">
+            <Button
+              variant="outline"
+              size="sm"
+              className={compactMode ? "h-7" : "h-8"}
+            >
               <Download className="mr-2 h-4 w-4" />
               <span className="hidden sm:inline">Export</span>
             </Button>

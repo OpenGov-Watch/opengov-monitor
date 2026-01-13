@@ -116,7 +116,6 @@ export default function FellowshipSalaryClaimantsPage() {
         </p>
       </div>
       <DataTable<FellowshipSalaryClaimant>
-        mode="query"
         queryConfig={queryConfig}
         tableName="fellowship-salary-claimants"
         facetedFilters={["status_type"]}

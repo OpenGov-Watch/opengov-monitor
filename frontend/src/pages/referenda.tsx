@@ -128,7 +128,6 @@ export default function ReferendaPage() {
         </p>
       </div>
       <DataTable<Referendum>
-        mode="query"
         queryConfig={queryConfig}
         tableName="referenda"
         editConfig={editConfig}

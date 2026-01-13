@@ -60,7 +60,6 @@ export default function FellowshipPage() {
         </p>
       </div>
       <DataTable<Fellowship>
-        mode="query"
         queryConfig={queryConfig}
         tableName="fellowship"
         facetedFilters={["status"]}
