@@ -65,4 +65,5 @@ Start both with `pnpm run dev` from root, or API won't be available.
 ## References
 
 - [Data models](../docs/spec/data-models.md) - Table schemas, views
+- [Table systems](../docs/spec/frontend/tables.md) - DataTable & Dashboard table architecture
 - [Gotchas](../docs/gotchas.md) - Project-specific quirks

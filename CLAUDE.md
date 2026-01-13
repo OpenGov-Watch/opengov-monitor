@@ -62,9 +62,10 @@ python scripts/run_sqlite.py --db ../data/polkadot.db
 |-------|----------|
 | System overview | [docs/architecture.md](docs/architecture.md) |
 | Project-specific quirks | [docs/gotchas.md](docs/gotchas.md) |
-| Entity schemas | [docs/spec/data-models.md](docs/spec/data-models.md) |
-| Business logic rules | [docs/spec/business-rules.md](docs/spec/business-rules.md) |
-| API validation | [docs/spec/validation.md](docs/spec/validation.md) |
+| Data schemas (shared) | [docs/spec/data-models.md](docs/spec/data-models.md) |
+| Frontend table system | [docs/spec/frontend/tables.md](docs/spec/frontend/tables.md) |
+| Backend business rules | [backend/docs/spec/business-rules.md](backend/docs/spec/business-rules.md) |
+| API validation | [api/docs/spec/validation.md](api/docs/spec/validation.md) |
 
 ## Tool Usage
 

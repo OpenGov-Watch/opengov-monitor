@@ -58,5 +58,5 @@ fetch_limits:
 ## References
 
 - [Data models](../docs/spec/data-models.md) - Table schemas, views
-- [Business rules](../docs/spec/business-rules.md) - Value extraction, XCM parsing
+- [Business rules](docs/spec/business-rules.md) - Value extraction, XCM parsing
 - [Gotchas](../docs/gotchas.md) - External API quirks (timestamp units, etc.)

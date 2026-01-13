@@ -38,5 +38,5 @@ pnpm test:run     # Run tests
 
 ## References
 
-- [Validation rules](../docs/spec/validation.md) - API validation and error responses
+- [Validation rules](docs/spec/validation.md) - API validation and error responses
 - [Data models](../docs/spec/data-models.md) - Table schemas
