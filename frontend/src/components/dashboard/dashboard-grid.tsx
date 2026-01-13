@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import GridLayout from "react-grid-layout/legacy";
-import type { Layout, Layouts } from "react-grid-layout";
+import ReactGridLayout from "react-grid-layout/legacy";
+import type { Layout } from "react-grid-layout";
 import { DashboardComponent } from "./dashboard-component";
 import type {
   DashboardComponent as DashboardComponentType,
@@ -11,7 +11,12 @@ import type {
 
 import "react-grid-layout/css/styles.css";
 
-const ResponsiveGridLayout = GridLayout.WidthProvider(GridLayout.Responsive);
+// Define Layouts type for responsive breakpoints
+type Layouts = {
+  [breakpoint: string]: Layout[];
+};
+
+const ResponsiveGridLayout = ReactGridLayout.WidthProvider(ReactGridLayout.Responsive);
 
 interface DashboardGridProps {
   components: DashboardComponentType[];
