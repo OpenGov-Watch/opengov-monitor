@@ -822,6 +822,62 @@ For production issues:
 3. **Validation**: Checksum verification prevents tampering
 4. **Logging**: All migrations logged for audit trail
 
+## Handling Existing Databases
+
+When deploying the migration system to a database that already has tables, you need to establish a **baseline** to prevent migrations from trying to recreate existing structures.
+
+### Baseline Process
+
+The `baseline.py` script marks migrations as "already applied" without executing them:
+
+```bash
+pnpm migrate:baseline --version N
+```
+
+This inserts records into `schema_migrations` for all migrations up to version N with:
+- Correct checksums from the migration files
+- `execution_time_ms` set to 0 (indicating baseline)
+- Current timestamp
+
+### Recommended Approach for Production
+
+**Before deploying the migration system to production:**
+
+1. **Create initial snapshot migration locally:**
+   ```bash
+   pnpm migrate:create --name initial_schema --type sql
+   sqlite3 data/polkadot.db .schema > backend/migrations/versions/001_initial_schema.sql
+   ```
+
+2. **Commit and deploy** the migration system with version 001
+
+3. **On production**, baseline the database:
+   ```bash
+   # Inside the container or on the server
+   python backend/migrations/baseline.py --db /data/polkadot.db --version 1
+   ```
+
+4. **Future migrations** (002, 003, etc.) will run normally
+
+### Alternative: Start from Version 0
+
+If you don't want a snapshot migration:
+
+```bash
+# On production
+pnpm migrate:baseline --version 0
+```
+
+Then start creating migrations from version 001 that only contain new changes.
+
+### Safety Checks
+
+The baseline script:
+- Verifies the migrations directory exists
+- Computes correct checksums for each migration
+- Skips migrations already marked as applied
+- Reports what it's doing for audit purposes
+
 ## Future Enhancements
 
 ### Phase 2 Features

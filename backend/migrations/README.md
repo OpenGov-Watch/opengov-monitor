@@ -120,6 +120,51 @@ git commit -m "feat: add priority field"
 
 Push to GitHub. Docker container will automatically run migrations on startup.
 
+## Existing Databases
+
+If you're deploying the migration system to an **existing production database** that already has tables, you need to establish a baseline first.
+
+### Option 1: Create Initial Snapshot Migration (Recommended)
+
+1. **Create a snapshot migration** that reflects your current schema:
+   ```bash
+   pnpm migrate:create --name initial_schema --type sql
+   ```
+
+2. **Export current schema** to the migration file:
+   ```bash
+   sqlite3 data/polkadot.db .schema > backend/migrations/versions/001_initial_schema.sql
+   ```
+
+3. **On production**, baseline the database to mark this migration as applied:
+   ```bash
+   pnpm migrate:baseline --version 1
+   ```
+
+4. Future migrations (002, 003, etc.) will then be applied normally.
+
+### Option 2: Baseline Without Initial Migration
+
+If you don't want to create a snapshot migration, you can start from version 0:
+
+```bash
+# On production database
+pnpm migrate:baseline --version 0
+```
+
+Then create your first real migration as version 001.
+
+### Baseline Command
+
+```bash
+pnpm migrate:baseline --version N
+```
+
+This marks all migrations up to version N as "already applied" without actually running them. Use this when:
+- Deploying migrations to an existing production database
+- Recovering from migration issues
+- Setting up a new environment with pre-existing schema
+
 ## Common Patterns
 
 ### Adding a Column

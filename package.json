@@ -9,7 +9,8 @@
     "api:dev": "pnpm --filter api run dev",
     "frontend:dev": "pnpm --filter opengov-monitor-frontend run dev",
     "migrate": "cd backend && python migrations/migration_runner.py --db ../data/polkadot.db",
-    "migrate:create": "cd backend && python migrations/create_migration.py"
+    "migrate:create": "cd backend && python migrations/create_migration.py",
+    "migrate:baseline": "cd backend && python migrations/baseline.py --db ../data/polkadot.db"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
