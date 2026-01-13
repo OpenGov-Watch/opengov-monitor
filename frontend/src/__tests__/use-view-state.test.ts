@@ -285,18 +285,20 @@ describe("useViewState", () => {
   });
 
   describe("getSavedViews", () => {
-    it("returns list of saved table names", () => {
-      localStorageMock.setItem("opengov-view-referenda", "{}");
-      localStorageMock.setItem("opengov-view-treasury", "{}");
-      localStorageMock.setItem("other-key", "{}");
+    it("returns list of saved views for the table", () => {
+      const mockViews = [
+        { name: "view1", state: { sorting: [], columnFilters: [], columnVisibility: {}, globalFilter: "", pagination: { pageIndex: 0, pageSize: 10 } } },
+        { name: "view2", state: { sorting: [], columnFilters: [], columnVisibility: {}, globalFilter: "", pagination: { pageIndex: 0, pageSize: 20 } } },
+      ];
+      localStorageMock.setItem("opengov-views-test-table", JSON.stringify(mockViews));
 
       const { result } = renderHook(() => useViewState("test-table"));
 
       const savedViews = result.current.getSavedViews();
 
-      expect(savedViews).toContain("referenda");
-      expect(savedViews).toContain("treasury");
-      expect(savedViews).not.toContain("other-key");
+      expect(savedViews).toHaveLength(2);
+      expect(savedViews[0].name).toBe("view1");
+      expect(savedViews[1].name).toBe("view2");
     });
 
     it("returns empty array when no views saved", () => {

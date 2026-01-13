@@ -69,3 +69,10 @@ python scripts/run_sqlite.py --db ../data/polkadot.db
 ## Tool Usage
 
 - Bash: Don't chain commands with `&&`. Run them sequentially instead.
+
+## Before Committing
+Always run these commands and ensure they pass before committing:
+- Build: `npm run build`  
+- Test: `npm test`
+
+If either fails, fix the issues before committing.
