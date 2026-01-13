@@ -44,6 +44,8 @@ docs/spec/         Detailed specifications
 pnpm run dev          # Start API + frontend (dynamic ports)
 pnpm api:dev          # API only (:3001)
 pnpm frontend:dev     # Frontend only (:3000)
+pnpm run build        # Build all packages (API + frontend)
+pnpm test             # Run all tests (API + frontend)
 
 # Backend data sync
 cd backend && source .venv/bin/activate
@@ -68,12 +70,11 @@ python scripts/run_sqlite.py --db ../data/polkadot.db
 | API validation | [api/docs/spec/validation.md](api/docs/spec/validation.md) |
 
 ## Tool Usage
-
 - Bash: Don't chain commands with `&&`. Run them sequentially instead.
 
 ## Before Committing
 Always run these commands and ensure they pass before committing:
-- Build: `npm run build`  
-- Test: `npm test`
+- Build: `pnpm run build`  
+- Test: `pnpm test`
 
 If either fails, fix the issues before committing.

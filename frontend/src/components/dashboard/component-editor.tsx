@@ -333,11 +333,11 @@ export function ComponentEditor({
 
               {/* Chart Config - show when we have preview data and it's a chart type */}
               {previewData.length > 0 && type !== "table" && (
-                <div className="space-y-4 p-4 border rounded-md bg-muted/30">
+                <div className="space-y-4 p-4 border rounded-md bg-muted/50">
                   <Label>Chart Options</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-sm text-muted-foreground">Label Column</Label>
+                      <Label className="text-sm">Label Column</Label>
                       <Select
                         value={chartConfig.labelColumn || ""}
                         onValueChange={(v) =>
@@ -361,7 +361,7 @@ export function ComponentEditor({
                     </div>
                     {type === "pie" && (
                       <div className="space-y-2">
-                        <Label className="text-sm text-muted-foreground">Value Column</Label>
+                        <Label className="text-sm">Value Column</Label>
                         <Select
                           value={chartConfig.valueColumn || ""}
                           onValueChange={(v) =>
