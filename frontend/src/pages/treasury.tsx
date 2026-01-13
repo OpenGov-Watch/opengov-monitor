@@ -22,8 +22,8 @@ const defaultTreasuryViews: SavedView[] = [
   {
     name: "Positive DOT Value",
     state: {
-      sorting: [{ id: "DOT_proposal_time", desc: true }],
-      columnFilters: [],
+      sorting: [{ id: "id", desc: true }],
+      columnFilters: [{ id: "DOT_proposal_time", value: "positive" }],
       columnVisibility: {},
       globalFilter: "",
       pagination: { pageIndex: 0, pageSize: 100 },

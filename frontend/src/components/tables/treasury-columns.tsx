@@ -96,6 +96,13 @@ export const treasuryColumns: ColumnDef<TreasurySpend>[] = [
         {formatNumber(row.getValue("DOT_proposal_time"))}
       </div>
     ),
+    filterFn: (row, id, value) => {
+      const cellValue = row.getValue(id) as number;
+      if (value === "positive") {
+        return cellValue > 0;
+      }
+      return true;
+    },
   },
   {
     accessorKey: "USD_proposal_time",
