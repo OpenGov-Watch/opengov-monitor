@@ -50,6 +50,19 @@ interface DataTableProps<TData> {
   footerCells?: FooterCell[];
   footerLabel?: string;
   compactMode?: boolean;
+
+  // Dashboard mode configuration
+  dashboardMode?: boolean;
+  dashboardComponentId?: string;
+
+  // Feature visibility control
+  hideViewSelector?: boolean;
+  toolbarCollapsible?: boolean;
+  initialToolbarCollapsed?: boolean;
+
+  // Controlled toolbar collapse state (for dashboard integration)
+  toolbarCollapsed?: boolean;
+  onToolbarCollapseChange?: (collapsed: boolean) => void;
 }
 
 export function DataTable<TData>({
@@ -65,7 +78,18 @@ export function DataTable<TData>({
   footerCells,
   footerLabel,
   compactMode = false,
+  dashboardMode = false,
+  dashboardComponentId,
+  hideViewSelector: hideViewSelectorProp,
+  toolbarCollapsible: toolbarCollapsibleProp,
+  initialToolbarCollapsed: initialToolbarCollapsedProp,
+  toolbarCollapsed,
+  onToolbarCollapseChange,
 }: DataTableProps<TData>) {
+  // Apply defaults based on dashboardMode
+  const hideViewSelector = hideViewSelectorProp ?? dashboardMode;
+  const toolbarCollapsible = toolbarCollapsibleProp ?? dashboardMode;
+  const initialToolbarCollapsed = initialToolbarCollapsedProp ?? dashboardMode;
   // VIEW STATE MANAGEMENT (moved before queryConfig to access sorting/filtering)
   const {
     sorting,
@@ -212,7 +236,7 @@ export function DataTable<TData>({
   // RENDER
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4">
-      {!compactMode && (
+      {!hideViewSelector && (
         <ViewSelector
           views={getSavedViews()}
           currentViewName={currentViewName}
@@ -228,6 +252,11 @@ export function DataTable<TData>({
         viewMode={viewMode}
         onViewModeChange={compactMode ? undefined : setViewMode}
         compactMode={compactMode}
+        toolbarCollapsible={toolbarCollapsible}
+        dashboardComponentId={dashboardComponentId}
+        initialToolbarCollapsed={initialToolbarCollapsed}
+        toolbarCollapsed={toolbarCollapsed}
+        onToolbarCollapseChange={onToolbarCollapseChange}
       />
 
       {viewMode === "card" ? (
