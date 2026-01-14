@@ -14,7 +14,6 @@ const SalaryClaimantsPage = lazy(() => import("@/pages/fellowship-salary-claiman
 const SpendingPage = lazy(() => import("@/pages/spending"));
 const OutstandingClaimsPage = lazy(() => import("@/pages/outstanding-claims"));
 const ExpiredClaimsPage = lazy(() => import("@/pages/expired-claims"));
-const LogsPage = lazy(() => import("@/pages/logs"));
 const ManageCategoriesPage = lazy(() => import("@/pages/manage/categories"));
 const ManageBountiesPage = lazy(() => import("@/pages/manage/bounties"));
 const ManageSubtreasuryPage = lazy(() => import("@/pages/manage/subtreasury"));
@@ -62,7 +61,6 @@ export const router = createBrowserRouter([
       { path: "spending", element: withSuspense(SpendingPage) },
       { path: "outstanding-claims", element: withSuspense(OutstandingClaimsPage) },
       { path: "expired-claims", element: withSuspense(ExpiredClaimsPage) },
-      { path: "logs", element: withSuspense(LogsPage) },
       { path: "manage/categories", element: withSuspense(ManageCategoriesPage) },
       { path: "manage/bounties", element: withSuspense(ManageBountiesPage) },
       { path: "manage/subtreasury", element: withSuspense(ManageSubtreasuryPage) },

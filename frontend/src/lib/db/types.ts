@@ -208,16 +208,6 @@ export interface OutstandingClaim {
   days_until_valid: number | null;
 }
 
-// Log entries from logs/app.db
-export interface LogEntry {
-  id: number;
-  timestamp: string;
-  source: string;
-  log_level: string;
-  content: string;
-  extra: string | null;
-}
-
 export interface ExpiredClaim {
   id: number;
   url: string;

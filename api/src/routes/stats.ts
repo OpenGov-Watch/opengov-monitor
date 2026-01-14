@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getRowCount, tableExists, viewExists, isDatabaseAccessible, isLogDatabaseAccessible, getLogCount } from "../db/queries.js";
+import { getRowCount, tableExists, viewExists, isDatabaseAccessible } from "../db/queries.js";
 import { TABLE_NAMES, VIEW_NAMES } from "../db/types.js";
 
 export const statsRouter: Router = Router();
@@ -69,15 +69,6 @@ statsRouter.get("/", (_req, res) => {
     // Dashboards
     if (tableExists(TABLE_NAMES.dashboards)) {
       stats.dashboards = safeGetRowCount(TABLE_NAMES.dashboards);
-    }
-
-    // Log database
-    if (isLogDatabaseAccessible()) {
-      try {
-        stats.logs = getLogCount();
-      } catch {
-        stats.logs = null;
-      }
     }
 
     res.json(stats);

@@ -10,7 +10,6 @@ import {
   UserCheck,
   Clock,
   TimerOff,
-  ScrollText,
   PieChart,
   Tags,
   Coins,
@@ -98,11 +97,6 @@ const authenticatedNavigation: NavSection[] = [
       { name: "Subtreasury", href: "/manage/subtreasury", icon: FileBox },
       { name: "Sync Settings", href: "/manage/sync", icon: RefreshCw },
     ],
-    requiresAuth: true,
-  },
-  {
-    title: "System",
-    items: [{ name: "Logs", href: "/logs", icon: ScrollText }],
     requiresAuth: true,
   },
 ];

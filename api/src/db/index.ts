@@ -13,14 +13,9 @@ const DB_PATH =
   process.env.DATABASE_PATH ||
   path.join(PROJECT_ROOT, "data", "polkadot.db");
 
-const LOG_DB_PATH =
-  process.env.LOG_DATABASE_PATH ||
-  path.join(PROJECT_ROOT, "logs", "app.db");
-
 // Singleton pattern for database connections
 let db: Database.Database | null = null;
 let writeDb: Database.Database | null = null;
-let logDb: Database.Database | null = null;
 
 export function getDatabase(): Database.Database {
   if (!db) {
@@ -38,18 +33,6 @@ export function getWritableDatabase(): Database.Database {
   return writeDb;
 }
 
-export function getLogDatabase(): Database.Database {
-  if (!logDb) {
-    logDb = new Database(LOG_DB_PATH, { readonly: true });
-    logDb.pragma("journal_mode = WAL");
-  }
-  return logDb;
-}
-
-export function logDatabaseExists(): boolean {
-  return fs.existsSync(LOG_DB_PATH);
-}
-
 export function closeDatabase(): void {
   if (db) {
     db.close();
@@ -61,11 +44,4 @@ export function closeDatabase(): void {
   }
 }
 
-export function closeLogDatabase(): void {
-  if (logDb) {
-    logDb.close();
-    logDb = null;
-  }
-}
-
-export { DB_PATH, LOG_DB_PATH };
+export { DB_PATH };

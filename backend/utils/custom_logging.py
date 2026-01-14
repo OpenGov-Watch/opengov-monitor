@@ -1,12 +1,9 @@
 import logging
 import logging.handlers
 import json
-import os
-
-from .log_handler import SQLiteHandler
 
 
-def setup_logging(log_db_path=None):
+def setup_logging():
     """Setup comprehensive logging configuration for the application."""
     
     class ExtraFormatter(logging.Formatter):
@@ -59,13 +56,6 @@ def setup_logging(log_db_path=None):
     memory_handler = logging.handlers.MemoryHandler(capacity=1024*10, target=None)
     memory_handler.setFormatter(console_formatter)
     root_logger.addHandler(memory_handler)
-
-    # Add SQLite handler for persistent log storage
-    if log_db_path is None:
-        log_db_path = os.environ.get('OPENGOV_MONITOR_LOG_DB', 'logs/app.db')
-    sqlite_handler = SQLiteHandler(db_path=log_db_path)
-    sqlite_handler.setLevel(logging.DEBUG)
-    root_logger.addHandler(sqlite_handler)
 
     # Keep existing logger configurations from main.py
     logging.getLogger("yfinance").setLevel(logging.WARNING)

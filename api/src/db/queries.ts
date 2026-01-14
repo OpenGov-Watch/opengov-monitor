@@ -1,4 +1,4 @@
-import { getDatabase, getWritableDatabase, getLogDatabase, logDatabaseExists } from "./index";
+import { getDatabase, getWritableDatabase } from "./index";
 import type {
   Referendum,
   TreasurySpend,
@@ -8,7 +8,6 @@ import type {
   FellowshipSalaryClaimant,
   OutstandingClaim,
   ExpiredClaim,
-  LogEntry,
   Category,
   Bounty,
   Subtreasury,
@@ -71,37 +70,6 @@ export function isDatabaseAccessible(): boolean {
   } catch {
     return false;
   }
-}
-
-// Log database queries
-
-export function getLogs(): LogEntry[] {
-  const db = getLogDatabase();
-  return db
-    .prepare("SELECT * FROM logs ORDER BY timestamp DESC")
-    .all() as LogEntry[];
-}
-
-export function isLogDatabaseAccessible(): boolean {
-  // Check file exists first to avoid caching a failed connection
-  if (!logDatabaseExists()) {
-    return false;
-  }
-  try {
-    const db = getLogDatabase();
-    db.prepare("SELECT 1").get();
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function getLogCount(): number {
-  const db = getLogDatabase();
-  const result = db.prepare("SELECT COUNT(*) as count FROM logs").get() as {
-    count: number;
-  };
-  return result.count;
 }
 
 // Manual Tables - Categories

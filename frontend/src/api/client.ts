@@ -99,9 +99,6 @@ export const api = {
   spending: {
     getAll: () => fetchJSON<unknown[]>("/spending"),
   },
-  logs: {
-    getAll: () => fetchJSON<unknown[]>("/logs"),
-  },
   stats: {
     get: () => fetchJSON<Record<string, number | null>>("/stats"),
   },

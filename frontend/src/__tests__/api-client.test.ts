@@ -508,12 +508,6 @@ describe("API Client", () => {
       expect(mockFetch).toHaveBeenCalledWith("/api/spending", expect.any(Object));
     });
 
-    it("logs.getAll fetches logs", async () => {
-      mockFetch.mockImplementationOnce(() => mockResponse([]));
-      await api.logs.getAll();
-      expect(mockFetch).toHaveBeenCalledWith("/api/logs", expect.any(Object));
-    });
-
     it("stats.get fetches stats", async () => {
       mockFetch.mockImplementationOnce(() => mockResponse({}));
       await api.stats.get();
