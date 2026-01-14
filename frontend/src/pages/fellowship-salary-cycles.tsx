@@ -55,7 +55,6 @@ export default function FellowshipSalaryCyclesPage() {
         </p>
       </div>
       <DataTable<FellowshipSalaryCycle>
-        mode="query"
         queryConfig={queryConfig}
         tableName="fellowship-salary-cycles"
         columnOverrides={columnOverrides}

@@ -81,7 +81,6 @@ export default function TreasuryPage() {
         </p>
       </div>
       <DataTable<TreasurySpend>
-        mode="query"
         queryConfig={queryConfig}
         tableName="treasury"
         facetedFilters={["status"]}

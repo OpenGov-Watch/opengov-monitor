@@ -196,7 +196,6 @@ export default function ChildBountiesPage() {
         </p>
       </div>
       <DataTable<ChildBounty>
-        mode="query"
         queryConfig={queryConfig}
         tableName="child-bounties"
         editConfig={editConfig}

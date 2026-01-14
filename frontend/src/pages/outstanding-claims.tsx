@@ -114,7 +114,6 @@ export default function OutstandingClaimsPage() {
         </p>
       </div>
       <DataTable<OutstandingClaim>
-        mode="query"
         queryConfig={queryConfig}
         tableName="outstanding-claims"
         columnOverrides={columnOverrides}
