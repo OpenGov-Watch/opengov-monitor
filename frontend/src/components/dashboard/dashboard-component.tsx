@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Markdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { Pencil, Trash2, RefreshCw, AlertCircle, Copy, ChevronDown, ChevronUp } from "lucide-react";
@@ -40,10 +40,16 @@ export function DashboardComponent({
   const [error, setError] = useState<string | null>(null);
   const [, setConfigLoaded] = useState(false);
 
-  const queryConfig: QueryConfig = JSON.parse(component.query_config);
-  const chartConfig: ChartConfig = component.chart_config
-    ? JSON.parse(component.chart_config)
-    : {};
+  // Memoize parsed configs to prevent refetch loops
+  // Use component.id + string value to ensure stability across parent re-renders
+  const queryConfig: QueryConfig = useMemo(
+    () => JSON.parse(component.query_config),
+    [component.id, component.query_config]
+  );
+  const chartConfig: ChartConfig = useMemo(
+    () => (component.chart_config ? JSON.parse(component.chart_config) : {}),
+    [component.id, component.chart_config]
+  );
 
   // Table name for column config lookup
   const tableName = queryConfig.sourceTable || "";
