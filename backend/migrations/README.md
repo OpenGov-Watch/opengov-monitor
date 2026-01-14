@@ -267,6 +267,143 @@ If migrations fail on container startup:
 3. Fix the migration file
 4. Rebuild and redeploy container
 
+## Testing Migrations
+
+### Test on Existing Database
+
+```bash
+# Run migrations on your current database
+pnpm migrate
+```
+
+### Test from Scratch
+
+```bash
+# Start with empty database
+rm data/polkadot.db
+
+# Run migrations (creates tables)
+pnpm migrate
+
+# Verify application works
+pnpm dev
+```
+
+### Test on Production Data Copy
+
+```bash
+# Download production database
+scp user@server:/data/polkadot.db ./data/polkadot-prod.db
+# Or: docker cp opengov-monitor:/data/polkadot.db ./data/polkadot-prod.db
+
+# Backup local DB (optional)
+cp data/polkadot.db data/polkadot-local.db
+
+# Replace with production copy
+cp data/polkadot-prod.db data/polkadot.db
+
+# Run migrations
+pnpm migrate
+
+# Verify
+sqlite3 data/polkadot.db "SELECT * FROM schema_migrations ORDER BY version"
+pnpm dev
+
+# Restore local (optional)
+cp data/polkadot-local.db data/polkadot.db
+```
+
+Tests migrations against real data volumes and edge cases before deploying.
+
+## Advanced Examples
+
+### Creating a View
+
+```sql
+-- Migration: Add all_spending view
+-- Version: 002
+
+DROP VIEW IF EXISTS all_spending;
+
+CREATE VIEW all_spending AS
+SELECT
+    'Direct Spend' AS type,
+    'ref-' || r.id AS id,
+    r.DOT_latest,
+    r.category
+FROM Referenda r
+WHERE r.status = 'Executed';
+```
+
+### Complex Data Migration
+
+For data transformations that require branching logic or external data:
+
+```python
+"""
+Migration: Normalize category data
+Version: 005
+"""
+import sqlite3
+
+def up(conn: sqlite3.Connection) -> None:
+    cursor = conn.cursor()
+
+    # Create mapping table
+    cursor.execute("""
+        CREATE TABLE category_mapping (
+            old_name TEXT PRIMARY KEY,
+            new_name TEXT NOT NULL
+        )
+    """)
+
+    # Insert mappings
+    mappings = [
+        ('dev', 'Development'),
+        ('mkt', 'Marketing'),
+        ('ops', 'Operations'),
+    ]
+    cursor.executemany(
+        "INSERT INTO category_mapping VALUES (?, ?)",
+        mappings
+    )
+
+    # Update existing records
+    cursor.execute("""
+        UPDATE Items
+        SET category = (
+            SELECT new_name FROM category_mapping
+            WHERE category_mapping.old_name = Items.category
+        )
+        WHERE category IN (SELECT old_name FROM category_mapping)
+    """)
+
+    # Clean up
+    cursor.execute("DROP TABLE category_mapping")
+
+    conn.commit()
+```
+
+## Windows Users
+
+The pnpm scripts use Unix paths. On Windows, they won't work directly.
+
+**To run migrations on Windows:**
+
+```bash
+cd backend
+.venv\Scripts\python.exe migrations\migration_runner.py --db ..\data\polkadot.db
+```
+
+**To create migrations on Windows:**
+
+```bash
+cd backend
+.venv\Scripts\python.exe migrations\create_migration.py --name add_field --type sql
+```
+
+Or update `package.json` scripts to use `Scripts\python.exe` instead of `bin/python`.
+
 ## See Also
 
 - [Full Migration Specification](../../docs/spec/migrations.md)

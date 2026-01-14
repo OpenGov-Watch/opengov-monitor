@@ -306,6 +306,60 @@ class TestViewLogic:
             assert result[0] == "Development"
             assert result[1] == "SDK"
 
+    def test_all_spending_view_respects_hide_in_spends(self, sqlite_sink):
+        """Verify view excludes items with hide_in_spends flag."""
+        from data_sinks.sqlite.schema import (
+            REFERENDA_SCHEMA, CHILD_BOUNTIES_SCHEMA, BOUNTIES_SCHEMA,
+            CATEGORIES_SCHEMA, TREASURY_SCHEMA, FELLOWSHIP_SCHEMA,
+            FELLOWSHIP_SALARY_CYCLES_SCHEMA, SUBTREASURY_SCHEMA,
+            generate_create_table_sql,
+        )
+
+        # Create all tables referenced by the all_spending view
+        for schema in [REFERENDA_SCHEMA, CHILD_BOUNTIES_SCHEMA, BOUNTIES_SCHEMA,
+                       CATEGORIES_SCHEMA, TREASURY_SCHEMA, FELLOWSHIP_SCHEMA,
+                       FELLOWSHIP_SALARY_CYCLES_SCHEMA, SUBTREASURY_SCHEMA]:
+            sqlite_sink.connection.execute(generate_create_table_sql(schema))
+        sqlite_sink.connection.commit()
+
+        # Insert test referenda - one hidden, one visible
+        sqlite_sink.connection.execute('''
+            INSERT INTO Referenda
+            (id, title, status, DOT_latest, latest_status_change, hide_in_spends, category_id)
+            VALUES
+            (1, 'Visible Ref', 'Executed', 1000, '2024-01-01', 0, NULL),
+            (2, 'Hidden Ref', 'Executed', 2000, '2024-01-02', 1, NULL)
+        ''')
+
+        # Insert parent bounty for child bounties
+        sqlite_sink.connection.execute('''
+            INSERT INTO Bounties (id, name, category_id, remaining_dot)
+            VALUES (1, 'Parent Bounty', NULL, 0)
+        ''')
+
+        # Insert test child bounties - one hidden, one visible
+        sqlite_sink.connection.execute('''
+            INSERT INTO "Child Bounties"
+            (identifier, parentBountyId, description, status, DOT, USD_latest, latest_status_change, hide_in_spends, category_id)
+            VALUES
+            ('100-1', 1, 'Visible Bounty', 'Claimed', 500, 5000, '2024-01-03', 0, NULL),
+            ('100-2', 1, 'Hidden Bounty', 'Claimed', 600, 6000, '2024-01-04', 1, NULL)
+        ''')
+        sqlite_sink.connection.commit()
+
+        # Query all_spending view
+        cursor = sqlite_sink.connection.execute(
+            "SELECT id, title FROM all_spending WHERE type IN ('Direct Spend', 'Bounty') ORDER BY id"
+        )
+        results = cursor.fetchall()
+        result_ids = [row[0] for row in results]
+
+        # Assert only visible items appear
+        assert 'ref-1' in result_ids, "Visible referendum should appear"
+        assert 'ref-2' not in result_ids, "Hidden referendum should not appear"
+        assert 'cb-100-1' in result_ids, "Visible child bounty should appear"
+        assert 'cb-100-2' not in result_ids, "Hidden child bounty should not appear"
+
 
 # =============================================================================
 # Table Management Tests

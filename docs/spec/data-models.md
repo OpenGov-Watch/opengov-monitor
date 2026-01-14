@@ -141,4 +141,14 @@ Adds: `days_since_expiry`
 
 Union of all spending types. See `business-rules.md` for type definitions.
 
-**Note:** View has schema issues; API uses custom query instead.
+**Column details:**
+- `year`, `year_month`, `year_quarter`: Computed date grouping columns from `latest_status_change`
+- `category`, `subcategory`: Assignment varies by type:
+  - **Direct Spend**: From Referenda's category_id (via Categories table)
+  - **Claim**: Inherited from linked Referenda via referendumIndex (Treasury has no category_id field)
+  - **Bounty**: From Child Bounty's category_id, falls back to parent Bounty's category_id if NULL
+  - **Subtreasury**: From Subtreasury's category_id
+  - **Fellowship Salary/Grants**: Hardcoded to 'Development' / 'Polkadot Protocol & SDK'
+
+**Business logic:**
+- `hide_in_spends` flag: Direct Spend and Bounty types exclude records where `hide_in_spends = 1`

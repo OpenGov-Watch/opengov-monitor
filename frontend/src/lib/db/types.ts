@@ -237,6 +237,10 @@ export interface AllSpending {
   DOT_component: number | null;
   USDC_component: number | null;
   USDT_component: number | null;
+  // Computed date grouping columns
+  year: string | null;
+  year_month: string | null;
+  year_quarter: string | null;
 }
 
 // Dashboard Types

@@ -151,6 +151,7 @@ class SQLiteSink(DataSink):
                 WHERE t.id IS NULL
                   AND r.DOT_latest > 0
                   AND r.status = 'Executed'
+                  AND (r.hide_in_spends IS NULL OR r.hide_in_spends = 0)
 
                 UNION ALL
 
@@ -192,6 +193,7 @@ class SQLiteSink(DataSink):
                 LEFT JOIN Categories cb_cat ON cb.category_id = cb_cat.id
                 LEFT JOIN Categories b_cat ON b.category_id = b_cat.id
                 WHERE cb.status = 'Claimed'
+                  AND (cb.hide_in_spends IS NULL OR cb.hide_in_spends = 0)
 
                 UNION ALL
 

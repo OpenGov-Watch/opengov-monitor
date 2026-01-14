@@ -4,6 +4,7 @@
   - Rather, show how it works and how it connects.
   - Do not describe "recent changes", just describe the current state.
 - `docs/spec/` is only for specification, not documentation
+- Howtos should go to `docs/howto/`
 - `CLAUDE.md` files
   - MUST give agents just enough context to navigate the repo and find enough relevant context
   - shall be terse to preserve context

@@ -2,6 +2,10 @@
 
 pnpm monorepo: Python backend (data fetching) → SQLite → Express API → React frontend.
 
+## Rules
+- Never apply DB migrations without explicit user consent
+- Never modify DB migration versions after they have been applied to the production DB
+
 ## When planning changes
 - Planning Phase
   - Review the specification. If it is not mentioned in the spec, discuss updating the spec with the user

@@ -43,19 +43,6 @@ Both must be handled. See `business-rules.md` for index mappings.
 
 ---
 
-## Database
-
-### `all_spending` View is Broken
-
-The view has schema issues. API uses a custom query instead:
-
-```typescript
-// api/src/db/queries.ts - don't use the view directly
-const allSpending = db.prepare(`...custom UNION query...`).all();
-```
-
----
-
 ## Frontend
 
 ### Dot-Notation Columns Need `accessorFn`
