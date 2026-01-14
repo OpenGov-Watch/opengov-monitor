@@ -86,7 +86,7 @@ export function DashboardPieChart({
   columnMapping,
 }: DashboardPieChartProps) {
   return (
-    <ResponsiveContainer width="100%" height="100%">
+    <ResponsiveContainer width="100%" height="100%" minHeight={200}>
       <RechartsPieChart>
         <Pie
           data={data}

@@ -2,6 +2,23 @@
 
 pnpm monorepo: Python backend (data fetching) → SQLite → Express API → React frontend.
 
+## When planning changes
+- Planning Phase
+  - Review the specification. If it is not mentioned in the spec, discuss updating the spec with the user
+  - Database schema changes must consider `docs/spec/migrations.md`
+- Specification
+  - Update Spec
+  - Prospectively update unit tests to match spec
+- Coding
+  - prefer removing code over marking it as deprecated
+- Update documentation where relevant. See the Documentation section below for where to document different topics
+- Testing
+  - Update unit tests, then run full test suite
+  - Use Chrome DevTools to verify frontend changes
+
+## Tool usage
+- Use `pnpm`, not `npm`
+
 ## Navigation
 
 ```
@@ -34,11 +51,9 @@ docs/spec/         Detailed specifications
 | Task | Start here |
 |------|------------|
 | Add/modify API endpoint | `api/src/routes/`, `api/src/db/queries.ts` |
-| Add/modify table columns | `frontend/src/components/tables/*-columns.tsx` |
 | Add new page | `frontend/src/router.tsx`, `frontend/src/pages/` |
 | Modify data fetching | `backend/data_providers/subsquare.py` |
-| Database schema | `backend/data_sinks/sqlite/schema.py`, `api/src/db/types.ts` |
-| Database migrations | `backend/migrations/versions/`, use `pnpm migrate:create` |
+| Modifying database schema | `docs/spec/migrations.md` |
 
 ## Commands
 
@@ -64,7 +79,6 @@ pnpm migrate:baseline --version N  # Mark migrations up to N as applied (for exi
 
 - **Dot-notation columns**: Use `accessorFn` not `accessorKey` for columns like `tally.ayes`
 - **Windows dual-stack**: API binds to `127.0.0.1` explicitly
-- **all_spending view**: Has schema issues; API uses custom query instead
 
 ## Documentation
 

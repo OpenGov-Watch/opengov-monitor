@@ -25,6 +25,14 @@ interface DashboardDataTableProps {
   displayName?: (col: string) => string;
 }
 
+/**
+ * @deprecated Use DataTable from @/components/data-table/data-table instead.
+ * This component is kept only for backwards compatibility in the
+ * component editor preview modal.
+ *
+ * Dashboard tables now use the unified DataTable component with full
+ * TanStack Table features (sorting, filtering, pagination, etc.).
+ */
 export function DashboardDataTable({
   data,
   maxRows = 100,

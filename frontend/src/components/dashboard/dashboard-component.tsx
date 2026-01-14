@@ -3,16 +3,16 @@
 import { useState, useEffect } from "react";
 import Markdown from "react-markdown";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, RefreshCw, AlertCircle, Copy } from "lucide-react";
+import { Pencil, Trash2, RefreshCw, AlertCircle, Copy, ChevronDown, ChevronUp } from "lucide-react";
 import {
   DashboardPieChart,
   DashboardBarChart,
   DashboardLineChart,
-  DashboardDataTable,
   transformToPieData,
   transformToBarData,
   transformToLineData,
 } from "@/components/charts";
+import { DataTable } from "@/components/data-table/data-table";
 import { loadColumnConfig } from "@/lib/column-renderer";
 import type {
   DashboardComponent as DashboardComponentType,
@@ -48,14 +48,29 @@ export function DashboardComponent({
   // Table name for column config lookup
   const tableName = queryConfig.sourceTable || "";
 
+  // Toolbar collapse state for table components
+  const [isToolbarCollapsed, setIsToolbarCollapsed] = useState(() => {
+    if (component.type !== "table") return true;
+    const key = `opengov-toolbar-collapsed-${tableName}-${component.id}`;
+    const stored = localStorage.getItem(key);
+    return stored !== null ? stored === "true" : true; // Default collapsed
+  });
+
+  const toggleToolbarCollapse = () => {
+    const newState = !isToolbarCollapsed;
+    setIsToolbarCollapsed(newState);
+    const key = `opengov-toolbar-collapsed-${tableName}-${component.id}`;
+    localStorage.setItem(key, String(newState));
+  };
+
   useEffect(() => {
     // Load column config (display names and render settings)
     loadColumnConfig().then(() => setConfigLoaded(true));
   }, []);
 
   useEffect(() => {
-    // Text components don't need data fetching
-    if (component.type === "text") {
+    // Text and table components don't need data fetching (DataTable handles it internally)
+    if (component.type === "text" || component.type === "table") {
       setLoading(false);
       return;
     }
@@ -119,7 +134,8 @@ export function DashboardComponent({
       );
     }
 
-    if (data.length === 0) {
+    // Table components fetch their own data, so skip the empty data check
+    if (component.type !== "table" && data.length === 0) {
       return (
         <div className="flex items-center justify-center h-full text-muted-foreground">
           No data available
@@ -154,10 +170,15 @@ export function DashboardComponent({
     switch (component.type) {
       case "table":
         return (
-          <DashboardDataTable
-            data={data}
+          <DataTable
+            queryConfig={queryConfig}
             tableName={tableName}
             columnMapping={columnMapping}
+            dashboardMode={true}
+            dashboardComponentId={String(component.id)}
+            compactMode={true}
+            toolbarCollapsed={isToolbarCollapsed}
+            onToolbarCollapseChange={setIsToolbarCollapsed}
           />
         );
 
@@ -170,15 +191,17 @@ export function DashboardComponent({
           );
         }
         return (
-          <DashboardPieChart
-            data={transformToPieData(data, labelColumn, valueColumn)}
-            showLegend={chartConfig.showLegend ?? true}
-            showTooltip={chartConfig.showTooltip ?? true}
-            colors={chartConfig.colors}
-            tableName={tableName}
-            valueColumn={valueColumn}
-            columnMapping={columnMapping}
-          />
+          <div style={{ width: '100%', height: '100%', minHeight: 0 }}>
+            <DashboardPieChart
+              data={transformToPieData(data, labelColumn, valueColumn)}
+              showLegend={chartConfig.showLegend ?? true}
+              showTooltip={chartConfig.showTooltip ?? true}
+              colors={chartConfig.colors}
+              tableName={tableName}
+              valueColumn={valueColumn}
+              columnMapping={columnMapping}
+            />
+          </div>
         );
 
       case "bar_stacked":
@@ -190,15 +213,17 @@ export function DashboardComponent({
           tableName
         );
         return (
-          <DashboardBarChart
-            data={barData}
-            bars={bars}
-            stacked={component.type === "bar_stacked"}
-            showLegend={chartConfig.showLegend ?? true}
-            showTooltip={chartConfig.showTooltip ?? true}
-            tableName={tableName}
-            columnMapping={columnMapping}
-          />
+          <div style={{ width: '100%', height: '100%', minHeight: 0 }}>
+            <DashboardBarChart
+              data={barData}
+              bars={bars}
+              stacked={component.type === "bar_stacked"}
+              showLegend={chartConfig.showLegend ?? true}
+              showTooltip={chartConfig.showTooltip ?? true}
+              tableName={tableName}
+              columnMapping={columnMapping}
+            />
+          </div>
         );
       }
 
@@ -210,14 +235,16 @@ export function DashboardComponent({
           tableName
         );
         return (
-          <DashboardLineChart
-            data={lineData}
-            lines={lines}
-            showLegend={chartConfig.showLegend ?? true}
-            showTooltip={chartConfig.showTooltip ?? true}
-            tableName={tableName}
-            columnMapping={columnMapping}
-          />
+          <div style={{ width: '100%', height: '100%', minHeight: 0 }}>
+            <DashboardLineChart
+              data={lineData}
+              lines={lines}
+              showLegend={chartConfig.showLegend ?? true}
+              showTooltip={chartConfig.showTooltip ?? true}
+              tableName={tableName}
+              columnMapping={columnMapping}
+            />
+          </div>
         );
       }
 
@@ -236,7 +263,22 @@ export function DashboardComponent({
       <div className="flex items-center justify-between p-3 border-b bg-muted/30">
         <h3 className="font-medium text-sm truncate">{component.name}</h3>
         <div className="flex items-center gap-1">
-          {component.type !== "text" && (
+          {component.type === "table" && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={toggleToolbarCollapse}
+              title={isToolbarCollapsed ? "Expand toolbar" : "Collapse toolbar"}
+            >
+              {isToolbarCollapsed ? (
+                <ChevronDown className="h-3.5 w-3.5" />
+              ) : (
+                <ChevronUp className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          )}
+          {component.type !== "text" && component.type !== "table" && (
             <Button
               variant="ghost"
               size="icon"
@@ -282,7 +324,7 @@ export function DashboardComponent({
       </div>
 
       {/* Content */}
-      <div className="flex-1 p-3 min-h-0">{renderChart()}</div>
+      <div className="flex-1 p-3 min-h-0" style={{ minHeight: '200px' }}>{renderChart()}</div>
     </div>
   );
 }

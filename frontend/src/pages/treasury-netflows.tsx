@@ -5,7 +5,7 @@ import type { TreasuryNetflow, QueryConfig } from "@/lib/db/types";
 export default function TreasuryNetflowsPage() {
   const queryConfig: QueryConfig = useMemo(
     () => ({
-      sourceTable: "treasury_netflows",
+      sourceTable: "Treasury Netflows",
       columns: [
         { column: "month" },
         { column: "asset_name" },

@@ -18,6 +18,7 @@ const ALLOWED_SOURCES = new Set([
   "Bounties",    // For JOINs
   "subtreasury",
   "Fellowship Subtreasury",
+  "Treasury Netflows",
   "outstanding_claims",
   "expired_claims",
   "all_spending",
@@ -34,6 +35,7 @@ const ALLOWED_TABLES = [
   "bounties",
   "subtreasury",
   "Fellowship Subtreasury",
+  "Treasury Netflows",
 ];
 
 const ALLOWED_VIEWS = [

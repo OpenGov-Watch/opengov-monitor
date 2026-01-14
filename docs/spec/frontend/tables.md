@@ -4,14 +4,23 @@
 1. **Main DataTable System** - Regular pages (referenda, treasury, etc.)
 2. **Dashboard System** - Dashboard components (tables, charts)
 
+**Recent Changes (PR #38):**
+- Consolidated 3 DataTable components into 1 unified component
+- Migrated all 11 main table pages to QueryConfig pattern
+- All tables now use POST `/api/query/execute` for data fetching
+- Columns are auto-generated with optional columnOverrides
+- Deleted 3 legacy column definition files
+- Added compactMode for future dashboard integration
+
 ---
 
 ## SYSTEM 1: Main DataTable (TanStack Table)
 
 ### Architecture
-- **Core**: `DataTable<TData, TValue>` generic component
+- **Core**: Unified `DataTable` component (consolidated from 3 components in PR #38)
 - **Location**: `components/data-table/data-table.tsx`
 - **Library**: TanStack Table v8 with row models (core, filtered, sorted, paginated, faceted)
+- **Data Pattern**: All pages use QueryConfig → auto-generated columns + columnOverrides
 
 Component hierarchy:
 ```
@@ -22,34 +31,61 @@ DataTable
 └── DataTablePagination (page controls)
 ```
 
-### Column Patterns
+### Data Integration Pattern
 
-#### Dot-Notation (SQLite columns with dots)
+All main table pages now use **QueryConfig with auto-generated columns**:
+
 ```tsx
-{
-  id: "tally_ayes",  // Must provide explicit ID
-  accessorFn: (row) => row["tally.ayes"],  // Bracket notation
-  cell: ({ row }) => formatNumber(row.original["tally.ayes"])
-}
+// 1. Define QueryConfig (what data to fetch)
+const queryConfig: QueryConfig = {
+  sourceTable: "all_spending",
+  columns: [
+    { column: "latest_status_change" },
+    { column: "type" },
+    { column: "title" },
+    { column: "DOT_latest" },
+  ],
+  filters: [],
+  orderBy: [{ column: "latest_status_change", direction: "DESC" }],
+  limit: 10000,
+};
+
+// 2. Define columnOverrides (custom rendering/formatting)
+const columnOverrides = {
+  type: {
+    cell: ({ row }) => (
+      <Badge variant={getTypeVariant(row.original.type)}>
+        {row.original.type}
+      </Badge>
+    ),
+  },
+  DOT_latest: {
+    header: "DOT",
+    cell: ({ row }) => formatNumber(row.original.DOT_latest),
+  },
+};
+
+// 3. Pass to DataTable
+<DataTable
+  queryConfig={queryConfig}
+  tableName="spending"
+  columnOverrides={columnOverrides}
+  facetedFilters={["type", "category"]}
+/>
 ```
 
-#### Column Types
-- **ID/Link**: `accessorKey` + custom cell with href
-- **Status Badge**: Helper fn + Badge component with semantic colors
+### Column Override Patterns
+
+#### Custom Cell Rendering
+- **Status Badge**: Badge component with semantic colors
 - **Numeric**: Right-aligned with `formatNumber()`
 - **Currency**: `formatCurrency()` USD with no decimals
 - **Date/DateTime**: `formatDate()` / `formatDateTime()`
-- **Faceted Filter**: `DataTableFacetedFilter` in header + custom `filterFn`
+- **Links**: Custom cell with href
 - **Editable**: `CategorySelector`, `EditableNotesCell`, etc. (auth-gated)
 
-#### Factory Pattern (for editable tables)
-```tsx
-export function createReferendaColumns(options: {
-  categories: Category[];
-  onUpdate: (id: number, data: Partial<Referendum>) => void;
-  isAuthenticated?: boolean;
-}): ColumnDef<Referendum>[]
-```
+#### Dot-Notation (SQLite columns with dots)
+Auto-generated columns handle dot notation automatically. No special handling needed.
 
 ### Filtering
 - **Faceted**: Multi-select dropdown with counts, alphabetically sorted
@@ -104,10 +140,10 @@ cell: ({ row }) =>
 - `EditableHideCheckbox` ↔ `ReadOnlyHideCheckbox`
 
 ### API Integration
-- **Client**: `api.{resource}.getAll()` with credentials: "include"
-- **Pattern**: useState + useEffect, loading states
-- **Error Handling**: Try-catch with error message display
-- **Data Scope**: Fetch all on mount, client-side processing
+- **Endpoint**: POST `/api/query/execute` with QueryConfig
+- **Pattern**: DataTable component handles data fetching internally (useState + useEffect)
+- **Error Handling**: Loading/error states with user-friendly messages
+- **Data Scope**: QueryConfig defines query, all filtering/sorting/pagination happens client-side
 
 ### Responsive Behavior
 - **Breakpoint**: md (768px)
@@ -141,7 +177,7 @@ cell: ({ row }) =>
 ```
 frontend/src/components/
 ├── data-table/
-│   ├── data-table.tsx (main orchestrator)
+│   ├── data-table.tsx (unified component: fetch + generate columns + render)
 │   ├── use-view-state.ts (state hook)
 │   ├── toolbar.tsx (search, export, filters)
 │   ├── column-header.tsx (sort UI)
@@ -151,7 +187,11 @@ frontend/src/components/
 │   ├── pagination.tsx (page controls)
 │   ├── data-table-card.tsx (mobile view)
 │   └── editable-cells.tsx (inline editors)
-├── tables/*-columns.tsx (12 column definition files)
+├── tables/ (legacy - 2 files remain for special cases)
+│   ├── monthly-claims-summary.tsx
+│   └── upcoming-claims-columns.tsx
+├── lib/
+│   └── auto-columns.ts (column generation from QueryConfig)
 └── ui/table.tsx (shadcn base components)
 ```
 
@@ -162,10 +202,17 @@ frontend/src/components/
 - Dashboards (list, view, edit)
 
 ### Performance Notes
-- All filtering/sorting/pagination: client-side (no API calls)
-- TanStack Table row models handle large datasets
-- `useMemo` for columns (deps: categories, auth state)
+- All filtering/sorting/pagination: client-side (no API calls after initial fetch)
+- TanStack Table row models handle large datasets efficiently
+- Columns auto-generated on data load, cached with `useMemo`
 - Default page size: 100 rows
+
+### Compact Mode
+- Added in PR #38 for potential dashboard integration
+- `compactMode={true}` prop available on DataTable
+- Reduces toolbar/pagination sizing
+- Hides "Reset View" button and view mode toggle
+- Currently unused (dashboard uses separate optimized component)
 
 ---
 
@@ -195,7 +242,8 @@ DashboardGrid (react-grid-layout)
 | Library | TanStack Table | Plain HTML table |
 | Features | Sort, filter, pagination, views | Display only |
 | State | localStorage + URL | Database-backed |
-| Data Source | Direct API endpoints | QueryBuilder → `/api/query/execute` |
+| Data Source | QueryConfig → `/api/query/execute` | QueryConfig → `/api/query/execute` |
+| Column Generation | Auto-generated + columnOverrides | Auto-generated + columnMapping |
 | Layout | Full page | Grid cell with x,y,w,h |
 | Editable | Inline cells (auth) | N/A (read-only display) |
 | Mobile View | Card mode toggle | Grid adapts responsive |
@@ -319,15 +367,19 @@ frontend/src/
 
 ## Comparison Summary
 
+**Both systems use QueryConfig** for data fetching via POST `/api/query/execute`.
+
 **Use Main DataTable when:**
 - Need advanced features (sorting, filtering, pagination, views)
 - Full-page dedicated table view
 - User-driven exploration and analysis
 - Client-side state management
+- Editable cells (with auth)
 
 **Use Dashboard System when:**
 - Combining multiple visualizations
-- Fixed layout with positioning
-- Query-driven data (user builds SQL)
+- Fixed layout with positioning (drag/resize grid)
+- User builds custom queries via QueryBuilder
 - Read-only presentation
 - Mixed content types (tables + charts + text)
+- Space-constrained display
