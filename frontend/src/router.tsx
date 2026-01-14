@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from "react-router";
 import { Layout } from "@/components/layout/Layout";
 import { RequireAuth } from "@/components/auth/require-auth";
+import { RouteErrorBoundary } from "@/components/error/RouteErrorBoundary";
 
 // Lazy load pages
 import { lazy, Suspense } from "react";
@@ -41,34 +42,38 @@ function withSuspense(Component: React.ComponentType) {
   );
 }
 
+// Shared error element for child routes
+const childErrorElement = <RouteErrorBoundary />;
+
 export const router = createBrowserRouter([
   // Login page (outside main layout)
   {
     path: "/login",
     element: withSuspense(LoginPage),
+    errorElement: <RouteErrorBoundary />,
   },
   {
     path: "/",
     element: <Layout />,
     children: [
       { index: true, element: <Navigate to="/referenda" replace /> },
-      { path: "referenda", element: withSuspense(ReferendaPage) },
-      { path: "treasury", element: withSuspense(TreasuryPage) },
-      { path: "child-bounties", element: withSuspense(ChildBountiesPage) },
-      { path: "fellowship", element: withSuspense(FellowshipPage) },
-      { path: "fellowship-salary-cycles", element: withSuspense(SalaryCyclesPage) },
-      { path: "fellowship-salary-claimants", element: withSuspense(SalaryClaimantsPage) },
-      { path: "spending", element: withSuspense(SpendingPage) },
-      { path: "outstanding-claims", element: withSuspense(OutstandingClaimsPage) },
-      { path: "expired-claims", element: withSuspense(ExpiredClaimsPage) },
-      { path: "manage/categories", element: withSuspense(ManageCategoriesPage) },
-      { path: "manage/bounties", element: withSuspense(ManageBountiesPage) },
-      { path: "manage/subtreasury", element: withSuspense(ManageSubtreasuryPage) },
-      { path: "treasury-netflows", element: withSuspense(TreasuryNetflowsPage) },
-      { path: "manage/sync", element: withSuspense(ManageSyncSettingsPage) },
-      { path: "dashboards", element: withSuspense(DashboardsListPage) },
-      { path: "dashboards/:id", element: withSuspense(DashboardViewPage) },
-      { path: "dashboards/:id/edit", element: <RequireAuth>{withSuspense(DashboardEditPage)}</RequireAuth> },
+      { path: "referenda", element: withSuspense(ReferendaPage), errorElement: childErrorElement },
+      { path: "treasury", element: withSuspense(TreasuryPage), errorElement: childErrorElement },
+      { path: "child-bounties", element: withSuspense(ChildBountiesPage), errorElement: childErrorElement },
+      { path: "fellowship", element: withSuspense(FellowshipPage), errorElement: childErrorElement },
+      { path: "fellowship-salary-cycles", element: withSuspense(SalaryCyclesPage), errorElement: childErrorElement },
+      { path: "fellowship-salary-claimants", element: withSuspense(SalaryClaimantsPage), errorElement: childErrorElement },
+      { path: "spending", element: withSuspense(SpendingPage), errorElement: childErrorElement },
+      { path: "outstanding-claims", element: withSuspense(OutstandingClaimsPage), errorElement: childErrorElement },
+      { path: "expired-claims", element: withSuspense(ExpiredClaimsPage), errorElement: childErrorElement },
+      { path: "manage/categories", element: withSuspense(ManageCategoriesPage), errorElement: childErrorElement },
+      { path: "manage/bounties", element: withSuspense(ManageBountiesPage), errorElement: childErrorElement },
+      { path: "manage/subtreasury", element: withSuspense(ManageSubtreasuryPage), errorElement: childErrorElement },
+      { path: "treasury-netflows", element: withSuspense(TreasuryNetflowsPage), errorElement: childErrorElement },
+      { path: "manage/sync", element: withSuspense(ManageSyncSettingsPage), errorElement: childErrorElement },
+      { path: "dashboards", element: withSuspense(DashboardsListPage), errorElement: childErrorElement },
+      { path: "dashboards/:id", element: withSuspense(DashboardViewPage), errorElement: childErrorElement },
+      { path: "dashboards/:id/edit", element: <RequireAuth>{withSuspense(DashboardEditPage)}</RequireAuth>, errorElement: childErrorElement },
     ],
   },
 ]);
