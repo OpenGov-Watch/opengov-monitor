@@ -61,7 +61,6 @@ describe("useViewState", () => {
       expect(result.current.sorting).toEqual([]);
       expect(result.current.columnFilters).toEqual([]);
       expect(result.current.columnVisibility).toEqual({});
-      expect(result.current.globalFilter).toBe("");
       expect(result.current.pagination).toEqual({ pageIndex: 0, pageSize: 100 });
     });
 
@@ -70,7 +69,6 @@ describe("useViewState", () => {
         sorting: [{ id: "name", desc: true }],
         columnFilters: [],
         columnVisibility: { id: false },
-        globalFilter: "search",
         pagination: { pageIndex: 2, pageSize: 50 },
       };
       const encoded = btoa(JSON.stringify(viewState));
@@ -81,7 +79,6 @@ describe("useViewState", () => {
       // State should be loaded from URL
       expect(result.current.sorting).toEqual([{ id: "name", desc: true }]);
       expect(result.current.columnVisibility).toEqual({ id: false });
-      expect(result.current.globalFilter).toBe("search");
       expect(result.current.pagination).toEqual({ pageIndex: 2, pageSize: 50 });
     });
 
@@ -127,16 +124,6 @@ describe("useViewState", () => {
       expect(result.current.columnVisibility).toEqual({ id: false, name: true });
     });
 
-    it("updates global filter", () => {
-      const { result } = renderHook(() => useViewState("test-table"));
-
-      act(() => {
-        result.current.setGlobalFilter("search term");
-      });
-
-      expect(result.current.globalFilter).toBe("search term");
-    });
-
     it("updates pagination", () => {
       const { result } = renderHook(() => useViewState("test-table"));
 
@@ -175,7 +162,7 @@ describe("useViewState", () => {
       const { result } = renderHook(() => useViewState("test-table"));
 
       act(() => {
-        result.current.setGlobalFilter("test");
+        result.current.setSorting([{ id: "name", desc: false }]);
       });
 
       act(() => {
@@ -195,7 +182,6 @@ describe("useViewState", () => {
         sorting: [{ id: "date", desc: true }],
         columnFilters: [{ id: "status", value: "pending" }],
         columnVisibility: { hidden: false },
-        globalFilter: "loaded",
         pagination: { pageIndex: 1, pageSize: 25 },
       };
       localStorageMock.setItem("opengov-view-test-table", JSON.stringify(viewState));
@@ -208,7 +194,6 @@ describe("useViewState", () => {
 
       expect(result.current.sorting).toEqual([{ id: "date", desc: true }]);
       expect(result.current.columnFilters).toEqual([{ id: "status", value: "pending" }]);
-      expect(result.current.globalFilter).toBe("loaded");
       expect(result.current.pagination).toEqual({ pageIndex: 1, pageSize: 25 });
     });
 
@@ -258,7 +243,6 @@ describe("useViewState", () => {
 
       act(() => {
         result.current.setSorting([{ id: "name", desc: true }]);
-        result.current.setGlobalFilter("search");
         result.current.setPagination({ pageIndex: 5, pageSize: 50 });
       });
 
@@ -269,7 +253,6 @@ describe("useViewState", () => {
       expect(result.current.sorting).toEqual([]);
       expect(result.current.columnFilters).toEqual([]);
       expect(result.current.columnVisibility).toEqual({});
-      expect(result.current.globalFilter).toBe("");
       expect(result.current.pagination).toEqual({ pageIndex: 0, pageSize: 100 });
     });
 
@@ -287,8 +270,8 @@ describe("useViewState", () => {
   describe("getSavedViews", () => {
     it("returns list of saved views for the table", () => {
       const mockViews = [
-        { name: "view1", state: { sorting: [], columnFilters: [], columnVisibility: {}, globalFilter: "", pagination: { pageIndex: 0, pageSize: 10 } } },
-        { name: "view2", state: { sorting: [], columnFilters: [], columnVisibility: {}, globalFilter: "", pagination: { pageIndex: 0, pageSize: 20 } } },
+        { name: "view1", state: { sorting: [], columnFilters: [], columnVisibility: {}, pagination: { pageIndex: 0, pageSize: 10 } } },
+        { name: "view2", state: { sorting: [], columnFilters: [], columnVisibility: {}, pagination: { pageIndex: 0, pageSize: 20 } } },
       ];
       localStorageMock.setItem("opengov-views-test-table", JSON.stringify(mockViews));
 

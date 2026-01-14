@@ -3,7 +3,7 @@ import { api } from "@/api/client";
 import { DataTable } from "@/components/data-table/data-table";
 import { useAuth } from "@/contexts/auth-context";
 import { SavedView } from "@/hooks/use-view-state";
-import { QueryConfig, DataTableEditConfig, Category } from "@/lib/db/types";
+import { DataTableEditConfig, Category } from "@/lib/db/types";
 import { subsquareUrls } from "@/lib/urls";
 import type { Referendum } from "@/lib/db/types";
 
@@ -15,7 +15,6 @@ const defaultReferendaViews: SavedView[] = [
       sorting: [{ id: "id", desc: true }],
       columnFilters: [],
       columnVisibility: {},
-      globalFilter: "",
       pagination: { pageIndex: 0, pageSize: 100 },
     },
     isDefault: true,
@@ -30,7 +29,7 @@ export default function ReferendaPage() {
     api.categories.getAll().then((res) => setCategories(res as Category[]));
   }, []);
 
-  const queryConfig: QueryConfig = useMemo(() => ({
+  const queryConfig = useMemo(() => ({
     sourceTable: "Referenda",
     columns: [
       { column: "id" },
@@ -50,13 +49,11 @@ export default function ReferendaPage() {
       { column: "c.subcategory", alias: "subcategory" },
     ],
     joins: [{
-      type: "LEFT",
+      type: "LEFT" as const,
       table: "Categories",
       alias: "c",
       on: { left: "Referenda.category_id", right: "c.id" }
     }],
-    filters: [],
-    orderBy: [{ column: "id", direction: "DESC" }],
     limit: 1000
   }), []);
 

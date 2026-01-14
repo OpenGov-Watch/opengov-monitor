@@ -1,11 +1,10 @@
 import { useMemo } from "react";
 import { DataTable } from "@/components/data-table/data-table";
-import { QueryConfig } from "@/lib/db/types";
 import { subsquareUrls } from "@/lib/urls";
 import type { Fellowship } from "@/lib/db/types";
 
 export default function FellowshipPage() {
-  const queryConfig: QueryConfig = useMemo(() => ({
+  const queryConfig = useMemo(() => ({
     sourceTable: "Fellowship",
     columns: [
       { column: "id" },
@@ -17,8 +16,6 @@ export default function FellowshipPage() {
       { column: "latest_status_change" },
       { column: "USD_latest" },
     ],
-    filters: [],
-    orderBy: [{ column: "id", direction: "DESC" }],
     limit: 1000
   }), []);
 

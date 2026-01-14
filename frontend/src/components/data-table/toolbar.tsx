@@ -4,7 +4,6 @@ import { Table } from "@tanstack/react-table";
 import { X, Download, RotateCcw, Table as TableIcon, LayoutGrid } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { DataTableColumnVisibility } from "./column-visibility";
 import { exportToCSV, exportToJSON } from "@/lib/export";
 import {
@@ -17,8 +16,6 @@ import { cn } from "@/lib/utils";
 
 interface DataTableToolbarProps<TData> {
   table: Table<TData>;
-  globalFilter: string;
-  setGlobalFilter: (value: string) => void;
   onClearView: () => void;
   tableName: string;
   viewMode?: "table" | "card";
@@ -28,16 +25,13 @@ interface DataTableToolbarProps<TData> {
 
 export function DataTableToolbar<TData>({
   table,
-  globalFilter,
-  setGlobalFilter,
   onClearView,
   tableName,
   viewMode = "table",
   onViewModeChange,
   compactMode = false,
 }: DataTableToolbarProps<TData>) {
-  const isFiltered =
-    table.getState().columnFilters.length > 0 || globalFilter.length > 0;
+  const isFiltered = table.getState().columnFilters.length > 0;
 
   const handleExportCSV = () => {
     const data = table
@@ -60,28 +54,14 @@ export function DataTableToolbar<TData>({
         "flex flex-1 items-center min-w-0",
         compactMode ? "space-x-1" : "space-x-2"
       )}>
-        {/* Global Search */}
-        <Input
-          placeholder="Search all columns..."
-          value={globalFilter}
-          onChange={(e) => setGlobalFilter(e.target.value)}
-          className={cn(
-            compactMode ? "h-7 w-full sm:w-[150px]" : "h-8 w-full sm:w-[250px]"
-          )}
-        />
-
         {/* Clear Filters */}
         {isFiltered && (
           <Button
             variant="ghost"
             onClick={() => {
               table.resetColumnFilters();
-              setGlobalFilter("");
             }}
-            className={cn(
-              "px-2 lg:px-3",
-              compactMode ? "h-7" : "h-8"
-            )}
+            className={cn("px-2 lg:px-3", compactMode ? "h-7" : "h-8")}
           >
             Reset
             <X className="ml-2 h-4 w-4" />
@@ -89,10 +69,12 @@ export function DataTableToolbar<TData>({
         )}
       </div>
 
-      <div className={cn(
-        "flex items-center flex-shrink-0",
-        compactMode ? "space-x-1" : "space-x-2"
-      )}>
+      <div
+        className={cn(
+          "flex items-center flex-shrink-0",
+          compactMode ? "space-x-1" : "space-x-2"
+        )}
+      >
         {/* View Mode Toggle */}
         {onViewModeChange && (
           <div className="flex items-center border rounded-md">
