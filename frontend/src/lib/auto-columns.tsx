@@ -70,12 +70,19 @@ export function generateColumns<TData>(
       ...(hasDotNotation
         ? { accessorFn: (row: any) => row[columnName] }
         : { accessorKey: columnName }),
-      header: ({ column }) =>
-        isFacetedFilter ? (
-          <DataTableFacetedFilter column={column} title={formatColumnName(columnName)} />
-        ) : (
-          <DataTableColumnHeader column={column} title={formatColumnName(columnName)} />
-        ),
+      header: ({ column }) => (
+        <div className="flex items-center space-x-2">
+          {isFacetedFilter && (
+            <DataTableFacetedFilter column={column} title={formatColumnName(columnName)} />
+          )}
+          {!isFacetedFilter && (
+            <DataTableColumnHeader column={column} title={formatColumnName(columnName)} />
+          )}
+          {isFacetedFilter && column.getCanSort() && (
+            <DataTableColumnHeader column={column} title="" />
+          )}
+        </div>
+      ),
       cell: ({ row }) => {
         // For dot-notation columns, get value directly from original
         const value = hasDotNotation ? (row.original as any)[columnName] : row.getValue(columnId);

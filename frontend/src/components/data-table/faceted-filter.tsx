@@ -33,7 +33,19 @@ export function DataTableFacetedFilter<TData, TValue>({
   title,
 }: DataTableFacetedFilterProps<TData, TValue>) {
   const facets = column.getFacetedUniqueValues();
-  const selectedValues = new Set(column.getFilterValue() as string[]);
+  const filterValue = column.getFilterValue() as string[];
+  const appliedValues = React.useMemo(() => new Set(filterValue), [filterValue?.join(',')]);
+
+  // Local state for pending selections (not yet applied)
+  const [pendingValues, setPendingValues] = React.useState<Set<string>>(() => new Set(filterValue));
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  // Sync pending values when popover opens
+  React.useEffect(() => {
+    if (isOpen) {
+      setPendingValues(new Set(appliedValues));
+    }
+  }, [isOpen]);
 
   // Sort facet values alphabetically
   const sortedFacets = React.useMemo(() => {
@@ -43,22 +55,32 @@ export function DataTableFacetedFilter<TData, TValue>({
   }, [facets]);
 
   const handleSelect = (value: string) => {
-    const newSelectedValues = new Set(selectedValues);
-    if (newSelectedValues.has(value)) {
-      newSelectedValues.delete(value);
+    const newPendingValues = new Set(pendingValues);
+    if (newPendingValues.has(value)) {
+      newPendingValues.delete(value);
     } else {
-      newSelectedValues.add(value);
+      newPendingValues.add(value);
     }
-    const filterValues = Array.from(newSelectedValues);
+    setPendingValues(newPendingValues);
+  };
+
+  const handleApply = () => {
+    const filterValues = Array.from(pendingValues);
     column.setFilterValue(filterValues.length ? filterValues : undefined);
+    setIsOpen(false);
   };
 
   const handleClear = () => {
-    column.setFilterValue(undefined);
+    setPendingValues(new Set());
+  };
+
+  const handleCancel = () => {
+    setPendingValues(new Set(appliedValues));
+    setIsOpen(false);
   };
 
   return (
-    <Popover>
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
@@ -67,14 +89,14 @@ export function DataTableFacetedFilter<TData, TValue>({
         >
           <span>{title}</span>
           <ChevronDown className="h-4 w-4" />
-          {selectedValues.size > 0 && (
+          {appliedValues.size > 0 && (
             <>
               <Separator orientation="vertical" className="mx-1 h-4" />
               <Badge
                 variant="secondary"
                 className="rounded-sm px-1 font-normal"
               >
-                {selectedValues.size}
+                {appliedValues.size}
               </Badge>
             </>
           )}
@@ -87,7 +109,7 @@ export function DataTableFacetedFilter<TData, TValue>({
             <CommandEmpty>No results found.</CommandEmpty>
             <CommandGroup>
               {sortedFacets.map(([value, count]) => {
-                const isSelected = selectedValues.has(String(value));
+                const isSelected = pendingValues.has(String(value));
                 return (
                   <CommandItem
                     key={String(value)}
@@ -111,7 +133,7 @@ export function DataTableFacetedFilter<TData, TValue>({
                 );
               })}
             </CommandGroup>
-            {selectedValues.size > 0 && (
+            {pendingValues.size > 0 && (
               <>
                 <CommandSeparator />
                 <CommandGroup>
@@ -119,12 +141,29 @@ export function DataTableFacetedFilter<TData, TValue>({
                     onSelect={handleClear}
                     className="justify-center text-center"
                   >
-                    Clear filters
+                    Clear selection
                   </CommandItem>
                 </CommandGroup>
               </>
             )}
           </CommandList>
+          <div className="flex gap-2 p-2 border-t">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={handleCancel}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="flex-1"
+              onClick={handleApply}
+            >
+              Apply
+            </Button>
+          </div>
         </Command>
       </PopoverContent>
     </Popover>

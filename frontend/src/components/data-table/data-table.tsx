@@ -23,6 +23,8 @@ import {
   TableFooter,
 } from "@/components/ui/table";
 
+import { Loader2, AlertCircle } from "lucide-react";
+
 import { DataTablePagination } from "./pagination";
 import { DataTableToolbar } from "./toolbar";
 import { DataTableCard } from "./data-table-card";
@@ -31,6 +33,7 @@ import { useViewState, SavedView } from "@/hooks/use-view-state";
 import { QueryConfig, DataTableEditConfig } from "@/lib/db/types";
 import { generateColumns } from "@/lib/auto-columns";
 import { sortingStateToOrderBy, filterStateToQueryFilters } from "@/lib/query-config-utils";
+import { cn } from "@/lib/utils";
 
 export interface FooterCell {
   columnId: string;
@@ -91,11 +94,13 @@ export function DataTable<TData>({
   const toolbarCollapsible = toolbarCollapsibleProp ?? dashboardMode;
   const initialToolbarCollapsed = initialToolbarCollapsedProp ?? dashboardMode;
   // VIEW STATE MANAGEMENT (moved before queryConfig to access sorting/filtering)
+  const viewState = useViewState(tableName, { defaultSorting, defaultViews });
+
   const {
     sorting,
-    setSorting,
+    setSorting: setViewSorting,
     columnFilters,
-    setColumnFilters,
+    setColumnFilters: setViewColumnFilters,
     columnVisibility,
     setColumnVisibility,
     pagination,
@@ -105,8 +110,18 @@ export function DataTable<TData>({
     saveView,
     loadView,
     deleteView,
-    clearViewState,
-  } = useViewState(tableName, { defaultSorting, defaultViews });
+    clearViewState: clearView,
+  } = viewState;
+
+  // DATA FETCHING
+  const [data, setData] = useState<TData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Pass through the original setters without any wrapping
+  const setSorting = setViewSorting;
+  const setColumnFilters = setViewColumnFilters;
+  const clearViewState = clearView;
 
   // BUILD COMPLETE QUERY CONFIG
   // Merge base config with dynamic sorting/filtering state
@@ -115,11 +130,6 @@ export function DataTable<TData>({
     orderBy: sortingStateToOrderBy(sorting),
     filters: filterStateToQueryFilters(columnFilters),
   }), [baseQueryConfig, sorting, columnFilters]);
-
-  // DATA FETCHING
-  const [data, setData] = useState<TData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -215,24 +225,6 @@ export function DataTable<TData>({
     getFacetedUniqueValues: getFacetedUniqueValues(),
   });
 
-  // LOADING STATE
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-muted-foreground">Loading...</div>
-      </div>
-    );
-  }
-
-  // ERROR STATE
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-destructive">Error: {error}</div>
-      </div>
-    );
-  }
-
   // RENDER
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4">
@@ -261,22 +253,64 @@ export function DataTable<TData>({
 
       {viewMode === "card" ? (
         // Card view - mobile-optimized
-        <div className="flex-1 min-h-0 overflow-auto">
-          {table.getRowModel().rows?.length ? (
-            table.getRowModel().rows.map((row) => (
-              <DataTableCard key={row.id} row={row} />
-            ))
-          ) : (
-            <div className="flex items-center justify-center h-24 text-muted-foreground">
-              No results.
+        <div className="flex-1 min-h-0 overflow-auto relative">
+          {/* Loading Overlay */}
+          {loading && (
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Loading...</span>
+              </div>
             </div>
           )}
+
+          {/* Error Overlay */}
+          {error && (
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
+              <div className="flex items-center gap-2 text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                <span>Error: {error}</span>
+              </div>
+            </div>
+          )}
+
+          <div className={cn(loading && "opacity-30")}>
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <DataTableCard key={row.id} row={row} />
+              ))
+            ) : (
+              <div className="flex items-center justify-center h-24 text-muted-foreground">
+                No results.
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         // Table view - desktop
-        <div className="flex-1 min-h-0 rounded-md border">
+        <div className="flex-1 min-h-0 rounded-md border relative">
+          {/* Loading Overlay */}
+          {loading && (
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-[calc(0.5rem-1px)]">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Loading...</span>
+              </div>
+            </div>
+          )}
+
+          {/* Error Overlay */}
+          {error && (
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-[calc(0.5rem-1px)]">
+              <div className="flex items-center gap-2 text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                <span>Error: {error}</span>
+              </div>
+            </div>
+          )}
+
           <Table wrapperClassName="h-full">
-            <TableHeader>
+            <TableHeader className="relative z-20 bg-background">
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
@@ -292,7 +326,7 @@ export function DataTable<TData>({
                 </TableRow>
               ))}
             </TableHeader>
-            <TableBody>
+            <TableBody className={cn(loading && "opacity-30")}>
               {table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
                   <TableRow key={row.id}>
