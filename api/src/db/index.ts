@@ -17,8 +17,25 @@ const DB_PATH =
 let db: Database.Database | null = null;
 let writeDb: Database.Database | null = null;
 
+// Check if database file exists
+function checkDatabaseExists(): void {
+  if (!fs.existsSync(DB_PATH)) {
+    const errorMsg = [
+      `Database file not found at: ${DB_PATH}`,
+      '',
+      'The database needs to be initialized first. Please run:',
+      '  cd backend && source .venv/bin/activate',
+      '  python scripts/run_sqlite.py --db ../data/polkadot.db',
+      '',
+      'This will fetch data from Subsquare and populate the database.',
+    ].join('\n');
+    throw new Error(errorMsg);
+  }
+}
+
 export function getDatabase(): Database.Database {
   if (!db) {
+    checkDatabaseExists();
     db = new Database(DB_PATH, { readonly: true });
     db.pragma("journal_mode = WAL");
   }
@@ -27,6 +44,7 @@ export function getDatabase(): Database.Database {
 
 export function getWritableDatabase(): Database.Database {
   if (!writeDb) {
+    checkDatabaseExists();
     writeDb = new Database(DB_PATH, { readonly: false });
     writeDb.pragma("journal_mode = WAL");
   }

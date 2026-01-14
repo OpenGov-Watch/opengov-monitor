@@ -34,8 +34,13 @@ const app = express();
 const DEFAULT_PORT = parseInt(process.env.PORT || "3001", 10);
 const PORT_FILE = path.join(__dirname, "../../data/.api-port");
 
-// Ensure Users table exists on startup
-ensureUsersTable();
+// Ensure Users table exists on startup (if database exists)
+try {
+  ensureUsersTable();
+} catch (error) {
+  console.error("Warning: Could not initialize Users table. Database may not exist yet.");
+  console.error(error instanceof Error ? error.message : String(error));
+}
 
 // Trust proxy for secure cookies behind nginx/reverse proxy
 app.set("trust proxy", 1);
