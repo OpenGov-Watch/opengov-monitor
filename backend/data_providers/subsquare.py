@@ -448,9 +448,12 @@ class SubsquareProvider(DataProvider):
 
         df_updates = self._transform_treasury_spends(df_updates, block_number, block_datetime, block_time)
 
+        # Validate and log errors (but still return all rows including ones with NULL)
+        self._validate_and_log_treasury_spends(df_updates, replacements)
+
         # Add continuity check
         # self._log_continuity_check(df_updates, "treasury proposals", "index")
-        
+
         return df_updates
 
     def _transform_treasury_spends(self, df, reference_block_number: int =None, reference_block_datetime: datetime =None, block_time: float =None):
@@ -518,6 +521,50 @@ class SubsquareProvider(DataProvider):
                  "validFrom", "expireAt"]]
 
         return df
+
+    def _validate_and_log_treasury_spends(self, df: pd.DataFrame, raw_data_list: list) -> None:
+        """
+        Validate treasury spends and log errors for problematic ones.
+
+        NOTE: This does NOT filter out invalid rows - it only logs errors.
+        Treasury table allows NULLs, so invalid rows are still written to DB.
+
+        Args:
+            df: DataFrame of transformed treasury spends
+            raw_data_list: List of raw API responses for error logging
+        """
+        required_columns = ['DOT_proposal_time', 'USD_proposal_time', 'DOT_component', 'USDC_component', 'USDT_component']
+
+        for idx, (record_id, row) in enumerate(df.iterrows()):
+            # Check for NULL/NaN in critical columns
+            null_columns = []
+            for col in required_columns:
+                value = row[col]
+                if pd.isna(value):
+                    null_columns.append(col)
+
+            if null_columns:
+                # Log error but don't prevent insertion
+                raw_data = raw_data_list[idx] if idx < len(raw_data_list) else {}
+
+                metadata = {
+                    'status': row.get('status', 'Unknown'),
+                    'description': str(row.get('description', 'Unknown'))[:200],
+                    'null_columns': null_columns
+                }
+
+                self.sink.log_data_error(
+                    table_name="Treasury",
+                    record_id=str(record_id),
+                    error_type="missing_value",
+                    error_message=f"NULL/NaN values in columns: {', '.join(null_columns)}",
+                    raw_data=raw_data,
+                    metadata=metadata
+                )
+
+                self._logger.warning(
+                    f"Treasury spend {record_id} has NULL values in {null_columns} - logged to DataErrors"
+                )
 
     def fetch_child_bounties(self, child_bounties_to_update=10):
         base_url = f"https://{self.network_info.name}-api.subsquare.io/treasury/child-bounties" #&page_size=100

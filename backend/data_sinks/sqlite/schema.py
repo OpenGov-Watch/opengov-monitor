@@ -352,6 +352,28 @@ USERS_SCHEMA = TableSchema(
     ]
 )
 
+# Schema for Data Errors (generic error logging for all tables)
+DATA_ERRORS_SCHEMA = TableSchema(
+    name="DataErrors",
+    columns={
+        "id": "INTEGER",
+        "table_name": "TEXT NOT NULL",
+        "record_id": "TEXT NOT NULL",
+        "error_type": "TEXT NOT NULL",
+        "error_message": "TEXT NOT NULL",
+        "raw_data": "TEXT",
+        "metadata": "TEXT",
+        "timestamp": "TIMESTAMP NOT NULL",
+    },
+    primary_key="id",
+    indexes=[
+        ("idx_data_errors_table", ["table_name"]),
+        ("idx_data_errors_record", ["table_name", "record_id"]),
+        ("idx_data_errors_type", ["error_type"]),
+        ("idx_data_errors_timestamp", ["timestamp"]),
+    ]
+)
+
 # Registry mapping table names to schemas
 SCHEMA_REGISTRY: Dict[str, TableSchema] = {
     "Referenda": REFERENDA_SCHEMA,
@@ -370,6 +392,7 @@ SCHEMA_REGISTRY: Dict[str, TableSchema] = {
     "Dashboard Components": DASHBOARD_COMPONENTS_SCHEMA,
     "Query Cache": QUERY_CACHE_SCHEMA,
     "Users": USERS_SCHEMA,
+    "DataErrors": DATA_ERRORS_SCHEMA,
 }
 
 

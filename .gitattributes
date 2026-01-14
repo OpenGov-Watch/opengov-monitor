@@ -1,0 +1,9 @@
+# Force LF line endings for migration files to ensure consistent checksums
+# across Windows (dev) and Linux (production) environments
+backend/migrations/versions/*.sql text eol=lf
+backend/migrations/versions/*.py text eol=lf
+
+# Also force LF for other critical config files
+*.sh text eol=lf
+deploy/supervisord.conf text eol=lf
+deploy/nginx-container.conf text eol=lf

@@ -267,6 +267,18 @@ If migrations fail on container startup:
 3. Fix the migration file
 4. Rebuild and redeploy container
 
+### Checksum Mismatch on Unchanged Migrations
+
+If you get a checksum mismatch error for a migration you haven't modified:
+- **Cause**: Line ending differences between Windows (CRLF) and Linux (LF)
+- **Prevention**: The `.gitattributes` file at the repository root forces LF endings for all migration files
+- **Fix**: If you encounter this issue:
+  1. Convert migration files to LF: `dos2unix backend/migrations/versions/*.sql backend/migrations/versions/*.py`
+  2. Commit the line ending fix
+  3. Future commits will maintain LF endings automatically
+
+The migration runner computes SHA256 checksums of migration files. Line ending differences cause different checksums even though the content is identical.
+
 ## Testing Migrations
 
 ### Test on Existing Database

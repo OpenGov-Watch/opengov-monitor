@@ -271,6 +271,7 @@ class SQLiteSink(DataSink):
             "Dashboards",
             "Dashboard Components",
             "Users",
+            "DataErrors",
         ]
 
         for table_name in manual_tables:
@@ -625,6 +626,46 @@ class SQLiteSink(DataSink):
             sort_keys: Ignored for SQLite (sorting is query-time).
         """
         self.update_table(name, df, allow_empty=allow_empty_first_row)
+
+    def log_data_error(
+        self,
+        table_name: str,
+        record_id: str,
+        error_type: str,
+        error_message: str,
+        raw_data: dict = None,
+        metadata: dict = None
+    ) -> None:
+        """Log a data validation or insertion error to DataErrors table.
+
+        Args:
+            table_name: Name of the table where error occurred (e.g., "Treasury").
+            record_id: ID of the record that failed (stored as TEXT for flexibility).
+            error_type: Error category (e.g., "missing_value", "invalid_asset").
+            error_message: Specific error details.
+            raw_data: Optional full JSON from source API.
+            metadata: Optional additional context as dict.
+        """
+        import json
+
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("""
+                INSERT INTO DataErrors (table_name, record_id, error_type, error_message, raw_data, metadata, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                table_name,
+                str(record_id),
+                error_type,
+                error_message,
+                json.dumps(raw_data) if raw_data else None,
+                json.dumps(metadata) if metadata else None,
+                datetime.now().isoformat()
+            ))
+            self.connection.commit()
+            self._logger.info(f"Logged error for {table_name} record {record_id}: {error_type}")
+        except Exception as e:
+            self._logger.error(f"Failed to log error to DataErrors: {e}")
 
     def close(self) -> None:
         """Close the database connection."""

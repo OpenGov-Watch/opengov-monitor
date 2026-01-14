@@ -20,6 +20,7 @@ const ManageBountiesPage = lazy(() => import("@/pages/manage/bounties"));
 const ManageSubtreasuryPage = lazy(() => import("@/pages/manage/subtreasury"));
 const TreasuryNetflowsPage = lazy(() => import("@/pages/treasury-netflows"));
 const ManageSyncSettingsPage = lazy(() => import("@/pages/manage/sync-settings"));
+const ManageDataErrorsPage = lazy(() => import("@/pages/manage/data-errors"));
 const DashboardsListPage = lazy(() => import("@/pages/dashboards/index"));
 const DashboardViewPage = lazy(() => import("@/pages/dashboards/view"));
 const DashboardEditPage = lazy(() => import("@/pages/dashboards/edit"));
@@ -71,6 +72,7 @@ export const router = createBrowserRouter([
       { path: "manage/subtreasury", element: withSuspense(ManageSubtreasuryPage), errorElement: childErrorElement },
       { path: "treasury-netflows", element: withSuspense(TreasuryNetflowsPage), errorElement: childErrorElement },
       { path: "manage/sync", element: withSuspense(ManageSyncSettingsPage), errorElement: childErrorElement },
+      { path: "manage/data-errors", element: withSuspense(ManageDataErrorsPage), errorElement: childErrorElement },
       { path: "dashboards", element: withSuspense(DashboardsListPage), errorElement: childErrorElement },
       { path: "dashboards/:id", element: withSuspense(DashboardViewPage), errorElement: childErrorElement },
       { path: "dashboards/:id/edit", element: <RequireAuth>{withSuspense(DashboardEditPage)}</RequireAuth>, errorElement: childErrorElement },

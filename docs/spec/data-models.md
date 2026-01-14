@@ -123,6 +123,39 @@ Component types: `table`, `pie`, `bar_stacked`, `bar_grouped`, `line`, `text`
 
 ---
 
+## System Tables
+
+### DataErrors
+
+Generic error logging table for data validation and insertion failures across all tables.
+
+Primary key: `id` (autoincrement)
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| `id` | INTEGER | NOT NULL | Auto-incrementing error ID |
+| `table_name` | TEXT | NOT NULL | Which table the error occurred for (e.g., "Treasury", "Referenda") |
+| `record_id` | TEXT | NOT NULL | ID of the record that failed (stored as TEXT for flexibility) |
+| `error_type` | TEXT | NOT NULL | Error category (e.g., "missing_value", "invalid_asset", "price_conversion_failed") |
+| `error_message` | TEXT | NOT NULL | Specific error details |
+| `raw_data` | TEXT | NULL | Full JSON from source API (optional, may be NULL for historical errors) |
+| `metadata` | TEXT | NULL | Additional context as JSON (e.g., status, description, null_columns) |
+| `timestamp` | TIMESTAMP | NOT NULL | When the error occurred |
+
+**Indexes:**
+- `idx_data_errors_table` on (`table_name`)
+- `idx_data_errors_record` on (`table_name`, `record_id`)
+- `idx_data_errors_type` on (`error_type`)
+- `idx_data_errors_timestamp` on (`timestamp`)
+
+**Usage:**
+- Backend validation logs errors via `sink.log_data_error()`
+- Errors viewable in `/manage/data-errors` page (authentication required)
+- No unique constraint - same record can appear multiple times with different timestamps
+- API endpoint: `GET /api/data-errors` (authenticated, supports filtering by `table_name` and `error_type`)
+
+---
+
 ## Views
 
 ### outstanding_claims

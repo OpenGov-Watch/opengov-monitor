@@ -29,6 +29,7 @@ import { dashboardsRouter } from "./routes/dashboards.js";
 import { queryRouter } from "./routes/query.js";
 import { statsRouter } from "./routes/stats.js";
 import { syncRouter } from "./routes/sync.js";
+import dataErrorsRouter from "./routes/data-errors.js";
 
 const app = express();
 const DEFAULT_PORT = parseInt(process.env.PORT || "3001", 10);
@@ -108,6 +109,7 @@ app.use("/api/dashboards", dashboardsRouter);
 app.use("/api/query", queryRouter);
 app.use("/api/stats", statsRouter);
 app.use("/api/sync", syncRouter);
+app.use("/api/data-errors", dataErrorsRouter);
 
 // Helper to sanitize request body for logging
 function sanitizeRequestBody(body: any): any {
