@@ -7,7 +7,7 @@ set -e  # Exit immediately on error
 
 echo "=== Running database migrations ==="
 cd /app/backend
-python migrations/migration_runner.py --db /data/polkadot.db
+.venv/bin/python migrations/migration_runner.py --db /data/polkadot.db
 
 if [ $? -eq 0 ]; then
     echo "=== Migrations completed successfully ==="
