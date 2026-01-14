@@ -19,6 +19,14 @@ let writeDb: Database.Database | null = null;
 
 export function getDatabase(): Database.Database {
   if (!db) {
+    // Check if database exists before opening in readonly mode
+    if (!fs.existsSync(DB_PATH)) {
+      throw new Error(
+        `Database not found at ${DB_PATH}. ` +
+        `In production, ensure migrations have run successfully. ` +
+        `In development, run: cd backend && source .venv/bin/activate && python scripts/run_sqlite.py --db ${DB_PATH}`
+      );
+    }
     db = new Database(DB_PATH, { readonly: true });
     db.pragma("journal_mode = WAL");
   }
@@ -27,6 +35,16 @@ export function getDatabase(): Database.Database {
 
 export function getWritableDatabase(): Database.Database {
   if (!writeDb) {
+    // Check if database exists before opening
+    // Note: readonly: false will create the database if it doesn't exist,
+    // but in production we want migrations to create it
+    if (!fs.existsSync(DB_PATH)) {
+      throw new Error(
+        `Database not found at ${DB_PATH}. ` +
+        `In production, ensure migrations have run successfully. ` +
+        `In development, run: cd backend && source .venv/bin/activate && python scripts/run_sqlite.py --db ${DB_PATH}`
+      );
+    }
     writeDb = new Database(DB_PATH, { readonly: false });
     writeDb.pragma("journal_mode = WAL");
   }

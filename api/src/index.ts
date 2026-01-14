@@ -35,7 +35,13 @@ const DEFAULT_PORT = parseInt(process.env.PORT || "3001", 10);
 const PORT_FILE = path.join(__dirname, "../../data/.api-port");
 
 // Ensure Users table exists on startup
-ensureUsersTable();
+// Wrap in try-catch to provide helpful error if database doesn't exist
+try {
+  ensureUsersTable();
+} catch (err) {
+  console.error("Failed to ensure Users table:", err instanceof Error ? err.message : err);
+  console.error("The API will start but database operations will fail until the database is initialized.");
+}
 
 // Trust proxy for secure cookies behind nginx/reverse proxy
 app.set("trust proxy", 1);
