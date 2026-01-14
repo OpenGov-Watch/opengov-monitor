@@ -12,6 +12,7 @@ import {
   transformToBarData,
   transformToLineData,
 } from "@/components/charts";
+import { ChartContainer } from "@/components/charts/chart-container";
 import { DataTable } from "@/components/data-table/data-table";
 import { loadColumnConfig } from "@/lib/column-renderer";
 import type {
@@ -191,7 +192,7 @@ export function DashboardComponent({
           );
         }
         return (
-          <div style={{ width: '100%', height: '100%', minHeight: 0 }}>
+          <ChartContainer>
             <DashboardPieChart
               data={transformToPieData(data, labelColumn, valueColumn)}
               showLegend={chartConfig.showLegend ?? true}
@@ -201,7 +202,7 @@ export function DashboardComponent({
               valueColumn={valueColumn}
               columnMapping={columnMapping}
             />
-          </div>
+          </ChartContainer>
         );
 
       case "bar_stacked":
@@ -213,7 +214,7 @@ export function DashboardComponent({
           tableName
         );
         return (
-          <div style={{ width: '100%', height: '100%', minHeight: 0 }}>
+          <ChartContainer>
             <DashboardBarChart
               data={barData}
               bars={bars}
@@ -223,7 +224,7 @@ export function DashboardComponent({
               tableName={tableName}
               columnMapping={columnMapping}
             />
-          </div>
+          </ChartContainer>
         );
       }
 
@@ -235,7 +236,7 @@ export function DashboardComponent({
           tableName
         );
         return (
-          <div style={{ width: '100%', height: '100%', minHeight: 0 }}>
+          <ChartContainer>
             <DashboardLineChart
               data={lineData}
               lines={lines}
@@ -244,7 +245,7 @@ export function DashboardComponent({
               tableName={tableName}
               columnMapping={columnMapping}
             />
-          </div>
+          </ChartContainer>
         );
       }
 
