@@ -79,6 +79,37 @@ def get_applied_migrations(conn: sqlite3.Connection) -> dict:
     return {row[0]: row[1] for row in cursor.fetchall()}
 
 
+def backup_database(db_path: str, logger: logging.Logger) -> Optional[str]:
+    """
+    Create a timestamped backup of the database before running migrations.
+
+    Returns:
+        Path to backup file if successful, None if failed
+    """
+    import shutil
+    from datetime import datetime
+
+    db_file = Path(db_path)
+    if not db_file.exists():
+        logger.warning(f"Database file not found: {db_path}")
+        return None
+
+    # Create backup filename with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_dir = db_file.parent
+    backup_name = f"{db_file.stem}_backup_{timestamp}{db_file.suffix}"
+    backup_path = backup_dir / backup_name
+
+    try:
+        logger.info(f"Creating backup: {backup_path}")
+        shutil.copy2(db_path, backup_path)
+        logger.info(f"Backup created successfully: {backup_path}")
+        return str(backup_path)
+    except Exception as e:
+        logger.error(f"Failed to create backup: {e}", exc_info=True)
+        return None
+
+
 def validate_migrations(
     migrations: List[Migration],
     applied: dict,
@@ -298,6 +329,14 @@ def main():
             return
 
         logger.info(f"Pending migrations: {len(pending)}")
+
+        # Create backup before running migrations
+        backup_path = backup_database(args.db, logger)
+        if backup_path:
+            logger.info(f"Backup saved to: {backup_path}")
+            logger.info("You can restore from this backup if migrations fail")
+        else:
+            logger.warning("Failed to create backup, but continuing with migrations")
 
         # Execute pending migrations
         for migration in pending:

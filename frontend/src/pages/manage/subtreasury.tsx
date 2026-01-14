@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Pencil, Trash2, Plus, ExternalLink, ChevronRight } from "lucide-react";
+import { Pencil, Trash2, Plus, ChevronRight } from "lucide-react";
 import type { Subtreasury, Category } from "@/lib/db/types";
 import { formatNumber, formatDate, cn } from "@/lib/utils";
 import { RequireAuth } from "@/components/auth/require-auth";
@@ -42,7 +42,6 @@ interface FormData {
   category_id: number | null;
   selectedCategory: string; // For cascading dropdown UI
   latest_status_change: string;
-  url: string;
 }
 
 const emptyFormData: FormData = {
@@ -56,7 +55,6 @@ const emptyFormData: FormData = {
   category_id: null,
   selectedCategory: "",
   latest_status_change: "",
-  url: "",
 };
 
 function SubtreasuryPageContent() {
@@ -115,7 +113,6 @@ function SubtreasuryPageContent() {
       category_id: entry.category_id,
       selectedCategory: cat?.category || "",
       latest_status_change: entry.latest_status_change?.slice(0, 10) || "",
-      url: entry.url || "",
     });
     setDialogOpen(true);
   }
@@ -134,7 +131,6 @@ function SubtreasuryPageContent() {
       USDT_component: formData.USDT_component ? parseFloat(formData.USDT_component) : null,
       category_id: formData.category_id,
       latest_status_change: formData.latest_status_change || null,
-      url: formData.url || null,
     };
 
     try {
@@ -379,17 +375,6 @@ function SubtreasuryPageContent() {
                   }
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="url">URL</Label>
-                <Input
-                  id="url"
-                  value={formData.url}
-                  onChange={(e) =>
-                    setFormData({ ...formData, url: e.target.value })
-                  }
-                  placeholder="https://..."
-                />
-              </div>
               <div className="flex justify-end gap-2">
                 <Button
                   type="button"
@@ -426,19 +411,7 @@ function SubtreasuryPageContent() {
                   {formatDate(entry.latest_status_change)}
                 </TableCell>
                 <TableCell>
-                  {entry.url ? (
-                    <a
-                      href={entry.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline inline-flex items-center gap-1"
-                    >
-                      {entry.title}
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  ) : (
-                    entry.title
-                  )}
+                  {entry.title}
                 </TableCell>
                 <TableCell className="font-mono text-right">
                   {formatNumber(entry.DOT_latest)}

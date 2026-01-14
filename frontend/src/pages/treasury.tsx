@@ -35,7 +35,6 @@ export default function TreasuryPage() {
     sourceTable: "Treasury",
     columns: [
       { column: "id" },
-      { column: "url" },
       { column: "referendumIndex" },
       { column: "status" },
       { column: "description" },

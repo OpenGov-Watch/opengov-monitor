@@ -43,8 +43,7 @@ const SCHEMA_SQL = `
     "USDC_component" REAL,
     "USDT_component" REAL,
     "category_id" INTEGER,
-    "latest_status_change" TEXT,
-    "url" TEXT
+    "latest_status_change" TEXT
   );
 `;
 

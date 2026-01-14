@@ -37,8 +37,7 @@ const SCHEMA_SQL = `
     "id" INTEGER PRIMARY KEY,
     "name" TEXT,
     "category_id" INTEGER,
-    "remaining_dot" REAL,
-    "url" TEXT
+    "remaining_dot" REAL
   );
 `;
 
@@ -77,9 +76,9 @@ describe("GET /api/bounties", () => {
 
   it("returns all bounties", async () => {
     testDb.exec(`
-      INSERT INTO "Bounties" (id, name, category_id, remaining_dot, url)
-      VALUES (1, 'Bounty 1', 1, 1000.5, 'https://example.com/1'),
-             (2, 'Bounty 2', 2, 500.0, 'https://example.com/2')
+      INSERT INTO "Bounties" (id, name, category_id, remaining_dot)
+      VALUES (1, 'Bounty 1', 1, 1000.5),
+             (2, 'Bounty 2', 2, 500.0)
     `);
 
     const response = await request(app).get("/api/bounties");
@@ -95,8 +94,8 @@ describe("GET /api/bounties", () => {
 describe("GET /api/bounties/:id", () => {
   it("returns single bounty by id", async () => {
     testDb.exec(`
-      INSERT INTO "Bounties" (id, name, category_id, remaining_dot, url)
-      VALUES (1, 'Bounty 1', 1, 1000.5, 'https://example.com/1')
+      INSERT INTO "Bounties" (id, name, category_id, remaining_dot)
+      VALUES (1, 'Bounty 1', 1, 1000.5)
     `);
 
     const response = await request(app).get("/api/bounties/1");
@@ -124,7 +123,6 @@ describe("POST /api/bounties", () => {
         name: "New Bounty",
         category_id: 1,
         remaining_dot: 1000.0,
-        url: "https://example.com/new",
       });
 
     expect(response.status).toBe(201);
@@ -149,8 +147,8 @@ describe("POST /api/bounties", () => {
 describe("PUT /api/bounties/:id", () => {
   it("updates existing bounty", async () => {
     testDb.exec(`
-      INSERT INTO "Bounties" (id, name, category_id, remaining_dot, url)
-      VALUES (1, 'Original', 3, 1000, null)
+      INSERT INTO "Bounties" (id, name, category_id, remaining_dot)
+      VALUES (1, 'Original', 3, 1000)
     `);
 
     const response = await request(app)
@@ -160,7 +158,6 @@ describe("PUT /api/bounties/:id", () => {
         name: "Updated Bounty",
         category_id: 2,
         remaining_dot: 500.0,
-        url: "https://updated.com",
       });
 
     expect(response.status).toBe(200);
@@ -179,8 +176,8 @@ describe("PUT /api/bounties/:id", () => {
 describe("PATCH /api/bounties/:id/category", () => {
   it("updates bounty category_id", async () => {
     testDb.exec(`
-      INSERT INTO "Bounties" (id, name, category_id, remaining_dot, url)
-      VALUES (1, 'Test', null, 1000, null)
+      INSERT INTO "Bounties" (id, name, category_id, remaining_dot)
+      VALUES (1, 'Test', null, 1000)
     `);
 
     const response = await request(app)
@@ -201,8 +198,8 @@ describe("PATCH /api/bounties/:id/category", () => {
 describe("DELETE /api/bounties/:id", () => {
   it("deletes existing bounty", async () => {
     testDb.exec(`
-      INSERT INTO "Bounties" (id, name, category_id, remaining_dot, url)
-      VALUES (1, 'ToDelete', null, 1000, null)
+      INSERT INTO "Bounties" (id, name, category_id, remaining_dot)
+      VALUES (1, 'ToDelete', null, 1000)
     `);
 
     const response = await request(app).delete("/api/bounties/1");

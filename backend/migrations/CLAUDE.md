@@ -1,0 +1,1 @@
+- Migrations MUST NOT drop tables. We need to preserve existing data.

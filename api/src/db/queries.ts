@@ -145,14 +145,13 @@ export function getBountyById(id: number): Bounty | undefined {
 export function upsertBounty(bounty: Omit<Bounty, "category" | "subcategory">): void {
   const db = getWritableDatabase();
   db.prepare(`
-    INSERT INTO "${TABLE_NAMES.bounties}" (id, name, category_id, remaining_dot, url)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO "${TABLE_NAMES.bounties}" (id, name, category_id, remaining_dot)
+    VALUES (?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       name = excluded.name,
       category_id = excluded.category_id,
-      remaining_dot = excluded.remaining_dot,
-      url = excluded.url
-  `).run(bounty.id, bounty.name, bounty.category_id, bounty.remaining_dot, bounty.url);
+      remaining_dot = excluded.remaining_dot
+  `).run(bounty.id, bounty.name, bounty.category_id, bounty.remaining_dot);
 }
 
 export function updateBountyCategory(id: number, category_id: number | null): void {
@@ -196,8 +195,8 @@ export function createSubtreasury(entry: Omit<Subtreasury, "id" | "category" | "
   const db = getWritableDatabase();
   const result = db.prepare(`
     INSERT INTO "${TABLE_NAMES.subtreasury}"
-    (title, description, DOT_latest, USD_latest, DOT_component, USDC_component, USDT_component, category_id, latest_status_change, url)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (title, description, DOT_latest, USD_latest, DOT_component, USDC_component, USDT_component, category_id, latest_status_change)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     entry.title,
     entry.description,
@@ -207,8 +206,7 @@ export function createSubtreasury(entry: Omit<Subtreasury, "id" | "category" | "
     entry.USDC_component,
     entry.USDT_component,
     entry.category_id,
-    entry.latest_status_change,
-    entry.url
+    entry.latest_status_change
   );
   return { id: result.lastInsertRowid as number, ...entry };
 }
@@ -219,7 +217,7 @@ export function updateSubtreasury(entry: Omit<Subtreasury, "category" | "subcate
     UPDATE "${TABLE_NAMES.subtreasury}" SET
       title = ?, description = ?, DOT_latest = ?, USD_latest = ?,
       DOT_component = ?, USDC_component = ?, USDT_component = ?,
-      category_id = ?, latest_status_change = ?, url = ?
+      category_id = ?, latest_status_change = ?
     WHERE id = ?
   `).run(
     entry.title,
@@ -231,7 +229,6 @@ export function updateSubtreasury(entry: Omit<Subtreasury, "category" | "subcate
     entry.USDT_component,
     entry.category_id,
     entry.latest_status_change,
-    entry.url,
     entry.id
   );
 }
@@ -316,8 +313,7 @@ export function getAllSpending(): AllSpending[] {
         r.title,
         r.DOT_component,
         r.USDC_component,
-        r.USDT_component,
-        r.url
+        r.USDT_component
     FROM Referenda r
     LEFT JOIN Treasury t ON r.id = t.referendumIndex
     LEFT JOIN Categories rc ON r.category_id = rc.id
@@ -340,8 +336,7 @@ export function getAllSpending(): AllSpending[] {
         t.description AS title,
         t.DOT_component,
         t.USDC_component,
-        t.USDT_component,
-        t.url
+        t.USDT_component
     FROM Treasury t
     WHERE t.status IN ('Paid', 'Processed')
 
@@ -360,8 +355,7 @@ export function getAllSpending(): AllSpending[] {
         cb.description AS title,
         cb.DOT AS DOT_component,
         NULL AS USDC_component,
-        NULL AS USDT_component,
-        cb.url
+        NULL AS USDT_component
     FROM "Child Bounties" cb
     LEFT JOIN Bounties b ON cb.parentBountyId = b.id
     LEFT JOIN Categories cbc ON cb.category_id = cbc.id
@@ -383,8 +377,7 @@ export function getAllSpending(): AllSpending[] {
         s.title,
         s.DOT_component,
         s.USDC_component,
-        s.USDT_component,
-        s.url
+        s.USDT_component
     FROM Subtreasury s
     LEFT JOIN Categories sc ON s.category_id = sc.id
 
@@ -402,8 +395,7 @@ export function getAllSpending(): AllSpending[] {
         'Fellowship Salary Cycle ' || c.cycle AS title,
         c.registered_paid_amount_dot AS DOT_component,
         NULL AS USDC_component,
-        NULL AS USDT_component,
-        c.url
+        NULL AS USDT_component
     FROM "Fellowship Salary Cycles" c
     WHERE c.end_time IS NOT NULL
 
@@ -421,8 +413,7 @@ export function getAllSpending(): AllSpending[] {
         f.description AS title,
         f.DOT AS DOT_component,
         NULL AS USDC_component,
-        NULL AS USDT_component,
-        f.url
+        NULL AS USDT_component
     FROM Fellowship f
     WHERE f.status IN ('Paid', 'Approved')
 
