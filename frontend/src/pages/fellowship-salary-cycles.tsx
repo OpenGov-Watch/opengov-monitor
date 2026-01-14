@@ -20,8 +20,7 @@ export default function FellowshipSalaryCyclesPage() {
         { column: "end_time" },
       ],
       filters: [],
-      orderBy: [{ column: "cycle", direction: "DESC" }],
-      limit: 1000,
+      orderBy: [{ column: "cycle", direction: "DESC" }]
     }),
     []
   );

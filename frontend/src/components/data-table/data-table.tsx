@@ -9,7 +9,6 @@ import {
   getCoreRowModel,
   getFacetedRowModel,
   getFacetedUniqueValues,
-  getPaginationRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 
@@ -30,7 +29,7 @@ import { DataTableToolbar } from "./toolbar";
 import { DataTableCard } from "./data-table-card";
 import { ViewSelector } from "./view-selector";
 import { useViewState, SavedView } from "@/hooks/use-view-state";
-import { QueryConfig, DataTableEditConfig } from "@/lib/db/types";
+import { QueryConfig, QueryExecuteResponse, DataTableEditConfig } from "@/lib/db/types";
 import { generateColumns } from "@/lib/auto-columns";
 import { sortingStateToOrderBy, filterStateToQueryFilters } from "@/lib/query-config-utils";
 import { cn } from "@/lib/utils";
@@ -117,6 +116,7 @@ export function DataTable<TData>({
   const [data, setData] = useState<TData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState<number | undefined>(undefined);
 
   // Pass through the original setters without any wrapping
   const setSorting = setViewSorting;
@@ -124,12 +124,14 @@ export function DataTable<TData>({
   const clearViewState = clearView;
 
   // BUILD COMPLETE QUERY CONFIG
-  // Merge base config with dynamic sorting/filtering state
+  // Merge base config with dynamic sorting/filtering/pagination state
   const queryConfig = useMemo<QueryConfig>(() => ({
     ...baseQueryConfig,
     orderBy: sortingStateToOrderBy(sorting),
     filters: filterStateToQueryFilters(columnFilters),
-  }), [baseQueryConfig, sorting, columnFilters]);
+    limit: pagination.pageSize,
+    offset: pagination.pageIndex * pagination.pageSize,
+  }), [baseQueryConfig, sorting, columnFilters, pagination]);
 
   useEffect(() => {
     async function fetchData() {
@@ -148,8 +150,9 @@ export function DataTable<TData>({
           throw new Error(result.error || "Query failed");
         }
 
-        const result = await response.json();
-        setData(result.data);
+        const result: QueryExecuteResponse = await response.json();
+        setData(result.data as TData[]);
+        setTotalCount(result.totalCount);
       } catch (err) {
         setError((err as Error).message);
       } finally {
@@ -220,7 +223,12 @@ export function DataTable<TData>({
     getCoreRowModel: getCoreRowModel(),
     // getSortedRowModel removed - sorting now server-side via orderBy
     // getFilteredRowModel removed - filtering now server-side via filters
-    getPaginationRowModel: getPaginationRowModel(),
+    // getPaginationRowModel removed - pagination now server-side via limit/offset
+    manualPagination: true,  // Enable server-side pagination
+    rowCount: totalCount ?? 0,  // Total rows from server
+    pageCount: totalCount !== undefined
+      ? Math.ceil(totalCount / pagination.pageSize)
+      : -1,  // -1 means unknown (loading state)
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
   });

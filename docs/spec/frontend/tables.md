@@ -109,9 +109,11 @@ const defaultViews: SavedView[] = [
 - **Display**: Column IDs with underscores/dots → spaces
 
 ### Pagination
+- **Type**: Server-side (only current page fetched from API)
 - **Page sizes**: 10, 20, 30, 50, 100 (default: 100)
 - **Controls**: First, Previous, Next, Last (Last hidden on mobile)
 - **State**: Part of view state, persisted in localStorage
+- **Performance**: Pagination changes trigger API refetch with new offset
 
 ### Authentication Patterns
 
@@ -134,8 +136,10 @@ cell: ({ row }) =>
 ### API Integration
 - **Endpoint**: POST `/api/query/execute` with QueryConfig
 - **Pattern**: DataTable component handles data fetching internally (useState + useEffect)
+- **Pagination**: Server-side with LIMIT/OFFSET - only current page data fetched
+- **Total Count**: Separate COUNT query provides total for pagination UI
 - **Error Handling**: Loading/error states with user-friendly messages
-- **Data Scope**: QueryConfig defines query, all filtering/sorting/pagination happens client-side
+- **Data Scope**: Sorting, filtering, and pagination all happen server-side
 
 ### Responsive Behavior
 - **Breakpoint**: md (768px)
@@ -194,10 +198,15 @@ frontend/src/components/
 - Dashboards (list, view, edit)
 
 ### Performance Notes
-- All filtering/sorting/pagination: client-side (no API calls after initial fetch)
-- TanStack Table row models handle large datasets efficiently
+- All filtering/sorting/pagination: server-side (API calls with LIMIT/OFFSET)
+- Only current page data transferred (e.g., 100 rows instead of 10,000)
 - Columns auto-generated on data load, cached with `useMemo`
 - Default page size: 100 rows
+
+### Known Limitations
+
+#### Faceted Filters with Server-Side Pagination
+Faceted filters show counts based on the current page only, not the entire filtered dataset. This is a known limitation of server-side pagination with client-side faceting.
 
 ### Compact Mode
 - Added in PR #38 for potential dashboard integration

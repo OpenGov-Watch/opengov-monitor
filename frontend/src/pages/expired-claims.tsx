@@ -30,8 +30,7 @@ export default function ExpiredClaimsPage() {
         { column: "days_since_expiry" },
       ],
       filters: [],
-      orderBy: [{ column: "days_since_expiry", direction: "DESC" }],
-      limit: 1000,
+      orderBy: [{ column: "days_since_expiry", direction: "DESC" }]
     }),
     []
   );

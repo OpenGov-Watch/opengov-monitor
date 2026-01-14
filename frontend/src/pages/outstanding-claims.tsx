@@ -30,8 +30,7 @@ export default function OutstandingClaimsPage() {
         { column: "days_until_expiry" },
       ],
       filters: [],
-      orderBy: [{ column: "days_until_expiry", direction: "ASC" }],
-      limit: 1000,
+      orderBy: [{ column: "days_until_expiry", direction: "ASC" }]
     }),
     []
   );

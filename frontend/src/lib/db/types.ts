@@ -306,6 +306,14 @@ export interface QueryConfig {
   groupBy?: string[];
   orderBy?: OrderByConfig[];
   limit?: number;
+  offset?: number;         // Optional: enables server-side pagination
+}
+
+export interface QueryExecuteResponse {
+  data: Record<string, unknown>[];
+  rowCount: number;
+  totalCount?: number;  // Present only when server-side pagination is used
+  sql: string;
 }
 
 export interface ColumnSelection {

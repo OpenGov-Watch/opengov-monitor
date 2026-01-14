@@ -89,8 +89,7 @@ export default function ChildBountiesPage() {
             right: "b.id",
           },
         },
-      ],
-      limit: 1000,
+      ]
     }),
     []
   );

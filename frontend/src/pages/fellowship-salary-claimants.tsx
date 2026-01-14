@@ -49,8 +49,7 @@ export default function FellowshipSalaryClaimantsPage() {
         { column: "last_active_time" },
       ],
       filters: [],
-      orderBy: [{ column: "display_name", direction: "ASC" }],
-      limit: 1000,
+      orderBy: [{ column: "display_name", direction: "ASC" }]
     }),
     []
   );

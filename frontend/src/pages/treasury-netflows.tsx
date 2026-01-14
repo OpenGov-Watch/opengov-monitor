@@ -14,8 +14,7 @@ export default function TreasuryNetflowsPage() {
         { column: "amount_dot_equivalent" },
       ],
       filters: [],
-      orderBy: [{ column: "month", direction: "DESC" }],
-      limit: 10000,
+      orderBy: [{ column: "month", direction: "DESC" }]
     }),
     []
   );

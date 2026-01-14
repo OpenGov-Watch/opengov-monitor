@@ -53,8 +53,7 @@ export default function ReferendaPage() {
       table: "Categories",
       alias: "c",
       on: { left: "Referenda.category_id", right: "c.id" }
-    }],
-    limit: 1000
+    }]
   }), []);
 
   const editConfig: DataTableEditConfig | undefined = useMemo(() => {

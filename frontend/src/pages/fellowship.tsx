@@ -15,8 +15,7 @@ export default function FellowshipPage() {
       { column: "proposal_time" },
       { column: "latest_status_change" },
       { column: "USD_latest" },
-    ],
-    limit: 1000
+    ]
   }), []);
 
   const columnOverrides = useMemo(() => ({

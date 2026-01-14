@@ -33,8 +33,8 @@ export function DataTablePagination<TData>({
     <div className="flex flex-col md:flex-row items-center justify-between px-2 gap-4">
       <div className="flex-1 text-sm text-muted-foreground text-center md:text-left">
         {compactMode
-          ? `${table.getFilteredRowModel().rows.length} rows`
-          : `${table.getFilteredRowModel().rows.length} row(s) total.`}
+          ? `${table.getRowCount().toLocaleString()} rows`
+          : `${table.getRowCount().toLocaleString()} row(s) total.`}
       </div>
       <div className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-6 lg:space-x-8">
         <div className="flex items-center space-x-2">

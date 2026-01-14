@@ -306,6 +306,7 @@ export interface QueryConfig {
   groupBy?: string[];
   orderBy?: OrderByConfig[];
   limit?: number;
+  offset?: number;         // Optional: enables server-side pagination
 }
 
 export interface ColumnSelection {

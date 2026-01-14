@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { DataTable } from "@/components/data-table/data-table";
 import { Badge } from "@/components/ui/badge";
 import { RequireAuth } from "@/components/auth/require-auth";
-import { formatNumber, formatDate } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 import type { AllSpending, SpendingType, QueryConfig } from "@/lib/db/types";
 
 function getTypeVariant(
@@ -44,18 +44,13 @@ function SpendingPageContent() {
         { column: "id" },
       ],
       filters: [],
-      orderBy: [{ column: "latest_status_change", direction: "DESC" }],
-      limit: 10000,
+      orderBy: [{ column: "latest_status_change", direction: "DESC" }]
     }),
     []
   );
 
   const columnOverrides = useMemo(
     () => ({
-      latest_status_change: {
-        header: "Date",
-        cell: ({ row }: { row: any }) => formatDate(row.original.latest_status_change),
-      },
       type: {
         cell: ({ row }: { row: any }) => {
           const type = row.original.type as SpendingType;

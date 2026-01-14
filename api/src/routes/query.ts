@@ -400,6 +400,11 @@ function buildQuery(config: QueryConfig): { sql: string; params: (string | numbe
   const orderByClause = buildOrderByClause(config.orderBy, config);
   const limit = Math.min(config.limit || MAX_ROWS, MAX_ROWS);
 
+  // Pagination logic: add OFFSET only when server-side pagination is enabled
+  const paginationClause = config.offset !== undefined
+    ? `LIMIT ${limit} OFFSET ${config.offset}`
+    : `LIMIT ${limit}`;
+
   const sql = [
     `SELECT ${selectClause}`,
     `FROM ${tableName}`,
@@ -407,7 +412,24 @@ function buildQuery(config: QueryConfig): { sql: string; params: (string | numbe
     whereClause,
     groupByClause,
     orderByClause,
-    `LIMIT ${limit}`,
+    paginationClause,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return { sql, params };
+}
+
+function buildCountQuery(config: QueryConfig): { sql: string; params: (string | number)[] } {
+  const tableName = `"${config.sourceTable}"`;
+  const joinClause = buildJoinClause(config.joins);
+  const { clause: whereClause, params } = buildWhereClause(config.filters || [], config.sourceTable);
+
+  const sql = [
+    `SELECT COUNT(*) as total`,
+    `FROM ${tableName}`,
+    joinClause,
+    whereClause,
   ]
     .filter(Boolean)
     .join(" ");
@@ -478,12 +500,22 @@ queryRouter.post("/execute", (req, res) => {
     }
 
     const db = getDatabase();
+
+    // If offset is present, perform server-side pagination with count query
+    let totalCount: number | undefined;
+    if (config.offset !== undefined) {
+      const { sql: countSql, params: countParams } = buildCountQuery(config);
+      const countResult = db.prepare(countSql).get(...countParams) as { total: number };
+      totalCount = countResult.total;
+    }
+
     const { sql, params } = buildQuery(config);
     const results = db.prepare(sql).all(...params);
 
     res.json({
       data: results,
       rowCount: results.length,
+      totalCount,  // undefined for non-paginated queries (dashboard mode)
       sql: sql,
     });
   } catch (error) {

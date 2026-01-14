@@ -46,8 +46,7 @@ export default function TreasuryPage() {
       { column: "latest_status_change" },
       { column: "validFrom" },
       { column: "expireAt" },
-    ],
-    limit: 1000
+    ]
   }), []);
 
   const columnOverrides = useMemo(() => ({
