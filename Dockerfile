@@ -67,10 +67,12 @@ RUN python3 -m venv /app/backend/.venv \
 COPY deploy/nginx-container.conf /etc/nginx/sites-available/default
 COPY deploy/supervisord.conf /etc/supervisor/conf.d/opengov.conf
 COPY deploy/sync-cron /etc/cron.d/opengov-sync
+COPY deploy/run-migrations-then-api.sh /app/deploy/run-migrations-then-api.sh
 
-# Setup cron
+# Setup cron and make migration script executable
 RUN chmod 0644 /etc/cron.d/opengov-sync \
-    && crontab /etc/cron.d/opengov-sync
+    && crontab /etc/cron.d/opengov-sync \
+    && chmod +x /app/deploy/run-migrations-then-api.sh
 
 # Create data directory
 RUN mkdir -p /data
