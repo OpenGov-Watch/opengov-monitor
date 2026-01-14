@@ -12,7 +12,6 @@ import {
   transformToBarData,
   transformToLineData,
 } from "@/components/charts";
-import { ChartContainer } from "@/components/charts/chart-container";
 import { DataTable } from "@/components/data-table/data-table";
 import { loadColumnConfig } from "@/lib/column-renderer";
 import type {
@@ -192,17 +191,15 @@ export function DashboardComponent({
           );
         }
         return (
-          <ChartContainer>
-            <DashboardPieChart
-              data={transformToPieData(data, labelColumn, valueColumn)}
-              showLegend={chartConfig.showLegend ?? true}
-              showTooltip={chartConfig.showTooltip ?? true}
-              colors={chartConfig.colors}
-              tableName={tableName}
-              valueColumn={valueColumn}
-              columnMapping={columnMapping}
-            />
-          </ChartContainer>
+          <DashboardPieChart
+            data={transformToPieData(data, labelColumn, valueColumn)}
+            showLegend={chartConfig.showLegend ?? true}
+            showTooltip={chartConfig.showTooltip ?? true}
+            colors={chartConfig.colors}
+            tableName={tableName}
+            valueColumn={valueColumn}
+            columnMapping={columnMapping}
+          />
         );
 
       case "bar_stacked":
@@ -214,17 +211,15 @@ export function DashboardComponent({
           tableName
         );
         return (
-          <ChartContainer>
-            <DashboardBarChart
-              data={barData}
-              bars={bars}
-              stacked={component.type === "bar_stacked"}
-              showLegend={chartConfig.showLegend ?? true}
-              showTooltip={chartConfig.showTooltip ?? true}
-              tableName={tableName}
-              columnMapping={columnMapping}
-            />
-          </ChartContainer>
+          <DashboardBarChart
+            data={barData}
+            bars={bars}
+            stacked={component.type === "bar_stacked"}
+            showLegend={chartConfig.showLegend ?? true}
+            showTooltip={chartConfig.showTooltip ?? true}
+            tableName={tableName}
+            columnMapping={columnMapping}
+          />
         );
       }
 
@@ -236,16 +231,14 @@ export function DashboardComponent({
           tableName
         );
         return (
-          <ChartContainer>
-            <DashboardLineChart
-              data={lineData}
-              lines={lines}
-              showLegend={chartConfig.showLegend ?? true}
-              showTooltip={chartConfig.showTooltip ?? true}
-              tableName={tableName}
-              columnMapping={columnMapping}
-            />
-          </ChartContainer>
+          <DashboardLineChart
+            data={lineData}
+            lines={lines}
+            showLegend={chartConfig.showLegend ?? true}
+            showTooltip={chartConfig.showTooltip ?? true}
+            tableName={tableName}
+            columnMapping={columnMapping}
+          />
         );
       }
 
