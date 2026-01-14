@@ -34,7 +34,6 @@ export default function ReferendaPage() {
     sourceTable: "Referenda",
     columns: [
       { column: "id" },
-      { column: "url" },
       { column: "title" },
       { column: "status" },
       { column: "track" },

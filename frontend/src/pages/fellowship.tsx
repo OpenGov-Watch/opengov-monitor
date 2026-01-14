@@ -9,7 +9,6 @@ export default function FellowshipPage() {
     sourceTable: "Fellowship",
     columns: [
       { column: "id" },
-      { column: "url" },
       { column: "description" },
       { column: "status" },
       { column: "DOT" },

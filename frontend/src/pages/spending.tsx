@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { DataTable } from "@/components/data-table/data-table";
 import { Badge } from "@/components/ui/badge";
 import { RequireAuth } from "@/components/auth/require-auth";
-import { ExternalLink } from "lucide-react";
 import { formatNumber, formatDate } from "@/lib/utils";
 import type { AllSpending, SpendingType, QueryConfig } from "@/lib/db/types";
 
@@ -35,7 +34,6 @@ function SpendingPageContent() {
         { column: "latest_status_change" },
         { column: "type" },
         { column: "title" },
-        { column: "url" },
         { column: "DOT_latest" },
         { column: "USD_latest" },
         { column: "category" },
@@ -70,20 +68,8 @@ function SpendingPageContent() {
       },
       title: {
         cell: ({ row }: { row: any }) => {
-          const url = row.original.url;
           const title = row.original.title;
-          return url ? (
-            <a
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="max-w-[350px] truncate block hover:underline text-blue-600 inline-flex items-center gap-1"
-              title={title}
-            >
-              {title || "No title"}
-              <ExternalLink className="h-3 w-3 flex-shrink-0" />
-            </a>
-          ) : (
+          return (
             <span className="max-w-[350px] truncate block" title={title}>
               {title || "No title"}
             </span>

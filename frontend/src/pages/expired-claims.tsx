@@ -25,7 +25,6 @@ export default function ExpiredClaimsPage() {
         { column: "id" },
         { column: "referendumIndex" },
         { column: "description" },
-        { column: "url" },
         { column: "expireAt" },
         { column: "latest_status_change" },
         { column: "days_since_expiry" },
@@ -73,18 +72,14 @@ export default function ExpiredClaimsPage() {
       },
       description: {
         cell: ({ row }: { row: any }) => {
-          const url = row.original.url;
           const description = row.original.description;
           return (
-            <a
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="max-w-[350px] truncate block hover:underline text-blue-600"
+            <span
+              className="max-w-[350px] truncate block"
               title={description}
             >
               {description || "No description"}
-            </a>
+            </span>
           );
         },
       },

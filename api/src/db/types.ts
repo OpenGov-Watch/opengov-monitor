@@ -2,7 +2,6 @@
 
 export interface Referendum {
   id: number;
-  url: string;
   title: string;
   status: string;
   DOT_proposal_time: number | null;
@@ -27,7 +26,6 @@ export interface Referendum {
 
 export interface TreasurySpend {
   id: number;
-  url: string;
   referendumIndex: number | null;
   status: string;
   description: string | null;
@@ -46,7 +44,6 @@ export interface TreasurySpend {
 
 export interface ChildBounty {
   identifier: string;
-  url: string;
   index: number;
   parentBountyId: number;
   status: string;
@@ -69,7 +66,6 @@ export interface ChildBounty {
 
 export interface Fellowship {
   id: number;
-  url: string;
   status: string;
   description: string | null;
   DOT: number | null;
@@ -81,7 +77,6 @@ export interface Fellowship {
 
 export interface FellowshipSalaryCycle {
   cycle: number;
-  url: string;
   budget_dot: number | null;
   registeredCount: number | null;
   registeredPaidCount: number | null;
@@ -122,7 +117,6 @@ export interface FellowshipSalaryPayment {
   is_active: number | null;
   block_height: number | null;
   block_time: string | null;
-  url: string;
 }
 
 // Manual Tables (managed via frontend UI)
@@ -141,7 +135,6 @@ export interface Bounty {
   category?: string | null;
   subcategory?: string | null;
   remaining_dot: number | null;
-  url: string | null;
 }
 
 export interface Subtreasury {
@@ -158,7 +151,6 @@ export interface Subtreasury {
   category?: string | null;
   subcategory?: string | null;
   latest_status_change: string | null;
-  url: string | null;
 }
 
 export interface TreasuryNetflow {
@@ -171,7 +163,6 @@ export interface TreasuryNetflow {
 
 export interface FellowshipSubtreasury {
   id: number;
-  url: string | null;
   title: string | null;
   status: string;
   DOT_proposal_time: number | null;
@@ -188,7 +179,6 @@ export interface FellowshipSubtreasury {
 
 export interface OutstandingClaim {
   id: number;
-  url: string;
   referendumIndex: number | null;
   status: string;
   description: string | null;
@@ -210,7 +200,6 @@ export interface OutstandingClaim {
 
 export interface ExpiredClaim {
   id: number;
-  url: string;
   referendumIndex: number | null;
   status: string;
   description: string | null;
@@ -248,7 +237,6 @@ export interface AllSpending {
   DOT_component: number | null;
   USDC_component: number | null;
   USDT_component: number | null;
-  url: string | null;
 }
 
 // Dashboard Types

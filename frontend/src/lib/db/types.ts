@@ -1,8 +1,7 @@
-// TypeScript types shared with API - matching backend/data_sinks/sqlite/schema.py
+// TypeScript types matching backend/data_sinks/sqlite/schema.py
 
 export interface Referendum {
   id: number;
-  url: string;
   title: string;
   status: string;
   DOT_proposal_time: number | null;
@@ -27,7 +26,6 @@ export interface Referendum {
 
 export interface TreasurySpend {
   id: number;
-  url: string;
   referendumIndex: number | null;
   status: string;
   description: string | null;
@@ -46,7 +44,6 @@ export interface TreasurySpend {
 
 export interface ChildBounty {
   identifier: string;
-  url: string;
   index: number;
   parentBountyId: number;
   status: string;
@@ -69,7 +66,6 @@ export interface ChildBounty {
 
 export interface Fellowship {
   id: number;
-  url: string;
   status: string;
   description: string | null;
   DOT: number | null;
@@ -81,7 +77,6 @@ export interface Fellowship {
 
 export interface FellowshipSalaryCycle {
   cycle: number;
-  url: string;
   budget_dot: number | null;
   registeredCount: number | null;
   registeredPaidCount: number | null;
@@ -122,7 +117,6 @@ export interface FellowshipSalaryPayment {
   is_active: number | null;
   block_height: number | null;
   block_time: string | null;
-  url: string;
 }
 
 // Manual Tables (managed via frontend UI)
@@ -141,7 +135,6 @@ export interface Bounty {
   category?: string | null;
   subcategory?: string | null;
   remaining_dot: number | null;
-  url: string | null;
 }
 
 export interface Subtreasury {
@@ -158,7 +151,6 @@ export interface Subtreasury {
   category?: string | null;
   subcategory?: string | null;
   latest_status_change: string | null;
-  url: string | null;
 }
 
 export interface TreasuryNetflow {
@@ -171,7 +163,6 @@ export interface TreasuryNetflow {
 
 export interface FellowshipSubtreasury {
   id: number;
-  url: string | null;
   title: string | null;
   status: string;
   DOT_proposal_time: number | null;
@@ -188,7 +179,6 @@ export interface FellowshipSubtreasury {
 
 export interface OutstandingClaim {
   id: number;
-  url: string;
   referendumIndex: number | null;
   status: string;
   description: string | null;
@@ -210,7 +200,6 @@ export interface OutstandingClaim {
 
 export interface ExpiredClaim {
   id: number;
-  url: string;
   referendumIndex: number | null;
   status: string;
   description: string | null;
@@ -248,7 +237,6 @@ export interface AllSpending {
   DOT_component: number | null;
   USDC_component: number | null;
   USDT_component: number | null;
-  url: string | null;
 }
 
 // Dashboard Types
@@ -351,6 +339,45 @@ export interface ChartConfig {
   showTooltip?: boolean;
   content?: string; // Markdown content for text components
 }
+
+export interface QueryCache {
+  id: number;
+  cache_key: string;
+  result_json: string;
+  cached_at: string | null;
+  expires_at: string;
+}
+
+// Table names matching SQLite (with spaces)
+export const TABLE_NAMES = {
+  referenda: "Referenda",
+  treasury: "Treasury",
+  childBounties: "Child Bounties",
+  fellowship: "Fellowship",
+  fellowshipSalaryCycles: "Fellowship Salary Cycles",
+  fellowshipSalaryClaimants: "Fellowship Salary Claimants",
+  fellowshipSalaryPayments: "Fellowship Salary Payments",
+  // Manual tables
+  categories: "Categories",
+  bounties: "Bounties",
+  subtreasury: "Subtreasury",
+  fellowshipSubtreasury: "Fellowship Subtreasury",
+  treasuryNetflows: "Treasury Netflows",
+  // Dashboard tables
+  dashboards: "Dashboards",
+  dashboardComponents: "Dashboard Components",
+  queryCache: "Query Cache",
+} as const;
+
+// View names (lowercase, no spaces)
+export const VIEW_NAMES = {
+  outstandingClaims: "outstanding_claims",
+  expiredClaims: "expired_claims",
+  allSpending: "all_spending",
+} as const;
+
+export type TableName = (typeof TABLE_NAMES)[keyof typeof TABLE_NAMES];
+export type ViewName = (typeof VIEW_NAMES)[keyof typeof VIEW_NAMES];
 
 // Edit Config for DataTable Auto-Column Generation
 

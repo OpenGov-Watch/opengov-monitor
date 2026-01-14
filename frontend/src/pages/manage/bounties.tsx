@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Pencil, Plus, ExternalLink, ChevronRight } from "lucide-react";
+import { Pencil, Plus, ChevronRight } from "lucide-react";
 import type { Bounty, Category } from "@/lib/db/types";
 import { formatNumber, cn } from "@/lib/utils";
 import { RequireAuth } from "@/components/auth/require-auth";
@@ -41,7 +41,6 @@ function BountiesPageContent() {
     category_id: null as number | null,
     selectedCategory: "", // For cascading dropdown UI
     remaining_dot: 0,
-    url: "",
   });
 
   useEffect(() => {
@@ -78,7 +77,6 @@ function BountiesPageContent() {
       category_id: null,
       selectedCategory: "",
       remaining_dot: 0,
-      url: "",
     });
     setDialogOpen(true);
   }
@@ -93,7 +91,6 @@ function BountiesPageContent() {
       category_id: bounty.category_id,
       selectedCategory: cat?.category || "",
       remaining_dot: bounty.remaining_dot || 0,
-      url: bounty.url || "",
     });
     setDialogOpen(true);
   }
@@ -110,7 +107,6 @@ function BountiesPageContent() {
           name: formData.name || null,
           category_id: formData.category_id,
           remaining_dot: formData.remaining_dot || null,
-          url: formData.url || null,
         }),
       });
 
@@ -269,17 +265,6 @@ function BountiesPageContent() {
                   }
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="url">URL</Label>
-                <Input
-                  id="url"
-                  value={formData.url}
-                  onChange={(e) =>
-                    setFormData({ ...formData, url: e.target.value })
-                  }
-                  placeholder="https://polkadot.subsquare.io/treasury/bounties/..."
-                />
-              </div>
               <div className="flex justify-end gap-2">
                 <Button
                   type="button"
@@ -313,19 +298,7 @@ function BountiesPageContent() {
             {bounties.map((bounty) => (
               <TableRow key={bounty.id}>
                 <TableCell className="font-mono">
-                  {bounty.url ? (
-                    <a
-                      href={bounty.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline inline-flex items-center gap-1"
-                    >
-                      #{bounty.id}
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  ) : (
-                    `#${bounty.id}`
-                  )}
+                  #{bounty.id}
                 </TableCell>
                 <TableCell>{bounty.name || "-"}</TableCell>
                 <TableCell className="font-mono text-right">

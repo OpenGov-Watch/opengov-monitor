@@ -102,18 +102,14 @@ export const upcomingClaimsColumns: ColumnDef<OutstandingClaim>[] = [
       <DataTableColumnHeader column={column} title="Description" />
     ),
     cell: ({ row }) => {
-      const url = row.original.url;
       const description = row.getValue("description") as string;
       return (
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="max-w-[350px] truncate block hover:underline text-blue-600"
+        <span
+          className="max-w-[350px] truncate block"
           title={description}
         >
           {description || "No description"}
-        </a>
+        </span>
       );
     },
   },
