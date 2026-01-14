@@ -11,7 +11,6 @@ export interface ViewState {
   sorting: SortingState;
   columnFilters: ColumnFiltersState;
   columnVisibility: VisibilityState;
-  globalFilter: string;
   pagination: PaginationState;
 }
 
@@ -56,7 +55,6 @@ export function useViewState(tableName: string, options: UseViewStateOptions = {
   const [sorting, setSorting] = useState<SortingState>(defaultSorting);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [globalFilter, setGlobalFilter] = useState("");
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 100,
@@ -100,7 +98,6 @@ export function useViewState(tableName: string, options: UseViewStateOptions = {
         setSorting(state.sorting);
         setColumnFilters(state.columnFilters);
         setColumnVisibility(state.columnVisibility);
-        setGlobalFilter(state.globalFilter);
         setPagination(state.pagination);
         return;
       }
@@ -127,7 +124,6 @@ export function useViewState(tableName: string, options: UseViewStateOptions = {
     setSorting(state.sorting);
     setColumnFilters(state.columnFilters);
     setColumnVisibility(state.columnVisibility);
-    setGlobalFilter(state.globalFilter);
     setPagination(state.pagination);
   }, []);
 
@@ -137,10 +133,9 @@ export function useViewState(tableName: string, options: UseViewStateOptions = {
       sorting,
       columnFilters,
       columnVisibility,
-      globalFilter,
       pagination,
     }),
-    [sorting, columnFilters, columnVisibility, globalFilter, pagination]
+    [sorting, columnFilters, columnVisibility, pagination]
   );
 
   // Save a named view
@@ -243,7 +238,6 @@ export function useViewState(tableName: string, options: UseViewStateOptions = {
     setSorting(defaultSorting);
     setColumnFilters([]);
     setColumnVisibility({});
-    setGlobalFilter("");
     setPagination({ pageIndex: 0, pageSize: 100 });
     setCurrentViewName(null);
 
@@ -258,8 +252,6 @@ export function useViewState(tableName: string, options: UseViewStateOptions = {
     setColumnFilters,
     columnVisibility,
     setColumnVisibility,
-    globalFilter,
-    setGlobalFilter,
     pagination,
     setPagination,
     // New multi-view API

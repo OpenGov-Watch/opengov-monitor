@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { DataTable } from "@/components/data-table/data-table";
 import { SavedView } from "@/hooks/use-view-state";
-import { QueryConfig } from "@/lib/db/types";
 import type { TreasurySpend } from "@/lib/db/types";
 
 // Default views for Treasury
@@ -12,7 +11,6 @@ const defaultTreasuryViews: SavedView[] = [
       sorting: [{ id: "id", desc: true }],
       columnFilters: [],
       columnVisibility: {},
-      globalFilter: "",
       pagination: { pageIndex: 0, pageSize: 100 },
     },
     isDefault: true,
@@ -23,7 +21,6 @@ const defaultTreasuryViews: SavedView[] = [
       sorting: [{ id: "id", desc: true }],
       columnFilters: [{ id: "DOT_proposal_time", value: "positive" }],
       columnVisibility: {},
-      globalFilter: "",
       pagination: { pageIndex: 0, pageSize: 100 },
     },
     isDefault: true,
@@ -31,7 +28,7 @@ const defaultTreasuryViews: SavedView[] = [
 ];
 
 export default function TreasuryPage() {
-  const queryConfig: QueryConfig = useMemo(() => ({
+  const queryConfig = useMemo(() => ({
     sourceTable: "Treasury",
     columns: [
       { column: "id" },
@@ -50,8 +47,6 @@ export default function TreasuryPage() {
       { column: "validFrom" },
       { column: "expireAt" },
     ],
-    filters: [],
-    orderBy: [{ column: "id", direction: "DESC" }],
     limit: 1000
   }), []);
 

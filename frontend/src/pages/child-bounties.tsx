@@ -8,7 +8,6 @@ import { SavedView } from "@/hooks/use-view-state";
 import type {
   ChildBounty,
   Category,
-  QueryConfig,
   DataTableEditConfig,
 } from "@/lib/db/types";
 
@@ -38,7 +37,6 @@ const defaultChildBountiesViews: SavedView[] = [
       sorting: [{ id: "identifier", desc: true }],
       columnFilters: [],
       columnVisibility: {},
-      globalFilter: "",
       pagination: { pageIndex: 0, pageSize: 100 },
     },
     isDefault: true,
@@ -53,7 +51,7 @@ export default function ChildBountiesPage() {
     api.categories.getAll().then(setCategories);
   }, []);
 
-  const queryConfig: QueryConfig = useMemo(
+  const queryConfig = useMemo(
     () => ({
       sourceTable: "Child Bounties",
       columns: [
@@ -74,7 +72,7 @@ export default function ChildBountiesPage() {
       ],
       joins: [
         {
-          type: "LEFT",
+          type: "LEFT" as const,
           table: "Categories",
           alias: "c",
           on: {
@@ -83,7 +81,7 @@ export default function ChildBountiesPage() {
           },
         },
         {
-          type: "LEFT",
+          type: "LEFT" as const,
           table: "Bounties",
           alias: "b",
           on: {
@@ -92,8 +90,6 @@ export default function ChildBountiesPage() {
           },
         },
       ],
-      filters: [],
-      orderBy: [{ column: "identifier", direction: "DESC" }],
       limit: 1000,
     }),
     []

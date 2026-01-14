@@ -9,9 +9,7 @@ import {
   getCoreRowModel,
   getFacetedRowModel,
   getFacetedUniqueValues,
-  getFilteredRowModel,
   getPaginationRowModel,
-  getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 
@@ -32,6 +30,7 @@ import { ViewSelector } from "./view-selector";
 import { useViewState, SavedView } from "@/hooks/use-view-state";
 import { QueryConfig, DataTableEditConfig } from "@/lib/db/types";
 import { generateColumns } from "@/lib/auto-columns";
+import { sortingStateToOrderBy, filterStateToQueryFilters } from "@/lib/query-config-utils";
 
 export interface FooterCell {
   columnId: string;
@@ -39,7 +38,7 @@ export interface FooterCell {
 }
 
 interface DataTableProps<TData> {
-  queryConfig: QueryConfig;
+  queryConfig: Omit<QueryConfig, "orderBy" | "filters">;
   tableName: string;
   editConfig?: DataTableEditConfig;
   isAuthenticated?: boolean;
@@ -51,23 +50,10 @@ interface DataTableProps<TData> {
   footerCells?: FooterCell[];
   footerLabel?: string;
   compactMode?: boolean;
-
-  // Dashboard mode configuration
-  dashboardMode?: boolean;
-  dashboardComponentId?: string;
-
-  // Feature visibility control
-  hideViewSelector?: boolean;
-  toolbarCollapsible?: boolean;
-  initialToolbarCollapsed?: boolean;
-
-  // Controlled toolbar collapse state (for dashboard integration)
-  toolbarCollapsed?: boolean;
-  onToolbarCollapseChange?: (collapsed: boolean) => void;
 }
 
 export function DataTable<TData>({
-  queryConfig,
+  queryConfig: baseQueryConfig,
   tableName,
   editConfig,
   isAuthenticated,
@@ -79,18 +65,33 @@ export function DataTable<TData>({
   footerCells,
   footerLabel,
   compactMode = false,
-  dashboardMode = false,
-  dashboardComponentId,
-  hideViewSelector: hideViewSelectorProp,
-  toolbarCollapsible: toolbarCollapsibleProp,
-  initialToolbarCollapsed: initialToolbarCollapsedProp,
-  toolbarCollapsed,
-  onToolbarCollapseChange,
 }: DataTableProps<TData>) {
-  // Apply defaults based on dashboardMode
-  const hideViewSelector = hideViewSelectorProp ?? dashboardMode;
-  const toolbarCollapsible = toolbarCollapsibleProp ?? dashboardMode;
-  const initialToolbarCollapsed = initialToolbarCollapsedProp ?? dashboardMode;
+  // VIEW STATE MANAGEMENT (moved before queryConfig to access sorting/filtering)
+  const {
+    sorting,
+    setSorting,
+    columnFilters,
+    setColumnFilters,
+    columnVisibility,
+    setColumnVisibility,
+    pagination,
+    setPagination,
+    currentViewName,
+    getSavedViews,
+    saveView,
+    loadView,
+    deleteView,
+    clearViewState,
+  } = useViewState(tableName, { defaultSorting, defaultViews });
+
+  // BUILD COMPLETE QUERY CONFIG
+  // Merge base config with dynamic sorting/filtering state
+  const queryConfig = useMemo<QueryConfig>(() => ({
+    ...baseQueryConfig,
+    orderBy: sortingStateToOrderBy(sorting),
+    filters: filterStateToQueryFilters(columnFilters),
+  }), [baseQueryConfig, sorting, columnFilters]);
+
   // DATA FETCHING
   const [data, setData] = useState<TData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,26 +169,6 @@ export function DataTable<TData>({
     }
   }, [viewMode, tableName, compactMode]);
 
-  // VIEW STATE MANAGEMENT
-  const {
-    sorting,
-    setSorting,
-    columnFilters,
-    setColumnFilters,
-    columnVisibility,
-    setColumnVisibility,
-    globalFilter,
-    setGlobalFilter,
-    pagination,
-    setPagination,
-    currentViewName,
-    getSavedViews,
-    saveView,
-    loadView,
-    deleteView,
-    clearViewState,
-  } = useViewState(tableName, { defaultSorting, defaultViews });
-
   // REACT TABLE INSTANCE
   const table = useReactTable({
     data,
@@ -196,21 +177,18 @@ export function DataTable<TData>({
       sorting,
       columnFilters,
       columnVisibility,
-      globalFilter,
       pagination,
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
-    onGlobalFilterChange: setGlobalFilter,
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
+    // getSortedRowModel removed - sorting now server-side via orderBy
+    // getFilteredRowModel removed - filtering now server-side via filters
     getPaginationRowModel: getPaginationRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
-    globalFilterFn: "includesString",
   });
 
   // LOADING STATE
@@ -234,7 +212,7 @@ export function DataTable<TData>({
   // RENDER
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4">
-      {!hideViewSelector && (
+      {!compactMode && (
         <ViewSelector
           views={getSavedViews()}
           currentViewName={currentViewName}
@@ -245,18 +223,11 @@ export function DataTable<TData>({
       )}
       <DataTableToolbar
         table={table}
-        globalFilter={globalFilter}
-        setGlobalFilter={setGlobalFilter}
         onClearView={clearViewState}
         tableName={tableName}
         viewMode={viewMode}
         onViewModeChange={compactMode ? undefined : setViewMode}
         compactMode={compactMode}
-        toolbarCollapsible={toolbarCollapsible}
-        dashboardComponentId={dashboardComponentId}
-        initialToolbarCollapsed={initialToolbarCollapsed}
-        toolbarCollapsed={toolbarCollapsed}
-        onToolbarCollapseChange={onToolbarCollapseChange}
       />
 
       {viewMode === "card" ? (
