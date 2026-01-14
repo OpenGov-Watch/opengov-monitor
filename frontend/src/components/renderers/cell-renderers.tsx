@@ -67,26 +67,16 @@ interface DateCellProps {
   format?: "date" | "datetime";
 }
 
-export function DateCell({ value, format = "date" }: DateCellProps) {
+export function DateCell({ value }: DateCellProps) {
   if (!value) {
     return <span className="text-muted-foreground">-</span>;
   }
 
   const date = new Date(value);
-  const formatted =
-    format === "datetime"
-      ? date.toLocaleString("en-US", {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      : date.toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-        });
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const formatted = `${year}-${month}-${day}`;
 
   return <span>{formatted}</span>;
 }

@@ -22,7 +22,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Trash2, Plus, LayoutDashboard } from "lucide-react";
 import type { Dashboard } from "@/lib/db/types";
-import { formatDateTime } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 
 interface FormData {
   id?: number;
@@ -187,7 +187,7 @@ export default function DashboardsPage() {
                   {dashboard.description || "-"}
                 </TableCell>
                 <TableCell className="font-mono text-sm">
-                  {formatDateTime(dashboard.updated_at)}
+                  {formatDate(dashboard.updated_at)}
                 </TableCell>
                 {isAuthenticated && (
                   <TableCell>

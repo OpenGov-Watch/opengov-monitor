@@ -33,6 +33,7 @@ import { QueryConfig, QueryExecuteResponse, DataTableEditConfig } from "@/lib/db
 import { generateColumns } from "@/lib/auto-columns";
 import { sortingStateToOrderBy, filterStateToQueryFilters } from "@/lib/query-config-utils";
 import { cn } from "@/lib/utils";
+import { loadColumnConfig } from "@/lib/column-renderer";
 
 export interface FooterCell {
   columnId: string;
@@ -112,6 +113,13 @@ export function DataTable<TData>({
     clearViewState: clearView,
   } = viewState;
 
+  // COLUMN CONFIG LOADING
+  const [configLoaded, setConfigLoaded] = useState(false);
+
+  useEffect(() => {
+    loadColumnConfig().then(() => setConfigLoaded(true));
+  }, []);
+
   // DATA FETCHING
   const [data, setData] = useState<TData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -165,7 +173,7 @@ export function DataTable<TData>({
 
   // COLUMN GENERATION
   const columns = useMemo(() => {
-    if (data.length === 0) return [];
+    if (data.length === 0 || !configLoaded) return [];
 
     return generateColumns({
       data,
@@ -184,6 +192,7 @@ export function DataTable<TData>({
     facetedFilters,
     columnOverrides,
     columnMapping,
+    configLoaded,
   ]);
 
   // VIEW MODE STATE

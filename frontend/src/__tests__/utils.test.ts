@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { cn, formatNumber, formatCurrency, formatDate, formatDateTime } from "../lib/utils";
+import { cn, formatNumber, formatCurrency, formatDate } from "../lib/utils";
 
 describe("cn - class name merging", () => {
   it("merges multiple class names", () => {
@@ -88,18 +88,14 @@ describe("formatCurrency", () => {
 });
 
 describe("formatDate", () => {
-  it("formats ISO date string", () => {
+  it("formats ISO date string to YYYY-MM-DD", () => {
     const result = formatDate("2024-01-15T12:00:00Z");
-    expect(result).toContain("Jan");
-    expect(result).toContain("15");
-    expect(result).toContain("2024");
+    expect(result).toBe("2024-01-15");
   });
 
-  it("formats date-only string", () => {
+  it("formats date-only string to YYYY-MM-DD", () => {
     const result = formatDate("2024-12-31");
-    expect(result).toContain("Dec");
-    expect(result).toContain("31");
-    expect(result).toContain("2024");
+    expect(result).toBe("2024-12-31");
   });
 
   it("returns dash for null", () => {
@@ -108,22 +104,5 @@ describe("formatDate", () => {
 
   it("returns dash for empty string", () => {
     expect(formatDate("")).toBe("-");
-  });
-});
-
-describe("formatDateTime", () => {
-  it("formats ISO datetime string", () => {
-    const result = formatDateTime("2024-01-15T14:30:00Z");
-    expect(result).toContain("Jan");
-    expect(result).toContain("15");
-    expect(result).toContain("2024");
-  });
-
-  it("returns dash for null", () => {
-    expect(formatDateTime(null)).toBe("-");
-  });
-
-  it("returns dash for empty string", () => {
-    expect(formatDateTime("")).toBe("-");
   });
 });

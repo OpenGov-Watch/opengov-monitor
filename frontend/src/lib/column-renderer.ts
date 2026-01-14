@@ -1,4 +1,5 @@
 import yaml from "yaml";
+import { formatDate } from "@/lib/utils";
 
 // ============================================================================
 // Types
@@ -200,7 +201,7 @@ export function formatValue(
     case "number":
       return formatNumberValue(value as number, config);
     case "date":
-      return formatDateValue(value as string, config);
+      return formatDate(value as string);
     case "address":
       return formatAddressValue(value as string, config);
     default:
@@ -232,26 +233,6 @@ function formatNumberValue(value: number, config: ColumnRenderConfig): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: decimals,
   }).format(value);
-}
-
-function formatDateValue(value: string, config: ColumnRenderConfig): string {
-  if (!value) return "-";
-
-  const date = new Date(value);
-  if (config.format === "datetime") {
-    return date.toLocaleString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
 }
 
 function formatAddressValue(value: string, config: ColumnRenderConfig): string {
