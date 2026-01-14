@@ -18,6 +18,8 @@ pnpm monorepo: Python backend (data fetching) → SQLite → Express API → Rea
 
 ## Tool usage
 - Use `pnpm`, not `npm`
+- Use Chrome DevTools to verify frontend changes yourself first
+- Use the `gh` CLI for interacting with Github
 
 ## Navigation
 

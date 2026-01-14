@@ -86,7 +86,12 @@ export function DashboardPieChart({
   columnMapping,
 }: DashboardPieChartProps) {
   return (
-    <ResponsiveContainer width="100%" height="100%" minHeight={200}>
+    <ResponsiveContainer
+      width="100%"
+      height="100%"
+      minHeight={200}
+      initialDimension={{ width: 400, height: 200 }}
+    >
       <RechartsPieChart>
         <Pie
           data={data}
