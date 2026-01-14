@@ -35,8 +35,6 @@ const SCHEMA_SQL = `
     "amount_usd" REAL,
     "amount_dot_equivalent" REAL
   );
-  CREATE UNIQUE INDEX IF NOT EXISTS "idx_netflows_unique"
-  ON "Treasury Netflows" (month, asset_name, flow_type);
 `;
 
 let app: express.Express;
@@ -135,7 +133,7 @@ describe("POST /api/treasury-netflows/import", () => {
     expect(row.amount_dot_equivalent).toBe(-750.25);
   });
 
-  it("prevents duplicate entries with composite unique constraint", async () => {
+  it("allows duplicate keys via full table replacement", async () => {
     await request(app)
       .post("/api/treasury-netflows/import")
       .send({
@@ -144,7 +142,7 @@ describe("POST /api/treasury-netflows/import", () => {
         ]
       });
 
-    // Try to insert duplicate (same month, asset_name, flow_type)
+    // Second import with same key but different amount
     const response = await request(app)
       .post("/api/treasury-netflows/import")
       .send({
@@ -153,12 +151,12 @@ describe("POST /api/treasury-netflows/import", () => {
         ]
       });
 
-    // Should succeed because import does full table replacement
+    // Should succeed - full table replacement means old data is gone
     expect(response.status).toBe(200);
 
     const rows = testDb.prepare('SELECT * FROM "Treasury Netflows"').all();
     expect(rows).toHaveLength(1);
-    expect((rows[0] as any).amount_usd).toBe(200); // Updated value
+    expect((rows[0] as any).amount_usd).toBe(200); // Only new value exists
   });
 
   it("handles multiple assets and flow types", async () => {

@@ -277,11 +277,12 @@ TREASURY_NETFLOWS_SCHEMA = TableSchema(
         "amount_usd": "REAL",               # USD value
         "amount_dot_equivalent": "REAL",    # DOT equivalent value
     },
-    primary_key="month",  # Not truly unique, composite key via index
+    primary_key=None,  # No primary key - allows multiple transactions per month
     indexes=[
         ("idx_netflows_month", ["month"]),
         ("idx_netflows_asset", ["asset_name"]),
         ("idx_netflows_type", ["flow_type"]),
+        # No unique constraint - multiple transactions per (month, asset, flow_type) allowed
     ]
 )
 

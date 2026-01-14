@@ -284,12 +284,6 @@ class SQLiteSink(DataSink):
                 for index_sql in generate_create_indexes_sql(schema):
                     self._connection.execute(index_sql)
 
-        # Create composite unique constraint for Treasury Netflows
-        self._connection.execute('''
-            CREATE UNIQUE INDEX IF NOT EXISTS "idx_netflows_unique"
-            ON "Treasury Netflows" (month, asset_name, flow_type)
-        ''')
-
         self._connection.commit()
         self._logger.debug("Manual tables created/verified")
 
