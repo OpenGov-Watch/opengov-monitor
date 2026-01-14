@@ -17,6 +17,7 @@ import {
   LayoutDashboard,
   RefreshCw,
   TrendingUp,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
@@ -96,6 +97,7 @@ const authenticatedNavigation: NavSection[] = [
       { name: "Bounties", href: "/manage/bounties", icon: Coins },
       { name: "Subtreasury", href: "/manage/subtreasury", icon: FileBox },
       { name: "Sync Settings", href: "/manage/sync", icon: RefreshCw },
+      { name: "Data Errors", href: "/manage/data-errors", icon: AlertTriangle },
     ],
     requiresAuth: true,
   },
