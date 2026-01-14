@@ -55,7 +55,9 @@ Core fields: `status`, `description`, `DOT`, `proposal_time`, `latest_status_cha
 
 Primary key: `cycle`
 
-Core fields: `budget_dot`, `registeredCount`, `registeredPaidCount`, `registered_paid_amount_dot`, `total_registrations_dot`, `unregistered_paid_dot`
+Core fields: `budget_usdc`, `registeredCount`, `registeredPaidCount`, `registered_paid_amount_usdc`, `total_registrations_usdc`, `unregistered_paid_usdc`
+
+Note: Fellowship salaries are paid in USDC with 6 decimal places (÷ 10^6)
 
 Period fields: `registration_period`, `payout_period`, `start_block`, `end_block`, `start_time`, `end_time`
 

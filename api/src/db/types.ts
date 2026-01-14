@@ -77,12 +77,12 @@ export interface Fellowship {
 
 export interface FellowshipSalaryCycle {
   cycle: number;
-  budget_dot: number | null;
+  budget_usdc: number | null;
   registeredCount: number | null;
   registeredPaidCount: number | null;
-  registered_paid_amount_dot: number | null;
-  total_registrations_dot: number | null;
-  unregistered_paid_dot: number | null;
+  registered_paid_amount_usdc: number | null;
+  total_registrations_usdc: number | null;
+  unregistered_paid_usdc: number | null;
   registration_period: number | null;
   payout_period: number | null;
   start_block: number | null;

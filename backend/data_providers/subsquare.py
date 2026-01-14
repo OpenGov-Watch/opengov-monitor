@@ -754,17 +754,18 @@ class SubsquareProvider(DataProvider):
     def _transform_salary_cycles(self, df):
         """Transform raw salary cycle data into structured format."""
         df = df.copy()
-        
+
         # Extract key fields from status object
-        df['budget_dot'] = df['status'].apply(lambda x: self.network_info.apply_denomination(x.get('budget', 0), self.network_info.native_asset))
-        df['total_registrations_dot'] = df['status'].apply(lambda x: self.network_info.apply_denomination(x.get('totalRegistrations', 0), self.network_info.native_asset))
-        df['unregistered_paid_dot'] = df['unRegisteredPaid'].apply(lambda x: self.network_info.apply_denomination(int(x), self.network_info.native_asset))
-        df['registered_paid_amount_dot'] = df['registeredPaid'].apply(lambda x: self.network_info.apply_denomination(int(x), self.network_info.native_asset))
-        
+        # Fellowship salaries are paid in USDC (6 decimals), not DOT (10 decimals)
+        df['budget_usdc'] = df['status'].apply(lambda x: self.network_info.apply_denomination(x.get('budget', 0), AssetKind.USDC))
+        df['total_registrations_usdc'] = df['status'].apply(lambda x: self.network_info.apply_denomination(x.get('totalRegistrations', 0), AssetKind.USDC))
+        df['unregistered_paid_usdc'] = df['unRegisteredPaid'].apply(lambda x: self.network_info.apply_denomination(int(x), AssetKind.USDC))
+        df['registered_paid_amount_usdc'] = df['registeredPaid'].apply(lambda x: self.network_info.apply_denomination(int(x), AssetKind.USDC))
+
         # Extract periods (direct fields)
         df['registration_period'] = df['registrationPeriod']
         df['payout_period'] = df['payoutPeriod']
-        
+
         # Extract block information (endIndexer may be None for ongoing cycles)
         df['start_block'] = df['startIndexer'].apply(lambda x: x.get('blockHeight', 0) if isinstance(x, dict) else None)
         df['end_block'] = df['endIndexer'].apply(lambda x: x.get('blockHeight', 0) if isinstance(x, dict) else None)
@@ -773,11 +774,11 @@ class SubsquareProvider(DataProvider):
 
         # Set index and select final columns
         df.set_index('cycle', inplace=True)
-        df = df[['budget_dot', 'registeredCount', 'registeredPaidCount',
-                'registered_paid_amount_dot', 'total_registrations_dot', 'unregistered_paid_dot',
+        df = df[['budget_usdc', 'registeredCount', 'registeredPaidCount',
+                'registered_paid_amount_usdc', 'total_registrations_usdc', 'unregistered_paid_usdc',
                 'registration_period', 'payout_period', 'start_block', 'end_block',
                 'start_time', 'end_time']]
-        
+
         return df
 
     def fetch_fellowship_salary_claimants(self, name_mapping=None):

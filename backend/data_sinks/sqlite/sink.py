@@ -220,12 +220,12 @@ class SQLiteSink(DataSink):
                     'Fellowship Salary' AS type,
                     'fs-' || c.cycle AS id,
                     c.end_time AS latest_status_change,
-                    c.registered_paid_amount_dot AS DOT_latest,
+                    c.registered_paid_amount_usdc AS DOT_latest,
                     NULL AS USD_latest,
                     'Development' AS category,
                     'Polkadot Protocol & SDK' AS subcategory,
                     'Fellowship Salary Cycle ' || c.cycle AS title,
-                    c.registered_paid_amount_dot AS DOT_component,
+                    c.registered_paid_amount_usdc AS DOT_component,
                     NULL AS USDC_component,
                     NULL AS USDT_component
                 FROM "Fellowship Salary Cycles" c
