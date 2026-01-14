@@ -4,20 +4,12 @@
 1. **Main DataTable System** - Regular pages (referenda, treasury, etc.)
 2. **Dashboard System** - Dashboard components (tables, charts)
 
-**Recent Changes (PR #38):**
-- Consolidated 3 DataTable components into 1 unified component
-- Migrated all 11 main table pages to QueryConfig pattern
-- All tables now use POST `/api/query/execute` for data fetching
-- Columns are auto-generated with optional columnOverrides
-- Deleted 3 legacy column definition files
-- Added compactMode for future dashboard integration
-
 ---
 
 ## SYSTEM 1: Main DataTable (TanStack Table)
 
 ### Architecture
-- **Core**: Unified `DataTable` component (consolidated from 3 components in PR #38)
+- **Core**: Unified `DataTable` component
 - **Location**: `components/data-table/data-table.tsx`
 - **Library**: TanStack Table v8 with row models (core, filtered, sorted, paginated, faceted)
 - **Data Pattern**: All pages use QueryConfig → auto-generated columns + columnOverrides
