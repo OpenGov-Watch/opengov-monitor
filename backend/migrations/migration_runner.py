@@ -83,10 +83,13 @@ def backup_database(db_path: str, logger: logging.Logger) -> Optional[str]:
     """
     Create a timestamped backup of the database before running migrations.
 
+    Uses SQLite's backup API to ensure WAL-safe backups. This properly handles
+    databases in WAL mode by copying all data consistently, including any
+    uncheckpointed writes in the -wal file.
+
     Returns:
         Path to backup file if successful, None if failed
     """
-    import shutil
     from datetime import datetime
 
     db_file = Path(db_path)
@@ -102,7 +105,18 @@ def backup_database(db_path: str, logger: logging.Logger) -> Optional[str]:
 
     try:
         logger.info(f"Creating backup: {backup_path}")
-        shutil.copy2(db_path, backup_path)
+
+        # Use SQLite's backup API for WAL-safe backup
+        # This handles WAL mode properly by copying all data consistently
+        source_conn = sqlite3.connect(db_path)
+        backup_conn = sqlite3.connect(str(backup_path))
+
+        with backup_conn:
+            source_conn.backup(backup_conn)
+
+        backup_conn.close()
+        source_conn.close()
+
         logger.info(f"Backup created successfully: {backup_path}")
         return str(backup_path)
     except Exception as e:
