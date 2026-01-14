@@ -77,13 +77,22 @@ pnpm migrate:baseline --version N  # Mark migrations up to N as applied (for exi
 | Backend business rules | [backend/docs/spec/business-rules.md](backend/docs/spec/business-rules.md) |
 | API validation | [api/docs/spec/validation.md](api/docs/spec/validation.md) |
 | Database migrations | [docs/spec/migrations.md](docs/spec/migrations.md), [backend/migrations/README.md](backend/migrations/README.md) |
+| Deployment & Docker | [deploy/CLAUDE.md](deploy/CLAUDE.md) |
 
 ## Tool Usage
 - Bash: Don't chain commands with `&&`. Run them sequentially instead.
 
 ## Before Committing
 Always run these commands and ensure they pass before committing:
-- Build: `pnpm run build`  
+- Build: `pnpm run build`
 - Test: `pnpm test`
 
 If either fails, fix the issues before committing.
+
+## Before Deploying
+If your changes affect Docker, supervisord, or startup scripts:
+- Test: `docker compose up --build`
+- Verify: `curl http://localhost/api/health`
+- Check: `docker compose exec opengov-monitor supervisorctl status`
+
+See [deploy/CLAUDE.md](deploy/CLAUDE.md) for full pre-deployment checklist.
