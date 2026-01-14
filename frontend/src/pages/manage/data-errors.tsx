@@ -103,12 +103,11 @@ function DataErrorsPageContent() {
       <div className="flex gap-4 mb-6">
         <div className="flex-1">
           <Label htmlFor="table-filter">Table</Label>
-          <Select value={tableFilter} onValueChange={setTableFilter}>
+          <Select value={tableFilter || undefined} onValueChange={setTableFilter}>
             <SelectTrigger id="table-filter">
               <SelectValue placeholder="All tables" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All tables</SelectItem>
               {tableNames.map(name => (
                 <SelectItem key={name} value={name}>{name}</SelectItem>
               ))}
@@ -118,12 +117,11 @@ function DataErrorsPageContent() {
 
         <div className="flex-1">
           <Label htmlFor="error-filter">Error Type</Label>
-          <Select value={errorTypeFilter} onValueChange={setErrorTypeFilter}>
+          <Select value={errorTypeFilter || undefined} onValueChange={setErrorTypeFilter}>
             <SelectTrigger id="error-filter">
               <SelectValue placeholder="All types" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All types</SelectItem>
               {errorTypes.map(type => (
                 <SelectItem key={type} value={type}>{type}</SelectItem>
               ))}
