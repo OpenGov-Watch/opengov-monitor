@@ -1,8 +1,8 @@
-import express from "express";
+import { Router } from "express";
 import { requireAuth } from "../middleware/auth.js";
 import { getDataErrors } from "../db/data-errors-queries.js";
 
-const router = express.Router();
+const router: Router = Router();
 
 // GET /api/data-errors - List all data errors (authenticated only)
 // Optional query params: ?table_name=Treasury&error_type=missing_value
