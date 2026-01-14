@@ -55,34 +55,6 @@ afterAll(() => {
   testDb.close();
 });
 
-describe("GET /api/treasury-netflows", () => {
-  it("returns empty array when no entries exist", async () => {
-    const response = await request(app).get("/api/treasury-netflows");
-
-    expect(response.status).toBe(200);
-    expect(response.body).toEqual([]);
-  });
-
-  it("returns all netflows sorted by month DESC", async () => {
-    testDb.exec(`
-      INSERT INTO "Treasury Netflows" (month, asset_name, flow_type, amount_usd, amount_dot_equivalent)
-      VALUES
-        ('2025-01', 'DOT', 'fees', 1000.0, 500.0),
-        ('2025-02', 'DOT', 'inflation', 2000.0, 1000.0),
-        ('2025-01', 'USDC', 'proposals', -500.0, -250.0)
-    `);
-
-    const response = await request(app).get("/api/treasury-netflows");
-
-    expect(response.status).toBe(200);
-    expect(response.body).toHaveLength(3);
-    // Should be sorted by month DESC
-    expect(response.body[0].month).toBe("2025-02");
-    expect(response.body[0].asset_name).toBe("DOT");
-    expect(response.body[0].flow_type).toBe("inflation");
-  });
-});
-
 describe("POST /api/treasury-netflows/import", () => {
   it("requires items array in request body", async () => {
     const response = await request(app)

@@ -240,13 +240,6 @@ export function deleteSubtreasury(id: number): void {
 
 // Treasury Netflows
 
-export function getTreasuryNetflows(): TreasuryNetflow[] {
-  const db = getDatabase();
-  return db
-    .prepare(`SELECT * FROM "${TABLE_NAMES.treasuryNetflows}" ORDER BY month DESC, asset_name, flow_type`)
-    .all() as TreasuryNetflow[];
-}
-
 export interface NetflowImportItem {
   month: string;
   asset_name: string;

@@ -1,18 +1,8 @@
 import { Router } from "express";
-import { getTreasuryNetflows, replaceAllNetflows, type NetflowImportItem } from "../db/queries.js";
+import { replaceAllNetflows, type NetflowImportItem } from "../db/queries.js";
 import { requireAuth } from "../middleware/auth.js";
 
 export const treasuryNetflowsRouter: Router = Router();
-
-// GET /api/treasury-netflows - Get all netflows
-treasuryNetflowsRouter.get("/", (_req, res) => {
-  try {
-    const data = getTreasuryNetflows();
-    res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
-  }
-});
 
 // POST /api/treasury-netflows/import - Replace all records
 treasuryNetflowsRouter.post("/import", requireAuth, (req, res) => {

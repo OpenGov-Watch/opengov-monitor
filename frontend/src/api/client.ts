@@ -164,7 +164,6 @@ export const api = {
   },
 
   treasuryNetflows: {
-    getAll: () => fetchJSON<unknown[]>("/treasury-netflows"),
     import: (
       items: Array<{
         month: string;

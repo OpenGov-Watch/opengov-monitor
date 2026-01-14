@@ -113,7 +113,12 @@ export function DashboardBarChart({
   const yAxisFormatter = (value: number) => formatAbbreviated(value, yAxisConfig);
 
   return (
-    <ResponsiveContainer width="100%" height="100%">
+    <ResponsiveContainer
+      width="100%"
+      height="100%"
+      minHeight={200}
+      initialDimension={{ width: 400, height: 200 }}
+    >
       <RechartsBarChart data={data}>
         {showGrid && <CartesianGrid strokeDasharray="3 3" />}
         <XAxis dataKey="name" tick={{ fontSize: 12 }} />

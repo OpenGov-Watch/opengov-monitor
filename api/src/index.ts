@@ -75,9 +75,11 @@ app.use(
 // Rate limiting
 app.use("/api", generalLimiter);
 
-// Apply stricter rate limit for write operations (except auth which has its own)
+// Apply stricter rate limit for write operations (except auth and query/execute which are reads)
 app.use("/api", (req, res, next) => {
-  if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method) && !req.path.startsWith("/auth")) {
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)
+      && !req.path.startsWith("/auth")
+      && !req.path.startsWith("/query/execute")) {  // Exclude read-only query endpoint
     return writeLimiter(req, res, next);
   }
   next();
