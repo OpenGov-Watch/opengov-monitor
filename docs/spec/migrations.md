@@ -562,10 +562,3 @@ This migration system provides:
 - **Baseline support**: Deploy to existing databases without conflicts
 
 The system integrates cleanly with the Docker workflow and prevents race conditions through sequential execution.
-
-
-
-| Add/modify table columns | `frontend/src/components/tables/*-columns.tsx` |
-| Database schema | `backend/data_sinks/sqlite/schema.py`, `api/src/db/types.ts` |
-| Database migrations | `backend/migrations/versions/`, use `pnpm migrate:create` |
-
