@@ -369,6 +369,38 @@ export interface QueryCache {
   expires_at: string;
 }
 
+// Import Item Types for Bulk Operations
+
+export interface ReferendumImportItem {
+  id: number;
+  // Option A: Direct category ID (existing)
+  category_id?: number | null;
+  // Option B: Category strings (new - backend will resolve)
+  category?: string | null;
+  subcategory?: string | null;
+  notes?: string | null;
+  hide_in_spends?: number | null;
+}
+
+export interface ChildBountyImportItem {
+  identifier: string;
+  // Option A: Direct category ID (existing)
+  category_id?: number | null;
+  // Option B: Category strings (new - backend will resolve)
+  category?: string | null;
+  subcategory?: string | null;
+  notes?: string | null;
+  hide_in_spends?: number | null;
+}
+
+export interface NetflowImportItem {
+  month: string;
+  asset_name: string;
+  flow_type: string;
+  amount_usd: number;
+  amount_dot_equivalent: number;
+}
+
 // Table names matching SQLite (with spaces)
 export const TABLE_NAMES = {
   referenda: "Referenda",

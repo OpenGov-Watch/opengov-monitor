@@ -27,16 +27,6 @@ function SyncSettingsPageContent() {
   const [status, setStatus] = useState<StatusType>(null);
   const [importing, setImporting] = useState(false);
 
-  // Helper to resolve category strings to category_id
-  async function resolveCategoryId(
-    category: string | null,
-    subcategory: string | null
-  ): Promise<number | null> {
-    if (!category) return null;
-    const result = await api.categories.lookup(category, subcategory || "");
-    return result.id;
-  }
-
   async function handleReferendaUpload() {
     if (!referendaFile) return;
     setImporting(true);
@@ -49,15 +39,14 @@ function SyncSettingsPageContent() {
         return;
       }
 
-      // Resolve category strings to category_id
-      const items = await Promise.all(
-        rawItems.map(async (item) => ({
-          id: item.id,
-          category_id: await resolveCategoryId(item.category ?? null, item.subcategory ?? null),
-          notes: item.notes,
-          hide_in_spends: item.hide_in_spends,
-        }))
-      );
+      // Send category strings directly - backend will resolve them
+      const items = rawItems.map((item) => ({
+        id: item.id,
+        category: item.category ?? null,
+        subcategory: item.subcategory ?? null,
+        notes: item.notes,
+        hide_in_spends: item.hide_in_spends,
+      }));
 
       const result = await api.referenda.import(items);
       setStatus({
@@ -87,15 +76,14 @@ function SyncSettingsPageContent() {
         return;
       }
 
-      // Resolve category strings to category_id
-      const items = await Promise.all(
-        rawItems.map(async (item) => ({
-          identifier: item.identifier,
-          category_id: await resolveCategoryId(item.category ?? null, item.subcategory ?? null),
-          notes: item.notes,
-          hide_in_spends: item.hide_in_spends,
-        }))
-      );
+      // Send category strings directly - backend will resolve them
+      const items = rawItems.map((item) => ({
+        identifier: item.identifier,
+        category: item.category ?? null,
+        subcategory: item.subcategory ?? null,
+        notes: item.notes,
+        hide_in_spends: item.hide_in_spends,
+      }));
 
       const result = await api.childBounties.import(items);
       setStatus({
@@ -126,15 +114,14 @@ function SyncSettingsPageContent() {
         return;
       }
 
-      // Resolve category strings to category_id
-      const items = await Promise.all(
-        rawItems.map(async (item) => ({
-          id: item.id,
-          category_id: await resolveCategoryId(item.category ?? null, item.subcategory ?? null),
-          notes: item.notes,
-          hide_in_spends: item.hide_in_spends,
-        }))
-      );
+      // Send category strings directly - backend will resolve them
+      const items = rawItems.map((item) => ({
+        id: item.id,
+        category: item.category ?? null,
+        subcategory: item.subcategory ?? null,
+        notes: item.notes,
+        hide_in_spends: item.hide_in_spends,
+      }));
 
       const result = await api.referenda.import(items);
       setStatus({
@@ -159,15 +146,14 @@ function SyncSettingsPageContent() {
         return;
       }
 
-      // Resolve category strings to category_id
-      const items = await Promise.all(
-        rawItems.map(async (item) => ({
-          identifier: item.identifier,
-          category_id: await resolveCategoryId(item.category ?? null, item.subcategory ?? null),
-          notes: item.notes,
-          hide_in_spends: item.hide_in_spends,
-        }))
-      );
+      // Send category strings directly - backend will resolve them
+      const items = rawItems.map((item) => ({
+        identifier: item.identifier,
+        category: item.category ?? null,
+        subcategory: item.subcategory ?? null,
+        notes: item.notes,
+        hide_in_spends: item.hide_in_spends,
+      }));
 
       const result = await api.childBounties.import(items);
       setStatus({

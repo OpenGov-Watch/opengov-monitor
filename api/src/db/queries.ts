@@ -332,12 +332,6 @@ export function updateReferendum(id: number, data: ReferendumUpdate): void {
 }
 
 // Bulk update referenda from CSV import
-export interface ReferendumImportItem {
-  id: number;
-  category_id?: number | null;
-  notes?: string | null;
-  hide_in_spends?: number | null;
-}
 
 export function bulkUpdateReferenda(items: ReferendumImportItem[]): number {
   const db = getWritableDatabase();
@@ -350,8 +344,23 @@ export function bulkUpdateReferenda(items: ReferendumImportItem[]): number {
   const transaction = db.transaction((items: ReferendumImportItem[]) => {
     let count = 0;
     for (const item of items) {
+      // Resolve category_id
+      let categoryId: number | null = null;
+
+      if (item.category_id !== undefined) {
+        // Option A: Direct category_id provided
+        categoryId = item.category_id;
+      } else if (item.category) {
+        // Option B: Category strings provided - resolve them
+        const category = findOrCreateCategory(
+          item.category,
+          item.subcategory || ""
+        );
+        categoryId = category.id;
+      }
+
       const result = stmt.run(
-        item.category_id ?? null,
+        categoryId,
         item.notes ?? null,
         item.hide_in_spends ?? null,
         item.id
@@ -397,12 +406,6 @@ export function updateChildBounty(identifier: string, data: ChildBountyUpdate): 
 }
 
 // Bulk update child bounties from CSV import
-export interface ChildBountyImportItem {
-  identifier: string;
-  category_id?: number | null;
-  notes?: string | null;
-  hide_in_spends?: number | null;
-}
 
 export function bulkUpdateChildBounties(items: ChildBountyImportItem[]): number {
   const db = getWritableDatabase();
@@ -415,8 +418,23 @@ export function bulkUpdateChildBounties(items: ChildBountyImportItem[]): number 
   const transaction = db.transaction((items: ChildBountyImportItem[]) => {
     let count = 0;
     for (const item of items) {
+      // Resolve category_id
+      let categoryId: number | null = null;
+
+      if (item.category_id !== undefined) {
+        // Option A: Direct category_id provided
+        categoryId = item.category_id;
+      } else if (item.category) {
+        // Option B: Category strings provided - resolve them
+        const category = findOrCreateCategory(
+          item.category,
+          item.subcategory || ""
+        );
+        categoryId = category.id;
+      }
+
       const result = stmt.run(
-        item.category_id ?? null,
+        categoryId,
         item.notes ?? null,
         item.hide_in_spends ?? null,
         item.identifier

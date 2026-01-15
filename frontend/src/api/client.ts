@@ -45,7 +45,9 @@ export const api = {
     import: (
       items: Array<{
         id: number;
-        category_id?: number | null;
+        category_id?: number | null;  // Keep for backward compatibility
+        category?: string | null;      // New: category name
+        subcategory?: string | null;   // New: subcategory name
         notes?: string | null;
         hide_in_spends?: number | null;
       }>
@@ -75,7 +77,9 @@ export const api = {
     import: (
       items: Array<{
         identifier: string;
-        category_id?: number | null;
+        category_id?: number | null;  // Keep for backward compatibility
+        category?: string | null;      // New: category name
+        subcategory?: string | null;   // New: subcategory name
         notes?: string | null;
         hide_in_spends?: number | null;
       }>
