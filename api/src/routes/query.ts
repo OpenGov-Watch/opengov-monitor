@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getDatabase } from "../db/index.js";
-import type { QueryConfig, FilterCondition, ExpressionColumn, JoinConfig } from "../db/types.js";
+import type { QueryConfig, FilterCondition, ExpressionColumn, JoinConfig, FacetQueryConfig, FacetValue, FacetQueryResponse } from "../db/types.js";
 
 export const queryRouter: Router = Router();
 
@@ -437,6 +437,45 @@ function buildCountQuery(config: QueryConfig): { sql: string; params: (string | 
   return { sql, params };
 }
 
+function buildFacetQuery(
+  config: FacetQueryConfig,
+  columnName: string
+): { sql: string; params: (string | number)[] } {
+  // Validate column exists in source table
+  const availableColumns = getTableColumns(config.sourceTable);
+  if (!availableColumns.includes(columnName)) {
+    throw new Error(`Column ${columnName} not found in table ${config.sourceTable}`);
+  }
+
+  const tableName = `"${config.sourceTable}"`;
+  const joinClause = buildJoinClause(config.joins);
+
+  // Build WHERE clause but exclude filter for the faceted column itself
+  // This ensures facet counts reflect all possible values, not just filtered ones
+  const filtersExcludingFacetedColumn = (config.filters || []).filter(
+    (filter) => filter.column !== columnName
+  );
+  const { clause: whereClause, params } = buildWhereClause(
+    filtersExcludingFacetedColumn,
+    config.sourceTable
+  );
+
+  const colName = sanitizeColumnName(columnName, config.sourceTable);
+
+  const sql = [
+    `SELECT ${colName}, COUNT(*) as count`,
+    `FROM ${tableName}`,
+    joinClause,
+    whereClause,
+    `GROUP BY ${colName}`,
+    `ORDER BY ${colName}`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return { sql, params };
+}
+
 // GET /api/query/schema - Get database schema for query builder
 queryRouter.get("/schema", (_req, res) => {
   try {
@@ -518,6 +557,77 @@ queryRouter.post("/execute", (req, res) => {
       totalCount,  // undefined for non-paginated queries (dashboard mode)
       sql: sql,
     });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// POST /api/query/facets - Get distinct values + counts for faceted columns
+queryRouter.post("/facets", (req, res) => {
+  try {
+    const config = req.body as FacetQueryConfig;
+
+    // Validate source table
+    if (!config.sourceTable || !ALLOWED_SOURCES.has(config.sourceTable)) {
+      res.status(400).json({ error: `Invalid source table: ${config.sourceTable}` });
+      return;
+    }
+
+    // Validate columns array
+    if (!config.columns || !Array.isArray(config.columns) || config.columns.length === 0) {
+      res.status(400).json({ error: "At least one column must be specified" });
+      return;
+    }
+
+    // Validate joins if present
+    if (config.joins) {
+      for (const join of config.joins) {
+        const joinError = validateJoinConfig(join);
+        if (joinError) {
+          res.status(400).json({ error: joinError });
+          return;
+        }
+      }
+    }
+
+    // Validate filters if present
+    if (config.filters) {
+      for (const filter of config.filters) {
+        if (!ALLOWED_OPERATORS.has(filter.operator)) {
+          res.status(400).json({ error: `Invalid operator: ${filter.operator}` });
+          return;
+        }
+      }
+    }
+
+    const db = getDatabase();
+    const facets: Record<string, FacetValue[]> = {};
+
+    // For each column, build and execute facet query
+    for (const columnName of config.columns) {
+      try {
+        const { sql, params } = buildFacetQuery(config, columnName);
+        const results = db.prepare(sql).all(...params) as Array<{ [key: string]: string | number; count: number }>;
+
+        // Convert results to FacetValue format
+        // The first column in results is the faceted column value, second is count
+        facets[columnName] = results.map((row) => {
+          // Get the column value (it's the first property that's not "count")
+          const valueKey = Object.keys(row).find((key) => key !== "count");
+          const value = valueKey ? row[valueKey] : null;
+          return {
+            value: value as string | number,
+            count: row.count,
+          };
+        });
+      } catch (error) {
+        res.status(400).json({ error: `Error computing facets for column ${columnName}: ${(error as Error).message}` });
+        return;
+      }
+    }
+
+    const response: FacetQueryResponse = { facets };
+    res.json(response);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }

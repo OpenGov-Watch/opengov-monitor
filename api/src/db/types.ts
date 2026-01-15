@@ -309,6 +309,22 @@ export interface QueryConfig {
   offset?: number;         // Optional: enables server-side pagination
 }
 
+export interface FacetQueryConfig {
+  sourceTable: string;
+  columns: string[];       // Columns to compute facets for
+  joins?: JoinConfig[];
+  filters?: FilterCondition[];
+}
+
+export interface FacetValue {
+  value: string | number;
+  count: number;
+}
+
+export interface FacetQueryResponse {
+  facets: Record<string, FacetValue[]>;
+}
+
 export interface ColumnSelection {
   column: string;
   alias?: string;

@@ -29,7 +29,7 @@ import { DataTableToolbar } from "./toolbar";
 import { DataTableCard } from "./data-table-card";
 import { ViewSelector } from "./view-selector";
 import { useViewState, SavedView } from "@/hooks/use-view-state";
-import { QueryConfig, QueryExecuteResponse, DataTableEditConfig } from "@/lib/db/types";
+import { QueryConfig, QueryExecuteResponse, DataTableEditConfig, FacetQueryConfig, FacetQueryResponse } from "@/lib/db/types";
 import { generateColumns } from "@/lib/auto-columns";
 import { sortingStateToOrderBy, filterStateToQueryFilters } from "@/lib/query-config-utils";
 import { cn } from "@/lib/utils";
@@ -125,6 +125,7 @@ export function DataTable<TData>({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState<number | undefined>(undefined);
+  const [serverFacets, setServerFacets] = useState<Record<string, Map<any, number>>>({});
 
   // Pass through the original setters without any wrapping
   const setSorting = setViewSorting;
@@ -146,21 +147,61 @@ export function DataTable<TData>({
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch("/api/query/execute", {
+        // Create data fetch promise
+        const dataPromise = fetch("/api/query/execute", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify(queryConfig),
         });
 
-        if (!response.ok) {
-          const result = await response.json();
-          throw new Error(result.error || "Query failed");
+        // Create facet fetch promise if facetedFilters are defined
+        let facetPromise: Promise<Response> | null = null;
+        if (facetedFilters && facetedFilters.length > 0) {
+          const facetConfig: FacetQueryConfig = {
+            sourceTable: baseQueryConfig.sourceTable,
+            columns: facetedFilters,
+            joins: baseQueryConfig.joins,
+            filters: filterStateToQueryFilters(columnFilters),
+          };
+          facetPromise = fetch("/api/query/facets", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(facetConfig),
+          });
         }
 
-        const result: QueryExecuteResponse = await response.json();
-        setData(result.data as TData[]);
-        setTotalCount(result.totalCount);
+        // Wait for both requests to complete
+        const [dataResponse, facetResponse] = await Promise.all([
+          dataPromise,
+          facetPromise || Promise.resolve(null),
+        ]);
+
+        // Process data response
+        if (!dataResponse.ok) {
+          const result = await dataResponse.json();
+          throw new Error(result.error || "Query failed");
+        }
+        const dataResult: QueryExecuteResponse = await dataResponse.json();
+        setData(dataResult.data as TData[]);
+        setTotalCount(dataResult.totalCount);
+
+        // Process facet response
+        if (facetResponse && facetResponse.ok) {
+          const facetResult: FacetQueryResponse = await facetResponse.json();
+          // Convert facet arrays to Map format expected by TanStack Table
+          const facetMaps: Record<string, Map<any, number>> = {};
+          for (const [column, values] of Object.entries(facetResult.facets)) {
+            facetMaps[column] = new Map(
+              values.map(v => [v.value, v.count])
+            );
+          }
+          setServerFacets(facetMaps);
+        } else if (facetResponse && !facetResponse.ok) {
+          console.warn("Facet fetch failed, using client-side faceting");
+          setServerFacets({});
+        }
       } catch (err) {
         setError((err as Error).message);
       } finally {
@@ -169,7 +210,7 @@ export function DataTable<TData>({
     }
 
     fetchData();
-  }, [queryConfig]);
+  }, [queryConfig, facetedFilters, columnFilters, baseQueryConfig]);
 
   // Wrap editConfig to update local data optimistically
   const editConfigWithRefresh = useMemo(() => {
@@ -296,7 +337,17 @@ export function DataTable<TData>({
       ? Math.ceil(totalCount / pagination.pageSize)
       : -1,  // -1 means unknown (loading state)
     getFacetedRowModel: getFacetedRowModel(),
-    getFacetedUniqueValues: getFacetedUniqueValues(),
+    getFacetedUniqueValues: (table: any, columnId: string) => {
+      // Use server-provided facets if available, otherwise fall back to client-side
+      return () => {
+        if (serverFacets[columnId]) {
+          return serverFacets[columnId];
+        }
+        // Fall back to default client-side faceting
+        const defaultFn = getFacetedUniqueValues();
+        return defaultFn(table, columnId)();
+      };
+    },
   });
 
   // RENDER

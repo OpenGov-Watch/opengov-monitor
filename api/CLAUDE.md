@@ -29,6 +29,18 @@ pnpm test:run     # Run tests
 | `DATABASE_PATH` | `../data/polkadot.db` | SQLite database path |
 | `SESSION_SECRET` | (required in prod) | 32+ char session encryption key |
 
+## Key API Endpoints
+
+### Query Endpoints (`/api/query`)
+- `POST /api/query/execute` - Execute QueryConfig, returns data + totalCount (server-side pagination)
+- `POST /api/query/facets` - Get facet values + counts for specified columns (full dataset)
+
+### Manual Table CRUD
+- Categories, Bounties, Subtreasury: Standard CRUD with auth
+
+### Auth (`/api/auth`)
+- `/me`, `/login`, `/logout` - Session management
+
 ## Adding an Endpoint
 
 1. Add query function in `src/db/queries.ts`

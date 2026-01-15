@@ -223,12 +223,13 @@ cell: ({ row }) =>
 - `EditableHideCheckbox` ↔ `ReadOnlyHideCheckbox`
 
 ### API Integration
-- **Endpoint**: POST `/api/query/execute` with QueryConfig
+- **Data Endpoint**: POST `/api/query/execute` with QueryConfig
+- **Facets Endpoint**: POST `/api/query/facets` with FacetQueryConfig (parallel fetch)
 - **Pattern**: DataTable component handles data fetching internally (useState + useEffect)
 - **Pagination**: Server-side with LIMIT/OFFSET - only current page data fetched
 - **Total Count**: Separate COUNT query provides total for pagination UI
 - **Error Handling**: Loading/error states with user-friendly messages
-- **Data Scope**: Sorting, filtering, and pagination all happen server-side
+- **Data Scope**: Sorting, filtering, pagination, and faceting all happen server-side
 
 ### Responsive Behavior
 - **Breakpoint**: md (768px)
@@ -292,10 +293,19 @@ frontend/src/components/
 - Columns auto-generated on data load, cached with `useMemo`
 - Default page size: 100 rows
 
-### Known Limitations
+### Faceted Filtering (Server-Side)
 
-#### Faceted Filters with Server-Side Pagination
-Faceted filters show counts based on the current page only, not the entire filtered dataset. This is a known limitation of server-side pagination with client-side faceting.
+Faceted filters (multi-select dropdowns with counts) now fetch data server-side for optimal performance:
+
+- **API Endpoint**: POST `/api/query/facets` with FacetQueryConfig
+- **Scope**: Returns ALL distinct values + counts from the full dataset (not just current page)
+- **Parallel Fetching**: Facet data fetched in parallel with table data using `Promise.all()`
+- **Filter Dependencies**: Facet values automatically update when other filters are applied
+  - Example: Selecting status="Ongoing" updates track facets to show only tracks with ongoing referenda
+- **Performance**: Fast queries via database indexes on faceted columns
+- **Graceful Degradation**: Falls back to client-side faceting if API request fails
+
+**Example**: Referenda page with 5,000 rows shows ALL status values (not just those on page 1)
 
 ### Compact Mode
 - Added in PR #38 for potential dashboard integration
