@@ -44,11 +44,11 @@ describe("getDataPath", () => {
 
     // Mock cwd to simulate Docker environment
     const originalCwd = process.cwd;
-    process.cwd = () => "/app/api";
+    process.cwd = () => "/app/src/api";
 
     try {
       const path = getDataPath();
-      // path.join normalizes the path, so /app/api/../data/defaults becomes /app/data/defaults
+      // path.join normalizes the path, so /app/src/api/../..data/defaults becomes /app/data/defaults
       // Use normalizePath for cross-platform testing (Windows uses backslashes)
       expect(normalizePath(path)).toBe("/app/data/defaults");
     } finally {
@@ -168,35 +168,35 @@ describe("Path resolution for Docker environment", () => {
     process.env.NODE_ENV = originalEnv;
   });
 
-  it("production path resolves correctly from /app/api to /app/data/defaults", () => {
+  it("production path resolves correctly from /app/src/api to /app/data/defaults", () => {
     process.env.NODE_ENV = "production";
 
-    // Simulate Docker environment where cwd is /app/api
+    // Simulate Docker environment where cwd is /app/src/api
     const originalCwd = process.cwd;
-    process.cwd = () => "/app/api";
+    process.cwd = () => "/app/src/api";
 
     try {
       const path = getDataPath();
-      // path.join normalizes: /app/api + .. + data/defaults = /app/data/defaults
+      // path.join normalizes: /app/src/api + ../.. + data/defaults = /app/data/defaults
       expect(normalizePath(path)).toBe("/app/data/defaults");
     } finally {
       process.cwd = originalCwd;
     }
   });
 
-  it("would fail if production path did not go up one level", () => {
+  it("would fail if production path did not go up two levels", () => {
     // This test documents the bug we fixed: if we used process.cwd() directly
-    // without going up one level, we'd get /app/api/data/defaults which is wrong
+    // without going up two levels, we'd get /app/src/api/data/defaults which is wrong
     process.env.NODE_ENV = "production";
 
     const originalCwd = process.cwd;
-    process.cwd = () => "/app/api";
+    process.cwd = () => "/app/src/api";
 
     try {
       const path = getDataPath();
       const normalized = normalizePath(path);
-      // The path should NOT be /app/api/data/defaults
-      expect(normalized).not.toBe("/app/api/data/defaults");
+      // The path should NOT be /app/src/api/data/defaults
+      expect(normalized).not.toBe("/app/src/api/data/defaults");
       // It should be /app/data/defaults
       expect(normalized).toBe("/app/data/defaults");
     } finally {

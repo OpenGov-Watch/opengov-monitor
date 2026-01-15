@@ -7,16 +7,16 @@ export const syncRouter: Router = Router();
 
 // Get the data directory path - exported for testing
 export function getDataPath(): string {
-  // In production (Docker), CWD is /app/api, so go up one level to /app
+  // In production (Docker), CWD is /app/src/api, so go up two levels to /app
   // In development, use relative path from compiled location
   if (process.env.NODE_ENV === "production") {
-    return join(process.cwd(), "..", "data", "defaults");
+    return join(process.cwd(), "..", "..", "data", "defaults");
   }
   // In ES modules, we need to compute __dirname
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = dirname(__filename);
-  // Go up from api/dist/routes to api/, then to root, then to data/
-  return join(__dirname, "..", "..", "..", "data", "defaults");
+  // Go up from src/api/dist/routes to src/api/dist, src/api, src, root, then to data/
+  return join(__dirname, "..", "..", "..", "..", "data", "defaults");
 }
 
 // GET /api/sync/defaults/referenda - Read default referenda CSV

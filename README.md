@@ -35,38 +35,41 @@ pnpm monorepo: Python backend (data fetching) → SQLite → Express API → Rea
 ## Project Structure & Navigation
 
 ```
-backend/           Python data pipeline (see backend/CLAUDE.md)
-├── data_providers/   Subsquare, price, identity fetching
-├── data_sinks/       SQLite storage
-├── migrations/       Database migration system
-├── scripts/          run_sqlite.py, fetch_salaries.py, sanity_check.py
-└── config.yaml       Fetch limits, salary toggle
-
-api/               Express REST API (see api/CLAUDE.md)
-└── src/
-    ├── index.ts      Server entry
-    ├── db/           queries.ts, types.ts
-    └── routes/       Endpoint handlers
-
-frontend/          Vite + React (see frontend/CLAUDE.md)
-└── src/
-    ├── pages/        Page components
-    ├── components/   data-table/, tables/, charts/, dashboard/
-    ├── api/          client.ts
-    └── hooks/        use-view-state.ts
+src/
+├── backend/           Python data pipeline (see src/backend/CLAUDE.md)
+│   ├── data_providers/   Subsquare, price, identity fetching
+│   ├── data_sinks/       SQLite storage
+│   ├── migrations/       Database migration system
+│   ├── scripts/          run_sqlite.py, fetch_salaries.py, sanity_check.py
+│   └── config.yaml       Fetch limits, salary toggle
+│
+├── api/               Express REST API (see src/api/CLAUDE.md)
+│   └── src/
+│       ├── index.ts      Server entry
+│       ├── db/           queries.ts, types.ts
+│       └── routes/       Endpoint handlers
+│
+├── frontend/          Vite + React (see src/frontend/CLAUDE.md)
+│   └── src/
+│       ├── pages/        Page components
+│       ├── components/   data-table/, tables/, charts/, dashboard/
+│       ├── api/          client.ts
+│       └── hooks/        use-view-state.ts
+│
+├── deploy/            Docker deployment configuration
+└── scripts/           Development orchestration (dev.mjs)
 
 data/              SQLite database (polkadot.db, sessions.db)
 docs/spec/         Detailed specifications
-deploy/            Docker deployment configuration
 ```
 
 ## Key Entry Points
 
 | Task | Start here |
 |------|------------|
-| Add/modify API endpoint | `api/src/routes/`, `api/src/db/queries.ts` |
-| Add new page | `frontend/src/router.tsx`, `frontend/src/pages/` |
-| Modify data fetching | `backend/data_providers/subsquare.py` |
+| Add/modify API endpoint | `src/api/src/routes/`, `src/api/src/db/queries.ts` |
+| Add new page | `src/frontend/src/router.tsx`, `src/frontend/src/pages/` |
+| Modify data fetching | `src/backend/data_providers/subsquare.py` |
 | Modifying database schema | `docs/spec/backend/migrations.md` |
 
 ## Available Commands
@@ -118,11 +121,11 @@ Verifies that ID sequences in key tables are continuous with no gaps. See [docs/
 | Data schemas (shared) | [docs/spec/data-models.md](docs/spec/data-models.md) |
 | Error logging & validation | [docs/reference/error-logging.md](docs/reference/error-logging.md) |
 | Frontend table system | [docs/spec/frontend/tables.md](docs/spec/frontend/tables.md) |
-| Backend business rules | [backend/docs/spec/business-rules.md](backend/docs/spec/business-rules.md) |
-| API validation | [api/docs/spec/validation.md](api/docs/spec/validation.md) |
-| Database migrations | [docs/spec/backend/migrations.md](docs/spec/backend/migrations.md), [backend/migrations/README.md](backend/migrations/README.md) |
+| Backend business rules | [src/backend/docs/spec/business-rules.md](src/backend/docs/spec/business-rules.md) |
+| API validation | [src/api/docs/spec/validation.md](src/api/docs/spec/validation.md) |
+| Database migrations | [docs/spec/backend/migrations.md](docs/spec/backend/migrations.md), [src/backend/migrations/README.md](src/backend/migrations/README.md) |
 | Database sanity checks | [docs/howtos/sanity-checks.md](docs/howtos/sanity-checks.md) |
-| Deployment & Docker | [deploy/CLAUDE.md](deploy/CLAUDE.md) |
+| Deployment & Docker | [src/deploy/CLAUDE.md](src/deploy/CLAUDE.md) |
 
 ## Authentication
 

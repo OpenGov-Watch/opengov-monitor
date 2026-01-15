@@ -35,7 +35,7 @@ import dataErrorsRouter from "./routes/data-errors.js";
 
 const app = express();
 const DEFAULT_PORT = parseInt(process.env.PORT || "3001", 10);
-const PORT_FILE = path.join(__dirname, "../../data/.api-port");
+const PORT_FILE = path.join(__dirname, "../../../data/.api-port");
 
 // Ensure Users table exists on startup
 ensureUsersTable();

@@ -2,17 +2,17 @@
   "name": "opengov-monitor",
   "private": true,
   "scripts": {
-    "dev": "node scripts/dev.mjs",
+    "dev": "node src/scripts/dev.mjs",
     "dev:parallel": "concurrently -k -n api,frontend -c blue,green \"pnpm api:dev\" \"pnpm frontend:dev\"",
     "build": "pnpm -r run build",
     "test": "pnpm -r --parallel test:run",
     "api:dev": "pnpm --filter api run dev",
     "frontend:dev": "pnpm --filter opengov-monitor-frontend run dev",
-    "migrate": "cd backend && .venv/bin/python migrations/migration_runner.py --db ../data/polkadot.db",
-    "migrate:create": "cd backend && .venv/bin/python migrations/create_migration.py",
-    "migrate:baseline": "cd backend && .venv/bin/python migrations/baseline.py --db ../data/polkadot.db",
-    "sanity:check": "cd backend && .venv/bin/python scripts/sanity_check.py --db ../data/polkadot.db",
-    "sanity:check:verbose": "cd backend && .venv/bin/python scripts/sanity_check.py --db ../data/polkadot.db --verbose"
+    "migrate": "cd src/backend && .venv/bin/python migrations/migration_runner.py --db ../../data/polkadot.db",
+    "migrate:create": "cd src/backend && .venv/bin/python migrations/create_migration.py",
+    "migrate:baseline": "cd src/backend && .venv/bin/python migrations/baseline.py --db ../../data/polkadot.db",
+    "sanity:check": "cd src/backend && .venv/bin/python scripts/sanity_check.py --db ../../data/polkadot.db",
+    "sanity:check:verbose": "cd src/backend && .venv/bin/python scripts/sanity_check.py --db ../../data/polkadot.db --verbose"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

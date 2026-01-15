@@ -15,7 +15,7 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
-  api:
+  src/api:
     dependencies:
       bcrypt:
         specifier: ^6.0.0
@@ -79,7 +79,7 @@ importers:
         specifier: ^4.0.16
         version: 4.0.16(@types/node@22.19.3)(jiti@1.21.7)(jsdom@27.4.0)(tsx@4.21.0)(yaml@2.8.2)
 
-  frontend:
+  src/frontend:
     dependencies:
       '@dnd-kit/core':
         specifier: ^6.3.1

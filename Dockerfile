@@ -6,11 +6,11 @@ WORKDIR /app
 RUN npm install -g pnpm
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY frontend/package.json ./frontend/
+COPY src/frontend/package.json ./src/frontend/
 
 RUN pnpm install --frozen-lockfile
 
-COPY frontend/ ./frontend/
+COPY src/frontend/ ./src/frontend/
 RUN pnpm --filter opengov-monitor-frontend build
 
 # Stage 2: Build API (use debian-based image for glibc compatibility with runtime)
@@ -22,11 +22,11 @@ RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt
 RUN npm install -g pnpm
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY api/package.json ./api/
+COPY src/api/package.json ./src/api/
 
 RUN pnpm install --frozen-lockfile
 
-COPY api/ ./api/
+COPY src/api/ ./src/api/
 RUN pnpm --filter api build
 
 # Stage 3: Runtime (use node:20-slim to match build stage Node version)
@@ -48,32 +48,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Copy built frontend to nginx
-COPY --from=frontend-build /app/frontend/dist /var/www/html
+COPY --from=frontend-build /app/src/frontend/dist /var/www/html
 
 # Copy built API (pnpm hoists node_modules to root, but symlinks are in api/node_modules)
-COPY --from=api-build /app/api/dist ./api/dist
-COPY --from=api-build /app/api/package.json ./api/
-COPY --from=api-build /app/api/scripts ./api/scripts
+COPY --from=api-build /app/src/api/dist ./src/api/dist
+COPY --from=api-build /app/src/api/package.json ./src/api/
+COPY --from=api-build /app/src/api/scripts ./src/api/scripts
 COPY --from=api-build /app/node_modules ./node_modules
-COPY --from=api-build /app/api/node_modules ./api/node_modules
+COPY --from=api-build /app/src/api/node_modules ./src/api/node_modules
 
 # Copy Python backend
-COPY backend/ ./backend/
+COPY src/backend/ ./src/backend/
 
 # Install Python dependencies
-RUN python3 -m venv /app/backend/.venv \
-    && /app/backend/.venv/bin/pip install --no-cache-dir -r /app/backend/requirements.txt
+RUN python3 -m venv /app/src/backend/.venv \
+    && /app/src/backend/.venv/bin/pip install --no-cache-dir -r /app/src/backend/requirements.txt
 
 # Copy configuration files
-COPY deploy/nginx-container.conf /etc/nginx/sites-available/default
-COPY deploy/supervisord.conf /etc/supervisor/conf.d/opengov.conf
-COPY deploy/sync-cron /etc/cron.d/opengov-sync
-COPY deploy/run-migrations-then-api.sh /app/deploy/run-migrations-then-api.sh
+COPY src/deploy/nginx-container.conf /etc/nginx/sites-available/default
+COPY src/deploy/supervisord.conf /etc/supervisor/conf.d/opengov.conf
+COPY src/deploy/sync-cron /etc/cron.d/opengov-sync
+COPY src/deploy/run-migrations-then-api.sh /app/src/deploy/run-migrations-then-api.sh
 
 # Setup cron and make migration script executable
 RUN chmod 0644 /etc/cron.d/opengov-sync \
     && crontab /etc/cron.d/opengov-sync \
-    && chmod +x /app/deploy/run-migrations-then-api.sh
+    && chmod +x /app/src/deploy/run-migrations-then-api.sh
 
 # Create data directory
 RUN mkdir -p /data

@@ -4,7 +4,7 @@ import path from "path";
 import fs from "fs";
 
 function getApiPort(): number {
-  const portFile = path.resolve(__dirname, "../data/.api-port");
+  const portFile = path.resolve(__dirname, "../../data/.api-port");
   try {
     const port = parseInt(fs.readFileSync(portFile, "utf-8").trim(), 10);
     if (!isNaN(port)) {
