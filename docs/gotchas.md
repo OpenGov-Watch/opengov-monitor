@@ -61,6 +61,39 @@ TanStack Table can't use `accessorKey` for nested fields like `tally.ayes`:
 
 Stacked bar charts expect pivoted data. The frontend auto-transforms when it detects category columns. See `transformDataForStackedBar()` in chart components.
 
+### Dashboard Grid: react-grid-layout Gotchas
+
+Dashboard uses `react-grid-layout` with specific patterns to avoid infinite loops:
+
+**Breakpoints lowered for typical containers:**
+```typescript
+// lg: 800 (not 1200) - typical dashboard container is ~1000px
+const BREAKPOINTS = { lg: 800, md: 600, sm: 480, xs: 320, xxs: 0 };
+```
+
+**Memoize with stable signatures to prevent infinite loops:**
+```typescript
+// Wrong - causes infinite loop
+const layouts = useMemo(() => ..., [components]);
+
+// Correct - only changes when IDs/config actually change
+const componentSignature = useMemo(
+  () => components.map(c => `${c.id}:${c.grid_config}`).join("|"),
+  [components]
+);
+const layouts = useMemo(() => ..., [componentSignature, editable]);
+```
+
+**Static property required in view mode:**
+```typescript
+static: !editable  // Prevents unwanted movement in view mode
+```
+
+**Debounce layout changes:**
+```typescript
+const debouncedHandler = debounce(handleLayoutChange, 100);
+```
+
 ---
 
 ## API Server
