@@ -412,6 +412,145 @@ describe("DashboardComponent", () => {
     });
   });
 
+  describe("Query Filters", () => {
+    it("applies saved component filters to API requests", async () => {
+      // This test verifies that filters saved in the component's query_config
+      // are actually sent to the backend API
+      const tableComponent: DashboardComponentType = {
+        id: 100,
+        dashboard_id: 1,
+        name: "child bounty 17",
+        type: "table",
+        query_config: JSON.stringify({
+          sourceTable: "Child Bounties",
+          columns: [
+            { column: "identifier" },
+            { column: "parentBountyId" },
+            { column: "status" },
+          ],
+          filters: [
+            { column: "parentBountyId", operator: "=", value: "17" }
+          ],
+          limit: 1000,
+        }),
+        chart_config: null,
+        grid_config: JSON.stringify({ x: 0, y: 0, w: 6, h: 4 }),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      // Mock both column-config.yaml and the API response
+      (global.fetch as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({}), // column-config.yaml
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            data: [
+              { identifier: "17_141", parentBountyId: 17, status: "Claimed" },
+              { identifier: "17_140", parentBountyId: 17, status: "Claimed" },
+            ],
+          }),
+        });
+
+      render(<DashboardComponent component={tableComponent} />);
+
+      // Wait for the API query fetch to be called
+      await waitFor(() => {
+        const calls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls;
+        const apiCall = calls.find(call =>
+          typeof call[0] === 'string' && call[0].includes("/api/query/execute")
+        );
+        expect(apiCall).toBeDefined();
+      });
+
+      // Find the fetch call to /api/query/execute
+      const fetchCalls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls;
+      const fetchCall = fetchCalls.find(call =>
+        typeof call[0] === 'string' && call[0].includes("/api/query/execute")
+      );
+
+      expect(fetchCall).toBeDefined();
+      const requestBody = JSON.parse(fetchCall![1].body);
+
+      // CRITICAL: The filters from query_config must be in the request
+      expect(requestBody.filters).toBeDefined();
+      expect(requestBody.filters).toHaveLength(1);
+      expect(requestBody.filters[0]).toEqual({
+        column: "parentBountyId",
+        operator: "=",
+        value: "17"
+      });
+    });
+
+    it("does not override saved filters with empty URL view state", async () => {
+      // This test verifies that URL view state (which typically has empty filters)
+      // doesn't override the component's saved filters
+      const tableComponent: DashboardComponentType = {
+        id: 101,
+        dashboard_id: 1,
+        name: "filtered table",
+        type: "table",
+        query_config: JSON.stringify({
+          sourceTable: "Referenda",
+          columns: [
+            { column: "id" },
+            { column: "status" },
+          ],
+          filters: [
+            { column: "status", operator: "=", value: "Executed" }
+          ],
+          limit: 100,
+        }),
+        chart_config: null,
+        grid_config: JSON.stringify({ x: 0, y: 0, w: 6, h: 4 }),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      // Mock both column-config.yaml and the API response
+      (global.fetch as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({}), // column-config.yaml
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            data: [
+              { id: 1, status: "Executed" },
+            ],
+          }),
+        });
+
+      render(<DashboardComponent component={tableComponent} />);
+
+      // Wait for the API query fetch to be called
+      await waitFor(() => {
+        const calls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls;
+        const apiCall = calls.find(call =>
+          typeof call[0] === 'string' && call[0].includes("/api/query/execute")
+        );
+        expect(apiCall).toBeDefined();
+      });
+
+      // Find the fetch call to /api/query/execute
+      const fetchCalls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls;
+      const fetchCall = fetchCalls.find(call =>
+        typeof call[0] === 'string' && call[0].includes("/api/query/execute")
+      );
+
+      expect(fetchCall).toBeDefined();
+      const requestBody = JSON.parse(fetchCall![1].body);
+
+      // Filters should still be present, not replaced with empty array
+      expect(requestBody.filters).toBeDefined();
+      expect(requestBody.filters.length).toBeGreaterThan(0);
+    });
+  });
+
   describe("Refresh Functionality", () => {
     it("shows refresh button for chart components", async () => {
       const pieComponent: DashboardComponentType = {

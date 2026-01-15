@@ -607,6 +607,155 @@ describe("UI Page QueryConfig Tests", () => {
       // All results should have status "Claimed"
       expect(response.body.data.every((row: any) => row.status === "Claimed")).toBe(true);
     });
+
+    it("filters by parentBountyId correctly with JOINs", async () => {
+      // Seed specific test data with different parentBountyIds
+      testDb.exec(`DELETE FROM "Child Bounties"`);
+      testDb.exec(`DELETE FROM "Bounties"`);
+
+      testDb.exec(`
+        INSERT INTO "Bounties" (id, name, category_id)
+        VALUES
+          (13, 'Parent Bounty 13', 1),
+          (17, 'Parent Bounty 17', 1),
+          (33, 'Parent Bounty 33', 2)
+      `);
+
+      testDb.exec(`
+        INSERT INTO "Child Bounties" (identifier, parentBountyId, description, status, category_id)
+        VALUES
+          ('13_1001', 13, 'Child of bounty 13 - first', 'Active', 1),
+          ('13_1002', 13, 'Child of bounty 13 - second', 'Pending', 1),
+          ('17_2001', 17, 'Child of bounty 17 - first', 'Active', 1),
+          ('17_2002', 17, 'Child of bounty 17 - second', 'Claimed', 2),
+          ('33_3001', 33, 'Child of bounty 33 - first', 'Active', 2)
+      `);
+
+      // Query with JOINs and filter by parentBountyId = 17
+      const queryConfig: QueryConfig = {
+        sourceTable: "Child Bounties",
+        columns: [
+          { column: "identifier" },
+          { column: "parentBountyId" },
+          { column: "description" },
+          { column: "status" },
+          { column: "c.category", alias: "category" },
+          { column: "b.name", alias: "parentBountyName" },
+        ],
+        joins: [
+          {
+            type: "LEFT",
+            table: "Categories",
+            alias: "c",
+            on: {
+              left: "Child Bounties.category_id",
+              right: "c.id",
+            },
+          },
+          {
+            type: "LEFT",
+            table: "Bounties",
+            alias: "b",
+            on: {
+              left: "Child Bounties.parentBountyId",
+              right: "b.id",
+            },
+          },
+        ],
+        filters: [
+          { column: "parentBountyId", operator: "=", value: 17 }
+        ],
+        orderBy: [{ column: "identifier", direction: "ASC" }],
+        limit: 1000
+      };
+
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send(queryConfig);
+
+      if (response.status !== 200) {
+        console.error("Filter Error:", response.body);
+        console.error("Generated SQL:", response.body.sql);
+      }
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toBeDefined();
+      expect(Array.isArray(response.body.data)).toBe(true);
+
+      // CRITICAL: Should only return Child Bounties with parentBountyId = 17
+      expect(response.body.data.length).toBe(2);
+      expect(response.body.data.every((row: any) => row.parentBountyId === 17)).toBe(true);
+
+      // Verify the correct identifiers
+      const identifiers = response.body.data.map((row: any) => row.identifier);
+      expect(identifiers).toEqual(['17_2001', '17_2002']);
+
+      // Verify SQL contains WHERE clause with parentBountyId
+      expect(response.body.sql).toContain("WHERE");
+      expect(response.body.sql).toContain("parentBountyId");
+    });
+
+    it("filters facets by parentBountyId with FilterGroup format", async () => {
+      // Seed specific test data with different parentBountyIds
+      testDb.exec(`DELETE FROM "Child Bounties"`);
+      testDb.exec(`DELETE FROM "Bounties"`);
+
+      testDb.exec(`
+        INSERT INTO "Bounties" (id, name, category_id)
+        VALUES
+          (13, 'Parent Bounty 13', 1),
+          (17, 'Parent Bounty 17', 1),
+          (33, 'Parent Bounty 33', 2)
+      `);
+
+      testDb.exec(`
+        INSERT INTO "Child Bounties" (identifier, parentBountyId, description, status, category_id)
+        VALUES
+          ('13_1001', 13, 'Child of bounty 13 - first', 'Active', 1),
+          ('13_1002', 13, 'Child of bounty 13 - second', 'Pending', 1),
+          ('17_2001', 17, 'Child of bounty 17 - first', 'Active', 1),
+          ('17_2002', 17, 'Child of bounty 17 - second', 'Claimed', 2),
+          ('33_3001', 33, 'Child of bounty 33 - first', 'Active', 2)
+      `);
+
+      // Request facets with FilterGroup format filtering by parentBountyId = 17
+      const facetRequest = {
+        sourceTable: "Child Bounties",
+        columns: ["status"],
+        filters: {
+          operator: "AND",
+          conditions: [
+            { column: "parentBountyId", operator: "=", value: 17 }
+          ]
+        }
+      };
+
+      const response = await request(app)
+        .post("/api/query/facets")
+        .send(facetRequest);
+
+      if (response.status !== 200) {
+        console.error("Facet Error:", response.body);
+      }
+
+      expect(response.status).toBe(200);
+      expect(response.body.facets).toBeDefined();
+      expect(response.body.facets.status).toBeDefined();
+
+      // CRITICAL: Facets should only include status values from parentBountyId = 17
+      // We have: 17_2001 (Active) and 17_2002 (Claimed)
+      const statusFacets = response.body.facets.status;
+      const facetValues = statusFacets.map((f: any) => f.value);
+
+      // Should only have Active and Claimed (from bounty 17), NOT Pending (from bounty 13)
+      expect(facetValues).toContain("Active");
+      expect(facetValues).toContain("Claimed");
+      expect(facetValues).not.toContain("Pending");
+
+      // Total count across facets should be 2 (the two rows with parentBountyId = 17)
+      const totalCount = statusFacets.reduce((sum: number, f: any) => sum + f.count, 0);
+      expect(totalCount).toBe(2);
+    });
   });
 
   describe("Column with Dots (Dot-Notation)", () => {

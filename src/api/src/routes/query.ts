@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getDatabase } from "../db/index.js";
-import type { QueryConfig, FilterCondition, ExpressionColumn, JoinConfig, FacetQueryConfig, FacetValue, FacetQueryResponse } from "../db/types.js";
+import type { QueryConfig, FilterCondition, FilterGroup, ExpressionColumn, JoinConfig, FacetQueryConfig, FacetValue, FacetQueryResponse } from "../db/types.js";
 
 export const queryRouter: Router = Router();
 
@@ -292,42 +292,151 @@ function buildSelectClause(config: QueryConfig, availableColumns: string[]): str
   return parts.join(", ");
 }
 
-function buildWhereClause(
-  filters: FilterCondition[],
-  sourceTable?: string
-): { clause: string; params: (string | number)[] } {
-  if (!filters || filters.length === 0) {
-    return { clause: "", params: [] };
-  }
+// Helper function to check if filters is a FilterGroup
+function isFilterGroup(filters: FilterCondition[] | FilterGroup): filters is FilterGroup {
+  return !Array.isArray(filters) && 'operator' in filters && 'conditions' in filters;
+}
 
-  const conditions: string[] = [];
-  const params: (string | number)[] = [];
+// Helper function to recursively remove a column from FilterGroup
+function excludeColumnFromFilterGroup(
+  group: FilterGroup,
+  columnName: string
+): FilterGroup {
+  const filteredConditions: (FilterCondition | FilterGroup)[] = [];
 
-  for (const filter of filters) {
-    const colName = sanitizeColumnName(filter.column, sourceTable);
-
-    switch (filter.operator) {
-      case "IS NULL":
-        conditions.push(`${colName} IS NULL`);
-        break;
-      case "IS NOT NULL":
-        conditions.push(`${colName} IS NOT NULL`);
-        break;
-      case "IN":
-        if (Array.isArray(filter.value)) {
-          const placeholders = filter.value.map(() => "?").join(", ");
-          conditions.push(`${colName} IN (${placeholders})`);
-          params.push(...filter.value);
-        }
-        break;
-      default:
-        conditions.push(`${colName} ${filter.operator} ?`);
-        params.push(filter.value as string | number);
+  for (const condition of group.conditions) {
+    if (isFilterGroup(condition)) {
+      // Recursive case: nested FilterGroup
+      const filteredSubGroup = excludeColumnFromFilterGroup(condition, columnName);
+      // Only include the subgroup if it has conditions
+      if (filteredSubGroup.conditions.length > 0) {
+        filteredConditions.push(filteredSubGroup);
+      }
+    } else {
+      // Base case: FilterCondition - only include if not the excluded column
+      if (condition.column !== columnName) {
+        filteredConditions.push(condition);
+      }
     }
   }
 
   return {
-    clause: conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "",
+    operator: group.operator,
+    conditions: filteredConditions
+  };
+}
+
+// Helper function to recursively validate filter operators
+function validateFilterOperators(filters: FilterCondition[] | FilterGroup): string | null {
+  if (isFilterGroup(filters)) {
+    // FilterGroup case: validate all conditions recursively
+    for (const condition of filters.conditions) {
+      if (isFilterGroup(condition)) {
+        const error = validateFilterOperators(condition);
+        if (error) return error;
+      } else {
+        // FilterCondition: validate operator
+        if (!ALLOWED_OPERATORS.has(condition.operator)) {
+          return `Invalid operator: ${condition.operator}`;
+        }
+      }
+    }
+  } else {
+    // Array case: validate each filter
+    for (const filter of filters) {
+      if (!ALLOWED_OPERATORS.has(filter.operator)) {
+        return `Invalid operator: ${filter.operator}`;
+      }
+    }
+  }
+  return null;
+}
+
+// Recursive function to build condition from a single FilterCondition
+function buildSingleCondition(
+  filter: FilterCondition,
+  sourceTable: string | undefined,
+  params: (string | number)[]
+): string {
+  const colName = sanitizeColumnName(filter.column, sourceTable);
+
+  switch (filter.operator) {
+    case "IS NULL":
+      return `${colName} IS NULL`;
+    case "IS NOT NULL":
+      return `${colName} IS NOT NULL`;
+    case "IN":
+      if (Array.isArray(filter.value)) {
+        const placeholders = filter.value.map(() => "?").join(", ");
+        params.push(...filter.value);
+        return `${colName} IN (${placeholders})`;
+      }
+      return "";
+    default:
+      params.push(filter.value as string | number);
+      return `${colName} ${filter.operator} ?`;
+  }
+}
+
+// Recursive function to build conditions from a FilterGroup
+function buildFilterGroupConditions(
+  group: FilterGroup,
+  sourceTable: string | undefined,
+  params: (string | number)[]
+): string {
+  if (!group.conditions || group.conditions.length === 0) {
+    return "";
+  }
+
+  const subConditions: string[] = [];
+
+  for (const condition of group.conditions) {
+    if (isFilterGroup(condition)) {
+      // Recursive case: nested FilterGroup
+      const subGroup = buildFilterGroupConditions(condition, sourceTable, params);
+      if (subGroup) {
+        subConditions.push(`(${subGroup})`);
+      }
+    } else {
+      // Base case: FilterCondition
+      const singleCondition = buildSingleCondition(condition, sourceTable, params);
+      if (singleCondition) {
+        subConditions.push(singleCondition);
+      }
+    }
+  }
+
+  return subConditions.join(` ${group.operator} `);
+}
+
+function buildWhereClause(
+  filters: FilterCondition[] | FilterGroup,
+  sourceTable?: string
+): { clause: string; params: (string | number)[] } {
+  const params: (string | number)[] = [];
+  let conditionString = "";
+
+  if (isFilterGroup(filters)) {
+    // New format: FilterGroup with recursive nesting
+    conditionString = buildFilterGroupConditions(filters, sourceTable, params);
+  } else {
+    // Old format: FilterCondition[] (backward compatibility)
+    if (!filters || filters.length === 0) {
+      return { clause: "", params: [] };
+    }
+
+    const conditions: string[] = [];
+    for (const filter of filters) {
+      const singleCondition = buildSingleCondition(filter, sourceTable, params);
+      if (singleCondition) {
+        conditions.push(singleCondition);
+      }
+    }
+    conditionString = conditions.join(" AND ");
+  }
+
+  return {
+    clause: conditionString ? `WHERE ${conditionString}` : "",
     params,
   };
 }
@@ -452,9 +561,21 @@ function buildFacetQuery(
 
   // Build WHERE clause but exclude filter for the faceted column itself
   // This ensures facet counts reflect all possible values, not just filtered ones
-  const filtersExcludingFacetedColumn = (config.filters || []).filter(
-    (filter) => filter.column !== columnName
-  );
+  let filtersExcludingFacetedColumn: FilterCondition[] | FilterGroup;
+
+  if (config.filters && isFilterGroup(config.filters)) {
+    // FilterGroup case: recursively remove conditions matching faceted column
+    filtersExcludingFacetedColumn = excludeColumnFromFilterGroup(
+      config.filters,
+      columnName
+    );
+  } else {
+    // Array case (backward compatibility)
+    filtersExcludingFacetedColumn = (config.filters || []).filter(
+      (filter) => filter.column !== columnName
+    );
+  }
+
   const { clause: whereClause, params } = buildWhereClause(
     filtersExcludingFacetedColumn,
     config.sourceTable
@@ -592,11 +713,10 @@ queryRouter.post("/facets", (req, res) => {
 
     // Validate filters if present
     if (config.filters) {
-      for (const filter of config.filters) {
-        if (!ALLOWED_OPERATORS.has(filter.operator)) {
-          res.status(400).json({ error: `Invalid operator: ${filter.operator}` });
-          return;
-        }
+      const filterError = validateFilterOperators(config.filters);
+      if (filterError) {
+        res.status(400).json({ error: filterError });
+        return;
       }
     }
 

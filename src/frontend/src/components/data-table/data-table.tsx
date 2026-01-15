@@ -5,10 +5,13 @@ import { useState, useEffect, useMemo } from "react";
 import {
   ColumnDef,
   SortingState,
+  ExpandedState,
   flexRender,
   getCoreRowModel,
   getFacetedRowModel,
   getFacetedUniqueValues,
+  getGroupedRowModel,
+  getExpandedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 
@@ -31,7 +34,7 @@ import { ViewSelector } from "./view-selector";
 import { useViewState, SavedView } from "@/hooks/use-view-state";
 import { QueryConfig, QueryExecuteResponse, DataTableEditConfig, FacetQueryConfig, FacetQueryResponse } from "@/lib/db/types";
 import { generateColumns } from "@/lib/auto-columns";
-import { sortingStateToOrderBy, filterStateToQueryFilters } from "@/lib/query-config-utils";
+import { sortingStateToOrderBy, convertFiltersToQueryConfig } from "@/lib/query-config-utils";
 import { cn } from "@/lib/utils";
 import { loadColumnConfig } from "@/lib/column-renderer";
 
@@ -57,6 +60,7 @@ interface DataTableProps<TData> {
   // Dashboard mode configuration
   dashboardMode?: boolean;
   dashboardComponentId?: string;
+  defaultFilters?: QueryConfig["filters"]; // Saved filters from component config
 
   // Feature visibility control
   hideViewSelector?: boolean;
@@ -83,6 +87,7 @@ export function DataTable<TData>({
   compactMode = false,
   dashboardMode = false,
   dashboardComponentId,
+  defaultFilters,
   hideViewSelector: hideViewSelectorProp,
   toolbarCollapsible: toolbarCollapsibleProp,
   initialToolbarCollapsed: initialToolbarCollapsedProp,
@@ -105,6 +110,10 @@ export function DataTable<TData>({
     setColumnVisibility,
     pagination,
     setPagination,
+    filterGroup,
+    setFilterGroup,
+    groupBy,
+    setGroupBy,
     currentViewName,
     getSavedViews,
     saveView,
@@ -134,13 +143,25 @@ export function DataTable<TData>({
 
   // BUILD COMPLETE QUERY CONFIG
   // Merge base config with dynamic sorting/filtering/pagination state
-  const queryConfig = useMemo<QueryConfig>(() => ({
-    ...baseQueryConfig,
-    orderBy: sortingStateToOrderBy(sorting),
-    filters: filterStateToQueryFilters(columnFilters),
-    limit: pagination.pageSize,
-    offset: pagination.pageIndex * pagination.pageSize,
-  }), [baseQueryConfig, sorting, columnFilters, pagination]);
+  const queryConfig = useMemo<QueryConfig>(() => {
+    const viewStateFilters = convertFiltersToQueryConfig(columnFilters, filterGroup);
+
+    // Merge default filters with view state filters
+    // If view state has filters, use them; otherwise fall back to default filters
+    const mergedFilters = (Array.isArray(viewStateFilters) && viewStateFilters.length > 0) ||
+                          (viewStateFilters && 'conditions' in viewStateFilters && viewStateFilters.conditions.length > 0)
+      ? viewStateFilters
+      : (defaultFilters || []);
+
+    return {
+      ...baseQueryConfig,
+      orderBy: sortingStateToOrderBy(sorting),
+      filters: mergedFilters,
+      groupBy: groupBy ? [groupBy] : baseQueryConfig.groupBy,
+      limit: pagination.pageSize,
+      offset: pagination.pageIndex * pagination.pageSize,
+    };
+  }, [baseQueryConfig, sorting, columnFilters, filterGroup, groupBy, pagination, defaultFilters]);
 
   useEffect(() => {
     async function fetchData() {
@@ -162,7 +183,7 @@ export function DataTable<TData>({
             sourceTable: baseQueryConfig.sourceTable,
             columns: facetedFilters,
             joins: baseQueryConfig.joins,
-            filters: filterStateToQueryFilters(columnFilters),
+            filters: convertFiltersToQueryConfig(columnFilters, filterGroup),
           };
           facetPromise = fetch("/api/query/facets", {
             method: "POST",
@@ -313,6 +334,9 @@ export function DataTable<TData>({
     }
   }, [viewMode, tableName, compactMode]);
 
+  // GROUPING STATE
+  const [expanded, setExpanded] = React.useState<ExpandedState>({});
+
   // REACT TABLE INSTANCE
   const table = useReactTable({
     data,
@@ -322,12 +346,17 @@ export function DataTable<TData>({
       columnFilters,
       columnVisibility,
       pagination,
+      grouping: groupBy ? [groupBy] : [],
+      expanded,
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onPaginationChange: setPagination,
+    onExpandedChange: setExpanded,
     getCoreRowModel: getCoreRowModel(),
+    getGroupedRowModel: getGroupedRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
     // getSortedRowModel removed - sorting now server-side via orderBy
     // getFilteredRowModel removed - filtering now server-side via filters
     // getPaginationRowModel removed - pagination now server-side via limit/offset
@@ -374,6 +403,10 @@ export function DataTable<TData>({
         initialToolbarCollapsed={initialToolbarCollapsed}
         toolbarCollapsed={toolbarCollapsed}
         onToolbarCollapseChange={onToolbarCollapseChange}
+        groupBy={groupBy}
+        onGroupByChange={setGroupBy}
+        filterGroup={filterGroup}
+        onFilterGroupChange={setFilterGroup}
       />
 
       {viewMode === "card" ? (
@@ -454,12 +487,46 @@ export function DataTable<TData>({
             <TableBody className={cn(loading && "opacity-30")}>
               {table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id}>
+                  <TableRow
+                    key={row.id}
+                    className={cn(
+                      row.getIsGrouped() && "bg-muted/50 font-medium",
+                      row.depth > 0 && "pl-8"
+                    )}
+                  >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
+                      <TableCell
+                        key={cell.id}
+                        style={{
+                          paddingLeft: row.depth > 0 ? `${row.depth * 2}rem` : undefined,
+                        }}
+                      >
+                        {cell.getIsGrouped() ? (
+                          // Render group cell with expand/collapse button
+                          <button
+                            onClick={row.getToggleExpandedHandler()}
+                            className="flex items-center gap-2 font-medium"
+                          >
+                            {row.getIsExpanded() ? "▼" : "►"}
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )}{" "}
+                            ({row.subRows.length})
+                          </button>
+                        ) : cell.getIsAggregated() ? (
+                          // Render aggregated cell
+                          flexRender(
+                            cell.column.columnDef.aggregatedCell ??
+                              cell.column.columnDef.cell,
+                            cell.getContext()
+                          )
+                        ) : cell.getIsPlaceholder() ? null : (
+                          // Render normal cell
+                          flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )
                         )}
                       </TableCell>
                     ))}

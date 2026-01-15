@@ -182,6 +182,7 @@ export function DashboardComponent({
             columnMapping={columnMapping}
             dashboardMode={true}
             dashboardComponentId={String(component.id)}
+            defaultFilters={queryConfig.filters}
             compactMode={true}
             toolbarCollapsed={isToolbarCollapsed}
             onToolbarCollapseChange={setIsToolbarCollapsed}
