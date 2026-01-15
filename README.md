@@ -28,16 +28,101 @@ pnpm run dev
 - Frontend: http://localhost:3000
 - API: http://localhost:3001
 
-## Project Structure
+## Architecture
+
+pnpm monorepo: Python backend (data fetching) → SQLite → Express API → React frontend.
+
+## Project Structure & Navigation
 
 ```
-backend/        Python data pipeline (fetches from Subsquare, enriches with prices)
-api/            Express REST API (serves data to frontend)
-frontend/       Vite + React dashboard (TanStack Table, shadcn/ui)
-data/           SQLite database
-docs/spec/      Technical specifications
-deploy/         Docker deployment configuration
+backend/           Python data pipeline (see backend/CLAUDE.md)
+├── data_providers/   Subsquare, price, identity fetching
+├── data_sinks/       SQLite storage
+├── migrations/       Database migration system
+├── scripts/          run_sqlite.py, fetch_salaries.py, sanity_check.py
+└── config.yaml       Fetch limits, salary toggle
+
+api/               Express REST API (see api/CLAUDE.md)
+└── src/
+    ├── index.ts      Server entry
+    ├── db/           queries.ts, types.ts
+    └── routes/       Endpoint handlers
+
+frontend/          Vite + React (see frontend/CLAUDE.md)
+└── src/
+    ├── pages/        Page components
+    ├── components/   data-table/, tables/, charts/, dashboard/
+    ├── api/          client.ts
+    └── hooks/        use-view-state.ts
+
+data/              SQLite database (polkadot.db, sessions.db)
+docs/spec/         Detailed specifications
+deploy/            Docker deployment configuration
 ```
+
+## Key Entry Points
+
+| Task | Start here |
+|------|------------|
+| Add/modify API endpoint | `api/src/routes/`, `api/src/db/queries.ts` |
+| Add new page | `frontend/src/router.tsx`, `frontend/src/pages/` |
+| Modify data fetching | `backend/data_providers/subsquare.py` |
+| Modifying database schema | `docs/spec/migrations.md` |
+
+## Available Commands
+
+### Development
+```bash
+pnpm run dev          # Start API + frontend (dynamic ports)
+pnpm api:dev          # API only (port 3001)
+pnpm frontend:dev     # Frontend only (port 3000)
+pnpm run build        # Build all packages
+pnpm test             # Run all tests
+```
+
+### Backend Data Sync
+```bash
+cd backend
+source .venv/bin/activate    # Windows: .venv\Scripts\activate
+python scripts/run_sqlite.py --db ../data/polkadot.db
+```
+
+### Database Migrations
+```bash
+pnpm migrate                              # Run pending migrations
+pnpm migrate:create --name add_field --type sql  # Create new migration
+pnpm migrate:baseline --version N         # Mark migrations up to N as applied
+```
+
+**Note**: Windows users need to change `.venv/bin/python` to `.venv/Scripts/python.exe` in package.json scripts.
+
+### Database Sanity Checks
+```bash
+pnpm sanity:check         # Check ID continuity in all tables
+pnpm sanity:check:verbose # Show detailed gap information
+```
+
+Verifies that ID sequences in key tables are continuous with no gaps. See [docs/howtos/sanity-checks.md](docs/howtos/sanity-checks.md) for detailed usage and options.
+
+## Gotchas
+
+- **Dot-notation columns**: Use `accessorFn` not `accessorKey` for columns like `tally.ayes`
+- **Windows dual-stack**: API binds to `127.0.0.1` explicitly
+
+## Documentation
+
+| Topic | Location |
+|-------|----------|
+| System overview | [docs/architecture.md](docs/architecture.md) |
+| Project-specific quirks | [docs/gotchas.md](docs/gotchas.md) |
+| Data schemas (shared) | [docs/spec/data-models.md](docs/spec/data-models.md) |
+| Error logging & validation | [docs/error-logging.md](docs/error-logging.md) |
+| Frontend table system | [docs/spec/frontend/tables.md](docs/spec/frontend/tables.md) |
+| Backend business rules | [backend/docs/spec/business-rules.md](backend/docs/spec/business-rules.md) |
+| API validation | [api/docs/spec/validation.md](api/docs/spec/validation.md) |
+| Database migrations | [docs/spec/migrations.md](docs/spec/migrations.md), [backend/migrations/README.md](backend/migrations/README.md) |
+| Database sanity checks | [docs/howtos/sanity-checks.md](docs/howtos/sanity-checks.md) |
+| Deployment & Docker | [deploy/CLAUDE.md](deploy/CLAUDE.md) |
 
 ## Authentication
 
@@ -71,15 +156,6 @@ curl -X POST http://localhost:3001/api/users \
 - `SESSION_SECRET`: 32+ character random string (required in production)
 - `NODE_ENV`: Set to "production" for secure HTTPS-only cookies
 - `CROSS_ORIGIN_AUTH`: Set to "true" for cross-origin auth (development only)
-
-## Documentation
-
-| Topic | Location |
-|-------|----------|
-| System overview | [docs/architecture.md](docs/architecture.md) |
-| Data models | [docs/spec/data-models.md](docs/spec/data-models.md) |
-| Business rules | [docs/spec/business-rules.md](docs/spec/business-rules.md) |
-| Troubleshooting | [docs/gotchas.md](docs/gotchas.md) |
 
 ## License
 
