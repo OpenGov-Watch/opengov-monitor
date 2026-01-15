@@ -12,7 +12,7 @@ Vite + React dashboard with TanStack Table and shadcn/ui. Client-side data fetch
 | `src/components/tables/*-columns.tsx` | Column definitions per table |
 | `src/hooks/use-view-state.ts` | Table state persistence (localStorage + URL) |
 | `src/components/dashboard/` | Dashboard builder components |
-| `src/components/query-builder/` | Visual query builder |
+| `src/components/query-builder/` | Visual query builder with auto-JOIN detection |
 
 ## Commands
 
@@ -54,6 +54,13 @@ const numericId = parseInt(id as string, 10);
 
 ### API server required
 Start both with `pnpm run dev` from root, or API won't be available.
+
+### Query Builder JOIN Detection
+Foreign key relationships are detected by column naming patterns:
+- `*_id` → table with matching name
+- `{table}Id` camelCase → table name
+- `{table}Index` → table name
+- Child Bounties uses `identifier` PK (not `id`)
 
 ## Adding a Page
 

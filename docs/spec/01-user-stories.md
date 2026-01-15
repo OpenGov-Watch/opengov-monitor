@@ -204,3 +204,85 @@
 **Current Support:**
 - Main DataTable: ✅ Full support via DataTableColumnVisibility
 - Dashboard Table: ❌ All columns always visible
+
+---
+
+### US-12: Visual Query Builder
+
+**As a** dashboard creator
+**I want to** build custom queries visually without writing SQL
+**So that** I can create filtered, aggregated, and sorted views without technical expertise
+
+**Acceptance Criteria:**
+- Select source table from allowlist
+- Choose columns to display (with optional aliases)
+- Add expression columns (computed: `column1 + column2`)
+- Add filters with operators (=, !=, <, >, <=, >=, LIKE, IN, IS NULL, IS NOT NULL)
+- Multiple filters combined with AND logic
+- Group by columns for aggregations
+- Add aggregate functions: COUNT, SUM, AVG, MIN, MAX
+- Order by columns (ASC/DESC)
+- Set row limit
+- Live preview of query results
+- Save query configuration to dashboard components
+
+**Current Support:**
+- ✅ Column selection, aliases, expression columns
+- ✅ Filters with all comparison operators
+- ✅ Aggregations (COUNT, SUM, AVG, MIN, MAX)
+- ✅ GROUP BY and ORDER BY
+- ✅ Row limit controls
+- ❌ JOIN support (backend ready, UI missing)
+
+**Current Limitations:**
+- Cannot join multiple tables in UI
+- JOINs must be hardcoded in component definitions
+- Cannot access columns from related tables visually
+
+---
+
+### US-13: JOIN Support in Visual Query Builder
+
+**As a** dashboard creator
+**I want to** join multiple tables in the visual query builder
+**So that** I can access related data (e.g., referendum details for claims) without hardcoding queries
+
+**Acceptance Criteria:**
+- Add JOIN section in query builder UI
+- Select join type: LEFT, INNER, RIGHT
+- Choose table to join from allowlist
+- ~~Specify join condition (left column = right column)~~ ← REMOVED
+- **Join conditions auto-populate based on FK relationships** ← NEW
+- Add multiple JOINs (e.g., claims → referenda → categories)
+- Access columns from joined tables in column picker
+- Filter on joined table columns
+- Order by joined table columns
+- Live preview shows joined results
+- JOIN configuration saved with dashboard component
+
+**UX Improvements (2026-01):**
+- ✅ Auto-detect FK relationships and populate ON clause
+- ✅ Reordered UI: Joins appear before column selection
+- ✅ Simplified JOIN UI: removed manual ON condition selector
+- ✅ Removed row limit control (uses sensible defaults)
+- ✅ Column picker groups columns by table with fully-qualified names
+
+**Example Use Case:**
+Query outstanding claims with referendum creation dates:
+- Source: `outstanding_claims`
+- JOIN: `Referenda` (auto-detects ON `outstanding_claims.referendumIndex = Referenda.id`)
+- Filter: `Referenda.proposal_time <= '2025-12-31'`
+- Filter: `outstanding_claims.expireAt > '2025-12-31'`
+- Columns: claim details + `Referenda.proposal_time`
+
+**Backend Status:** ✅ Already implemented
+- `QueryConfig.joins` array support
+- `buildJoinClause()` generates SQL
+- Used in Referenda and Child Bounties pages
+
+**Frontend Status:** ✅ Fully implemented
+- UI controls for adding JOINs
+- Auto-populate join conditions
+- Select join type, table, and optional alias
+- Column picker includes joined table columns
+- Filter and order by joined table columns

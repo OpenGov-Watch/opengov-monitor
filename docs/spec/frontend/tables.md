@@ -393,12 +393,102 @@ type DashboardComponentType =
 
 ### QueryBuilder
 - Visual SQL builder in ComponentEditor dialog
-- Table selection from allowlist
-- Column picker with alias support
-- Expression columns (computed: `column1 + column2`)
-- Filter UI for WHERE conditions
-- GROUP BY, ORDER BY, LIMIT controls
+- **Logical workflow order:**
+  1. Table selection from allowlist
+  2. JOIN tables (auto-populated ON conditions)
+  3. Column picker with alias support (includes joined table columns, grouped by table)
+  4. Expression columns (computed: `column1 + column2`)
+  5. Filter UI for WHERE conditions
+  6. ORDER BY controls
+- **JOIN support** (LEFT, INNER, RIGHT)
+  - Auto-detects FK relationships (e.g., `category_id`, `parentBountyId`)
+  - Automatically populates ON clause
+  - Optional table aliases
+  - Simplified UI (no manual ON condition entry)
+  - Access joined table columns in picker
 - Live preview of query results
+- **Fixed row limit** (1000 rows for dashboard queries)
+
+#### QueryBuilder JOIN Examples
+
+**Example 1: Claims with Referendum Data**
+```typescript
+{
+  sourceTable: "outstanding_claims",
+  joins: [{
+    type: "LEFT",
+    table: "Referenda",
+    on: {
+      left: "outstanding_claims.referendumIndex",
+      right: "Referenda.id"
+    }
+  }],
+  columns: [
+    { column: "outstanding_claims.description" },
+    { column: "outstanding_claims.expireAt" },
+    { column: "Referenda.proposal_time" }
+  ],
+  filters: [
+    { column: "Referenda.proposal_time", operator: "<=", value: "2025-12-31" },
+    { column: "outstanding_claims.expireAt", operator: ">", value: "2025-12-31" }
+  ]
+}
+```
+
+**Example 2: Multiple JOINs with Aliases**
+```typescript
+{
+  sourceTable: "Child Bounties",
+  joins: [
+    {
+      type: "LEFT",
+      table: "Categories",
+      alias: "c",
+      on: {
+        left: "Child Bounties.category_id",
+        right: "c.id"
+      }
+    },
+    {
+      type: "LEFT",
+      table: "Bounties",
+      alias: "b",
+      on: {
+        left: "Child Bounties.parentBountyId",
+        right: "b.id"
+      }
+    }
+  ],
+  columns: [
+    { column: "Child Bounties.title" },
+    { column: "c.name" },
+    { column: "b.title" }
+  ]
+}
+```
+
+#### Auto-populated JOIN Patterns
+
+The query builder auto-detects foreign key relationships based on naming conventions:
+
+**Pattern 1: `{table}_id` columns**
+- `category_id` → joins to `Categories.id`
+- `parent_bounty_id` → joins to `Bounties.id`
+
+**Pattern 2: `{table}Id` camelCase**
+- `parentBountyId` → joins to `Bounties.id`
+- `referendumId` → joins to `Referenda.id`
+
+**Pattern 3: `{table}Index`**
+- `referendumIndex` → joins to `Referenda.id`
+
+**Special case: Child Bounties**
+- Uses `identifier` as primary key (not `id`)
+- Joins TO Child Bounties use `Child Bounties.identifier`
+
+**When no FK pattern is found:**
+- ON clause left empty
+- User can manually select columns (fallback behavior)
 
 ### Grid Layout
 - `react-grid-layout` with 12-column grid

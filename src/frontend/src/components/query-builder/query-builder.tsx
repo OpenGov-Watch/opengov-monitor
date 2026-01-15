@@ -27,6 +27,7 @@ import type {
   FilterCondition,
   OrderByConfig,
   ExpressionColumn,
+  JoinConfig,
 } from "@/lib/db/types";
 import type { SchemaInfo, ColumnInfo } from "./types";
 
@@ -48,16 +49,68 @@ const FILTER_OPERATORS = [
   "IS NULL",
   "IS NOT NULL",
 ] as const;
+const JOIN_TYPES: JoinConfig["type"][] = ["LEFT", "INNER", "RIGHT"];
 
 const defaultConfig: QueryConfig = {
   sourceTable: "",
   columns: [],
   expressionColumns: [],
+  joins: [],
   filters: [],
   groupBy: [],
   orderBy: [],
-  limit: 1000,
 };
+
+// Helper to detect foreign key relationships based on column naming patterns
+function detectJoinCondition(
+  sourceTable: string,
+  sourceColumns: ColumnInfo[],
+  targetTable: string,
+  targetColumns: ColumnInfo[]
+): { left: string; right: string } | null {
+  // Helper to check if column name matches table name (handles plural/singular)
+  const columnMatchesTable = (columnName: string, tableName: string): boolean => {
+    const colNorm = columnName.toLowerCase().replace(/_/g, '');
+    const tableNorm = tableName.toLowerCase().replace(/ /g, '');
+
+    // Exact match
+    if (colNorm === `${tableNorm}id` || colNorm === `${tableNorm}index`) return true;
+
+    // Try removing trailing 'a' for singular (e.g., "referenda" → "referend")
+    if (tableNorm.endsWith('a')) {
+      const singular = tableNorm.slice(0, -1);
+      if (colNorm === `${singular}id` || colNorm === `${singular}index` || colNorm.startsWith(singular)) return true;
+    }
+
+    return false;
+  };
+
+  // Strategy 1: Find FK column in source table that matches target table
+  const fkColumn1 = sourceColumns.find(col => columnMatchesTable(col.name, targetTable));
+
+  if (fkColumn1) {
+    // Most tables use 'id' as PK, except Child Bounties uses 'identifier'
+    const targetPK = targetTable === 'Child Bounties' ? 'identifier' : 'id';
+    return {
+      left: `${sourceTable}.${fkColumn1.name}`,
+      right: `${targetTable}.${targetPK}`
+    };
+  }
+
+  // Strategy 2: Check if target table references source table
+  const fkColumn2 = targetColumns.find(col => columnMatchesTable(col.name, sourceTable));
+
+  if (fkColumn2) {
+    const sourcePK = sourceTable === 'Child Bounties' ? 'identifier' : 'id';
+    return {
+      left: `${sourceTable}.${sourcePK}`,
+      right: `${targetTable}.${fkColumn2.name}`
+    };
+  }
+
+  // No obvious FK relationship found
+  return null;
+}
 
 export function QueryBuilder({
   initialConfig,
@@ -98,6 +151,14 @@ export function QueryBuilder({
 
     const parts = [`SELECT ${selectParts.join(", ")}`, `FROM "${config.sourceTable}"`];
 
+    // JOIN clauses
+    if (config.joins && config.joins.length > 0) {
+      for (const join of config.joins) {
+        const tableExpr = join.alias ? `"${join.table}" AS "${join.alias}"` : `"${join.table}"`;
+        parts.push(`${join.type} JOIN ${tableExpr} ON ${join.on.left} = ${join.on.right}`);
+      }
+    }
+
     if (config.filters && config.filters.length > 0) {
       const conditions = config.filters.map((f) => {
         const colName = `"${f.column}"`;
@@ -118,7 +179,7 @@ export function QueryBuilder({
       parts.push(`ORDER BY ${orderParts.join(", ")}`);
     }
 
-    parts.push(`LIMIT ${config.limit || 1000}`);
+    parts.push(`LIMIT 1000`);
 
     return parts.join("\n");
   }, [config]);
@@ -159,7 +220,40 @@ export function QueryBuilder({
 
   // Get columns for selected table
   const selectedTable = schema.find((t) => t.name === config.sourceTable);
-  const availableColumns = selectedTable?.columns || [];
+
+  // Build available columns from source table + joined tables
+  const availableColumns = useMemo(() => {
+    type ColumnWithTable = ColumnInfo & { tableSource: string; fullName: string };
+    const columns: ColumnWithTable[] = [];
+
+    // Add source table columns
+    if (selectedTable) {
+      selectedTable.columns.forEach(col => {
+        columns.push({
+          ...col,
+          tableSource: config.sourceTable,
+          fullName: `${config.sourceTable}.${col.name}`,
+        });
+      });
+    }
+
+    // Add joined table columns
+    config.joins?.forEach(join => {
+      const joinedTable = schema.find(t => t.name === join.table);
+      if (joinedTable) {
+        const tableRef = join.alias || join.table;
+        joinedTable.columns.forEach(col => {
+          columns.push({
+            ...col,
+            tableSource: tableRef,
+            fullName: `${tableRef}.${col.name}`,
+          });
+        });
+      }
+    });
+
+    return columns;
+  }, [selectedTable, config.sourceTable, config.joins, schema]);
 
   // Helper to get display name for current table
   const displayName = useCallback(
@@ -177,25 +271,45 @@ export function QueryBuilder({
   }
 
   function handleTableChange(tableName: string) {
-    // Reset columns and filters when table changes
+    // Reset columns, joins, and filters when table changes
     updateConfig({
       sourceTable: tableName,
       columns: [],
       expressionColumns: [],
+      joins: [],
       filters: [],
       groupBy: [],
       orderBy: [],
     });
   }
 
-  function toggleColumn(column: ColumnInfo, checked: boolean) {
+  function toggleColumn(column: ColumnInfo & { fullName: string }, checked: boolean) {
     if (checked) {
       updateConfig({
-        columns: [...config.columns, { column: column.name }],
+        columns: [...config.columns, { column: column.fullName }],
       });
     } else {
       updateConfig({
-        columns: config.columns.filter((c) => c.column !== column.name),
+        columns: config.columns.filter((c) => c.column !== column.fullName),
+      });
+    }
+  }
+
+  function toggleAllColumnsFromTable(columns: (ColumnInfo & { fullName: string })[], selectAll: boolean) {
+    if (selectAll) {
+      // Add all columns from this table that aren't already selected
+      const newColumns = columns.filter(
+        col => !config.columns.some(c => c.column === col.fullName)
+      ).map(col => ({ column: col.fullName }));
+
+      updateConfig({
+        columns: [...config.columns, ...newColumns],
+      });
+    } else {
+      // Remove all columns from this table
+      const columnNamesToRemove = new Set(columns.map(col => col.fullName));
+      updateConfig({
+        columns: config.columns.filter((c) => !columnNamesToRemove.has(c.column)),
       });
     }
   }
@@ -216,7 +330,7 @@ export function QueryBuilder({
     updateConfig({
       filters: [
         ...config.filters,
-        { column: availableColumns[0].name, operator: "=", value: "" },
+        { column: availableColumns[0].fullName, operator: "=", value: "" },
       ],
     });
   }
@@ -235,6 +349,95 @@ export function QueryBuilder({
     });
   }
 
+  function addJoin() {
+    if (schema.length === 0) return;
+    const firstTable = schema.find(t => t.name !== config.sourceTable);
+    if (!firstTable) return;
+
+    // Detect join condition automatically
+    const sourceColumns = selectedTable?.columns || [];
+    const targetColumns = firstTable.columns;
+    const detectedCondition = detectJoinCondition(
+      config.sourceTable,
+      sourceColumns,
+      firstTable.name,
+      targetColumns
+    );
+
+    updateConfig({
+      joins: [
+        ...(config.joins || []),
+        {
+          type: "LEFT",
+          table: firstTable.name,
+          on: detectedCondition || { left: "", right: "" }, // fallback to empty if no FK found
+        },
+      ],
+    });
+  }
+
+  function updateJoin(index: number, updates: Partial<JoinConfig>) {
+    const updatedJoins = [...(config.joins || [])];
+    const currentJoin = updatedJoins[index];
+
+    // If table is being changed, auto-detect join condition
+    if (updates.table && updates.table !== currentJoin.table) {
+      const sourceColumns = selectedTable?.columns || [];
+      const targetTable = schema.find(t => t.name === updates.table);
+      if (targetTable) {
+        const detectedCondition = detectJoinCondition(
+          config.sourceTable,
+          sourceColumns,
+          updates.table,
+          targetTable.columns
+        );
+
+        if (detectedCondition) {
+          updates.on = detectedCondition; // auto-fill the condition
+        }
+      }
+    }
+
+    updatedJoins[index] = { ...currentJoin, ...updates };
+    updateConfig({ joins: updatedJoins });
+  }
+
+  function removeJoin(index: number) {
+    const removedJoin = config.joins?.[index];
+    if (!removedJoin) return;
+
+    // Get the table name (use alias if present, otherwise use table name)
+    const tableName = removedJoin.alias || removedJoin.table;
+
+    // Remove columns from the deleted joined table
+    const updatedColumns = config.columns.filter(
+      (c) => !c.column.startsWith(`${tableName}.`)
+    );
+
+    // Remove filters referencing the deleted table
+    const updatedFilters = config.filters?.filter(
+      (f) => !f.column.startsWith(`${tableName}.`)
+    );
+
+    // Remove order by clauses referencing the deleted table
+    const updatedOrderBy = config.orderBy?.filter(
+      (o) => !o.column.startsWith(`${tableName}.`)
+    );
+
+    // Remove group by clauses referencing the deleted table
+    const updatedGroupBy = config.groupBy?.filter(
+      (g) => !g.startsWith(`${tableName}.`)
+    );
+
+    updateConfig({
+      joins: config.joins?.filter((_, i) => i !== index),
+      columns: updatedColumns,
+      filters: updatedFilters,
+      orderBy: updatedOrderBy,
+      groupBy: updatedGroupBy,
+    });
+  }
+
   function toggleGroupBy(column: string, checked: boolean) {
     if (checked) {
       updateConfig({
@@ -248,11 +451,11 @@ export function QueryBuilder({
   }
 
   function addOrderBy() {
-    if (config.columns.length === 0) return;
+    if (availableColumns.length === 0) return;
     updateConfig({
       orderBy: [
         ...(config.orderBy || []),
-        { column: config.columns[0].column, direction: "ASC" },
+        { column: availableColumns[0].fullName, direction: "ASC" },
       ],
     });
   }
@@ -380,41 +583,153 @@ export function QueryBuilder({
         </Select>
       </div>
 
+      {/* JOINs */}
+      {config.sourceTable && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label>Joins</Label>
+            <Button variant="outline" size="sm" onClick={addJoin}>
+              <Plus className="h-4 w-4 mr-1" /> Add Join
+            </Button>
+          </div>
+          {(config.joins?.length ?? 0) > 0 && (
+            <div className="rounded-md border p-4 space-y-4">
+              {config.joins?.map((join, index) => (
+                  <div key={index} className="flex items-center gap-2 p-3 border rounded bg-muted/20">
+                    {/* Join Type */}
+                    <Select
+                      value={join.type}
+                      onValueChange={(v) => updateJoin(index, { type: v as JoinConfig["type"] })}
+                    >
+                      <SelectTrigger className="w-28">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {JOIN_TYPES.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <span className="text-sm text-muted-foreground">JOIN</span>
+
+                    {/* Table */}
+                    <Select
+                      value={join.table}
+                      onValueChange={(v) => updateJoin(index, { table: v })}
+                    >
+                      <SelectTrigger className="w-40">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {schema
+                          .filter(t => t.name !== config.sourceTable)
+                          .map((table) => (
+                            <SelectItem key={table.name} value={table.name}>
+                              {table.name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+
+                    {/* Alias (optional) */}
+                    <Input
+                      className="w-20"
+                      placeholder="alias"
+                      value={join.alias || ""}
+                      onChange={(e) => updateJoin(index, { alias: e.target.value || undefined })}
+                    />
+
+                    {/* Auto-detected join condition (read-only) */}
+                    <span className="text-xs text-muted-foreground flex-1">
+                      ON {join.on.left || '?'} = {join.on.right || '?'}
+                    </span>
+
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeJoin(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Column Selection */}
       {config.sourceTable && (
         <div className="space-y-4">
-          {/* Available Columns - checkbox list */}
+          {/* Available Columns - checkbox list grouped by table */}
           <div className="space-y-2">
             <Label>Available Columns</Label>
-            <div className="rounded-md border p-4 max-h-48 overflow-y-auto">
-              <div className="grid grid-cols-2 gap-2">
-                {availableColumns.map((column) => {
-                  const isSelected = config.columns.some(
-                    (c) => c.column === column.name
+            <div className="rounded-md border p-4 max-h-48 overflow-y-auto space-y-4">
+              {(() => {
+                // Group columns by table
+                const columnsByTable = new Map<string, typeof availableColumns>();
+                availableColumns.forEach(col => {
+                  const existing = columnsByTable.get(col.tableSource) || [];
+                  columnsByTable.set(col.tableSource, [...existing, col]);
+                });
+
+                return Array.from(columnsByTable.entries()).map(([tableName, columns]) => {
+                  const allSelected = columns.every(col =>
+                    config.columns.some(c => c.column === col.fullName)
                   );
+                  const someSelected = columns.some(col =>
+                    config.columns.some(c => c.column === col.fullName)
+                  );
+
                   return (
-                    <div key={column.name} className="flex items-center gap-2">
-                      <Checkbox
-                        id={`col-${column.name}`}
-                        checked={isSelected}
-                        onCheckedChange={(checked) =>
-                          toggleColumn(column, checked === true)
-                        }
-                      />
-                      <label
-                        htmlFor={`col-${column.name}`}
-                        className="text-sm cursor-pointer truncate"
-                        title={column.name}
+                  <div key={tableName}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-xs font-semibold text-muted-foreground">
+                        {tableName}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => toggleAllColumnsFromTable(columns, !allSelected)}
+                        className="text-xs text-primary hover:underline"
                       >
-                        {displayName(column.name)}
-                        <span className="text-muted-foreground ml-1 text-xs">
-                          ({column.type})
-                        </span>
-                      </label>
+                        {allSelected ? "Deselect All" : someSelected ? "Select All" : "Select All"}
+                      </button>
                     </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {columns.map((column) => {
+                        const isSelected = config.columns.some(
+                          (c) => c.column === column.fullName
+                        );
+                        return (
+                          <div key={column.fullName} className="flex items-center gap-2">
+                            <Checkbox
+                              id={`col-${column.fullName}`}
+                              checked={isSelected}
+                              onCheckedChange={(checked) =>
+                                toggleColumn(column, checked === true)
+                              }
+                            />
+                            <label
+                              htmlFor={`col-${column.fullName}`}
+                              className="text-sm cursor-pointer truncate"
+                              title={column.fullName}
+                            >
+                              {column.name}
+                              <span className="text-muted-foreground ml-1 text-xs">
+                                ({column.type})
+                              </span>
+                            </label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                   );
-                })}
-              </div>
+                });
+              })()}
             </div>
           </div>
 
@@ -547,8 +862,8 @@ export function QueryBuilder({
                     </SelectTrigger>
                     <SelectContent>
                       {availableColumns.map((col) => (
-                        <SelectItem key={col.name} value={col.name}>
-                          {displayName(col.name)}
+                        <SelectItem key={col.fullName} value={col.fullName}>
+                          {col.fullName}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -652,9 +967,9 @@ export function QueryBuilder({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {config.columns.map((col) => (
-                        <SelectItem key={col.column} value={col.column}>
-                          {displayName(col.column)}
+                      {availableColumns.map((col) => (
+                        <SelectItem key={col.fullName} value={col.fullName}>
+                          {col.fullName}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -688,23 +1003,6 @@ export function QueryBuilder({
               ))}
             </div>
           )}
-        </div>
-      )}
-
-      {/* Limit */}
-      {config.sourceTable && (
-        <div className="space-y-2">
-          <Label>Row Limit</Label>
-          <Input
-            type="number"
-            className="w-32"
-            value={config.limit || 1000}
-            onChange={(e) =>
-              updateConfig({ limit: parseInt(e.target.value) || 1000 })
-            }
-            min={1}
-            max={10000}
-          />
         </div>
       )}
 
