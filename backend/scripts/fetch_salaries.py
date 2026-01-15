@@ -159,20 +159,20 @@ def main():
                 logger.info(f'Saved cycles JSON data to {json_path}')
 
             logger.info(f'Successfully fetched {len(salary_cycles)} salary cycles')
-            
+
             # Display cycle statistics
             if len(salary_cycles) > 0:
-                total_budget = salary_cycles['budget_dot'].sum()
+                total_budget = salary_cycles['budget_usdc'].sum()
                 total_registered = salary_cycles['registeredCount'].sum()
                 total_paid = salary_cycles['registeredPaidCount'].sum()
-                total_paid_amount = salary_cycles['registered_paid_amount_dot'].sum()
-                
+                total_paid_amount = salary_cycles['registered_paid_amount_usdc'].sum()
+
                 print(f"\nSalary Cycles Summary:")
                 print(f"- Cycles fetched: {len(salary_cycles)}")
-                print(f"- Total budget: {total_budget:,.2f} DOT")
+                print(f"- Total budget: {total_budget:,.2f} USDC")
                 print(f"- Total registrations: {total_registered:,}")
                 print(f"- Total paid registrations: {total_paid:,}")
-                print(f"- Total paid amount: {total_paid_amount:,.2f} DOT")
+                print(f"- Total paid amount: {total_paid_amount:,.2f} USDC")
                 print(f"- Date range: {salary_cycles['start_time'].min()} to {salary_cycles['end_time'].max()}")
 
     except Exception as e:

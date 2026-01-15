@@ -46,10 +46,21 @@ def main():
         action='store_true',
         help='Force full backfill of all data (ignore existing data)'
     )
+    parser.add_argument(
+        '--tables',
+        help='Comma-separated list of tables to fetch (default: all). Options: referenda, treasury_spends, child_bounties, fellowship_treasury_spends, fellowship_salary_cycles'
+    )
     args = parser.parse_args()
+
+    # Parse table list
+    tables_to_fetch = None
+    if args.tables:
+        tables_to_fetch = set(args.tables.split(','))
 
     logger, _ = setup_logging()
     logger.info(f"Starting OpenGov Monitor with SQLite sink")
+    if tables_to_fetch:
+        logger.info(f"Fetching only specified tables: {', '.join(tables_to_fetch)}")
     logger.info(f"Database: {args.db}")
     logger.info(f"Network: {args.network}")
 
@@ -73,14 +84,14 @@ def main():
         block_datetime = config['block_time_projection']['block_datetime']
         block_time = config['block_time_projection']['block_time']
 
-        # Initialize providers
-        network_info = NetworkInfo(args.network, 'subsquare')
-        price_service = PriceService(network_info)
-        provider = SubsquareProvider(network_info, price_service)
-
         # Initialize SQLite sink
         sink = SQLiteSink(args.db)
         sink.connect()
+
+        # Initialize providers
+        network_info = NetworkInfo(args.network, 'subsquare')
+        price_service = PriceService(network_info)
+        provider = SubsquareProvider(network_info, price_service, sink)
 
         # Helper function to determine fetch mode and limit
         def get_fetch_limit(table_name: str, config_key: str) -> tuple[int, str]:
@@ -113,7 +124,7 @@ def main():
 
         # Fetch and store referenda
         referenda_limit, _ = get_fetch_limit("Referenda", "referenda")
-        if referenda_limit != -1:  # -1 means skip
+        if referenda_limit != -1 and (tables_to_fetch is None or 'referenda' in tables_to_fetch):
             referenda_df = provider.fetch_referenda(referenda_limit)
             logger.info(f"Fetched {len(referenda_df)} referenda")
             sink.update_table("Referenda", referenda_df, allow_empty=True)
@@ -121,7 +132,7 @@ def main():
 
         # Fetch and store treasury spends
         treasury_limit, _ = get_fetch_limit("Treasury", "treasury_spends")
-        if treasury_limit != -1:
+        if treasury_limit != -1 and (tables_to_fetch is None or 'treasury_spends' in tables_to_fetch):
             treasury_df = provider.fetch_treasury_spends(
                 treasury_limit,
                 block_number,
@@ -134,7 +145,7 @@ def main():
 
         # Fetch and store child bounties
         child_bounties_limit, _ = get_fetch_limit("Child Bounties", "child_bounties")
-        if child_bounties_limit != -1:
+        if child_bounties_limit != -1 and (tables_to_fetch is None or 'child_bounties' in tables_to_fetch):
             child_bounties_df = provider.fetch_child_bounties(child_bounties_limit)
             logger.info(f"Fetched {len(child_bounties_df)} child bounties")
             sink.update_table("Child Bounties", child_bounties_df, allow_empty=True)
@@ -142,7 +153,7 @@ def main():
 
         # Fetch and store fellowship treasury spends
         fellowship_limit, _ = get_fetch_limit("Fellowship", "fellowship_treasury_spends")
-        if fellowship_limit != -1:
+        if fellowship_limit != -1 and (tables_to_fetch is None or 'fellowship_treasury_spends' in tables_to_fetch):
             fellowship_df = provider.fetch_fellowship_treasury_spends(fellowship_limit)
             logger.info(f"Fetched {len(fellowship_df)} fellowship spends")
             sink.update_table("Fellowship", fellowship_df, allow_empty=True)
@@ -151,7 +162,7 @@ def main():
         # Fetch and store fellowship salary data
         # Check fellowship_salary_cycles: 0 = fetch all, -1 = skip
         salary_limit, _ = get_fetch_limit("Fellowship Salary Cycles", "fellowship_salary_cycles")
-        if salary_limit != -1:
+        if salary_limit != -1 and (tables_to_fetch is None or 'fellowship_salary_cycles' in tables_to_fetch):
             # Initialize ID provider for address resolution (used by claimants and payments)
             id_provider = StatescanIdProvider(args.network)
 

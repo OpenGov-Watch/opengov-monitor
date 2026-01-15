@@ -58,5 +58,6 @@ fetch_limits:
 ## References
 
 - [Data models](../docs/spec/data-models.md) - Table schemas, views
+- [Error logging](../docs/error-logging.md) - Data validation error tracking
 - [Business rules](docs/spec/business-rules.md) - Value extraction, XCM parsing
 - [Gotchas](../docs/gotchas.md) - External API quirks (timestamp units, etc.)

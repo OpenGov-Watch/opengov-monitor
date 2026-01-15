@@ -200,11 +200,11 @@ function DataErrorsPageContent() {
                               Metadata
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-2xl max-h-[80vh]">
+                          <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
                             <DialogHeader>
                               <DialogTitle>Error Metadata - Record {error.record_id}</DialogTitle>
                             </DialogHeader>
-                            <pre className="text-xs overflow-auto p-4 bg-muted rounded-md">
+                            <pre className="text-xs overflow-auto p-4 bg-muted rounded-md flex-1 min-h-0">
                               {viewingData?.type === "metadata" ? viewingData.data : ""}
                             </pre>
                           </DialogContent>
@@ -222,11 +222,11 @@ function DataErrorsPageContent() {
                               Raw Data
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-4xl max-h-[80vh]">
+                          <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
                             <DialogHeader>
                               <DialogTitle>Raw API Data - Record {error.record_id}</DialogTitle>
                             </DialogHeader>
-                            <pre className="text-xs overflow-auto p-4 bg-muted rounded-md">
+                            <pre className="text-xs overflow-auto p-4 bg-muted rounded-md flex-1 min-h-0">
                               {viewingData?.type === "raw" ? viewingData.data : ""}
                             </pre>
                           </DialogContent>

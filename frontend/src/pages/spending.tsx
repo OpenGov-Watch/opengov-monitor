@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { DataTable } from "@/components/data-table/data-table";
 import { Badge } from "@/components/ui/badge";
 import { RequireAuth } from "@/components/auth/require-auth";
-import { formatNumber } from "@/lib/utils";
 import type { AllSpending, SpendingType, QueryConfig } from "@/lib/db/types";
 
 function getTypeVariant(
@@ -70,52 +69,6 @@ function SpendingPageContent() {
             </span>
           );
         },
-      },
-      DOT_latest: {
-        header: "DOT",
-        cell: ({ row }: { row: any }) => (
-          <div className="text-right font-mono">
-            {formatNumber(row.original.DOT_latest)}
-          </div>
-        ),
-      },
-      USD_latest: {
-        header: "USD",
-        cell: ({ row }: { row: any }) => (
-          <div className="text-right font-mono">
-            {formatNumber(row.original.USD_latest)}
-          </div>
-        ),
-      },
-      category: {
-        cell: ({ row }: { row: any }) => row.original.category || "-",
-      },
-      subcategory: {
-        cell: ({ row }: { row: any }) => row.original.subcategory || "-",
-      },
-      DOT_component: {
-        header: "DOT Comp",
-        cell: ({ row }: { row: any }) => (
-          <div className="text-right font-mono">
-            {formatNumber(row.original.DOT_component)}
-          </div>
-        ),
-      },
-      USDC_component: {
-        header: "USDC Comp",
-        cell: ({ row }: { row: any }) => (
-          <div className="text-right font-mono">
-            {formatNumber(row.original.USDC_component)}
-          </div>
-        ),
-      },
-      USDT_component: {
-        header: "USDT Comp",
-        cell: ({ row }: { row: any }) => (
-          <div className="text-right font-mono">
-            {formatNumber(row.original.USDT_component)}
-          </div>
-        ),
       },
       id: {
         header: "ID",

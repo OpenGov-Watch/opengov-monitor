@@ -79,6 +79,95 @@ const columnOverrides = {
 #### Dot-Notation (SQLite columns with dots)
 Auto-generated columns handle dot notation automatically. No special handling needed.
 
+### Column Configuration System
+
+The column formatting system uses a three-tier priority system for determining how to render columns:
+
+**1. Table-Specific Config** → **2. Global Columns Config** → **3. Pattern-Based Detection** → **4. Default (text)**
+
+#### Pattern-Based Auto-Detection
+
+Columns are automatically formatted based on naming patterns defined in `frontend/public/config/column-config.yaml`. This eliminates the need for explicit configuration of common column types.
+
+**Pattern Types:**
+- `exact` - Column name must match exactly (e.g., "status")
+- `prefix` - Column starts with pattern (e.g., "DOT_*")
+- `suffix` - Column ends with pattern (e.g., "*.ayes", "*_status")
+- `substring` - Column contains pattern (e.g., "*_time*", "*_date*")
+
+**Pattern Matching Options:**
+- `caseInsensitive: true/false` - Controls case sensitivity (default: false)
+- Patterns are evaluated in array order - first match wins
+
+**Built-in Patterns (via YAML):**
+
+| Pattern | Type | Example Matches | Rendering |
+|---------|------|-----------------|-----------|
+| `DOT_` | prefix | DOT_latest, DOT_proposal_time | Currency (DOT, 0 decimals) |
+| `USD_` | prefix | USD_latest, USD_value | Currency (USD, 0 decimals) |
+| `USDC_` | prefix | USDC_component | Currency (USDC, 2 decimals) |
+| `USDT_` | prefix | USDT_amount | Currency (USDT, 2 decimals) |
+| `.ayes` | suffix | tally.ayes | Number (green, 0 decimals) |
+| `.nays` | suffix | tally.nays | Number (red, 0 decimals) |
+| `_time` | substring | proposal_time, latest_time | Date |
+| `_date` | substring | start_date, end_date | Date |
+| `createdat` | exact | createdat | Date |
+| `status` | exact | status | Badge (with variants) |
+| `_status` | suffix | proposal_status | Badge (with variants) |
+| `beneficiary` | exact | beneficiary | Address (truncated) |
+| `address` | exact | address | Address (truncated) |
+| `who` | exact | who | Address (truncated) |
+| `_address` | suffix | wallet_address | Address (truncated) |
+
+**Adding New Patterns:**
+
+Edit `frontend/public/config/column-config.yaml`:
+
+```yaml
+patterns:
+  # Add new pattern
+  - match: prefix
+    pattern: "ETH_"
+    config:
+      render: currency
+      currency: ETH
+      decimals: 4
+```
+
+**Override Pattern Detection:**
+
+For specific columns, add explicit config in YAML which takes precedence:
+
+```yaml
+columns:
+  DOT_special:
+    displayName: "Special DOT Column"
+    render: currency
+    currency: DOT
+    decimals: 2  # Overrides pattern's 0 decimals
+```
+
+**Configuration Precedence Example:**
+
+```
+Column: "DOT_latest"
+1. Check tables.spending.DOT_latest → not found
+2. Check columns.DOT_latest → ✓ FOUND (displayName: "DOT Value")
+3. Returns: currency config with custom display name
+
+Column: "DOT_new_field"
+1. Check tables.spending.DOT_new_field → not found
+2. Check columns.DOT_new_field → not found
+3. Check patterns → ✓ MATCH prefix "DOT_"
+4. Returns: currency config (DOT, 0 decimals)
+
+Column: "unknown_field"
+1. Check tables → not found
+2. Check columns → not found
+3. Check patterns → no match
+4. Returns: text (default)
+```
+
 ### Filtering
 - **Faceted**: Multi-select dropdown with counts, alphabetically sorted
 - **Global Search**: `includesString` across all visible columns

@@ -43,9 +43,19 @@ export interface ColumnRenderConfig {
   color?: "green" | "red";
 }
 
-interface ColumnConfig {
+export type PatternMatchType = "exact" | "prefix" | "suffix" | "substring";
+
+export interface PatternRule {
+  match: PatternMatchType;
+  pattern: string;
+  caseInsensitive?: boolean;
+  config: ColumnRenderConfig;
+}
+
+export interface ColumnConfig {
   columns: Record<string, ColumnRenderConfig>;
   tables: Record<string, Record<string, ColumnRenderConfig>>;
+  patterns?: PatternRule[];
 }
 
 // ============================================================================
@@ -70,6 +80,25 @@ export async function loadColumnConfig(): Promise<void> {
   } catch (e) {
     console.warn("Failed to load column config:", e);
   }
+
+  // Add minimal fallback patterns if not present in YAML
+  if (!config.patterns) {
+    console.warn("No patterns section in column-config.yaml, using minimal fallbacks");
+    config.patterns = [
+      {
+        match: "prefix",
+        pattern: "DOT_",
+        config: { render: "currency", currency: "DOT", decimals: 0 },
+      },
+      {
+        match: "exact",
+        pattern: "status",
+        caseInsensitive: true,
+        config: { render: "badge", variants: { default: "outline" } },
+      },
+    ];
+  }
+
   loaded = true;
 }
 
@@ -95,68 +124,45 @@ export function getColumnConfig(
     return { ...defaultConfig, ...globalConfig };
   }
 
-  // 3. Auto-detect from column name patterns
-  return autoDetectConfig(columnName);
+  // 3. Check pattern-based detection
+  const patternConfig = detectFromPatterns(columnName);
+  if (patternConfig) {
+    return patternConfig;
+  }
+
+  // 4. Default to text
+  return defaultConfig;
 }
 
-function autoDetectConfig(columnName: string): ColumnRenderConfig {
-  const name = columnName.toLowerCase();
+function matchesPattern(columnName: string, rule: PatternRule): boolean {
+  const name = rule.caseInsensitive ? columnName.toLowerCase() : columnName;
+  const pattern = rule.caseInsensitive ? rule.pattern.toLowerCase() : rule.pattern;
 
-  // Currency patterns
-  if (columnName.startsWith("DOT_")) {
-    return { render: "currency", currency: "DOT", decimals: 0 };
+  switch (rule.match) {
+    case "exact":
+      return name === pattern;
+    case "prefix":
+      return name.startsWith(pattern);
+    case "suffix":
+      return name.endsWith(pattern);
+    case "substring":
+      return name.includes(pattern);
+    default:
+      return false;
   }
-  if (columnName.startsWith("USD_")) {
-    return { render: "currency", currency: "USD", decimals: 0 };
-  }
-  if (columnName.startsWith("USDC_")) {
-    return { render: "currency", currency: "USDC", decimals: 2 };
-  }
-  if (columnName.startsWith("USDT_")) {
-    return { render: "currency", currency: "USDT", decimals: 2 };
-  }
+}
 
-  // Tally patterns (voting)
-  if (name === "tally.ayes" || name.endsWith(".ayes")) {
-    return { render: "number", color: "green", decimals: 0 };
-  }
-  if (name === "tally.nays" || name.endsWith(".nays")) {
-    return { render: "number", color: "red", decimals: 0 };
-  }
+function detectFromPatterns(columnName: string): ColumnRenderConfig | null {
+  if (!config.patterns) return null;
 
-  // Date patterns
-  if (name.includes("_time") || name.includes("_date") || name === "createdat") {
-    return { render: "date", format: "date" };
+  // Iterate through patterns in order, return first match
+  for (const rule of config.patterns) {
+    if (matchesPattern(columnName, rule)) {
+      return { ...defaultConfig, ...rule.config };
+    }
   }
 
-  // Status pattern
-  if (name === "status" || name.endsWith("_status")) {
-    return {
-      render: "badge",
-      variants: {
-        Executed: "success",
-        Approved: "success",
-        Paid: "success",
-        Rejected: "destructive",
-        Cancelled: "destructive",
-        Expired: "destructive",
-        default: "outline",
-      },
-    };
-  }
-
-  // Address patterns
-  if (
-    name === "beneficiary" ||
-    name === "address" ||
-    name === "who" ||
-    name.endsWith("_address")
-  ) {
-    return { render: "address", truncate: true };
-  }
-
-  // Default to text
-  return { render: "text" };
+  return null;
 }
 
 // ============================================================================
@@ -325,3 +331,16 @@ export function getLinkUrl(
 
 // These functions maintain backwards compatibility with code that imported from column-display-names.ts
 export { loadColumnConfig as loadColumnNameOverrides };
+
+// ============================================================================
+// Test Helpers
+// ============================================================================
+
+/**
+ * Sets the column configuration directly (for testing purposes only).
+ * This bypasses the YAML file loading and allows tests to inject config.
+ */
+export function __setConfigForTesting(testConfig: ColumnConfig): void {
+  config = testConfig;
+  loaded = true;
+}

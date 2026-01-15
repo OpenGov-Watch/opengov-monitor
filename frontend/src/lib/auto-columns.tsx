@@ -101,7 +101,6 @@ export function generateColumns<TData>(
           cell: ({ row }) => {
             const value = hasDotNotation ? (row.original as any)[columnName] : row.getValue(columnId);
             const rowId = (row.original as any)[idField];
-            const subcategory = (row.original as any)['subcategory'];
 
             if (isAuthenticated) {
               return (

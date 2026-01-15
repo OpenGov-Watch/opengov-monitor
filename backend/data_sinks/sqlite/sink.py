@@ -11,7 +11,7 @@ import logging
 import os
 from pathlib import Path
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from ..base import DataSink
 from .schema import (
@@ -638,6 +638,9 @@ class SQLiteSink(DataSink):
     ) -> None:
         """Log a data validation or insertion error to DataErrors table.
 
+        If an error already exists for this table_name + record_id combination,
+        it will be updated with the new information.
+
         Args:
             table_name: Name of the table where error occurred (e.g., "Treasury").
             record_id: ID of the record that failed (stored as TEXT for flexibility).
@@ -650,6 +653,14 @@ class SQLiteSink(DataSink):
 
         try:
             cursor = self.connection.cursor()
+
+            # Delete any existing error for this table_name + record_id
+            cursor.execute("""
+                DELETE FROM DataErrors
+                WHERE table_name = ? AND record_id = ?
+            """, (table_name, str(record_id)))
+
+            # Insert the new error
             cursor.execute("""
                 INSERT INTO DataErrors (table_name, record_id, error_type, error_message, raw_data, metadata, timestamp)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -660,7 +671,7 @@ class SQLiteSink(DataSink):
                 error_message,
                 json.dumps(raw_data) if raw_data else None,
                 json.dumps(metadata) if metadata else None,
-                datetime.now().isoformat()
+                datetime.now(timezone.utc).isoformat()
             ))
             self.connection.commit()
             self._logger.info(f"Logged error for {table_name} record {record_id}: {error_type}")

@@ -685,30 +685,6 @@ Override formatting via `columnOverrides` prop or update column-renderer.ts.
 
 ---
 
-## Migration Checklist
-
-When converting an existing page to query mode:
-
-- [ ] Create QueryConfig with all columns from old column factory
-- [ ] Add JOINs if page uses denormalized fields (category, subcategory, etc.)
-- [ ] Create editConfig if page has editable columns (category_id, notes, hide_in_spends)
-- [ ] Identify facetedFilters (columns with dropdown filters in old implementation)
-- [ ] Set defaultSorting to match old page
-- [ ] Keep defaultViews if any
-- [ ] Create columnOverrides for custom rendering (links, truncation, etc.)
-- [ ] Convert to `mode="query"`
-- [ ] Test: columns render correctly, all data types formatted
-- [ ] Test: sorting works (ASC/DESC/none cycle)
-- [ ] Test: filtering works (faceted + global search)
-- [ ] Test: editing works (if applicable)
-- [ ] Test: views work (save/load/delete/share)
-- [ ] Test: export works (CSV/JSON)
-- [ ] Test: mobile card view works
-- [ ] Remove old column factory import
-- [ ] Verify bundle size decreased
-
----
-
 ## Examples in Codebase
 
 - **Simple read-only**: `frontend/src/pages/fellowship.tsx`
