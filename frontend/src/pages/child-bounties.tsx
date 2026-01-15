@@ -64,10 +64,10 @@ export default function ChildBountiesPage() {
         { column: "proposal_time" },
         { column: "latest_status_change" },
         { column: "category_id" },
-        { column: "notes" },
-        { column: "hide_in_spends" },
         { column: "c.category", alias: "category" },
         { column: "c.subcategory", alias: "subcategory" },
+        { column: "notes" },
+        { column: "hide_in_spends" },
         { column: "b.name", alias: "parentBountyName" },
       ],
       joins: [

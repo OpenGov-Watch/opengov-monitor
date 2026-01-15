@@ -171,6 +171,63 @@ export function DataTable<TData>({
     fetchData();
   }, [queryConfig]);
 
+  // Wrap editConfig to update local data optimistically
+  const editConfigWithRefresh = useMemo(() => {
+    if (!editConfig) return undefined;
+
+    const wrappedConfig: DataTableEditConfig = {
+      ...editConfig,
+      editableColumns: {}
+    };
+
+    // Wrap each column's onUpdate to update local data
+    Object.keys(editConfig.editableColumns).forEach(columnName => {
+      const columnConfig = editConfig.editableColumns[columnName];
+      wrappedConfig.editableColumns[columnName] = {
+        ...columnConfig,
+        onUpdate: async (id: any, value: any) => {
+          await columnConfig.onUpdate(id, value);
+
+          // Optimistically update local data
+          setData(prevData => {
+            const idField = editConfig.idField || 'id';
+            const rowIndex = prevData.findIndex((row: any) => row[idField] === id);
+            if (rowIndex === -1) return prevData;
+
+            const newData = [...prevData];
+            const updatedRow = { ...newData[rowIndex] } as any;
+
+            // Handle category_id updates specially - update category and subcategory strings
+            if (columnName === 'category_id' && value !== null) {
+              const categories = columnConfig.type === 'category-selector'
+                ? columnConfig.categories
+                : [];
+              const categoryRecord = categories?.find((c: any) => c.id === value);
+              if (categoryRecord) {
+                updatedRow['category_id'] = value;
+                updatedRow['category'] = categoryRecord.category;
+                updatedRow['subcategory'] = categoryRecord.subcategory;
+              }
+            } else if (columnName === 'category_id' && value === null) {
+              // Clear category fields
+              updatedRow['category_id'] = null;
+              updatedRow['category'] = null;
+              updatedRow['subcategory'] = null;
+            } else {
+              // For other columns, just update the value
+              updatedRow[columnName] = value;
+            }
+
+            newData[rowIndex] = updatedRow as TData;
+            return newData;
+          });
+        }
+      };
+    });
+
+    return wrappedConfig;
+  }, [editConfig]);
+
   // COLUMN GENERATION
   const columns = useMemo(() => {
     if (data.length === 0 || !configLoaded) return [];
@@ -178,7 +235,7 @@ export function DataTable<TData>({
     return generateColumns({
       data,
       tableName,
-      editConfig,
+      editConfig: editConfigWithRefresh,
       isAuthenticated,
       facetedFilters,
       columnOverrides,
@@ -187,7 +244,7 @@ export function DataTable<TData>({
   }, [
     data,
     tableName,
-    editConfig,
+    editConfigWithRefresh,
     isAuthenticated,
     facetedFilters,
     columnOverrides,

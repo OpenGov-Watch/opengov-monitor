@@ -4,7 +4,6 @@ import { DataTable } from "@/components/data-table/data-table";
 import { useAuth } from "@/contexts/auth-context";
 import { SavedView } from "@/hooks/use-view-state";
 import { DataTableEditConfig, Category } from "@/lib/db/types";
-import { subsquareUrls } from "@/lib/urls";
 import type { Referendum } from "@/lib/db/types";
 
 // Default views for Referenda
@@ -43,10 +42,10 @@ export default function ReferendaPage() {
       { column: "proposal_time" },
       { column: "latest_status_change" },
       { column: "category_id" },
-      { column: "notes" },
-      { column: "hide_in_spends" },
       { column: "c.category", alias: "category" },
       { column: "c.subcategory", alias: "subcategory" },
+      { column: "notes" },
+      { column: "hide_in_spends" },
     ],
     joins: [{
       type: "LEFT" as const,
@@ -85,18 +84,6 @@ export default function ReferendaPage() {
   }, [isAuthenticated, categories]);
 
   const columnOverrides = useMemo(() => ({
-    id: {
-      cell: ({ row }: { row: any }) => (
-        <a
-          href={subsquareUrls.referenda(row.original.id)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-medium w-[60px] hover:underline text-blue-600"
-        >
-          {row.original.id}
-        </a>
-      ),
-    },
     title: {
       cell: ({ row }: { row: any }) => (
         <div

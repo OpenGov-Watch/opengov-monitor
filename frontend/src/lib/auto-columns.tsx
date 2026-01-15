@@ -16,8 +16,12 @@ import {
   ReadOnlyNotesCell,
   EditableHideCheckbox,
   ReadOnlyHideCheckbox,
+  EditableCategoryCell,
+  EditableSubcategoryCell,
+  ReadOnlyCategoryCell,
+  ReadOnlySubcategoryCell,
+  findCategoryId,
 } from "@/components/data-table/editable-cells";
-import { ExternalLink } from "lucide-react";
 
 interface GenerateColumnsOptions<TData> {
   data: TData[];
@@ -47,10 +51,113 @@ export function generateColumns<TData>(
   const columns = Object.keys(data[0] as object);
   const idField = editConfig?.idField || "id";
 
+  // Auto-detect category system: if all three columns exist, use split decoration
+  const hasCategorySystem = columns.includes('category_id')
+    && columns.includes('category')
+    && columns.includes('subcategory');
+
   return columns.map((columnName) => {
     // Get source column name for config lookup
     const sourceColumn = columnMapping[columnName] || columnName;
     const renderConfig: ColumnRenderConfig = getColumnConfig(tableName, sourceColumn);
+
+    // Handle category system columns when auto-detected
+    if (hasCategorySystem && editConfig?.editableColumns.category_id) {
+      const categoryEditConfig = editConfig.editableColumns.category_id;
+
+      // Hide category_id column
+      if (columnName === 'category_id') {
+        const hasDotNotation = columnName.includes(".");
+        const columnId = hasDotNotation ? columnName.replace(/\./g, "_") : columnName;
+
+        return {
+          id: columnId,
+          ...(hasDotNotation
+            ? { accessorFn: (row: any) => row[columnName] }
+            : { accessorKey: columnName }),
+          header: () => null,
+          cell: () => null,
+          enableHiding: true,
+          meta: { autoHidden: true },
+          // Start hidden
+          enableColumnFilter: false,
+          enableSorting: false,
+        } as ColumnDef<TData>;
+      }
+
+      // Handle category column with split dropdown
+      if (columnName === 'category') {
+        const hasDotNotation = columnName.includes(".");
+        const columnId = hasDotNotation ? columnName.replace(/\./g, "_") : columnName;
+
+        return {
+          id: columnId,
+          ...(hasDotNotation
+            ? { accessorFn: (row: any) => row[columnName] }
+            : { accessorKey: columnName }),
+          header: ({ column }) => (
+            <DataTableColumnHeader column={column} title={formatColumnName(columnName)} />
+          ),
+          cell: ({ row }) => {
+            const value = hasDotNotation ? (row.original as any)[columnName] : row.getValue(columnId);
+            const rowId = (row.original as any)[idField];
+            const subcategory = (row.original as any)['subcategory'];
+
+            if (isAuthenticated) {
+              return (
+                <EditableCategoryCell
+                  value={value as string}
+                  categories={categoryEditConfig.categories || []}
+                  onChange={(newCategory) => {
+                    const categoryId = findCategoryId(newCategory, subcategory, categoryEditConfig.categories || []);
+                    categoryEditConfig.onUpdate(rowId, categoryId);
+                  }}
+                />
+              );
+            } else {
+              return <ReadOnlyCategoryCell value={value as string} />;
+            }
+          },
+        } as ColumnDef<TData>;
+      }
+
+      // Handle subcategory column with split dropdown
+      if (columnName === 'subcategory') {
+        const hasDotNotation = columnName.includes(".");
+        const columnId = hasDotNotation ? columnName.replace(/\./g, "_") : columnName;
+
+        return {
+          id: columnId,
+          ...(hasDotNotation
+            ? { accessorFn: (row: any) => row[columnName] }
+            : { accessorKey: columnName }),
+          header: ({ column }) => (
+            <DataTableColumnHeader column={column} title={formatColumnName(columnName)} />
+          ),
+          cell: ({ row }) => {
+            const value = hasDotNotation ? (row.original as any)[columnName] : row.getValue(columnId);
+            const rowId = (row.original as any)[idField];
+            const category = (row.original as any)['category'];
+
+            if (isAuthenticated) {
+              return (
+                <EditableSubcategoryCell
+                  value={value as string}
+                  category={category as string}
+                  categories={categoryEditConfig.categories || []}
+                  onChange={(newSubcategory) => {
+                    const categoryId = findCategoryId(category, newSubcategory, categoryEditConfig.categories || []);
+                    categoryEditConfig.onUpdate(rowId, categoryId);
+                  }}
+                />
+              );
+            } else {
+              return <ReadOnlySubcategoryCell value={value as string} />;
+            }
+          },
+        } as ColumnDef<TData>;
+      }
+    }
 
     // Check if editable
     const editableConfig = editConfig?.editableColumns[columnName];
@@ -167,9 +274,16 @@ function formatColumnName(name: string): string {
 }
 
 function renderCellValue(value: any, config: ColumnRenderConfig, row: any) {
-  // Handle null/undefined
+  // Handle null/undefined based on column type
   if (value === null || value === undefined) {
-    return <span className="text-muted-foreground">-</span>;
+    const nullDisplay = <span className="text-muted-foreground">-</span>;
+
+    // Right-align null values for currency and number columns
+    if (config.render === "currency" || config.render === "number") {
+      return <div className="text-right">{nullDisplay}</div>;
+    }
+
+    return nullDisplay;
   }
 
   switch (config.render) {
@@ -196,10 +310,9 @@ function renderCellValue(value: any, config: ColumnRenderConfig, row: any) {
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-600 hover:underline inline-flex items-center gap-1"
+            className="font-medium hover:underline text-blue-600"
           >
             {value}
-            <ExternalLink className="h-3 w-3" />
           </a>
         );
       }

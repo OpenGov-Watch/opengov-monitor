@@ -23,14 +23,14 @@ export function EditableCategoryCell({
   categories,
   onChange,
 }: EditableCategoryCellProps) {
-  const uniqueCategories = [...new Set(categories.map((c) => c.category))].sort();
+  const uniqueCategories = [...new Set(categories.map((c) => c.category).filter(c => c && c !== ""))].sort();
 
   return (
     <Select
-      value={value || "__none__"}
+      value={value && value !== "" ? value : "__none__"}
       onValueChange={(val) => onChange(val === "__none__" ? null : val)}
     >
-      <SelectTrigger className="h-8 w-[140px]">
+      <SelectTrigger className="h-8 w-[140px] text-left">
         <SelectValue placeholder="Select..." />
       </SelectTrigger>
       <SelectContent>
@@ -61,17 +61,17 @@ export function EditableSubcategoryCell({
   onChange,
 }: EditableSubcategoryCellProps) {
   const availableSubcategories = categories
-    .filter((c) => c.category === category)
+    .filter((c) => c.category === category && c.subcategory && c.subcategory !== "")
     .map((c) => c.subcategory)
     .sort();
 
   return (
     <Select
-      value={value || "__none__"}
+      value={value && value !== "" ? value : "__none__"}
       onValueChange={(val) => onChange(val === "__none__" ? null : val)}
       disabled={!category}
     >
-      <SelectTrigger className="h-8 w-[160px]">
+      <SelectTrigger className="h-8 w-[160px] text-left">
         <SelectValue placeholder={category ? "Select..." : "Select category first"} />
       </SelectTrigger>
       <SelectContent>
@@ -282,4 +282,49 @@ interface ReadOnlyHideCheckboxProps {
 
 export function ReadOnlyHideCheckbox({ value }: ReadOnlyHideCheckboxProps) {
   return <Checkbox checked={value === 1} disabled className="opacity-60" />;
+}
+
+// Helper function to find category_id for a given category/subcategory combination
+export function findCategoryId(
+  category: string | null,
+  subcategory: string | null,
+  categories: Category[]
+): number | null {
+  if (!category) return null;
+
+  // If subcategory provided, find exact match
+  if (subcategory) {
+    const match = categories.find(
+      (c) => c.category === category && c.subcategory === subcategory
+    );
+    return match?.id ?? null;
+  }
+
+  // If no subcategory, find first match for this category
+  const match = categories.find((c) => c.category === category);
+  return match?.id ?? null;
+}
+
+// Read-only display for split category column
+interface ReadOnlyCategoryCellProps {
+  value: string | null;
+}
+
+export function ReadOnlyCategoryCell({ value }: ReadOnlyCategoryCellProps) {
+  if (!value) {
+    return <span className="text-muted-foreground text-xs">-</span>;
+  }
+  return <span className="text-xs">{value}</span>;
+}
+
+// Read-only display for split subcategory column
+interface ReadOnlySubcategoryCellProps {
+  value: string | null;
+}
+
+export function ReadOnlySubcategoryCell({ value }: ReadOnlySubcategoryCellProps) {
+  if (!value) {
+    return <span className="text-muted-foreground text-xs">-</span>;
+  }
+  return <span className="text-xs">{value}</span>;
 }
