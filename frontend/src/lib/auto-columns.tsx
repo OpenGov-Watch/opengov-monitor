@@ -109,7 +109,8 @@ export function generateColumns<TData>(
                   value={value as string}
                   categories={categoryEditConfig.categories || []}
                   onChange={(newCategory) => {
-                    const categoryId = findCategoryId(newCategory, subcategory, categoryEditConfig.categories || []);
+                    // When category changes, clear subcategory (pass null) to find first match for new category
+                    const categoryId = findCategoryId(newCategory, null, categoryEditConfig.categories || []);
                     categoryEditConfig.onUpdate(rowId, categoryId);
                   }}
                 />
