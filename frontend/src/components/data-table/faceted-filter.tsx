@@ -126,7 +126,7 @@ export function DataTableFacetedFilter<TData, TValue>({
                       <Check className="h-4 w-4" />
                     </div>
                     <span>{String(value)}</span>
-                    <span className="ml-auto flex h-4 w-4 items-center justify-center font-mono text-xs text-muted-foreground">
+                    <span className="ml-auto font-mono text-xs text-muted-foreground text-right">
                       {count}
                     </span>
                   </CommandItem>
