@@ -11,6 +11,7 @@ import type {
   Category,
   Bounty,
   Subtreasury,
+  CustomSpending,
   FellowshipSubtreasury,
   AllSpending,
   Dashboard,
@@ -236,6 +237,92 @@ export function updateSubtreasury(entry: Omit<Subtreasury, "category" | "subcate
 export function deleteSubtreasury(id: number): void {
   const db = getWritableDatabase();
   db.prepare(`DELETE FROM "${TABLE_NAMES.subtreasury}" WHERE id = ?`).run(id);
+}
+
+// Custom Spending
+
+export function getCustomSpending(): CustomSpending[] {
+  const db = getDatabase();
+  return db
+    .prepare(`
+      SELECT cs.*, c.category, c.subcategory
+      FROM "${TABLE_NAMES.customSpending}" cs
+      LEFT JOIN "${TABLE_NAMES.categories}" c ON cs.category_id = c.id
+      ORDER BY cs.latest_status_change DESC
+    `)
+    .all() as CustomSpending[];
+}
+
+export function getCustomSpendingById(id: number): CustomSpending | undefined {
+  const db = getDatabase();
+  return db
+    .prepare(`
+      SELECT cs.*, c.category, c.subcategory
+      FROM "${TABLE_NAMES.customSpending}" cs
+      LEFT JOIN "${TABLE_NAMES.categories}" c ON cs.category_id = c.id
+      WHERE cs.id = ?
+    `)
+    .get(id) as CustomSpending | undefined;
+}
+
+export function createCustomSpending(
+  entry: Omit<CustomSpending, "id" | "category" | "subcategory" | "created_at" | "updated_at">
+): CustomSpending {
+  const db = getWritableDatabase();
+  const result = db.prepare(`
+    INSERT INTO "${TABLE_NAMES.customSpending}"
+    (type, title, description, latest_status_change, DOT_latest, USD_latest,
+     DOT_component, USDC_component, USDT_component, category_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    entry.type,
+    entry.title,
+    entry.description,
+    entry.latest_status_change,
+    entry.DOT_latest,
+    entry.USD_latest,
+    entry.DOT_component,
+    entry.USDC_component,
+    entry.USDT_component,
+    entry.category_id
+  );
+  const now = new Date().toISOString();
+  return {
+    id: result.lastInsertRowid as number,
+    ...entry,
+    created_at: now,
+    updated_at: now
+  };
+}
+
+export function updateCustomSpending(
+  entry: Omit<CustomSpending, "category" | "subcategory" | "created_at" | "updated_at">
+): void {
+  const db = getWritableDatabase();
+  db.prepare(`
+    UPDATE "${TABLE_NAMES.customSpending}" SET
+      type = ?, title = ?, description = ?, latest_status_change = ?,
+      DOT_latest = ?, USD_latest = ?, DOT_component = ?, USDC_component = ?,
+      USDT_component = ?, category_id = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(
+    entry.type,
+    entry.title,
+    entry.description,
+    entry.latest_status_change,
+    entry.DOT_latest,
+    entry.USD_latest,
+    entry.DOT_component,
+    entry.USDC_component,
+    entry.USDT_component,
+    entry.category_id,
+    entry.id
+  );
+}
+
+export function deleteCustomSpending(id: number): void {
+  const db = getWritableDatabase();
+  db.prepare(`DELETE FROM "${TABLE_NAMES.customSpending}" WHERE id = ?`).run(id);
 }
 
 // Treasury Netflows

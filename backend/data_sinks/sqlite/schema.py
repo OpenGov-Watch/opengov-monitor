@@ -245,6 +245,31 @@ SUBTREASURY_SCHEMA = TableSchema(
     ]
 )
 
+# Schema for Custom Spending (user-managed spending entries)
+CUSTOM_SPENDING_SCHEMA = TableSchema(
+    name="Custom Spending",
+    columns={
+        "id": "INTEGER",
+        "type": "TEXT NOT NULL",
+        "title": "TEXT NOT NULL",
+        "description": "TEXT",
+        "latest_status_change": "TIMESTAMP",
+        "DOT_latest": "REAL",
+        "USD_latest": "REAL",
+        "DOT_component": "REAL",
+        "USDC_component": "REAL",
+        "USDT_component": "REAL",
+        "category_id": "INTEGER",
+        "created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+        "updated_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+    },
+    primary_key="id",
+    indexes=[
+        ("idx_custom_spending_type", ["type"]),
+        ("idx_custom_spending_category", ["category_id"]),
+    ]
+)
+
 # Schema for Fellowship Subtreasury (fetched from collectives-api.subsquare.io)
 FELLOWSHIP_SUBTREASURY_SCHEMA = TableSchema(
     name="Fellowship Subtreasury",
@@ -386,6 +411,7 @@ SCHEMA_REGISTRY: Dict[str, TableSchema] = {
     "Categories": CATEGORIES_SCHEMA,
     "Bounties": BOUNTIES_SCHEMA,
     "Subtreasury": SUBTREASURY_SCHEMA,
+    "Custom Spending": CUSTOM_SPENDING_SCHEMA,
     "Fellowship Subtreasury": FELLOWSHIP_SUBTREASURY_SCHEMA,
     "Treasury Netflows": TREASURY_NETFLOWS_SCHEMA,
     "Dashboards": DASHBOARDS_SCHEMA,

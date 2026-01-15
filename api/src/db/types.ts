@@ -153,6 +153,25 @@ export interface Subtreasury {
   latest_status_change: string | null;
 }
 
+export interface CustomSpending {
+  id: number;
+  type: string;
+  title: string | null;
+  description: string | null;
+  latest_status_change: string | null;
+  DOT_latest: number | null;
+  USD_latest: number | null;
+  DOT_component: number | null;
+  USDC_component: number | null;
+  USDT_component: number | null;
+  category_id: number | null;
+  // Denormalized fields (populated via JOIN with Categories)
+  category?: string | null;
+  subcategory?: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
 export interface TreasuryNetflow {
   month: string;                    // YYYY-MM format
   asset_name: string;
@@ -414,6 +433,7 @@ export const TABLE_NAMES = {
   categories: "Categories",
   bounties: "Bounties",
   subtreasury: "Subtreasury",
+  customSpending: "Custom Spending",
   fellowshipSubtreasury: "Fellowship Subtreasury",
   treasuryNetflows: "Treasury Netflows",
   // Dashboard tables
