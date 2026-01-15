@@ -67,8 +67,14 @@ def discover_migrations(migrations_dir: Path) -> List[Migration]:
 
 
 def compute_checksum(file_path: Path) -> str:
-    """Compute SHA256 checksum of migration file."""
-    return hashlib.sha256(file_path.read_bytes()).hexdigest()
+    """Compute SHA256 checksum of migration file.
+
+    Normalizes line endings to LF to ensure consistent checksums across platforms.
+    """
+    content = file_path.read_bytes()
+    # Normalize CRLF -> LF to handle cross-platform line ending differences
+    normalized_content = content.replace(b'\r\n', b'\n')
+    return hashlib.sha256(normalized_content).hexdigest()
 
 
 def get_applied_migrations(conn: sqlite3.Connection) -> dict:

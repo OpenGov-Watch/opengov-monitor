@@ -67,7 +67,9 @@ Primary key: `address`
 
 Core fields: `display_name`, `name`, `short_address`, `status_type`, `rank`, `last_active_time`
 
-Amount fields: `registered_amount_dot`, `attempt_amount_dot`, `attempt_id`
+Amount fields: `registered_amount_usdc`, `attempt_amount_usdc`, `attempt_id`
+
+Note: Fellowship salary amounts are paid in USDC with 6 decimal places (÷ 10^6)
 
 ### Fellowship Salary Payment
 

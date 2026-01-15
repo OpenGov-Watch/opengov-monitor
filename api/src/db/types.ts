@@ -97,8 +97,8 @@ export interface FellowshipSalaryClaimant {
   name: string | null;
   short_address: string | null;
   status_type: string | null;
-  registered_amount_dot: number | null;
-  attempt_amount_dot: number | null;
+  registered_amount_usdc: number | null;
+  attempt_amount_usdc: number | null;
   attempt_id: number | null;
   last_active_time: string | null;
   rank: number | null;

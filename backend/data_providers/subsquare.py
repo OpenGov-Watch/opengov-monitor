@@ -890,8 +890,8 @@ class SubsquareProvider(DataProvider):
         
         # Set address as index and select final columns (rank will be added later by script)
         df.set_index('address', inplace=True)
-        df = df[['display_name', 'name', 'short_address', 'status_type', 'registered_amount_dot', 
-                'attempt_amount_dot', 'attempt_id', 'last_active_time']]
+        df = df[['display_name', 'name', 'short_address', 'status_type', 'registered_amount_usdc',
+                'attempt_amount_usdc', 'attempt_id', 'last_active_time']]
         
         return df
 

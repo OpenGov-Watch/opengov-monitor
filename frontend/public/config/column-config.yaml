@@ -15,7 +15,7 @@
 #   address:  Blockchain address with truncation
 
 columns:
-  # Currency columns - DOT
+  # Currency columns with custom display names
   DOT_latest:
     displayName: "DOT Value"
     render: currency
@@ -28,13 +28,6 @@ columns:
     currency: DOT
     decimals: 0
 
-  DOT_component:
-    displayName: "DOT Component"
-    render: currency
-    currency: DOT
-    decimals: 0
-
-  # Currency columns - USD
   USD_latest:
     displayName: "USD Value"
     render: currency
@@ -47,45 +40,9 @@ columns:
     currency: USD
     decimals: 0
 
-  # Currency columns - Stablecoins
-  USDC_component:
-    displayName: "USDC Component"
-    render: currency
-    currency: USDC
-    decimals: 2
-
-  USDT_component:
-    displayName: "USDT Component"
-    render: currency
-    currency: USDT
-    decimals: 2
-
-  # Status columns
-  status:
-    render: badge
-    variants:
-      Executed: success
-      Approved: success
-      Paid: success
-      Awarded: success
-      Claimed: success
-      Rejected: destructive
-      Cancelled: destructive
-      Expired: destructive
-      TimedOut: destructive
-      Ongoing: secondary
-      Deciding: secondary
-      Pending: secondary
-      default: outline
-
-  # Date columns
+  # Date columns with custom display names
   latest_status_change:
     displayName: "Date"
-    render: date
-    format: date
-
-  proposal_time:
-    displayName: "Proposal Time"
     render: date
     format: date
 
@@ -96,21 +53,6 @@ columns:
 
   expireAt:
     displayName: "Expires"
-    render: date
-    format: date
-
-  block_time:
-    displayName: "Block Time"
-    render: date
-    format: datetime
-
-  start_time:
-    displayName: "Start Time"
-    render: date
-    format: date
-
-  end_time:
-    displayName: "End Time"
     render: date
     format: date
 
@@ -138,22 +80,6 @@ columns:
     render: link
     urlTemplate: "https://polkadot.subsquare.io/treasury/bounties/{value}"
 
-  # Address columns
-  beneficiary:
-    displayName: "Beneficiary"
-    render: address
-    truncate: true
-
-  who:
-    displayName: "Who"
-    render: address
-    truncate: true
-
-  address:
-    displayName: "Address"
-    render: address
-    truncate: true
-
   # Count/number columns
   registeredCount:
     displayName: "Registered"
@@ -175,7 +101,7 @@ columns:
     render: number
     decimals: 0
 
-  # Tally columns (special colors)
+  # Tally columns with custom display names
   tally.ayes:
     displayName: "Ayes"
     render: number
@@ -225,7 +151,7 @@ tables:
         Claim: outline
         default: outline
 
-  Referenda:
+  referenda:
     id:
       displayName: "Ref #"
       render: link
@@ -241,7 +167,7 @@ tables:
       variants:
         default: outline
 
-  Treasury:
+  treasury:
     id:
       displayName: "Spend #"
       render: link
@@ -251,7 +177,7 @@ tables:
       render: link
       urlField: url
 
-  ChildBounties:
+  child-bounties:
     identifier:
       displayName: "ID"
       render: text
@@ -260,7 +186,7 @@ tables:
       render: link
       urlField: url
 
-  Fellowship:
+  fellowship:
     id:
       displayName: "Ref #"
       render: link
@@ -281,3 +207,208 @@ tables:
       displayName: "Spend #"
       render: link
       urlTemplate: "https://polkadot.subsquare.io/treasury/spends/{value}"
+
+# Pattern-based auto-detection (fallback when no explicit config exists)
+# Patterns are evaluated in order, first match wins
+# Pattern types: exact, prefix, suffix, substring
+# Options: caseInsensitive (default: false)
+patterns:
+  # Currency patterns - prefix matching
+  - match: prefix
+    pattern: "DOT_"
+    config:
+      render: currency
+      currency: DOT
+      decimals: 0
+
+  - match: prefix
+    pattern: "USD_"
+    config:
+      render: currency
+      currency: USD
+      decimals: 0
+
+  - match: prefix
+    pattern: "USDC_"
+    config:
+      render: currency
+      currency: USDC
+      decimals: 0
+
+  - match: prefix
+    pattern: "USDT_"
+    config:
+      render: currency
+      currency: USDT
+      decimals: 0
+
+  # Tally patterns - suffix matching (case-insensitive)
+  - match: suffix
+    pattern: ".ayes"
+    caseInsensitive: true
+    config:
+      render: number
+      color: green
+      decimals: 0
+
+  - match: suffix
+    pattern: ".nays"
+    caseInsensitive: true
+    config:
+      render: number
+      color: red
+      decimals: 0
+
+  # Date patterns - substring matching (case-insensitive)
+  - match: substring
+    pattern: "_time"
+    caseInsensitive: true
+    config:
+      render: date
+      format: date
+
+  - match: substring
+    pattern: "_date"
+    caseInsensitive: true
+    config:
+      render: date
+      format: date
+
+  # Special date field - exact matching
+  - match: exact
+    pattern: "createdat"
+    caseInsensitive: true
+    config:
+      render: date
+      format: date
+
+  # Status patterns - exact and suffix matching
+  - match: exact
+    pattern: "status"
+    caseInsensitive: true
+    config:
+      render: badge
+      variants:
+        Executed: success
+        Approved: success
+        Paid: success
+        Rejected: destructive
+        Cancelled: destructive
+        Expired: destructive
+        default: outline
+
+  - match: suffix
+    pattern: "_status"
+    caseInsensitive: true
+    config:
+      render: badge
+      variants:
+        Executed: success
+        Approved: success
+        Paid: success
+        Rejected: destructive
+        Cancelled: destructive
+        Expired: destructive
+        default: outline
+
+  # Address patterns - exact matching
+  - match: exact
+    pattern: "beneficiary"
+    caseInsensitive: true
+    config:
+      render: address
+      truncate: true
+
+  - match: exact
+    pattern: "address"
+    caseInsensitive: true
+    config:
+      render: address
+      truncate: true
+
+  - match: exact
+    pattern: "who"
+    caseInsensitive: true
+    config:
+      render: address
+      truncate: true
+
+  - match: suffix
+    pattern: "_address"
+    caseInsensitive: true
+    config:
+      render: address
+      truncate: true
+
+  # Non-standard DOT columns (exact matches for tables without DOT_ prefix)
+  - match: exact
+    pattern: "DOT"
+    config:
+      render: currency
+      currency: DOT
+      decimals: 0
+
+  - match: exact
+    pattern: "registered_amount_dot"
+    caseInsensitive: true
+    config:
+      render: currency
+      currency: DOT
+      decimals: 0
+
+  - match: exact
+    pattern: "attempt_amount_dot"
+    caseInsensitive: true
+    config:
+      render: currency
+      currency: DOT
+      decimals: 0
+
+  # Non-standard USDC columns (exact matches for tables without USDC_ prefix)
+  - match: exact
+    pattern: "budget_usdc"
+    caseInsensitive: true
+    config:
+      render: currency
+      currency: USDC
+      decimals: 0
+
+  - match: exact
+    pattern: "registered_paid_amount_usdc"
+    caseInsensitive: true
+    config:
+      render: currency
+      currency: USDC
+      decimals: 0
+
+  - match: exact
+    pattern: "total_registrations_usdc"
+    caseInsensitive: true
+    config:
+      render: currency
+      currency: USDC
+      decimals: 0
+
+  - match: exact
+    pattern: "unregistered_paid_usdc"
+    caseInsensitive: true
+    config:
+      render: currency
+      currency: USDC
+      decimals: 0
+
+  - match: exact
+    pattern: "registered_amount_usdc"
+    caseInsensitive: true
+    config:
+      render: currency
+      currency: USDC
+      decimals: 0
+
+  - match: exact
+    pattern: "attempt_amount_usdc"
+    caseInsensitive: true
+    config:
+      render: currency
+      currency: USDC
+      decimals: 0
