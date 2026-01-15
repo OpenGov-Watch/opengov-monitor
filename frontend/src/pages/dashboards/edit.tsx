@@ -276,7 +276,7 @@ export default function DashboardEditPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex-1 min-h-0 flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
@@ -321,7 +321,7 @@ export default function DashboardEditPage() {
         </div>
       </div>
 
-      <div className="rounded-lg border-2 border-dashed p-4 min-h-[500px]">
+      <div className="flex-1 min-h-0 rounded-lg border-2 border-dashed p-4">
         <DashboardGrid
           components={components}
           editable={true}

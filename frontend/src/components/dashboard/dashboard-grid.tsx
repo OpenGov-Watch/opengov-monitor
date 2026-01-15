@@ -232,7 +232,7 @@ export function DashboardGrid({
           <div
             key={component.id}
             data-component-id={component.id}
-            className={`${editable ? "drag-handle" : ""} ${
+            className={`h-full ${editable ? "drag-handle" : ""} ${
               highlightComponentId === component.id ? "highlight-new" : ""
             }`}
           >

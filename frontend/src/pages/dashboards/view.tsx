@@ -61,7 +61,7 @@ export default function DashboardViewPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex-1 min-h-0 flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
@@ -88,7 +88,9 @@ export default function DashboardViewPage() {
         )}
       </div>
 
-      <DashboardGrid components={components} editable={false} />
+      <div className="flex-1 min-h-0">
+        <DashboardGrid components={components} editable={false} />
+      </div>
     </div>
   );
 }

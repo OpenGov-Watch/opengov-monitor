@@ -324,7 +324,7 @@ export function DashboardComponent({
       </div>
 
       {/* Content */}
-      <div className="flex-1 p-3 min-h-0" style={{ minHeight: '200px' }}>{renderChart()}</div>
+      <div className="flex-1 p-3 min-h-0 overflow-auto">{renderChart()}</div>
     </div>
   );
 }

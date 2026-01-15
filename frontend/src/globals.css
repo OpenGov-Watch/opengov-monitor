@@ -114,6 +114,11 @@
   }
 }
 
+/* React Grid Layout - prevent content overflow from expanding grid */
+.react-grid-item {
+  overflow: hidden;
+}
+
 /* Prevent layout shift on scroll */
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
