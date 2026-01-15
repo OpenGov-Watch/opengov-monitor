@@ -62,8 +62,8 @@ credentials.json
 # Exploration / scratch files
 exploration/
 scripts/
-!api/scripts/
-!/scripts/
+!src/api/scripts/
+!src/scripts/
 
 # Data files
 referenda.csv
