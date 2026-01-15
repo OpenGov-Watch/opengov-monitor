@@ -85,6 +85,7 @@ COPY data/defaults/ ./data/defaults/
 ENV NODE_ENV=production
 ENV PORT=3001
 ENV DATABASE_PATH=/data/polkadot.db
+ENV SESSIONS_DATABASE_PATH=/data/sessions.db
 
 # Expose port
 EXPOSE 80
