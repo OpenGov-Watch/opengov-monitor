@@ -101,6 +101,23 @@
 
 ---
 
+### US-11: Database Backup Download
+
+**As an** authenticated admin
+**I want to** download a complete copy of the database from the Sync Settings menu
+**So that** I can create local backups for disaster recovery or offline analysis
+
+**Acceptance Criteria:**
+- Download button available in Sync Settings menu (authenticated users only)
+- Database is automatically checkpointed before download to ensure consistency
+- Downloaded file includes timestamp in filename (e.g., `opengov-backup-2026-01-15.db`)
+- Visual feedback during download (loading spinner, success/error messages)
+- File size displayed before download
+- Download works for both UI and CLI (via authenticated API endpoint)
+- WAL checkpoint always runs before download for data consistency
+
+---
+
 ## Presentation
 
 ### US-2: View Management

@@ -41,12 +41,29 @@ pnpm test:run     # Run tests
 ### Auth (`/api/auth`)
 - `/me`, `/login`, `/logout` - Session management
 
+### Backup (`/api/backup`)
+- `GET /api/backup/info` - Get database file info (size, last write timestamp)
+- `GET /api/backup/download` - Download checkpointed database backup (requires auth)
+
 ## Adding an Endpoint
 
 1. Add query function in `src/db/queries.ts`
 2. Create or update route handler in `src/routes/`
 3. Register route in `src/index.ts` if new file
 4. Add types to `src/db/types.ts` if needed
+
+## Database Backups
+
+Authenticated users can download database backups via:
+- **UI:** Sync Settings page → Download Backup button
+- **API:** `GET /api/backup/download` (requires authentication)
+- **CLI:** See `.claude/commands/db-backup-production.md`
+
+All backups are automatically checkpointed before download to ensure WAL consistency. The checkpoint runs `PRAGMA wal_checkpoint(TRUNCATE)` to merge all pending WAL writes into the main database file.
+
+### Last Write Tracking
+
+The API tracks the timestamp of the last database write operation in-memory (resets on server restart). This is available via `GET /api/backup/info` and can be used to determine if recent writes occurred.
 
 ## References
 

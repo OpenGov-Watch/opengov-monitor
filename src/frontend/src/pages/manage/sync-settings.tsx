@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Upload, FileText, Check, AlertCircle, Loader2 } from "lucide-react";
+import { Upload, FileText, Check, AlertCircle, Loader2, Database } from "lucide-react";
 import { api } from "@/api/client";
 import {
   parseReferendaCSV,
@@ -26,6 +26,53 @@ function SyncSettingsPageContent() {
   const [netflowsFile, setNetflowsFile] = useState<File | null>(null);
   const [status, setStatus] = useState<StatusType>(null);
   const [importing, setImporting] = useState(false);
+  const [backupInfo, setBackupInfo] = useState<{
+    size: number;
+    sizeFormatted: string;
+  } | null>(null);
+  const [backupLoading, setBackupLoading] = useState(false);
+
+  // Fetch backup info on mount
+  useEffect(() => {
+    fetch("/api/backup/info", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => setBackupInfo(data))
+      .catch(() => {}); // Silently fail if backup info unavailable
+  }, []);
+
+  async function handleDownloadBackup() {
+    setBackupLoading(true);
+    setStatus(null);
+    try {
+      const response = await fetch("/api/backup/download", {
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Download failed");
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const timestamp = new Date().toISOString().split("T")[0];
+      const filename = `opengov-backup-${timestamp}.db`;
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setStatus({ type: "success", message: "Backup downloaded successfully" });
+    } catch (error) {
+      setStatus({ type: "error", message: (error as Error).message });
+    } finally {
+      setBackupLoading(false);
+    }
+  }
 
   async function handleReferendaUpload() {
     if (!referendaFile) return;
@@ -381,6 +428,31 @@ function SyncSettingsPageContent() {
                 Apply Defaults
               </Button>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Database Backup</CardTitle>
+            <CardDescription>
+              Download a complete copy of the database
+              {backupInfo && ` (${backupInfo.sizeFormatted})`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              onClick={handleDownloadBackup}
+              disabled={backupLoading || importing}
+              variant="outline"
+              className="w-full"
+            >
+              {backupLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Database className="mr-2 h-4 w-4" />
+              )}
+              Download Backup
+            </Button>
           </CardContent>
         </Card>
       </div>

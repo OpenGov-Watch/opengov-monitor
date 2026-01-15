@@ -30,6 +30,7 @@ if (!fs.existsSync(DB_PATH) && fs.existsSync(oldDbPath)) {
 // Singleton pattern for database connections
 let db: Database.Database | null = null;
 let writeDb: Database.Database | null = null;
+let lastWriteTimestamp: number | null = null;
 
 export function getDatabase(): Database.Database {
   if (!db) {
@@ -44,7 +45,27 @@ export function getWritableDatabase(): Database.Database {
     writeDb = new Database(DB_PATH, { readonly: false });
     writeDb.pragma("journal_mode = WAL");
   }
-  return writeDb;
+  // Return a proxy that tracks write operations
+  return new Proxy(writeDb, {
+    get(target, prop) {
+      const value = target[prop as keyof typeof target];
+      // Intercept methods that modify database
+      if (
+        typeof value === "function" &&
+        ["prepare", "exec", "transaction"].includes(prop as string)
+      ) {
+        return function (this: Database.Database, ...args: any[]) {
+          lastWriteTimestamp = Date.now();
+          return (value as Function).apply(target, args);
+        };
+      }
+      return value;
+    },
+  });
+}
+
+export function getLastWriteTimestamp(): number | null {
+  return lastWriteTimestamp;
 }
 
 export function closeDatabase(): void {
