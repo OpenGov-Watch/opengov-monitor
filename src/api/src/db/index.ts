@@ -11,7 +11,21 @@ const PROJECT_ROOT = path.join(__dirname, "..", "..", "..");
 
 const DB_PATH =
   process.env.DATABASE_PATH ||
-  path.join(PROJECT_ROOT, "data", "polkadot.db");
+  path.join(PROJECT_ROOT, "data", "local", "polkadot.db");
+
+// Friendly message for developers migrating from old path
+const oldDbPath = path.join(PROJECT_ROOT, "data", "polkadot.db");
+const localDir = path.join(PROJECT_ROOT, "data", "local");
+
+if (!fs.existsSync(DB_PATH) && fs.existsSync(oldDbPath)) {
+  console.warn("\n⚠️  Database location has changed!");
+  console.warn(`Old location: ${oldDbPath}`);
+  console.warn(`New location: ${DB_PATH}`);
+  console.warn("\nTo migrate your existing database:");
+  console.warn(`  mkdir -p ${localDir}`);
+  console.warn(`  mv ${oldDbPath}* ${localDir}/`);
+  console.warn("\n");
+}
 
 // Singleton pattern for database connections
 let db: Database.Database | null = null;

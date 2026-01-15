@@ -32,8 +32,8 @@ def main():
     )
     parser.add_argument(
         '--db',
-        default='../data/opengov_monitor.db',
-        help='Path to SQLite database file (default: ../data/opengov_monitor.db)'
+        default='../data/local/polkadot.db',
+        help='Path to SQLite database file (default: ../data/local/polkadot.db)'
     )
     parser.add_argument(
         '--network',

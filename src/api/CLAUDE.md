@@ -26,7 +26,7 @@ pnpm test:run     # Run tests
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | 3001 | Server port (auto-finds free port if taken) |
-| `DATABASE_PATH` | `../data/polkadot.db` | SQLite database path |
+| `DATABASE_PATH` | `data/local/polkadot.db` | SQLite database path |
 | `SESSION_SECRET` | (required in prod) | 32+ char session encryption key |
 
 ## Key API Endpoints

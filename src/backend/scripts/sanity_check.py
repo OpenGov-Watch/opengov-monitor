@@ -238,8 +238,8 @@ Examples:
     )
     parser.add_argument(
         '--db',
-        default='../data/polkadot.db',
-        help='Path to SQLite database (default: ../data/polkadot.db)'
+        default='../data/local/polkadot.db',
+        help='Path to SQLite database (default: ../data/local/polkadot.db)'
     )
     parser.add_argument(
         '--table',

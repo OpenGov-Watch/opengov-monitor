@@ -4,82 +4,82 @@ Test migrations against a copy of the local development database (without touchi
 
 ## Local DB Location
 
-- Path: `data/polkadot.db` (local development database)
-- Test copy: `data/polkadot-test.db` (created temporarily)
+- Path: `data/local/polkadot.db` (local development database)
+- Test copy: `data/local/polkadot-test.db` (created temporarily)
 
 ## Workflow
 
 1. **Create copy of local database**
    ```bash
    # Windows
-   cp data\polkadot.db data\polkadot-test.db
+   cp data\local\polkadot.db data\local\polkadot-test.db
 
    # Unix
-   cp data/polkadot.db data/polkadot-test.db
+   cp data/local/polkadot.db data/local/polkadot-test.db
    ```
    Confirm copy created successfully.
 
 2. **Check current version**
    ```bash
    # Show applied migrations
-   sqlite3 data/polkadot-test.db "SELECT version, name, applied_at FROM schema_migrations ORDER BY version"
+   sqlite3 data/local/polkadot-test.db "SELECT version, name, applied_at FROM schema_migrations ORDER BY version"
    ```
    Display current version and identify pending migrations.
 
 3. **Run migrations against test copy**
    ```bash
    # Windows
-   cd backend && .venv\Scripts\python.exe migrations\migration_runner.py --db ..\data\polkadot-test.db
+   cd backend && .venv\Scripts\python.exe migrations\migration_runner.py --db ..\data\local\polkadot-test.db
 
    # Unix
-   cd backend && .venv/bin/python migrations/migration_runner.py --db ../data/polkadot-test.db
+   cd backend && .venv/bin/python migrations/migration_runner.py --db ../data/local/polkadot-test.db
    ```
    Display results, execution time, any errors.
 
 4. **Verify results**
    ```bash
    # Show migration status
-   sqlite3 data/polkadot-test.db "SELECT version, name, applied_at FROM schema_migrations ORDER BY version"
+   sqlite3 data/local/polkadot-test.db "SELECT version, name, applied_at FROM schema_migrations ORDER BY version"
 
    # Show table counts (sanity check)
-   sqlite3 data/polkadot-test.db "SELECT
+   sqlite3 data/local/polkadot-test.db "SELECT
      (SELECT COUNT(*) FROM Referenda) as referenda_count,
      (SELECT COUNT(*) FROM Treasury) as treasury_count,
      (SELECT COUNT(*) FROM \"Treasury Netflows\") as netflows_count"
 
    # Show schema changes (if user modified specific tables)
-   sqlite3 data/polkadot-test.db ".schema TableName"
+   sqlite3 data/local/polkadot-test.db ".schema TableName"
    ```
 
 5. **Test with application (optional)**
    Ask if user wants to test the migrated database:
    ```bash
    # Temporarily point app at test copy
-   DATABASE_PATH=data/polkadot-test.db pnpm api:dev
+   DATABASE_PATH=data/local/polkadot-test.db pnpm api:dev
    ```
 
 6. **Apply to real local database (if successful)**
    If tests pass and user confirms, run against actual local DB:
    ```bash
    # Windows
-   cd backend && .venv\Scripts\python.exe migrations\migration_runner.py --db ..\data\polkadot.db
+   cd backend && .venv\Scripts\python.exe migrations\migration_runner.py --db ..\data\local\polkadot.db
 
    # Unix
-   cd backend && .venv/bin/python migrations/migration_runner.py --db ../data/polkadot.db
+   cd backend && .venv/bin/python migrations/migration_runner.py --db ../data/local/polkadot.db
    ```
 
 7. **Cleanup**
    ```bash
    # Windows
-   del data\polkadot-test.db
+   del data\local\polkadot-test.db
 
    # Unix
-   rm data/polkadot-test.db
+   rm data/local/polkadot-test.db
    ```
 
 ## Notes
 
-- Local `data/polkadot.db` remains untouched until step 6
+- Local `data/local/polkadot.db` remains untouched until step 6
 - Can run multiple times by recreating test copy
 - Tests migration against real local data
 - Always test on copy first before applying to actual database

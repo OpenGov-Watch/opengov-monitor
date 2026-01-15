@@ -98,13 +98,13 @@ Update `backend/data_sinks/sqlite/schema.py` to match the new schema.
 
 ```bash
 # Backup your database first
-cp data/polkadot.db data/polkadot.db.backup
+cp data/local/polkadot.db data/local/polkadot.db.backup
 
 # Run migration
 pnpm migrate
 
 # Verify
-sqlite3 data/polkadot.db ".schema"
+sqlite3 data/local/polkadot.db ".schema"
 pnpm dev
 ```
 
@@ -133,7 +133,7 @@ If you're deploying the migration system to an **existing production database** 
 
 2. **Export current schema** to the migration file:
    ```bash
-   sqlite3 data/polkadot.db .schema > backend/migrations/versions/001_initial_schema.sql
+   sqlite3 data/local/polkadot.db .schema > backend/migrations/versions/001_initial_schema.sql
    ```
 
 3. **On production**, baseline the database to mark this migration as applied:
@@ -292,7 +292,7 @@ pnpm migrate
 
 ```bash
 # Start with empty database
-rm data/polkadot.db
+rm data/local/polkadot.db
 
 # Run migrations (creates tables)
 pnpm migrate
@@ -305,24 +305,24 @@ pnpm dev
 
 ```bash
 # Download production database
-scp user@server:/data/polkadot.db ./data/polkadot-prod.db
-# Or: docker cp opengov-monitor:/data/polkadot.db ./data/polkadot-prod.db
+scp user@server:/data/polkadot.db ./data/local/polkadot-prod.db
+# Or: docker cp opengov-monitor:/data/polkadot.db ./data/local/polkadot-prod.db
 
 # Backup local DB (optional)
-cp data/polkadot.db data/polkadot-local.db
+cp data/local/polkadot.db data/local/polkadot-local.db
 
 # Replace with production copy
-cp data/polkadot-prod.db data/polkadot.db
+cp data/local/polkadot-prod.db data/local/polkadot.db
 
 # Run migrations
 pnpm migrate
 
 # Verify
-sqlite3 data/polkadot.db "SELECT * FROM schema_migrations ORDER BY version"
+sqlite3 data/local/polkadot.db "SELECT * FROM schema_migrations ORDER BY version"
 pnpm dev
 
 # Restore local (optional)
-cp data/polkadot-local.db data/polkadot.db
+cp data/local/polkadot-local.db data/local/polkadot.db
 ```
 
 Tests migrations against real data volumes and edge cases before deploying.

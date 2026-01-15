@@ -302,7 +302,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run database migrations')
     parser.add_argument(
         '--db',
-        default='../data/polkadot.db',
+        default='../data/local/polkadot.db',
         help='Path to SQLite database'
     )
     parser.add_argument(

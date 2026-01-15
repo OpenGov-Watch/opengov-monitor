@@ -55,6 +55,8 @@ logs/
 data/
 !data/defaults/
 !data/README.md
+!data/local/          # Track the folder structure
+data/local/*          # Ignore all contents
 credentials.json
 *.env
 .env.*

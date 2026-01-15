@@ -17,7 +17,8 @@
                                 ▼
                     ┌─────────────────────┐
                     │   SQLite Database   │
-                    │   (data/polkadot.db)│
+                    │(data/local/polkadot.│
+                    │         db)         │
                     └──────────┬──────────┘
                                │
                                ▼
@@ -41,7 +42,7 @@
 
 ## Authentication
 
-Session-based (`express-session`), stored in `data/sessions.db`. Users created via CLI (`pnpm users add`). All mutating endpoints require auth.
+Session-based (`express-session`), stored in `data/local/sessions.db`. Users created via CLI (`pnpm users add`). All mutating endpoints require auth.
 
 ## Deployment
 

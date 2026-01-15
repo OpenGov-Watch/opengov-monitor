@@ -18,7 +18,7 @@ cd backend
 python -m venv .venv
 source .venv/bin/activate    # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-python scripts/run_sqlite.py --db ../data/polkadot.db
+python scripts/run_sqlite.py --db ../data/local/polkadot.db
 
 # Run application (from root)
 cd ..
@@ -59,7 +59,10 @@ src/
 ├── deploy/            Docker deployment configuration
 └── scripts/           Development orchestration (dev.mjs)
 
-data/              SQLite database (polkadot.db, sessions.db)
+data/
+├── local/         Local development databases (polkadot.db, sessions.db)
+├── defaults/      Default CSV configs (tracked in git)
+└── backup/        Production database backups
 docs/spec/         Detailed specifications
 ```
 
@@ -87,7 +90,14 @@ pnpm test             # Run all tests
 ```bash
 cd backend
 source .venv/bin/activate    # Windows: .venv\Scripts\activate
-python scripts/run_sqlite.py --db ../data/polkadot.db
+python scripts/run_sqlite.py --db ../data/local/polkadot.db
+```
+
+**Existing developers:** If you have databases in `data/`, move them to `data/local/`:
+```bash
+mkdir -p data/local
+mv data/polkadot.db* data/local/
+mv data/sessions.db* data/local/
 ```
 
 ### Database Migrations

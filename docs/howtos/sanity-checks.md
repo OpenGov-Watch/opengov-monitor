@@ -106,12 +106,12 @@ Database ID Continuity Check: 0/4 tables with gaps (0 total gaps)
 
 ```bash
 cd backend
-.venv/bin/python scripts/sanity_check.py --db ../data/polkadot.db
+.venv/bin/python scripts/sanity_check.py --db ../data/local/polkadot.db
 
 # With options
-.venv/bin/python scripts/sanity_check.py --db ../data/polkadot.db --verbose
-.venv/bin/python scripts/sanity_check.py --db ../data/polkadot.db --table Treasury
-.venv/bin/python scripts/sanity_check.py --db ../data/polkadot.db --quiet
+.venv/bin/python scripts/sanity_check.py --db ../data/local/polkadot.db --verbose
+.venv/bin/python scripts/sanity_check.py --db ../data/local/polkadot.db --table Treasury
+.venv/bin/python scripts/sanity_check.py --db ../data/local/polkadot.db --quiet
 ```
 
 **Windows users**: Replace `.venv/bin/python` with `.venv/Scripts/python.exe`
@@ -137,7 +137,7 @@ fi
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--db PATH` | | Path to SQLite database (default: `../data/polkadot.db`) |
+| `--db PATH` | | Path to SQLite database (default: `../data/local/polkadot.db`) |
 | `--table NAME` | | Check specific table or `all` (default: `all`) |
 | `--verbose` | `-v` | Show detailed gap information (exact missing IDs) |
 | `--quiet` | `-q` | Only show summary (no per-table details) |
@@ -169,7 +169,7 @@ The continuity percentage indicates data completeness:
    ```bash
    cd backend
    source .venv/bin/activate
-   python scripts/run_sqlite.py --db ../data/polkadot.db
+   python scripts/run_sqlite.py --db ../data/local/polkadot.db
    ```
 
 3. **Document expected gaps**:
@@ -205,7 +205,7 @@ Run periodically to detect data quality issues:
 Run after major data sync operations:
 ```bash
 cd backend
-python scripts/run_sqlite.py --db ../data/polkadot.db
+python scripts/run_sqlite.py --db ../data/local/polkadot.db
 cd ..
 pnpm sanity:check
 ```

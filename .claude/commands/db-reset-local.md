@@ -19,22 +19,22 @@ When the database is in an inconsistent state after manual modifications or fail
 1. **Backup current database**
    ```bash
    # Create timestamped backup
-   cp data/polkadot.db "data/polkadot-backup-$(date +%Y%m%d-%H%M%S).db"
+   cp data/local/polkadot.db "data/backup/polkadot-backup-$(date +%Y%m%d-%H%M%S).db"
    ```
    Confirm backup created.
 
 2. **Remove current database**
    ```bash
-   rm data/polkadot.db
+   rm data/local/polkadot.db
    ```
 
 3. **Create fresh v0 database from schema.py**
    ```bash
    # Windows
-   cd backend && .venv\Scripts\python.exe scripts\run_sqlite.py --db ..\data\polkadot.db --network polkadot
+   cd backend && .venv\Scripts\python.exe scripts\run_sqlite.py --db ..\data\local\polkadot.db --network polkadot
 
    # Unix
-   cd backend && .venv/bin/python scripts/run_sqlite.py --db ../data/polkadot.db --network polkadot
+   cd backend && .venv/bin/python scripts/run_sqlite.py --db ../data/local/polkadot.db --network polkadot
    ```
 
    This will:
@@ -55,17 +55,17 @@ When the database is in an inconsistent state after manual modifications or fail
 5. **Baseline to latest version**
    ```bash
    # Windows
-   cd backend && .venv\Scripts\python.exe migrations\baseline.py --db ..\data\polkadot.db --version N
+   cd backend && .venv\Scripts\python.exe migrations\baseline.py --db ..\data\local\polkadot.db --version N
 
    # Unix
-   cd backend && .venv/bin/python migrations/baseline.py --db ../data/polkadot.db --version N
+   cd backend && .venv/bin/python migrations/baseline.py --db ../data/local/polkadot.db --version N
    ```
 
    This marks migrations 1 through N as applied (with execution_time_ms = 0).
 
 6. **Verify migration status**
    ```bash
-   sqlite3 data/polkadot.db "SELECT version, name, execution_time_ms FROM schema_migrations ORDER BY version"
+   sqlite3 data/local/polkadot.db "SELECT version, name, execution_time_ms FROM schema_migrations ORDER BY version"
    ```
 
    Display table showing all baselined migrations.
@@ -73,7 +73,7 @@ When the database is in an inconsistent state after manual modifications or fail
 7. **Verify key table schemas**
    ```bash
    # Check Treasury Netflows schema
-   sqlite3 data/polkadot.db ".schema 'Treasury Netflows'"
+   sqlite3 data/local/polkadot.db ".schema 'Treasury Netflows'"
    ```
 
    Confirm schema matches expected state after all migrations.
@@ -81,10 +81,10 @@ When the database is in an inconsistent state after manual modifications or fail
 8. **Check for pending migrations**
    ```bash
    # Windows
-   cd backend && .venv\Scripts\python.exe migrations\migration_runner.py --db ..\data\polkadot.db
+   cd backend && .venv\Scripts\python.exe migrations\migration_runner.py --db ..\data\local\polkadot.db
 
    # Unix
-   cd backend && .venv/bin/python migrations/migration_runner.py --db ../data/polkadot.db
+   cd backend && .venv/bin/python migrations/migration_runner.py --db ../data/local/polkadot.db
    ```
 
    Should show: "Already applied: N migrations" and "Pending migrations: 0"
@@ -96,14 +96,14 @@ Display summary:
 ✅ Database reset complete!
 
 Final state:
-- Database: data/polkadot.db (fresh from schema.py)
+- Database: data/local/polkadot.db (fresh from schema.py)
 - Version: N
 - Migrations: 1-N baselined (execution_time_ms = 0)
-- Backup: data/polkadot-backup-YYYYMMDD-HHMMSS.db
+- Backup: data/backup/polkadot-backup-YYYYMMDD-HHMMSS.db
 
 You can now:
 1. Start dev server: pnpm run dev
-2. Run data sync: cd backend && .venv/Scripts/python.exe scripts/run_sqlite.py --db ../data/polkadot.db
+2. Run data sync: cd backend && .venv/Scripts/python.exe scripts/run_sqlite.py --db ../data/local/polkadot.db
 ```
 
 ## When to Use

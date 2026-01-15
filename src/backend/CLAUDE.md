@@ -19,10 +19,10 @@ Python data pipeline: fetches governance data from Subsquare, enriches with USD 
 source .venv/bin/activate
 
 # Auto-detect mode (backfill empty tables, incremental for populated)
-python scripts/run_sqlite.py --db ../data/polkadot.db
+python scripts/run_sqlite.py --db ../data/local/polkadot.db
 
 # Force full backfill
-python scripts/run_sqlite.py --db ../data/polkadot.db --backfill
+python scripts/run_sqlite.py --db ../data/local/polkadot.db --backfill
 
 # Fetch fellowship salary data
 python scripts/fetch_salaries.py --cycle 17

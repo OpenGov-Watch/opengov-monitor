@@ -5,8 +5,8 @@ Check recent data validation errors logged in the DataErrors table.
 ## Local Database
 
 ```bash
-sqlite3 data/polkadot.db "SELECT COUNT(*) FROM DataErrors"
-sqlite3 data/polkadot.db "SELECT id, table_name, record_id, error_type, error_message, timestamp FROM DataErrors ORDER BY timestamp DESC LIMIT 20"
+sqlite3 data/local/polkadot.db "SELECT COUNT(*) FROM DataErrors"
+sqlite3 data/local/polkadot.db "SELECT id, table_name, record_id, error_type, error_message, timestamp FROM DataErrors ORDER BY timestamp DESC LIMIT 20"
 ```
 
 ## Production Container

@@ -17,7 +17,7 @@ const PROJECT_ROOT = path.join(__dirname, "..", "..", "..");
 
 const SESSIONS_DB_PATH =
   process.env.SESSIONS_DATABASE_PATH ||
-  path.join(PROJECT_ROOT, "data", "sessions.db");
+  path.join(PROJECT_ROOT, "data", "local", "sessions.db");
 
 /**
  * SQLite-based session store that properly extends express-session's Store class.
