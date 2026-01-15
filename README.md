@@ -67,7 +67,7 @@ deploy/            Docker deployment configuration
 | Add/modify API endpoint | `api/src/routes/`, `api/src/db/queries.ts` |
 | Add new page | `frontend/src/router.tsx`, `frontend/src/pages/` |
 | Modify data fetching | `backend/data_providers/subsquare.py` |
-| Modifying database schema | `docs/spec/migrations.md` |
+| Modifying database schema | `docs/spec/backend/migrations.md` |
 
 ## Available Commands
 
@@ -114,13 +114,13 @@ Verifies that ID sequences in key tables are continuous with no gaps. See [docs/
 | Topic | Location |
 |-------|----------|
 | System overview | [docs/architecture.md](docs/architecture.md) |
-| Project-specific quirks | [docs/gotchas.md](docs/gotchas.md) |
+| Project-specific quirks | [docs/reference/gotchas.md](docs/reference/gotchas.md) |
 | Data schemas (shared) | [docs/spec/data-models.md](docs/spec/data-models.md) |
-| Error logging & validation | [docs/error-logging.md](docs/error-logging.md) |
+| Error logging & validation | [docs/reference/error-logging.md](docs/reference/error-logging.md) |
 | Frontend table system | [docs/spec/frontend/tables.md](docs/spec/frontend/tables.md) |
 | Backend business rules | [backend/docs/spec/business-rules.md](backend/docs/spec/business-rules.md) |
 | API validation | [api/docs/spec/validation.md](api/docs/spec/validation.md) |
-| Database migrations | [docs/spec/migrations.md](docs/spec/migrations.md), [backend/migrations/README.md](backend/migrations/README.md) |
+| Database migrations | [docs/spec/backend/migrations.md](docs/spec/backend/migrations.md), [backend/migrations/README.md](backend/migrations/README.md) |
 | Database sanity checks | [docs/howtos/sanity-checks.md](docs/howtos/sanity-checks.md) |
 | Deployment & Docker | [deploy/CLAUDE.md](deploy/CLAUDE.md) |
 

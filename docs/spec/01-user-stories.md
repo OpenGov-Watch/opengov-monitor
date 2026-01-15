@@ -10,7 +10,7 @@
 
 ---
 
-## User Stories
+## Data Management
 
 ### US-1: Data Exploration
 
@@ -33,6 +33,76 @@
 
 ---
 
+### US-3: Data Export
+
+**As a** researcher
+**I want to** export filtered data to CSV/JSON
+**So that** I can perform external analysis in Excel, R, or Python
+
+**Acceptance Criteria:**
+- Export respects current filters (only visible rows)
+- Export includes visible columns only (respects column visibility)
+- Both CSV (with proper quote escaping) and JSON formats supported
+- Filename includes table name for organization
+- Export button available in toolbar
+
+---
+
+### US-9: Pagination
+
+**As a** user viewing large datasets
+**I want to** paginate results efficiently
+**So that** I can navigate thousands of rows without performance issues
+
+**Acceptance Criteria:**
+- Configurable page size (10, 20, 30, 50, 100 rows)
+- First/Previous/Next/Last navigation buttons
+- Current page indicator (e.g., "Page 3 of 47")
+- Row count display (e.g., "1,234 rows")
+- State persisted in view
+- Last button hidden on mobile to save space
+
+---
+
+## Data Editing
+
+### US-5: Inline Editing
+
+**As an** authenticated admin
+**I want to** edit data inline (categories, notes, visibility flags)
+**So that** I can maintain data quality without leaving the table view
+
+**Acceptance Criteria:**
+- Editable cells for categories, notes, hidden flags
+- Changes save automatically on blur
+- Visual feedback during save
+- Only visible when authenticated
+- Read-only display for unauthenticated users (component pairs: EditableCell ↔ ReadOnlyCell)
+- CategorySelector supports cascading category → subcategory with auto-select
+
+---
+
+### US-10: Custom Spending Entries
+
+**As an** authenticated user
+**I want to** add custom spending entries that integrate with existing spending data
+**So that** I can manually track spending not captured by automated sources
+
+**Acceptance Criteria:**
+- Create/edit/delete custom spending entries via manage section UI
+- Entries union into `all_spending` view alongside automated sources
+- Required fields: Type (from existing spending types), Title
+- Optional fields: Description, Date, DOT/USD values, DOT/USDC/USDT components, Category/Subcategory
+- ID auto-generated with 'custom-' prefix (e.g., custom-1, custom-2)
+- Type selectable from 6 existing spending types via dropdown
+- Category/Subcategory use cascading dropdown (same pattern as Subtreasury)
+- All authenticated users can view and edit all custom entries (shared, not user-owned)
+- Custom entries appear in all spending queries, dashboards, and exports
+
+---
+
+## Presentation
+
 ### US-2: View Management
 
 **As a** regular user
@@ -49,21 +119,6 @@
 
 ---
 
-### US-3: Data Export
-
-**As a** researcher
-**I want to** export filtered data to CSV/JSON
-**So that** I can perform external analysis in Excel, R, or Python
-
-**Acceptance Criteria:**
-- Export respects current filters (only visible rows)
-- Export includes visible columns only (respects column visibility)
-- Both CSV (with proper quote escaping) and JSON formats supported
-- Filename includes table name for organization
-- Export button available in toolbar
-
----
-
 ### US-4: Mobile Access
 
 **As a** mobile user
@@ -77,22 +132,6 @@
 - Toggle between table/card view manually
 - View mode preference persisted in localStorage per table
 - All features (search, filter, sort) work in card mode
-
----
-
-### US-5: Inline Editing
-
-**As an** authenticated admin
-**I want to** edit data inline (categories, notes, visibility flags)
-**So that** I can maintain data quality without leaving the table view
-
-**Acceptance Criteria:**
-- Editable cells for categories, notes, hidden flags
-- Changes save automatically on blur
-- Visual feedback during save
-- Only visible when authenticated
-- Read-only display for unauthenticated users (component pairs: EditableCell ↔ ReadOnlyCell)
-- CategorySelector supports cascading category → subcategory with auto-select
 
 ---
 
@@ -148,19 +187,3 @@
 **Current Support:**
 - Main DataTable: ✅ Full support via DataTableColumnVisibility
 - Dashboard Table: ❌ All columns always visible
-
----
-
-### US-9: Pagination
-
-**As a** user viewing large datasets
-**I want to** paginate results efficiently
-**So that** I can navigate thousands of rows without performance issues
-
-**Acceptance Criteria:**
-- Configurable page size (10, 20, 30, 50, 100 rows)
-- First/Previous/Next/Last navigation buttons
-- Current page indicator (e.g., "Page 3 of 47")
-- Row count display (e.g., "1,234 rows")
-- State persisted in view
-- Last button hidden on mobile to save space

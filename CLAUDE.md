@@ -9,7 +9,7 @@ Agent-specific instructions for working on this codebase. For project overview, 
 ## When planning changes
 - Planning Phase
   - Review the specification. If it is not mentioned in the spec, discuss updating the spec with the user
-  - Database schema changes must consider `docs/spec/migrations.md`
+  - Database schema changes must consider `docs/spec/backend/migrations.md`
 - Specification
   - Update Spec
   - Prospectively update unit tests to match spec

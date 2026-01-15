@@ -407,6 +407,65 @@ type DashboardComponentType =
 - Resize handles (edit mode only)
 - Layout persists to database via API
 
+### Layout & Scrolling Architecture
+
+**Critical CSS patterns** for proper height constraints and scrolling:
+
+1. **Height chain** (flex layout from page → grid → component):
+   ```tsx
+   // Dashboard pages (view.tsx, edit.tsx)
+   <div className="flex-1 min-h-0 flex flex-col gap-6">
+     <div className="flex-1 min-h-0">
+       <DashboardGrid />
+     </div>
+   </div>
+   ```
+
+2. **Grid container overflow**:
+   ```tsx
+   // dashboard-grid.tsx
+   <div className="w-full h-full overflow-auto">
+     <ResponsiveGridLayout />
+   </div>
+   ```
+
+3. **Grid item overflow** (prevents content from expanding entire grid):
+   ```css
+   /* globals.css - REQUIRED for proper height calculation */
+   .react-grid-item {
+     overflow: hidden;
+   }
+   ```
+
+4. **Grid item wrapper** (propagates react-grid-layout's inline heights):
+   ```tsx
+   // dashboard-grid.tsx - wrapper div MUST have h-full
+   <div key={component.id} className="h-full">
+     <DashboardComponent />
+   </div>
+   ```
+
+5. **Component content scrolling**:
+   ```tsx
+   // dashboard-component.tsx
+   <div className="h-full flex flex-col">
+     <div className="flex-1 p-3 min-h-0 overflow-auto">
+       {/* Tables scroll here, sticky headers work */}
+     </div>
+   </div>
+   ```
+
+**Why this matters:**
+- react-grid-layout sets heights via inline styles (e.g., `height: 350px`)
+- Without `overflow: hidden` on grid items, tall content (tables) expands the entire grid
+- Without the complete height chain, components can't calculate scroll boundaries
+- `min-h-0` allows flex children to shrink below content size (enables scrolling)
+
+**Sticky table headers:**
+- Applied at `<th>` cell level, not `<thead>` wrapper
+- Base UI component: `components/ui/table.tsx` TableHead has `sticky top-0 z-20`
+- Works in both main DataTable and dashboard tables
+
 ### Data Flow
 ```
 ComponentEditor

@@ -54,6 +54,7 @@ logs/
 # Local development / Secrets
 data/
 !data/defaults/
+!data/README.md
 credentials.json
 *.env
 .env.*

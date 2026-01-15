@@ -418,6 +418,6 @@ Or update `package.json` scripts to use `Scripts\python.exe` instead of `bin/pyt
 
 ## See Also
 
-- [Full Migration Specification](../../docs/spec/migrations.md)
+- [Full Migration Specification](../../docs/spec/backend/migrations.md)
 - [Schema Definitions](../data_sinks/sqlite/schema.py)
 - [Architecture Overview](../../docs/architecture.md)

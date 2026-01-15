@@ -101,6 +101,16 @@ Primary key: `id` (auto-increment)
 
 Fields: `title`, `description`, `DOT_latest`, `USD_latest`, `*_component`, `category_id` (FK), `latest_status_change`, `url`
 
+### Custom Spending
+
+Primary key: `id` (auto-increment)
+
+Fields: `type`, `title`, `description`, `latest_status_change`, `DOT_latest`, `USD_latest`, `DOT_component`, `USDC_component`, `USDT_component`, `category_id` (FK), `created_at`, `updated_at`
+
+Type values: Must be one of: "Direct Spend", "Claim", "Bounty", "Subtreasury", "Fellowship Salary", "Fellowship Grants"
+
+ID format in views: `custom-{id}` (e.g., custom-1, custom-2)
+
 ### Users
 
 Primary key: `id` (auto-increment)
@@ -176,7 +186,7 @@ Adds: `days_since_expiry`
 
 ### all_spending
 
-Union of all spending types. See `business-rules.md` for type definitions.
+Union of all spending types (7 sources). See `business-rules.md` for type definitions.
 
 **Column details:**
 - `year`, `year_month`, `year_quarter`: Computed date grouping columns from `latest_status_change`
@@ -186,6 +196,7 @@ Union of all spending types. See `business-rules.md` for type definitions.
   - **Bounty**: From Child Bounty's category_id, falls back to parent Bounty's category_id if NULL
   - **Subtreasury**: From Subtreasury's category_id
   - **Fellowship Salary/Grants**: Hardcoded to 'Development' / 'Polkadot Protocol & SDK'
+  - **Custom Spending**: From Custom Spending's category_id
 
 **Business logic:**
 - `hide_in_spends` flag: Direct Spend and Bounty types exclude records where `hide_in_spends = 1`
