@@ -116,9 +116,10 @@ import os
 
 class SubsquareProvider(DataProvider):
 
-    def __init__(self, network_info: NetworkInfo, price_service):
+    def __init__(self, network_info: NetworkInfo, price_service, sink=None):
         self.network_info: NetworkInfo = network_info
         self.price_service = price_service
+        self.sink = sink
         self._logger = logging.getLogger(__name__)
 
     def fetch_referenda(self, referenda_to_update=10):
@@ -545,26 +546,31 @@ class SubsquareProvider(DataProvider):
 
             if null_columns:
                 # Log error but don't prevent insertion
-                raw_data = raw_data_list[idx] if idx < len(raw_data_list) else {}
+                if self.sink:
+                    raw_data = raw_data_list[idx] if idx < len(raw_data_list) else {}
 
-                metadata = {
-                    'status': row.get('status', 'Unknown'),
-                    'description': str(row.get('description', 'Unknown'))[:200],
-                    'null_columns': null_columns
-                }
+                    metadata = {
+                        'status': row.get('status', 'Unknown'),
+                        'description': str(row.get('description', 'Unknown'))[:200],
+                        'null_columns': null_columns
+                    }
 
-                self.sink.log_data_error(
-                    table_name="Treasury",
-                    record_id=str(record_id),
-                    error_type="missing_value",
-                    error_message=f"NULL/NaN values in columns: {', '.join(null_columns)}",
-                    raw_data=raw_data,
-                    metadata=metadata
-                )
+                    self.sink.log_data_error(
+                        table_name="Treasury",
+                        record_id=str(record_id),
+                        error_type="missing_value",
+                        error_message=f"NULL/NaN values in columns: {', '.join(null_columns)}",
+                        raw_data=raw_data,
+                        metadata=metadata
+                    )
 
-                self._logger.warning(
-                    f"Treasury spend {record_id} has NULL values in {null_columns} - logged to DataErrors"
-                )
+                    self._logger.warning(
+                        f"Treasury spend {record_id} has NULL values in {null_columns} - logged to DataErrors"
+                    )
+                else:
+                    self._logger.warning(
+                        f"Treasury spend {record_id} has NULL values in {null_columns} (sink not available for logging)"
+                    )
 
     def fetch_child_bounties(self, child_bounties_to_update=10):
         base_url = f"https://{self.network_info.name}-api.subsquare.io/treasury/child-bounties" #&page_size=100
@@ -860,12 +866,12 @@ class SubsquareProvider(DataProvider):
         status_df = pd.DataFrame(list(status_info))
         df = pd.concat([df, status_df], axis=1)
         
-        # Convert amounts to DOT
-        df['registered_amount_dot'] = df['registered_amount'].apply(
-            lambda x: self.network_info.apply_denomination(x, self.network_info.native_asset) if x else 0
+        # Convert amounts to USDC (fellowship salaries are paid in USDC, not DOT)
+        df['registered_amount_usdc'] = df['registered_amount'].apply(
+            lambda x: self.network_info.apply_denomination(x, AssetKind.USDC) if x else 0
         )
-        df['attempt_amount_dot'] = df['attempt_amount'].apply(
-            lambda x: self.network_info.apply_denomination(x, self.network_info.native_asset) if x else 0
+        df['attempt_amount_usdc'] = df['attempt_amount'].apply(
+            lambda x: self.network_info.apply_denomination(x, AssetKind.USDC) if x else 0
         )
         
         # Apply name mapping if provided
@@ -1194,22 +1200,91 @@ class SubsquareProvider(DataProvider):
                 self._logger.warn(f"Unknown asset kind: {asset_kind}")
                 return AssetKind.INVALID
         elif version_key in ["v4", "v5"]:
-            parachain = asset_kind[version_key]["location"]["interior"]["x1"][0]["parachain"]
-            if parachain < 1000 or parachain >= 2000:
-                self._logger.warning(f"Parachain {parachain} is not a system chain")
+            location = asset_kind[version_key]["location"]
+            location_interior = location["interior"]
+            asset_id = asset_kind[version_key]["assetId"]
+
+            # Handle "here" in location - need to check assetId to determine actual asset
+            if "here" in location_interior:
+                asset_id_parents = asset_id.get("parents", 0)
+                asset_id_interior = asset_id["interior"]
+
+                # Case 1: parents=1 means native relay chain asset
+                if asset_id_parents == 1 and "here" in asset_id_interior:
+                    return self.network_info.native_asset
+
+                # Case 2: parents=0 means we're on Asset Hub, parse assetId
+                if asset_id_parents == 0:
+                    if "x2" in asset_id_interior:
+                        try:
+                            pallet_instance = asset_id_interior["x2"][0].get("palletInstance")
+                            if pallet_instance != 50:
+                                self._logger.warning(f"Expected palletInstance 50, got {pallet_instance}")
+                                return AssetKind.INVALID
+                            general_index = asset_id_interior["x2"][1]["generalIndex"]
+                            if general_index == 1337:
+                                return AssetKind.USDC
+                            elif general_index == 1984:
+                                return AssetKind.USDT
+                            else:
+                                self._logger.warning(f"Unknown general_index: {general_index}")
+                                return AssetKind.INVALID
+                        except (KeyError, IndexError, TypeError) as e:
+                            self._logger.warning(f"Invalid x2 structure in assetId: {e}")
+                            return AssetKind.INVALID
+                    elif "here" in asset_id_interior:
+                        # Asset Hub native asset (rare, but handle it)
+                        return self.network_info.native_asset
+                    else:
+                        self._logger.warning(f"Unknown assetId interior for parents=0: {list(asset_id_interior.keys())}")
+                        return AssetKind.INVALID
+
+            # Handle single-hop location (x1) - typically system parachains
+            if "x1" in location_interior:
+                try:
+                    parachain = location_interior["x1"][0]["parachain"]
+                    if parachain < 1000 or parachain >= 2000:
+                        self._logger.warning(f"Parachain {parachain} is not a system chain")
+                        return AssetKind.INVALID
+
+                    # Check if assetId indicates native DOT/KSM
+                    if asset_kind[version_key]["assetId"]["parents"] == 1 and asset_kind[version_key]["assetId"]["interior"].get("here") == None:
+                        return self.network_info.native_asset
+
+                    # Parse assetId interior for specific asset
+                    asset_interior = asset_kind[version_key]["assetId"]["interior"]
+                    if "x2" in asset_interior:
+                        try:
+                            pallet_instance = asset_interior["x2"][0].get("palletInstance")
+                            if pallet_instance != 50:
+                                self._logger.warning(f"Expected palletInstance 50, got {pallet_instance}")
+                                return AssetKind.INVALID
+                            general_index = asset_interior["x2"][1]["generalIndex"]
+                            if general_index == 1337:
+                                return AssetKind.USDC
+                            elif general_index == 1984:
+                                return AssetKind.USDT
+                            else:
+                                self._logger.warning(f"Unknown general_index: {general_index}")
+                                return AssetKind.INVALID
+                        except (KeyError, IndexError, TypeError) as e:
+                            self._logger.warning(f"Invalid x2 structure in assetId for {version_key}: {e}")
+                            return AssetKind.INVALID
+                    else:
+                        self._logger.warning(f"Unknown assetId interior structure for {version_key}: {list(asset_interior.keys())}")
+                        return AssetKind.INVALID
+                except (KeyError, IndexError, TypeError) as e:
+                    self._logger.warning(f"Invalid x1 structure for {version_key}: {e}")
+                    return AssetKind.INVALID
+
+            # Handle multi-hop location (x2, x3, etc.) - not yet implemented
+            if "x2" in location_interior or "x3" in location_interior:
+                self._logger.warning(f"Multi-hop location not yet supported for {version_key}: {list(location_interior.keys())}")
                 return AssetKind.INVALID
-            if asset_kind[version_key]["assetId"]["parents"] == 1 and asset_kind[version_key]["assetId"]["interior"]["here"] == None:
-                return AssetKind.DOT
-            interior = asset_kind[version_key]["assetId"]["interior"]
-            assert interior["x2"][0]["palletInstance"] == 50
-            general_index = interior["x2"][1]["generalIndex"]
-            if general_index == 1337:
-                return AssetKind.USDC
-            elif general_index == 1984:
-                return AssetKind.USDT
-            else:
-                self._logger.warning(f"Unknown asset kind: {asset_kind}")
-                return AssetKind.INVALID
+
+            # Unknown interior structure
+            self._logger.warning(f"Unknown interior structure for {version_key}: {list(location_interior.keys())}")
+            return AssetKind.INVALID
         else:
             self._logger.warning(f"Unknown asset kind version: {version_key} in {asset_kind}")
             return AssetKind.INVALID
