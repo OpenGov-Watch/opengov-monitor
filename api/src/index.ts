@@ -8,6 +8,7 @@ import { fileURLToPath } from "url";
 import { createSessionStore } from "./db/session-store.js";
 import { ensureUsersTable } from "./db/auth-queries.js";
 import { generalLimiter, writeLimiter, authLimiter } from "./middleware/rate-limit.js";
+import { getDatabase } from "./db/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -86,9 +87,29 @@ app.use("/api", (req, res, next) => {
   next();
 });
 
-// Health check
+// Health check with migration info
 app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+  try {
+    const db = getDatabase();
+    const migration = db.prepare(
+      'SELECT version, name, applied_at FROM schema_migrations ORDER BY version DESC LIMIT 1'
+    ).get() as { version: number; name: string; applied_at: string } | undefined;
+
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      database: migration ? {
+        version: migration.version,
+        name: migration.name,
+        applied: migration.applied_at
+      } : null
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: 'error',
+      error: err instanceof Error ? err.message : String(err)
+    });
+  }
 });
 
 // Mount routes with auth-specific rate limiting
