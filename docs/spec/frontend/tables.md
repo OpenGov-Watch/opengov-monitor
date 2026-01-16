@@ -367,12 +367,19 @@ type DashboardComponentType =
   sourceTable: string;
   columns: ColumnSelection[];
   expressionColumns?: ExpressionColumn[];  // Computed columns
-  filters: FilterCondition[];              // WHERE clauses
+  filters: FilterCondition[];              // WHERE clauses (flat array storage)
   groupBy?: string[];
   orderBy?: OrderByConfig[];
   limit?: number;
 }
 ```
+
+**Note on Filters:**
+- Dashboard components store filters as flat `FilterCondition[]` array for backward compatibility
+- UI uses `FilterGroupBuilder` component for editing (converted to/from `FilterGroup` format at UI boundary)
+- All operators supported including IN operator (comma-separated values)
+- Nested filter groups are automatically flattened to AND on save (with console warning)
+- Future enhancement (Phase 2): Full nested `FilterGroup` storage for complex AND/OR logic
 
 #### GridConfig - Grid layout
 ```tsx
@@ -398,7 +405,7 @@ type DashboardComponentType =
   2. JOIN tables (auto-populated ON conditions)
   3. Column picker with alias support (includes joined table columns, grouped by table)
   4. Expression columns (computed: `column1 + column2`)
-  5. Filter UI for WHERE conditions
+  5. Filter UI using FilterGroupBuilder component (10 operators including IN)
   6. ORDER BY controls
 - **JOIN support** (LEFT, INNER, RIGHT)
   - Auto-detects FK relationships (e.g., `category_id`, `parentBountyId`)
