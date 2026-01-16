@@ -14,9 +14,16 @@ backupRouter.get("/download", requireAuth, (req, res) => {
       return;
     }
 
-    // Always checkpoint before download
-    const db = getDatabase();
-    db.pragma("wal_checkpoint(TRUNCATE)");
+    // Try to checkpoint before download (use PASSIVE mode to avoid blocking)
+    try {
+      const db = getDatabase();
+      // Use PASSIVE mode instead of TRUNCATE - it doesn't block and is more compatible with Windows
+      const result = db.pragma("wal_checkpoint(PASSIVE)");
+      console.log("WAL checkpoint result:", result);
+    } catch (checkpointError) {
+      // Log warning but don't fail - backup will still contain most recent data
+      console.warn("WAL checkpoint failed (backup will still proceed):", checkpointError);
+    }
 
     // Generate filename with timestamp
     const timestamp = new Date().toISOString().split("T")[0];
