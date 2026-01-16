@@ -82,22 +82,74 @@ Must support hierarchical filter structure with:
 
 **Storage Format**: FilterGroup is the canonical format for both DataTable and Dashboard systems. Legacy FilterCondition[] arrays are automatically converted to FilterGroup format for backward compatibility.
 
-### Operators
-Must support these operators:
-- Equality: =, !=
-- Comparison: >, <, >=, <=
-- Pattern: LIKE
-- List: IN
-- Null checks: IS NULL, IS NOT NULL
+### Column Type System
+Must identify column types and restrict operators accordingly:
+
+**Column Types:**
+- **Categorical**: `status`, `status_type`, `track`, `type`, `category`, `subcategory`
+- **Numeric**: Columns containing `DOT`, `USD`, `USDC`, `USDT`, amounts, counts, IDs
+- **Text**: `title`, `description`, `notes`, `beneficiary`, addresses
+- **Date**: Columns ending in `_time`, `_at`, or containing `date`
+
+**Operator Availability by Type:**
+
+| Column Type | Available Operators |
+|-------------|-------------------|
+| Categorical | `IN`, `NOT IN`, `IS NULL`, `IS NOT NULL` |
+| Numeric | `=`, `!=`, `>`, `<`, `>=`, `<=`, `IS NULL`, `IS NOT NULL` |
+| Text | `=`, `!=`, `LIKE`, `IS NULL`, `IS NOT NULL` |
+| Date | `=`, `!=`, `>`, `<`, `>=`, `<=`, `IS NULL`, `IS NOT NULL` |
+
+**Rationale:**
+- Categorical columns have finite value sets - use `IN`/`NOT IN` for multiselect
+- Numeric columns need range comparisons
+- Text columns need pattern matching (`LIKE`)
+- Date columns need range comparisons
+- All types support null checks
 
 ### UI Requirements
 - Must allow toggling between AND/OR at group level
 - Must list all conditions and sub-groups within group
 - Must provide buttons to add condition or add nested group
 - Must show column selector, operator selector, and value input per condition
+- Must filter operator list based on selected column type
 - Must provide remove button per condition
 - Must show visual indentation for nested groups
 - Must track nesting level
+
+### Categorical Column Handling
+Must detect categorical columns and provide multiselect dropdowns:
+
+**Column Identification:**
+- `status`, `status_type`, `track`, `type`, `category`, `subcategory`
+- Detected by `isCategoricalColumn()` helper function
+- Detected by `getColumnType()` returning `'categorical'`
+
+**Available Operators:**
+- Only `IN`, `NOT IN`, `IS NULL`, `IS NOT NULL` shown for categorical columns
+- Equality (`=`, `!=`) not needed - use `IN` with single value instead
+- Comparison (`>`, `<`, `>=`, `<=`) not applicable to categorical data
+- Pattern matching (`LIKE`) not needed - multiselect provides search
+
+**UI Behavior:**
+- Must show multiselect dropdown when categorical column uses `IN` or `NOT IN` operator
+- Must show "No value needed" message for `IS NULL` and `IS NOT NULL` operators
+- Must fetch facet data automatically for categorical columns in filter group
+- Must display facet counts next to each option in dropdown
+- Must provide search functionality within dropdown
+- Must use Apply/Cancel pattern matching FacetedFilter UX
+
+**Data Fetching:**
+- Must accept `sourceTable` prop for facet API calls
+- Must extract categorical columns from filter group recursively
+- Must fetch facets via `/api/query/facets` endpoint
+- Must update facets when filter group changes
+- Must gracefully handle fetch failures (empty dropdown)
+
+**Integration:**
+- Must work within nested filter groups
+- Must share visual style with DataTableFacetedFilter
+- Must maintain backward compatibility with existing filters (auto-convert `=` to `IN` if needed)
 
 ### Recursive Structure
 - Must render nested groups recursively

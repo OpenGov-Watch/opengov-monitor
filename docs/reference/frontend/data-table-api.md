@@ -120,8 +120,13 @@ interface JoinConfig {
 
 interface FilterCondition {
   column: string;
-  operator: "=" | "!=" | ">" | "<" | ">=" | "<=" | "LIKE" | "IS NULL" | "IS NOT NULL";
-  value?: string | number;
+  operator: "=" | "!=" | ">" | "<" | ">=" | "<=" | "LIKE" | "IN" | "NOT IN" | "IS NULL" | "IS NOT NULL";
+  value: string | number | string[] | null;
+}
+
+interface FilterGroup {
+  operator: "AND" | "OR";
+  conditions: (FilterCondition | FilterGroup)[];
 }
 
 interface OrderByConfig {

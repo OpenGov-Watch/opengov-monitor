@@ -915,6 +915,7 @@ export function QueryBuilder({
                   name: col.fullName
                 }))}
                 onUpdate={handleFilterUpdate}
+                sourceTable={config.sourceTable}
               />
             </div>
           )}

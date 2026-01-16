@@ -105,20 +105,95 @@ Complex filter builder with AND/OR logic for custom queries in dashboards.
 
 QueryBuilder component in Dashboard ComponentEditor.
 
-### Filter Operators
+### Filter Operators by Column Type
+
+The available operators depend on the column type selected:
+
+#### Categorical Columns
+**Columns:** `status`, `status_type`, `track`, `type`, `category`, `subcategory`
 
 | Operator | Use For | Example |
 |----------|---------|---------|
-| `=` | Exact match | status = "Executed" |
-| `!=` | Not equal | status != "Rejected" |
+| `IN` | Value in list | status IN ("Executed", "Ongoing") |
+| `NOT IN` | Value not in list | status NOT IN ("Rejected", "Cancelled") |
+| `IS NULL` | Check for NULL | status IS NULL |
+| `IS NOT NULL` | Check not NULL | status IS NOT NULL |
+
+**Enhanced UI:** Multiselect dropdown with search and facet counts
+
+#### Numeric Columns
+**Columns:** Amounts (DOT, USD), counts, IDs
+
+| Operator | Use For | Example |
+|----------|---------|---------|
+| `=` | Exact match | DOT_latest = 1000 |
+| `!=` | Not equal | DOT_latest != 0 |
 | `>` | Greater than | DOT_latest > 1000 |
 | `<` | Less than | DOT_latest < 10000 |
 | `>=` | Greater or equal | USD_latest >= 5000 |
 | `<=` | Less or equal | USD_latest <= 50000 |
+| `IS NULL` | Check for NULL | amount IS NULL |
+| `IS NOT NULL` | Check not NULL | amount IS NOT NULL |
+
+#### Text Columns
+**Columns:** `title`, `description`, `notes`, addresses
+
+| Operator | Use For | Example |
+|----------|---------|---------|
+| `=` | Exact match | title = "Treasury Proposal" |
+| `!=` | Not equal | title != "" |
 | `LIKE` | Pattern match | title LIKE "%treasury%" |
-| `IN` | Value in list | status IN ("Executed", "Ongoing") |
 | `IS NULL` | Check for NULL | notes IS NULL |
-| `IS NOT NULL` | Check not NULL | category_id IS NOT NULL |
+| `IS NOT NULL` | Check not NULL | notes IS NOT NULL |
+
+#### Date Columns
+**Columns:** Ending in `_time`, `_at`, or containing `date`
+
+| Operator | Use For | Example |
+|----------|---------|---------|
+| `=` | Exact date | proposal_time = "2025-01-01" |
+| `!=` | Not equal | proposal_time != "2025-01-01" |
+| `>` | After date | proposal_time > "2025-01-01" |
+| `<` | Before date | proposal_time < "2025-12-31" |
+| `>=` | On or after | proposal_time >= "2025-01-01" |
+| `<=` | On or before | proposal_time <= "2025-12-31" |
+| `IS NULL` | Check for NULL | proposal_time IS NULL |
+| `IS NOT NULL` | Check not NULL | proposal_time IS NOT NULL |
+
+### Categorical Column Multiselect
+
+For categorical columns, the filter builder provides an enhanced multiselect dropdown when using `IN` or `NOT IN` operators:
+
+**Features:**
+- Dropdown shows all available values with counts
+- Search functionality to quickly find values
+- Select multiple values easily
+- Apply/Cancel pattern prevents accidental changes
+- Only shows relevant operators (IN, NOT IN, IS NULL, IS NOT NULL)
+
+**Example - Filter by Multiple Statuses:**
+1. Add condition
+2. Column: `status` (only shows categorical operators)
+3. Operator: `in list`
+4. Click the multiselect dropdown (replaces text input)
+5. Check "Executed", "Ongoing", "Confirmed"
+6. Click "Apply"
+
+**Result:** Shows rows where status is any of the selected values (OR logic).
+
+**Example - Exclude Statuses:**
+1. Add condition
+2. Column: `status`
+3. Operator: `not in list`
+4. Select "Rejected", "Cancelled", "TimedOut"
+5. Click "Apply"
+
+**Result:** Shows rows where status is NOT any of the selected values.
+
+**Why No Equals/Comparison?**
+- Use `IN` with single value instead of `=`
+- Comparison operators (`>`, `<`) don't apply to categorical data
+- Pattern matching (`LIKE`) is replaced by dropdown search
 
 ### Simple Filter
 
@@ -126,13 +201,13 @@ QueryBuilder component in Dashboard ComponentEditor.
 
 1. Add filter condition
 2. Column: `status`
-3. Operator: `=`
-4. Value: `Executed`
+3. Operator: `in list`
+4. Select: `Executed` from dropdown
 
 **Result:**
 ```typescript
 filters: [
-  { column: "status", operator: "=", value: "Executed" }
+  { column: "status", operator: "IN", value: ["Executed"] }
 ]
 ```
 
@@ -140,7 +215,7 @@ filters: [
 
 **Goal:** Executed proposals with DOT > 1000.
 
-1. Add condition: `status = "Executed"`
+1. Add condition: `status in list ["Executed"]`
 2. Add condition: `DOT_latest > 1000`
 3. Both in same group (default AND)
 
@@ -151,8 +226,10 @@ filters: [
 **Goal:** Root track OR Whitelisted Caller track.
 
 1. Change group operator to "OR"
-2. Add condition: `track = "Root"`
-3. Add condition: `track = "Whitelisted Caller"`
+2. Add condition: `track in list ["Root"]`
+3. Add condition: `track in list ["Whitelisted Caller"]`
+
+**Alternative:** Use single `IN` condition with both values selected in multiselect dropdown.
 
 **Result:** Shows rows matching EITHER condition.
 
@@ -161,32 +238,31 @@ filters: [
 **Goal:** Executed proposals in Root OR Whitelisted Caller tracks.
 
 1. Top group: AND (default)
-2. Add condition: `status = "Executed"`
+2. Add condition: `status in list ["Executed"]`
+3. Add condition: `track in list ["Root", "Whitelisted Caller"]` (use multiselect)
+
+**Alternative with sub-group:**
+1. Top group: AND (default)
+2. Add condition: `status in list ["Executed"]`
 3. Add OR sub-group:
-   - `track = "Root"`
-   - `track = "Whitelisted Caller"`
+   - `track in list ["Root"]`
+   - `track in list ["Whitelisted Caller"]`
 
 **Result:**
 ```typescript
 {
   operator: "AND",
   conditions: [
-    { column: "status", operator: "=", value: "Executed" },
-    {
-      operator: "OR",
-      conditions: [
-        { column: "track", operator: "=", value: "Root" },
-        { column: "track", operator: "=", value: "Whitelisted Caller" }
-      ]
-    }
+    { column: "status", operator: "IN", value: ["Executed"] },
+    { column: "track", operator: "IN", value: ["Root", "Whitelisted Caller"] }
   ]
 }
 ```
 
 **SQL equivalent:**
 ```sql
-WHERE status = 'Executed'
-  AND (track = 'Root' OR track = 'Whitelisted Caller')
+WHERE status IN ('Executed')
+  AND track IN ('Root', 'Whitelisted Caller')
 ```
 
 ### Common Patterns
@@ -221,11 +297,10 @@ filters: [
 ]
 ```
 
-**Multiple exclusions:**
+**Multiple exclusions (categorical):**
 ```typescript
 filters: [
-  { column: "status", operator: "!=", value: "Rejected" },
-  { column: "status", operator: "!=", value: "Cancelled" }
+  { column: "status", operator: "NOT IN", value: ["Rejected", "Cancelled"] }
 ]
 ```
 
@@ -254,12 +329,12 @@ Dashboard filters now support the same nested AND/OR logic as shown above, with 
 const filters: FilterGroup = {
   operator: 'AND',
   conditions: [
-    { column: 'status', operator: '=', value: 'Active' },
+    { column: 'status', operator: 'IN', value: ['Active'] },
     {
       operator: 'OR',
       conditions: [
         { column: 'amount', operator: '>', value: 1000 },
-        { column: 'priority', operator: '=', value: 'High' }
+        { column: 'priority', operator: 'IN', value: ['High'] }
       ]
     }
   ]
@@ -268,7 +343,7 @@ const filters: FilterGroup = {
 
 **Generates SQL:**
 ```sql
-WHERE status = 'Active' AND (amount > 1000 OR priority = 'High')
+WHERE status IN ('Active') AND (amount > 1000 OR priority IN ('High'))
 ```
 
 This structure:
@@ -315,14 +390,8 @@ Fully customizable AND/OR logic.
   operator: "AND",
   conditions: [
     { column: "DOT_latest", operator: ">", value: "10000" },
-    { column: "status", operator: "!=", value: "Rejected" },
-    {
-      operator: "OR",
-      conditions: [
-        { column: "track", operator: "=", value: "Root" },
-        { column: "track", operator: "=", value: "Treasurer" }
-      ]
-    }
+    { column: "status", operator: "NOT IN", value: ["Rejected"] },
+    { column: "track", operator: "IN", value: ["Root", "Treasurer"] }
   ]
 }
 ```
@@ -330,8 +399,8 @@ Fully customizable AND/OR logic.
 **SQL:**
 ```sql
 WHERE DOT_latest > 10000
-  AND status != 'Rejected'
-  AND (track = 'Root' OR track = 'Treasurer')
+  AND status NOT IN ('Rejected')
+  AND track IN ('Root', 'Treasurer')
 ```
 
 ---

@@ -368,6 +368,7 @@ export interface FilterCondition {
     | "<="
     | "LIKE"
     | "IN"
+    | "NOT IN"
     | "IS NULL"
     | "IS NOT NULL";
   value: string | number | string[] | null;

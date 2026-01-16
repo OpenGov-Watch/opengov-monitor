@@ -46,7 +46,7 @@ const ALLOWED_VIEWS = [
 
 const MAX_ROWS = 10000;
 const ALLOWED_OPERATORS = new Set([
-  "=", "!=", ">", "<", ">=", "<=", "LIKE", "IN", "IS NULL", "IS NOT NULL",
+  "=", "!=", ">", "<", ">=", "<=", "LIKE", "IN", "NOT IN", "IS NULL", "IS NOT NULL",
 ]);
 const ALLOWED_AGGREGATES = new Set(["COUNT", "SUM", "AVG", "MIN", "MAX"]);
 
@@ -380,6 +380,13 @@ function buildSingleCondition(
         const placeholders = filter.value.map(() => "?").join(", ");
         params.push(...filter.value);
         return `${colName} IN (${placeholders})`;
+      }
+      return "";
+    case "NOT IN":
+      if (Array.isArray(filter.value) && filter.value.length > 0) {
+        const placeholders = filter.value.map(() => "?").join(", ");
+        params.push(...filter.value);
+        return `${colName} NOT IN (${placeholders})`;
       }
       return "";
     default:
