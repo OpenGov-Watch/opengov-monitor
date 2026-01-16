@@ -703,6 +703,214 @@ describe("FilterGroup nested structure preservation", () => {
   });
 });
 
+describe("convertFiltersToQueryConfig - Column Alias Resolution", () => {
+  it("resolves single column alias in FilterGroup", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "category", operator: "IS NULL", value: null }
+      ]
+    };
+    const columnIdToRef = { category: "c.category" };
+
+    const result = convertFiltersToQueryConfig([], filterGroup, columnIdToRef);
+
+    expect(result).toEqual({
+      operator: "AND",
+      conditions: [
+        { column: "c.category", operator: "IS NULL", value: null }
+      ]
+    });
+  });
+
+  it("resolves multiple column aliases in FilterGroup", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "category", operator: "IS NULL", value: null },
+        { column: "subcategory", operator: "=", value: "Bounties" }
+      ]
+    };
+    const columnIdToRef = {
+      category: "c.category",
+      subcategory: "c.subcategory"
+    };
+
+    const result = convertFiltersToQueryConfig([], filterGroup, columnIdToRef);
+
+    expect(result).toEqual({
+      operator: "AND",
+      conditions: [
+        { column: "c.category", operator: "IS NULL", value: null },
+        { column: "c.subcategory", operator: "=", value: "Bounties" }
+      ]
+    });
+  });
+
+  it("resolves aliases in nested filter groups", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "status", operator: "IN", value: ["Active"] },
+        {
+          operator: "OR",
+          conditions: [
+            { column: "category", operator: "=", value: "Treasury" },
+            { column: "subcategory", operator: "=", value: "Fellowship" }
+          ]
+        }
+      ]
+    };
+    const columnIdToRef = {
+      category: "c.category",
+      subcategory: "c.subcategory"
+    };
+
+    const result = convertFiltersToQueryConfig([], filterGroup, columnIdToRef);
+
+    expect(result).toEqual({
+      operator: "AND",
+      conditions: [
+        { column: "status", operator: "IN", value: ["Active"] },
+        {
+          operator: "OR",
+          conditions: [
+            { column: "c.category", operator: "=", value: "Treasury" },
+            { column: "c.subcategory", operator: "=", value: "Fellowship" }
+          ]
+        }
+      ]
+    });
+  });
+
+  it("resolves aliases in deeply nested filter groups", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "category", operator: "IS NOT NULL", value: null },
+        {
+          operator: "OR",
+          conditions: [
+            { column: "status", operator: "=", value: "Active" },
+            {
+              operator: "AND",
+              conditions: [
+                { column: "subcategory", operator: "=", value: "Bounties" },
+                { column: "category", operator: "=", value: "Treasury" }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+    const columnIdToRef = {
+      category: "c.category",
+      subcategory: "c.subcategory"
+    };
+
+    const result = convertFiltersToQueryConfig([], filterGroup, columnIdToRef) as FilterGroup;
+
+    // Check top-level category resolved
+    expect((result.conditions[0] as FilterCondition).column).toBe("c.category");
+
+    // Check deeply nested conditions resolved
+    const nestedOr = result.conditions[1] as FilterGroup;
+    const nestedAnd = nestedOr.conditions[1] as FilterGroup;
+    expect((nestedAnd.conditions[0] as FilterCondition).column).toBe("c.subcategory");
+    expect((nestedAnd.conditions[1] as FilterCondition).column).toBe("c.category");
+  });
+
+  it("leaves non-aliased columns unchanged", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "category", operator: "IS NULL", value: null },
+        { column: "status", operator: "IN", value: ["Executed"] },
+        { column: "id", operator: ">", value: 100 }
+      ]
+    };
+    const columnIdToRef = {
+      category: "c.category",
+      subcategory: "c.subcategory"
+    };
+
+    const result = convertFiltersToQueryConfig([], filterGroup, columnIdToRef);
+
+    expect(result).toEqual({
+      operator: "AND",
+      conditions: [
+        { column: "c.category", operator: "IS NULL", value: null },
+        { column: "status", operator: "IN", value: ["Executed"] },
+        { column: "id", operator: ">", value: 100 }
+      ]
+    });
+  });
+
+  it("handles empty columnIdToRef mapping gracefully", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "category", operator: "IS NULL", value: null }
+      ]
+    };
+    const columnIdToRef = {};
+
+    const result = convertFiltersToQueryConfig([], filterGroup, columnIdToRef);
+
+    expect(result).toEqual({
+      operator: "AND",
+      conditions: [
+        { column: "category", operator: "IS NULL", value: null }
+      ]
+    });
+  });
+
+  it("works without columnIdToRef for backward compatibility", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "status", operator: "IN", value: ["Active"] }
+      ]
+    };
+
+    const result = convertFiltersToQueryConfig([], filterGroup);
+
+    expect(result).toEqual(filterGroup);
+  });
+
+  it("preserves all filter operators during alias resolution", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "category", operator: "=", value: "Treasury" },
+        { column: "category", operator: "!=", value: "Fellowship" },
+        { column: "category", operator: "LIKE", value: "%Treasury%" },
+        { column: "category", operator: "IN", value: ["Treasury", "Fellowship"] },
+        { column: "category", operator: "NOT IN", value: ["Root"] },
+        { column: "category", operator: "IS NULL", value: null },
+        { column: "category", operator: "IS NOT NULL", value: null }
+      ]
+    };
+    const columnIdToRef = { category: "c.category" };
+
+    const result = convertFiltersToQueryConfig([], filterGroup, columnIdToRef) as FilterGroup;
+
+    // All conditions should have resolved column
+    result.conditions.forEach(condition => {
+      expect((condition as FilterCondition).column).toBe("c.category");
+    });
+
+    // All operators should be preserved
+    expect((result.conditions[0] as FilterCondition).operator).toBe("=");
+    expect((result.conditions[1] as FilterCondition).operator).toBe("!=");
+    expect((result.conditions[2] as FilterCondition).operator).toBe("LIKE");
+    expect((result.conditions[3] as FilterCondition).operator).toBe("IN");
+    expect((result.conditions[4] as FilterCondition).operator).toBe("NOT IN");
+    expect((result.conditions[5] as FilterCondition).operator).toBe("IS NULL");
+    expect((result.conditions[6] as FilterCondition).operator).toBe("IS NOT NULL");
+  });
+});
+
 describe("convertFiltersToQueryConfig - Unified State Model", () => {
   it("prioritizes filterGroup over columnFilters when both present", () => {
     const columnFilters: ColumnFiltersState = [

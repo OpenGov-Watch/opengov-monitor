@@ -57,9 +57,9 @@ TanStack Table can't use `accessorKey` for nested fields like `tally.ayes`:
 { accessorFn: (row) => row["tally.ayes"], id: "tally.ayes" }
 ```
 
-### Joined Columns Need Alias Resolution for Sorting
+### Joined Columns Need Alias Resolution for Sorting and Filtering
 
-When using JOINs with aliased columns, sorting requires mapping aliases back to original references:
+When using JOINs with aliased columns, both sorting and filtering require mapping aliases back to original references before sending to backend.
 
 ```typescript
 // QueryConfig defines joined column with alias
@@ -67,18 +67,25 @@ columns: [
   { column: "c.category", alias: "category" }  // JOIN Categories AS c
 ]
 
-// TanStack Table sorts by alias
+// TanStack Table uses aliases for sorting and filtering
 sorting: [{ id: "category", desc: false }]
+filterGroup: { operator: "AND", conditions: [{ column: "category", operator: "IS NULL", value: null }] }
 
 // Must resolve: "category" → "c.category" before sending to backend
 const columnIdToRef = { category: "c.category" };
+
+// Sorting: sortingStateToOrderBy() uses columnIdToRef
 orderBy: sortingStateToOrderBy(sorting, queryConfig, columnIdToRef)
 // Result: [{ column: "c.category", direction: "ASC" }]
+
+// Filtering: convertFiltersToQueryConfig() uses columnIdToRef
+filters: convertFiltersToQueryConfig(columnFilters, filterGroup, columnIdToRef)
+// Result: { operator: "AND", conditions: [{ column: "c.category", operator: "IS NULL", value: null }] }
 ```
 
-Without resolution, backend receives `"category"` and prefixes source table → `"Referenda.category"` → error.
+Without resolution, backend receives alias and incorrectly prefixes source table → `"Referenda.category"` → error.
 
-See `data-table.tsx` and `query-config-utils.ts` for implementation.
+See `data-table.tsx` and `query-config-utils.ts` (`sortingStateToOrderBy`, `resolveFilterGroupAliases`, `convertFiltersToQueryConfig`).
 
 ### Chart Data May Need Pivot
 

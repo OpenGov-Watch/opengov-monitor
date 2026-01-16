@@ -161,7 +161,7 @@ export function DataTable<TData>({
   // BUILD COMPLETE QUERY CONFIG
   // Merge base config with dynamic sorting/filtering/pagination state
   const queryConfig = useMemo<QueryConfig>(() => {
-    const viewStateFilters = convertFiltersToQueryConfig(columnFilters, filterGroup);
+    const viewStateFilters = convertFiltersToQueryConfig(columnFilters, filterGroup, columnIdToRef);
 
     // Merge default filters with view state filters
     // If view state has filters, use them; otherwise fall back to default filters

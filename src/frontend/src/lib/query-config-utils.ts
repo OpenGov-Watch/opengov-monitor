@@ -143,6 +143,37 @@ export function filterStateToQueryFilters(
 }
 
 /**
+ * Recursively resolve column aliases in a FilterGroup to actual DB references.
+ * Mirrors the alias resolution pattern used in sortingStateToOrderBy().
+ *
+ * @param filterGroup - FilterGroup with potentially aliased column names
+ * @param columnIdToRef - Mapping from column IDs to original references
+ * @returns FilterGroup with resolved column references
+ */
+function resolveFilterGroupAliases(
+  filterGroup: FilterGroup,
+  columnIdToRef: Record<string, string>
+): FilterGroup {
+  return {
+    operator: filterGroup.operator,
+    conditions: filterGroup.conditions.map(condition => {
+      // Nested group - recurse
+      if ('operator' in condition && 'conditions' in condition) {
+        return resolveFilterGroupAliases(condition as FilterGroup, columnIdToRef);
+      }
+
+      // Single condition - resolve column alias
+      const filterCondition = condition as FilterCondition;
+      const resolvedColumn = columnIdToRef[filterCondition.column] || filterCondition.column;
+      return {
+        ...filterCondition,
+        column: resolvedColumn
+      };
+    })
+  };
+}
+
+/**
  * Convert filters to QueryConfig format.
  *
  * PRIMARY STATE: filterGroup is the unified filter state used by both faceted filters
@@ -154,14 +185,20 @@ export function filterStateToQueryFilters(
  *
  * @param columnFilters - Legacy TanStack Table column filters (backward compatibility)
  * @param filterGroup - Primary unified filter state with AND/OR logic
+ * @param columnIdToRef - Mapping from column IDs to original references (for resolving joined column aliases)
  * @returns Filters in QueryConfig format (FilterCondition[] or FilterGroup)
  */
 export function convertFiltersToQueryConfig(
   columnFilters: ColumnFiltersState,
-  filterGroup?: FilterGroup
+  filterGroup?: FilterGroup,
+  columnIdToRef?: Record<string, string>
 ): FilterCondition[] | FilterGroup {
   // PRIMARY: Use filterGroup as the single source of truth
   if (filterGroup && filterGroup.conditions.length > 0) {
+    // Resolve aliases if mapping provided
+    if (columnIdToRef) {
+      return resolveFilterGroupAliases(filterGroup, columnIdToRef);
+    }
     return filterGroup;
   }
 
