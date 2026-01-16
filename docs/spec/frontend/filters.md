@@ -80,6 +80,8 @@ Must support hierarchical filter structure with:
 - Individual filter conditions with column, operator, and value
 - Nested groups at arbitrary depth
 
+**Storage Format**: FilterGroup is the canonical format for both DataTable and Dashboard systems. Legacy FilterCondition[] arrays are automatically converted to FilterGroup format for backward compatibility.
+
 ### Operators
 Must support these operators:
 - Equality: =, !=
@@ -104,14 +106,15 @@ Must support these operators:
 
 ### State Management
 - Must provide onUpdate callback with complete filter structure
-- Must use memoization to prevent unnecessary re-renders
+- Must use memoization to prevent unnecessary re-renders via WeakMap caching
 - Must optimize individual condition row updates
+- Must preserve nested group structure without flattening
 
 ### Integration
 Must be usable in:
-- QueryBuilder for building WHERE clauses
-- Advanced filter dialogs (potential future feature)
-- Any interface requiring complex query logic
+- DataTable advanced filter dialogs
+- QueryBuilder for building WHERE clauses **with full nested group support**
+- Dashboard component editor with nested AND/OR logic
 
 ## Global Search Requirements
 
@@ -161,6 +164,33 @@ Must provide full-text search across all visible table columns.
 - Simple text matching sufficient
 - No need for counts or complex logic
 - Fastest way to find data
+
+## Data Model Unification
+
+### FilterGroup as Canonical Format
+
+Both DataTable and Dashboard systems use `FilterGroup` as the primary filter storage format:
+
+```typescript
+interface FilterGroup {
+  operator: "AND" | "OR";
+  conditions: (FilterCondition | FilterGroup)[];
+}
+```
+
+### Backward Compatibility
+
+Legacy dashboards with `FilterCondition[]` format are automatically converted to `FilterGroup` on first edit:
+- Conversion uses memoized helper with WeakMap caching
+- Legacy format: `[{column, operator, value}, ...]`
+- Converted to: `{operator: "AND", conditions: [...]}`
+- No data migration required - happens transparently in UI
+
+### Performance Optimizations
+
+**WeakMap Caching**: Legacy filter arrays are cached to prevent creating duplicate FilterGroup objects on every render, improving React performance.
+
+**Stable Callbacks**: Filter update callbacks use `useCallback` to maintain referential equality, preventing unnecessary re-renders of FilterGroupBuilder.
 
 ## State Persistence Requirements
 

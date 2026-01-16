@@ -90,17 +90,32 @@ Must specify for each join:
 
 ## Filter System Requirements
 
-Must support filter conditions with:
-- Column selection
-- Operator selection: =, !=, >, <, >=, <=, LIKE, IS NULL, IS NOT NULL
-- Value input (text or number)
-- Nested AND/OR groups for complex logic
+Must use `FilterGroupBuilder` component with full nested group support.
+
+### Data Format
+- Must store filters as `FilterGroup` (not flat array)
+- Must support nested AND/OR groups at arbitrary depth
+- Must preserve nested structure through save/load cycles
+- Must automatically convert legacy `FilterCondition[]` to `FilterGroup`
+
+### Integration
+- Must use memoized `ensureFilterGroup()` helper for backward compatibility
+- Must use stable `onUpdate` callback to prevent unnecessary re-renders
+- Must NOT flatten nested groups on update
 
 ### Filter Group Structure
 - Must support AND and OR operators at group level
 - Must allow unlimited nesting depth
 - Must support adding/removing conditions dynamically
 - Must support adding/removing nested groups
+- Must preserve filter structure when saving to database
+
+### Operators
+Must support:
+- Equality: =, !=
+- Comparison: >, <, >=, <=
+- Pattern: LIKE
+- Null checks: IS NULL, IS NOT NULL
 
 ## Aggregate Function Requirements
 

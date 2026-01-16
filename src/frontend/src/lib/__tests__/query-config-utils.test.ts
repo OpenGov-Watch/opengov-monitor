@@ -244,7 +244,10 @@ describe("filtersToGroup", () => {
   });
 });
 
-describe("groupToFilters", () => {
+describe("groupToFilters - DEPRECATED", () => {
+  // NOTE: groupToFilters is deprecated as of the FilterGroup unification
+  // These tests remain for backward compatibility verification only
+
   // Mock console.warn to prevent test output noise
   beforeEach(() => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -252,6 +255,19 @@ describe("groupToFilters", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("logs deprecation warning when called", () => {
+    const group: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "status", operator: "=", value: "Active" }
+      ]
+    };
+    groupToFilters(group);
+    expect(console.warn).toHaveBeenCalledWith(
+      '[DEPRECATED] groupToFilters() is deprecated. Use FilterGroup directly instead of flattening.'
+    );
   });
 
   it("converts empty FilterGroup to empty array", () => {
@@ -343,7 +359,8 @@ describe("groupToFilters", () => {
       { column: "col3", operator: "=", value: "c" },
       { column: "col4", operator: "=", value: "d" }
     ]);
-    expect(console.warn).toHaveBeenCalledTimes(2);
+    // 5 total: 3 deprecation warnings (1 initial + 2 recursive calls) + 2 nested group warnings
+    expect(console.warn).toHaveBeenCalledTimes(5);
   });
 
   it("handles OR operator on root group (still flattens)", () => {
@@ -359,7 +376,8 @@ describe("groupToFilters", () => {
       { column: "status", operator: "=", value: "Active" },
       { column: "status", operator: "=", value: "Pending" }
     ]);
-    expect(console.warn).not.toHaveBeenCalled();
+    // Now logs deprecation warning on every call
+    expect(console.warn).toHaveBeenCalledTimes(1);
   });
 
   it("preserves all operator types during flattening", () => {
@@ -414,6 +432,121 @@ describe("filtersToGroup and groupToFilters - Round-trip", () => {
     const result = groupToFilters(group);
 
     expect(result).toEqual(originalFilters);
+  });
+});
+
+describe("FilterGroup nested structure preservation", () => {
+  it("preserves simple nested AND/OR groups", () => {
+    const nestedGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "status", operator: "=", value: "Active" },
+        {
+          operator: "OR",
+          conditions: [
+            { column: "priority", operator: "=", value: "High" },
+            { column: "priority", operator: "=", value: "Critical" }
+          ]
+        }
+      ]
+    };
+
+    // Verify structure is preserved (not flattened)
+    expect(nestedGroup.conditions).toHaveLength(2);
+    expect(nestedGroup.conditions[0]).toHaveProperty('column', 'status');
+    expect(nestedGroup.conditions[1]).toHaveProperty('operator', 'OR');
+
+    // Verify nested group has correct structure
+    const nestedCondition = nestedGroup.conditions[1] as FilterGroup;
+    expect(nestedCondition.conditions).toHaveLength(2);
+    expect(nestedCondition.conditions[0]).toHaveProperty('column', 'priority');
+    expect(nestedCondition.conditions[0]).toHaveProperty('value', 'High');
+  });
+
+  it("preserves deeply nested groups (3+ levels)", () => {
+    const deeplyNested: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "col1", operator: "=", value: "a" },
+        {
+          operator: "OR",
+          conditions: [
+            { column: "col2", operator: "=", value: "b" },
+            {
+              operator: "AND",
+              conditions: [
+                { column: "col3", operator: "=", value: "c" },
+                {
+                  operator: "OR",
+                  conditions: [
+                    { column: "col4", operator: "=", value: "d" },
+                    { column: "col5", operator: "=", value: "e" }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+
+    // Verify top level
+    expect(deeplyNested.conditions).toHaveLength(2);
+
+    // Verify second level
+    const level2 = deeplyNested.conditions[1] as FilterGroup;
+    expect(level2.operator).toBe("OR");
+    expect(level2.conditions).toHaveLength(2);
+
+    // Verify third level
+    const level3 = level2.conditions[1] as FilterGroup;
+    expect(level3.operator).toBe("AND");
+    expect(level3.conditions).toHaveLength(2);
+
+    // Verify fourth level
+    const level4 = level3.conditions[1] as FilterGroup;
+    expect(level4.operator).toBe("OR");
+    expect(level4.conditions).toHaveLength(2);
+  });
+
+  it("handles empty nested groups", () => {
+    const withEmptyGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "status", operator: "=", value: "Active" },
+        {
+          operator: "OR",
+          conditions: []
+        }
+      ]
+    };
+
+    expect(withEmptyGroup.conditions).toHaveLength(2);
+    const nestedGroup = withEmptyGroup.conditions[1] as FilterGroup;
+    expect(nestedGroup.conditions).toHaveLength(0);
+  });
+
+  it("preserves mixed condition and group types", () => {
+    const mixed: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "status", operator: "=", value: "Active" },
+        { column: "amount", operator: ">", value: 1000 },
+        {
+          operator: "OR",
+          conditions: [
+            { column: "category", operator: "IN", value: ["A", "B"] }
+          ]
+        },
+        { column: "date", operator: ">=", value: "2024-01-01" }
+      ]
+    };
+
+    expect(mixed.conditions).toHaveLength(4);
+    expect('column' in mixed.conditions[0]).toBe(true);
+    expect('column' in mixed.conditions[1]).toBe(true);
+    expect('operator' in mixed.conditions[2] && !('column' in mixed.conditions[2])).toBe(true);
+    expect('column' in mixed.conditions[3]).toBe(true);
   });
 });
 

@@ -150,23 +150,17 @@ export function filtersToGroup(filters: FilterCondition[]): FilterGroup {
 }
 
 /**
- * Convert FilterGroup back to flat FilterCondition array for storage.
- * Flattens nested groups with console warning (dashboards don't support nesting yet).
+ * @deprecated This function is deprecated. Use FilterGroup directly instead.
+ *
+ * Previously used to convert FilterGroup back to flat FilterCondition array for storage.
+ * This flattened nested groups, losing the nested AND/OR logic. Now that dashboards
+ * support nested FilterGroups natively, this conversion is no longer needed.
  *
  * @param group - FilterGroup with potentially nested conditions
- * @returns Flat array of filter conditions
+ * @returns Flat array of filter conditions (nested groups are flattened)
  *
  * @example
- * groupToFilters({
- *   operator: "AND",
- *   conditions: [
- *     { column: "status", operator: "=", value: "Active" },
- *     { column: "amount", operator: ">", value: 1000 }
- *   ]
- * })
- * // Returns: [{ column: "status", ... }, { column: "amount", ... }]
- *
- * // Nested groups are flattened:
+ * // OLD APPROACH (deprecated):
  * groupToFilters({
  *   operator: "AND",
  *   conditions: [
@@ -180,9 +174,14 @@ export function filtersToGroup(filters: FilterCondition[]): FilterGroup {
  *   ]
  * })
  * // Returns: [{ column: "status", ... }, { column: "priority", ... }]
- * // Logs warning: "Nested filter groups not yet supported in dashboards, flattening to AND"
+ * // WARNING: Nested OR group is lost!
+ *
+ * // NEW APPROACH (recommended):
+ * // Just use the FilterGroup directly - no conversion needed
+ * updateConfig({ filters: group });
  */
 export function groupToFilters(group: FilterGroup): FilterCondition[] {
+  console.warn('[DEPRECATED] groupToFilters() is deprecated. Use FilterGroup directly instead of flattening.');
   const conditions: FilterCondition[] = [];
   for (const condition of group.conditions) {
     if ('column' in condition) {

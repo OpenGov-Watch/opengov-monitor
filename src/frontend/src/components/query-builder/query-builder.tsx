@@ -27,16 +27,42 @@ import type {
   OrderByConfig,
   ExpressionColumn,
   JoinConfig,
+  FilterGroup,
+  FilterCondition,
 } from "@/lib/db/types";
 import type { SchemaInfo, ColumnInfo } from "./types";
 import { FilterGroupBuilder } from "@/components/data-table/filter-group-builder";
-import { filtersToGroup, groupToFilters } from "@/lib/query-config-utils";
 
 interface QueryBuilderProps {
   initialConfig?: QueryConfig;
   onChange: (config: QueryConfig) => void;
   onPreview?: (results: unknown[], sql: string) => void;
 }
+
+/**
+ * Ensures filters are in FilterGroup format for UI editing.
+ * Memoizes conversion to avoid creating new objects on every render.
+ */
+const ensureFilterGroup = (() => {
+  const cache = new WeakMap<FilterCondition[], FilterGroup>();
+
+  return (filters: FilterCondition[] | FilterGroup): FilterGroup => {
+    // Already a FilterGroup
+    if (!Array.isArray(filters)) {
+      return filters;
+    }
+
+    // Check cache for arrays
+    if (cache.has(filters)) {
+      return cache.get(filters)!;
+    }
+
+    // Convert legacy flat array to FilterGroup
+    const group: FilterGroup = { operator: "AND", conditions: filters };
+    cache.set(filters, group);
+    return group;
+  };
+})();
 
 const AGGREGATE_FUNCTIONS = ["COUNT", "SUM", "AVG", "MIN", "MAX"] as const;
 const JOIN_TYPES: JoinConfig["type"][] = ["LEFT", "INNER", "RIGHT"];
@@ -50,6 +76,75 @@ const defaultConfig: QueryConfig = {
   groupBy: [],
   orderBy: [],
 };
+
+// Helper to recursively remove filter conditions referencing a specific table
+function filterOutTableReferences(
+  filters: FilterCondition[] | FilterGroup,
+  tableName: string
+): FilterCondition[] | FilterGroup {
+  // Handle legacy flat array format
+  if (Array.isArray(filters)) {
+    return filters.filter((f) => !f.column.startsWith(`${tableName}.`));
+  }
+
+  // Handle FilterGroup format (recursive)
+  const group = filters as FilterGroup;
+  const filteredConditions = group.conditions
+    .map((condition) => {
+      if ('column' in condition) {
+        // It's a FilterCondition - keep if it doesn't reference the table
+        return !condition.column.startsWith(`${tableName}.`) ? condition : null;
+      } else {
+        // It's a nested FilterGroup - recurse
+        const filtered = filterOutTableReferences(condition, tableName);
+        // Only keep if it has conditions
+        if (Array.isArray(filtered)) {
+          return filtered.length > 0 ? { operator: "AND" as const, conditions: filtered } : null;
+        }
+        return (filtered as FilterGroup).conditions.length > 0 ? filtered : null;
+      }
+    })
+    .filter((c): c is FilterCondition | FilterGroup => c !== null);
+
+  return { operator: group.operator, conditions: filteredConditions };
+}
+
+// Helper to build SQL WHERE clause from FilterGroup (recursive)
+function buildFilterSQL(filters: FilterCondition[] | FilterGroup): string {
+  // Handle legacy flat array format
+  if (Array.isArray(filters)) {
+    if (filters.length === 0) return "";
+    const conditions = filters.map((f) => {
+      const colName = `"${f.column}"`;
+      if (f.operator === "IS NULL" || f.operator === "IS NOT NULL") {
+        return `${colName} ${f.operator}`;
+      }
+      return `${colName} ${f.operator} '${f.value}'`;
+    });
+    return conditions.join(" AND ");
+  }
+
+  // Handle FilterGroup format (recursive)
+  const group = filters as FilterGroup;
+  if (!group.conditions || group.conditions.length === 0) return "";
+
+  const conditions = group.conditions.map((condition) => {
+    if ('column' in condition) {
+      // It's a FilterCondition
+      const colName = `"${condition.column}"`;
+      if (condition.operator === "IS NULL" || condition.operator === "IS NOT NULL") {
+        return `${colName} ${condition.operator}`;
+      }
+      return `${colName} ${condition.operator} '${condition.value}'`;
+    } else {
+      // It's a nested FilterGroup - recurse with parentheses
+      const nested = buildFilterSQL(condition);
+      return nested ? `(${nested})` : "";
+    }
+  }).filter(c => c !== "");
+
+  return conditions.join(` ${group.operator} `);
+}
 
 // Helper to detect foreign key relationships based on column naming patterns
 function detectJoinCondition(
@@ -149,15 +244,12 @@ export function QueryBuilder({
       }
     }
 
-    if (config.filters && Array.isArray(config.filters) && config.filters.length > 0) {
-      const conditions = config.filters.map((f) => {
-        const colName = `"${f.column}"`;
-        if (f.operator === "IS NULL" || f.operator === "IS NOT NULL") {
-          return `${colName} ${f.operator}`;
-        }
-        return `${colName} ${f.operator} '${f.value}'`;
-      });
-      parts.push(`WHERE ${conditions.join(" AND ")}`);
+    // WHERE clause - supports both flat arrays and nested FilterGroups
+    if (config.filters) {
+      const whereClause = buildFilterSQL(config.filters);
+      if (whereClause) {
+        parts.push(`WHERE ${whereClause}`);
+      }
     }
 
     if (config.groupBy && config.groupBy.length > 0) {
@@ -256,9 +348,13 @@ export function QueryBuilder({
     onChange(config);
   }, [config, onChange]);
 
-  function updateConfig(updates: Partial<QueryConfig>) {
+  const updateConfig = useCallback((updates: Partial<QueryConfig>) => {
     setConfig((prev) => ({ ...prev, ...updates }));
-  }
+  }, []);
+
+  const handleFilterUpdate = useCallback((group: FilterGroup) => {
+    updateConfig({ filters: group });
+  }, [updateConfig]);
 
   function handleTableChange(tableName: string) {
     // Reset columns, joins, and filters when table changes
@@ -380,10 +476,8 @@ export function QueryBuilder({
       (c) => !c.column.startsWith(`${tableName}.`)
     );
 
-    // Remove filters referencing the deleted table
-    const updatedFilters = Array.isArray(config.filters)
-      ? config.filters.filter((f) => !f.column.startsWith(`${tableName}.`))
-      : config.filters;
+    // Remove filters referencing the deleted table (handles both array and FilterGroup)
+    const updatedFilters = filterOutTableReferences(config.filters, tableName);
 
     // Remove order by clauses referencing the deleted table
     const updatedOrderBy = config.orderBy?.filter(
@@ -815,16 +909,12 @@ export function QueryBuilder({
           {availableColumns.length > 0 && (
             <div className="rounded-md border p-4">
               <FilterGroupBuilder
-                group={filtersToGroup(
-                  Array.isArray(config.filters) ? config.filters : []
-                )}
+                group={ensureFilterGroup(config.filters)}
                 availableColumns={availableColumns.map(col => ({
                   id: col.fullName,
                   name: col.fullName
                 }))}
-                onUpdate={(group) => {
-                  updateConfig({ filters: groupToFilters(group) });
-                }}
+                onUpdate={handleFilterUpdate}
               />
             </div>
           )}
