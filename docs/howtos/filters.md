@@ -229,6 +229,54 @@ filters: [
 ]
 ```
 
+### Working with Nested Filters in Dashboards
+
+Dashboard filters now support the same nested AND/OR logic as shown above, with full persistence to the database.
+
+#### Creating Complex Filter Logic
+
+1. Click "Add Condition" to add a simple filter
+2. Click "Add Group" to create a nested group
+3. Toggle between AND/OR at each group level
+4. Build complex queries like: `(status = 'Active' AND amount > 1000) OR (priority = 'High')`
+
+#### Technical Details
+
+**Data Structure**: All dashboard filters are stored as `FilterGroup` objects in the database `query_config` JSON field.
+
+**Backward Compatibility**: Old dashboards with flat filter arrays are automatically converted when edited. No manual migration needed.
+
+**Performance**: Uses WeakMap caching to prevent creating duplicate objects on every render.
+
+#### Example: Complex Multi-Level Filter
+
+```typescript
+const filters: FilterGroup = {
+  operator: 'AND',
+  conditions: [
+    { column: 'status', operator: '=', value: 'Active' },
+    {
+      operator: 'OR',
+      conditions: [
+        { column: 'amount', operator: '>', value: 1000 },
+        { column: 'priority', operator: '=', value: 'High' }
+      ]
+    }
+  ]
+};
+```
+
+**Generates SQL:**
+```sql
+WHERE status = 'Active' AND (amount > 1000 OR priority = 'High')
+```
+
+This structure:
+- Preserves nested groups through save/load cycles
+- Supports unlimited nesting depth
+- Renders with proper visual indentation in the UI
+- Executes correctly on the backend with proper SQL parentheses
+
 ---
 
 ## 4. Combining Filters
