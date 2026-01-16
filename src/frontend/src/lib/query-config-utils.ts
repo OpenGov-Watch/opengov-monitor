@@ -19,20 +19,66 @@ export interface FilterCondition {
 }
 
 /**
- * Convert TanStack Table sorting state to QueryConfig orderBy format.
+ * Get the key name used in query results for a column definition.
  *
- * @param sorting - TanStack Table sorting state array
- * @returns OrderBy configuration array for QueryConfig
+ * @param col - Column definition from QueryConfig
+ * @returns The key used in result data objects
  *
  * @example
- * sortingStateToOrderBy([{ id: "name", desc: false }])
- * // Returns: [{ column: "name", direction: "ASC" }]
+ * getColumnKey({ column: "c.category", alias: "category" })
+ * // Returns: "category"
+ *
+ * getColumnKey({ column: "amount", aggregateFunction: "SUM" })
+ * // Returns: "sum_amount"
+ *
+ * getColumnKey({ column: "id" })
+ * // Returns: "id"
  */
-export function sortingStateToOrderBy(sorting: SortingState): OrderByConfig[] {
-  return sorting.map(sort => ({
-    column: sort.id,
-    direction: sort.desc ? "DESC" : "ASC"
-  }));
+export function getColumnKey(col: { column: string; alias?: string; aggregateFunction?: string }): string {
+  if (col.alias) return col.alias;
+  if (col.aggregateFunction) {
+    return `${col.aggregateFunction.toLowerCase()}_${col.column.replace(/[.\s]/g, "_")}`;
+  }
+  return col.column;
+}
+
+/**
+ * Convert TanStack Table sorting state to QueryConfig orderBy format.
+ *
+ * For columns with aliases (especially joined columns), resolves column IDs
+ * back to original column references using the provided mapping.
+ *
+ * @param sorting - TanStack Table sorting state array
+ * @param queryConfig - Query configuration with column definitions (optional)
+ * @param columnIdToRef - Mapping from column IDs to original references (optional)
+ * @returns OrderBy configuration array for QueryConfig
+ */
+export function sortingStateToOrderBy(
+  sorting: SortingState,
+  queryConfig?: { columns?: { column: string; alias?: string }[] },
+  columnIdToRef?: Record<string, string>
+): OrderByConfig[] {
+  return sorting.map(sort => {
+    let columnRef = sort.id;
+
+    // Strategy 1: Use columnIdToRef mapping (most reliable)
+    if (columnIdToRef && columnIdToRef[sort.id]) {
+      columnRef = columnIdToRef[sort.id];
+    }
+    // Strategy 2: Look up alias in queryConfig columns (fallback)
+    else if (queryConfig?.columns) {
+      const columnDef = queryConfig.columns.find(c => c.alias === sort.id);
+      if (columnDef) {
+        columnRef = columnDef.column;
+      }
+    }
+    // Strategy 3: Use sort.id as-is (backward compatibility)
+
+    return {
+      column: columnRef,
+      direction: sort.desc ? "DESC" : "ASC"
+    };
+  });
 }
 
 /**

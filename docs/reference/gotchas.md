@@ -57,6 +57,29 @@ TanStack Table can't use `accessorKey` for nested fields like `tally.ayes`:
 { accessorFn: (row) => row["tally.ayes"], id: "tally.ayes" }
 ```
 
+### Joined Columns Need Alias Resolution for Sorting
+
+When using JOINs with aliased columns, sorting requires mapping aliases back to original references:
+
+```typescript
+// QueryConfig defines joined column with alias
+columns: [
+  { column: "c.category", alias: "category" }  // JOIN Categories AS c
+]
+
+// TanStack Table sorts by alias
+sorting: [{ id: "category", desc: false }]
+
+// Must resolve: "category" → "c.category" before sending to backend
+const columnIdToRef = { category: "c.category" };
+orderBy: sortingStateToOrderBy(sorting, queryConfig, columnIdToRef)
+// Result: [{ column: "c.category", direction: "ASC" }]
+```
+
+Without resolution, backend receives `"category"` and prefixes source table → `"Referenda.category"` → error.
+
+See `data-table.tsx` and `query-config-utils.ts` for implementation.
+
 ### Chart Data May Need Pivot
 
 Stacked bar charts expect pivoted data. The frontend auto-transforms when it detects category columns. See `transformDataForStackedBar()` in chart components.

@@ -17,6 +17,7 @@ const DashboardBarChart = lazy(() => import("@/components/charts/bar-chart").the
 const DashboardLineChart = lazy(() => import("@/components/charts/line-chart").then(m => ({ default: m.DashboardLineChart })));
 import { DataTable } from "@/components/data-table/data-table";
 import { loadColumnConfig } from "@/lib/column-renderer";
+import { getColumnKey } from "@/lib/query-config-utils";
 import type {
   DashboardComponent as DashboardComponentType,
   QueryConfig,
@@ -128,15 +129,6 @@ export const DashboardComponent = memo(
       setLoading(false);
     }
   }
-
-  // Helper to get the actual key name used in query results
-  const getColumnKey = (col: { column: string; alias?: string; aggregateFunction?: string }) => {
-    if (col.alias) return col.alias;
-    if (col.aggregateFunction) {
-      return `${col.aggregateFunction.toLowerCase()}_${col.column.replace(/[.\s]/g, "_")}`;
-    }
-    return col.column;
-  };
 
   // Memoize column mapping computation
   const columnMapping: Record<string, string> = useMemo(() => {

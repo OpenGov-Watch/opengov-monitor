@@ -39,7 +39,7 @@ Must follow logical workflow order:
 
 4. **Expression Columns** (optional)
    - Must define computed columns using SQL expressions
-   - Must support aggregate functions: COUNT, SUM, AVG, MIN, MAX
+   - Must support SQL expression columns including aggregates
    - Must work with GROUP BY for aggregations
 
 5. **Filters** (optional)
@@ -90,24 +90,8 @@ Must specify for each join:
 
 ## Filter System Requirements
 
-Must use `FilterGroupBuilder` component with full nested group support.
-
-### Data Format
-- Must store filters as `FilterGroup` (not flat array)
-- Must support nested AND/OR groups at arbitrary depth
-- Must preserve nested structure through save/load cycles
-- Must automatically convert legacy `FilterCondition[]` to `FilterGroup`
-
-### Integration
-- Must use memoized `ensureFilterGroup()` helper for backward compatibility
-- Must use stable `onUpdate` callback to prevent unnecessary re-renders
-- Must NOT flatten nested groups on update
-
-### Filter Group Structure
-- Must support AND and OR operators at group level
-- Must allow unlimited nesting depth
-- Must support adding/removing conditions dynamically
-- Must support adding/removing nested groups
+- Must support nested AND/OR filter groups with unlimited depth
+- Must support adding/removing conditions and nested groups dynamically
 - Must preserve filter structure when saving to database
 
 ### Operators
@@ -126,12 +110,8 @@ When using aggregates (COUNT, SUM, AVG, MIN, MAX):
 
 ## Security Requirements
 
+- Must be secure against SQL injection and malicious queries
 - Must limit queries to allowlisted tables only
-- Must validate all query inputs
-- Must sanitize expressions and values
-- Must prevent SQL injection
-- Must prevent subqueries
-- Must prevent UNION operations
 
 ## Preview Requirements
 

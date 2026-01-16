@@ -656,4 +656,195 @@ describe("Database Queries", () => {
       });
     });
   });
+
+  // ==========================================================================
+  // Bulk Update Category Validation
+  // ==========================================================================
+
+  describe("Bulk Update Category Validation", () => {
+    beforeEach(() => {
+      // Seed categories for validation tests
+      seedTestData(testDb, TABLE_NAMES.categories, fixtures.categories);
+    });
+
+    describe("bulkUpdateReferenda", () => {
+      it("allows empty category and subcategory (no category)", () => {
+        const items = [
+          {
+            id: 1,
+            category: "",
+            subcategory: "",
+            notes: "",
+            hide_in_spends: 0,
+          },
+        ];
+
+        // Should not throw
+        expect(() => queries.bulkUpdateReferenda(items)).not.toThrow();
+      });
+
+      it("rejects empty category with non-empty subcategory", () => {
+        const items = [
+          {
+            id: 2,
+            category: "",
+            subcategory: "NonExistentSubcategory",
+            notes: "",
+            hide_in_spends: 0,
+          },
+        ];
+
+        expect(() => queries.bulkUpdateReferenda(items)).toThrow(/non-existent categories/);
+      });
+
+      it("rejects non-existent category with empty subcategory", () => {
+        const items = [
+          {
+            id: 3,
+            category: "NonExistentCategory",
+            subcategory: "",
+            notes: "",
+            hide_in_spends: 0,
+          },
+        ];
+
+        expect(() => queries.bulkUpdateReferenda(items)).toThrow(/non-existent categories/);
+      });
+
+      it("accepts valid category/subcategory pair", () => {
+        const items = [
+          {
+            id: 4,
+            category: "Development",
+            subcategory: "Infrastructure",
+            notes: "",
+            hide_in_spends: 0,
+          },
+        ];
+
+        // Should not throw
+        expect(() => queries.bulkUpdateReferenda(items)).not.toThrow();
+      });
+    });
+
+    describe("bulkUpdateChildBounties", () => {
+      it("allows empty category and subcategory (no category)", () => {
+        const items = [
+          {
+            identifier: "1-1",
+            category: "",
+            subcategory: "",
+            notes: "",
+            hide_in_spends: 0,
+          },
+        ];
+
+        // Should not throw
+        expect(() => queries.bulkUpdateChildBounties(items)).not.toThrow();
+      });
+
+      it("rejects empty category with non-empty subcategory", () => {
+        const items = [
+          {
+            identifier: "1-2",
+            category: "",
+            subcategory: "NonExistentSubcategory",
+            notes: "",
+            hide_in_spends: 0,
+          },
+        ];
+
+        expect(() => queries.bulkUpdateChildBounties(items)).toThrow(/non-existent categories/);
+      });
+
+      it("rejects non-existent category with empty subcategory", () => {
+        const items = [
+          {
+            identifier: "1-3",
+            category: "NonExistentCategory",
+            subcategory: "",
+            notes: "",
+            hide_in_spends: 0,
+          },
+        ];
+
+        expect(() => queries.bulkUpdateChildBounties(items)).toThrow(/non-existent categories/);
+      });
+
+      it("accepts valid category/subcategory pair", () => {
+        const items = [
+          {
+            identifier: "1-4",
+            category: "Development",
+            subcategory: "Infrastructure",
+            notes: "",
+            hide_in_spends: 0,
+          },
+        ];
+
+        // Should not throw
+        expect(() => queries.bulkUpdateChildBounties(items)).not.toThrow();
+      });
+    });
+
+    describe("bulkUpdateBounties", () => {
+      it("allows empty category and subcategory (no category)", () => {
+        const items = [
+          {
+            id: 1,
+            category: "",
+            subcategory: "",
+            notes: "",
+            hide_in_spends: 0,
+          },
+        ];
+
+        // Should not throw
+        expect(() => queries.bulkUpdateBounties(items)).not.toThrow();
+      });
+
+      it("rejects empty category with non-empty subcategory", () => {
+        const items = [
+          {
+            id: 2,
+            category: "",
+            subcategory: "NonExistentSubcategory",
+            notes: "",
+            hide_in_spends: 0,
+          },
+        ];
+
+        expect(() => queries.bulkUpdateBounties(items)).toThrow(/non-existent categories/);
+      });
+
+      it("rejects non-existent category with empty subcategory", () => {
+        const items = [
+          {
+            id: 3,
+            category: "NonExistentCategory",
+            subcategory: "",
+            notes: "",
+            hide_in_spends: 0,
+          },
+        ];
+
+        expect(() => queries.bulkUpdateBounties(items)).toThrow(/non-existent categories/);
+      });
+
+      it("accepts valid category/subcategory pair", () => {
+        const items = [
+          {
+            id: 4,
+            category: "Development",
+            subcategory: "Infrastructure",
+            notes: "",
+            hide_in_spends: 0,
+          },
+        ];
+
+        // Should not throw
+        expect(() => queries.bulkUpdateBounties(items)).not.toThrow();
+      });
+    });
+  });
 });

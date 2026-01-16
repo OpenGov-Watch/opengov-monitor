@@ -45,4 +45,4 @@ If your changes affect Docker, supervisord, or startup scripts:
 - Verify: `curl http://localhost/api/health`
 - Check: `docker compose exec opengov-monitor supervisorctl status`
 
-See [deploy/CLAUDE.md](deploy/CLAUDE.md) for full pre-deployment checklist.
+See [src/deploy/CLAUDE.md](src/deploy/CLAUDE.md) for full pre-deployment checklist.

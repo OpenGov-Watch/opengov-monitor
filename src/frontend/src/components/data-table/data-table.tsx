@@ -34,7 +34,7 @@ import { ViewSelector } from "./view-selector";
 import { useViewState, SavedView } from "@/hooks/use-view-state";
 import { QueryConfig, QueryExecuteResponse, DataTableEditConfig, FacetQueryConfig, FacetQueryResponse } from "@/lib/db/types";
 import { generateColumns } from "@/lib/auto-columns";
-import { sortingStateToOrderBy, convertFiltersToQueryConfig } from "@/lib/query-config-utils";
+import { getColumnKey, sortingStateToOrderBy, convertFiltersToQueryConfig } from "@/lib/query-config-utils";
 import { cn } from "@/lib/utils";
 import { loadColumnConfig } from "@/lib/column-renderer";
 
@@ -144,6 +144,20 @@ export function DataTable<TData>({
   const setColumnFilters = setViewColumnFilters;
   const clearViewState = clearView;
 
+  // Build mapping from column result keys to original column references
+  // Uses the same pattern as Dashboard for consistency
+  // This allows sortingStateToOrderBy to resolve joined columns correctly
+  const columnIdToRef = useMemo(() => {
+    const mapping: Record<string, string> = {};
+    if (baseQueryConfig?.columns && Array.isArray(baseQueryConfig.columns)) {
+      for (const col of baseQueryConfig.columns) {
+        const key = getColumnKey(col);
+        mapping[key] = col.column;
+      }
+    }
+    return mapping;
+  }, [baseQueryConfig]);
+
   // BUILD COMPLETE QUERY CONFIG
   // Merge base config with dynamic sorting/filtering/pagination state
   const queryConfig = useMemo<QueryConfig>(() => {
@@ -158,13 +172,13 @@ export function DataTable<TData>({
 
     return {
       ...baseQueryConfig,
-      orderBy: sortingStateToOrderBy(sorting),
+      orderBy: sortingStateToOrderBy(sorting, baseQueryConfig, columnIdToRef),
       filters: mergedFilters,
       groupBy: groupBy ? [groupBy] : baseQueryConfig.groupBy,
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
     };
-  }, [baseQueryConfig, sorting, columnFilters, filterGroup, groupBy, pagination, defaultFilters]);
+  }, [baseQueryConfig, sorting, columnFilters, filterGroup, groupBy, pagination, defaultFilters, columnIdToRef]);
 
   useEffect(() => {
     // Debounce fetch to prevent blocking on every keystroke/change

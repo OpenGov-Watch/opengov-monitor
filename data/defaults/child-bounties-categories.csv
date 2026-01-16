@@ -44,7 +44,7 @@ identifier,category,subcategory,notes,hide_in_spends
 33-1543,Outreach,Advertising/Influencers,,0
 33-1545,Outreach,Advertising/Influencers,,0
 33-1546,Outreach,Advertising/Influencers,,0
-46-1547,,Advertising/Influencers,,0
+46-1547,Outreach,Advertising/Influencers,,0
 17-336,Talent & Education,PBA,,0
 33-1663,Outreach,Advertising/Influencers,,0
 33-1692,Outreach,Advertising/Influencers,,0
@@ -294,7 +294,7 @@ identifier,category,subcategory,notes,hide_in_spends
 17-1084,Outreach,Events/Conference Attendance & Side Events,,0
 17-1085,Outreach,Events/Conference Attendance & Side Events,,0
 17-1086,Outreach,Events/Conference Attendance & Side Events,,0
-43-1190,,Events/Conference Attendance & Side Events,,0
+43-1190,Outreach,Events/Conference Attendance & Side Events,,0
 17-1215,Outreach,Events/Conference Attendance & Side Events,,0
 17-1686,Outreach,Events/Conference Attendance & Side Events,,0
 17-1687,Outreach,Events/Conference Attendance & Side Events,,0
@@ -307,7 +307,7 @@ identifier,category,subcategory,notes,hide_in_spends
 17-1990,Outreach,Events/Conference Attendance & Side Events,,0
 17-2183,Outreach,Events/Conference Attendance & Side Events,,0
 17-2252,Outreach,Events/Conference Attendance & Side Events,,0
-43-2401,,Events/Conference Attendance & Side Events,,0
+43-2401,Outreach,Events/Conference Attendance & Side Events,,0
 17-2422,Outreach,Events/Conference Attendance & Side Events,,0
 17-2447,Outreach,Events/Conference Attendance & Side Events,,0
 17-2563,Outreach,Events/Conference Attendance & Side Events,,0
@@ -319,7 +319,7 @@ identifier,category,subcategory,notes,hide_in_spends
 17-2911,Outreach,Events/Conference Attendance & Side Events,,0
 17-3136,Outreach,Events/Conference Attendance & Side Events,,0
 17-3138,Outreach,Events/Conference Attendance & Side Events,,0
-43-3217,,Events/Conference Attendance & Side Events,,0
+43-3217,Outreach,Events/Conference Attendance & Side Events,,0
 17-3349,Outreach,Events/Conference Attendance & Side Events,,0
 17-3350,Outreach,Events/Conference Attendance & Side Events,,0
 17-3367,Outreach,Events/Conference Attendance & Side Events,,0
@@ -327,23 +327,23 @@ identifier,category,subcategory,notes,hide_in_spends
 17-3377,Outreach,Events/Conference Attendance & Side Events,,0
 17-3590,Outreach,Events/Conference Attendance & Side Events,,0
 17-3592,Outreach,Events/Conference Attendance & Side Events,,0
-43-3601,,Events/Conference Attendance & Side Events,,0
+43-3601,Outreach,Events/Conference Attendance & Side Events,,0
 17-3606,Outreach,Events/Conference Attendance & Side Events,,0
 17-3803,Outreach,Events/Conference Attendance & Side Events,,0
 17-3804,Outreach,Events/Conference Attendance & Side Events,,0
-43-3814,,Events/Conference Attendance & Side Events,,0
-43-3815,,Events/Conference Attendance & Side Events,,0
+43-3814,Outreach,Events/Conference Attendance & Side Events,,0
+43-3815,Outreach,Events/Conference Attendance & Side Events,,0
 17-3872,Outreach,Events/Conference Attendance & Side Events,,0
 17-3873,Outreach,Events/Conference Attendance & Side Events,,0
 17-3874,Outreach,Events/Conference Attendance & Side Events,,0
 17-3879,Outreach,Events/Conference Attendance & Side Events,,0
-43-3884,,Events/Conference Attendance & Side Events,,0
+43-3884,Outreach,Events/Conference Attendance & Side Events,,0
 17-3891,Outreach,Events/Conference Attendance & Side Events,,0
-43-3925,,Events/Conference Attendance & Side Events,,0
-43-3926,,Events/Conference Attendance & Side Events,,0
+43-3925,Outreach,Events/Conference Attendance & Side Events,,0
+43-3926,Outreach,Events/Conference Attendance & Side Events,,0
 17-3929,Outreach,Events/Conference Attendance & Side Events,,0
-43-3932,,Events/Conference Attendance & Side Events,,0
-43-3935,,Events/Conference Attendance & Side Events,,0
+43-3932,Outreach,Events/Conference Attendance & Side Events,,0
+43-3935,Outreach,Events/Conference Attendance & Side Events,,0
 17-4101,Outreach,Events/Conference Attendance & Side Events,,0
 17-4110,Outreach,Events/Conference Attendance & Side Events,,0
 17-1,Outreach,Events/Conference Attendance & Side Events,,0
@@ -356,7 +356,7 @@ identifier,category,subcategory,notes,hide_in_spends
 17-19,Outreach,Events/Conference Attendance & Side Events,,0
 17-20,Outreach,Events/Conference Attendance & Side Events,,0
 17-23,Outreach,Events/Conference Attendance & Side Events,,0
-43-64,,Events/Conference Attendance & Side Events,,0
+43-64,Outreach,Events/Conference Attendance & Side Events,,0
 17-42,Outreach,Events/Conference Attendance & Side Events,,0
 17-44,Outreach,Events/Conference Attendance & Side Events,,0
 17-45,Outreach,Events/Conference Attendance & Side Events,,0
@@ -438,8 +438,8 @@ identifier,category,subcategory,notes,hide_in_spends
 52-40,Talent & Education,Trainings & Hackathon,,0
 17-43,Talent & Education,Trainings & Hackathon,,0
 17-46,Talent & Education,Trainings & Hackathon,,0
-59-0,,Governance,,0
-43-3934,,Events/Conference Attendance & Side Events,,0
+59-0,Development,Governance,,0
+43-3934,Outreach,Events/Conference Attendance & Side Events,,0
 33-2921,Outreach,Social Media & Community Management,,0
 33-3065,Outreach,Social Media & Community Management,,0
 17-66,Talent & Education,Trainings & Hackathon,,0
@@ -455,8 +455,8 @@ identifier,category,subcategory,notes,hide_in_spends
 33-3581,Outreach,Social Media & Community Management,,0
 33-3582,Outreach,Social Media & Community Management,,0
 33-3686,Outreach,Social Media & Community Management,,0
-59-1,,Governance,,0
-59-3,,SDKs,,0
+59-1,Development,Governance,,0
+59-3,Development,SDKs,,0
 33-3691,Outreach,Social Media & Community Management,,0
 33-3692,Outreach,Social Media & Community Management,,0
 33-3693,Outreach,Social Media & Community Management,,0
@@ -535,6 +535,6 @@ identifier,category,subcategory,notes,hide_in_spends
 33-169,Talent & Education,Trainings & Hackathon,,0
 33-157,Outreach,Social Media & Community Management,,0
 33-160,Outreach,Social Media & Community Management,,0
-59-8,,SDKs,,0
-59-9,,SDKs,,0
+59-8,Development,SDKs,,0
+59-9,Development,SDKs,,0
 43-146,Talent & Education,Trainings & Hackathon,,0
