@@ -1,0 +1,6 @@
+- Before starting, make sure that git status is clean. If not, stop and let the user know to commit their work first.
+- Check the GitHub issue with the number in the argument.
+- Open a new branch for the Github Issue
+- If it is a frontend change, use the `react-best-practices` skill throughout the planning and coding process.
+- enter plan mode. if you have any questions about the issue, ask the user thoroughly.
+- check against CLAUDE.md planning rules.
