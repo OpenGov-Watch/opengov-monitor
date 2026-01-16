@@ -5,6 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { subsquareUrls } from "@/lib/urls";
 import { useAuth } from "@/contexts/auth-context";
 import { SavedView } from "@/hooks/use-view-state";
+import {
+  CategorySelector,
+  ReadOnlyCategorySelector,
+} from "@/components/data-table/editable-cells";
 import type {
   ChildBounty,
   Category,
@@ -69,6 +73,8 @@ export default function ChildBountiesPage() {
         { column: "notes" },
         { column: "hide_in_spends" },
         { column: "b.name", alias: "parentBountyName" },
+        { column: "parent_cat.category", alias: "parentCategory" },
+        { column: "parent_cat.subcategory", alias: "parentSubcategory" },
       ],
       joins: [
         {
@@ -87,6 +93,15 @@ export default function ChildBountiesPage() {
           on: {
             left: "Child Bounties.parentBountyId",
             right: "b.id",
+          },
+        },
+        {
+          type: "LEFT" as const,
+          table: "Categories",
+          alias: "parent_cat",
+          on: {
+            left: "b.category_id",
+            right: "parent_cat.id",
           },
         },
       ]
@@ -173,13 +188,38 @@ export default function ChildBountiesPage() {
       category_id: {
         header: "Category",
         cell: ({ row }: { row: any }) => {
-          const category = row.original.category;
-          const subcategory = row.original.subcategory;
-          return category ? `${category} > ${subcategory || ""}` : null;
+          const categoryId = row.original.category_id;
+          const parentCategory = row.original.parentCategory;
+          const parentSubcategory = row.original.parentSubcategory;
+
+          if (isAuthenticated) {
+            return (
+              <CategorySelector
+                categoryId={categoryId}
+                categories={categories}
+                onChange={async (newCategoryId) => {
+                  await api.childBounties.update(row.original.identifier, {
+                    category_id: newCategoryId,
+                  });
+                }}
+                parentCategory={parentCategory}
+                parentSubcategory={parentSubcategory}
+              />
+            );
+          }
+
+          return (
+            <ReadOnlyCategorySelector
+              categoryId={categoryId}
+              categories={categories}
+              parentCategory={parentCategory}
+              parentSubcategory={parentSubcategory}
+            />
+          );
         },
       },
     }),
-    []
+    [isAuthenticated, categories]
   );
 
   return (

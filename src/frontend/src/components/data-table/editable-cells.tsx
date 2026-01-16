@@ -140,12 +140,16 @@ interface CategorySelectorProps {
   categoryId: number | null;
   categories: Category[];
   onChange: (categoryId: number | null) => void;
+  parentCategory?: string | null;
+  parentSubcategory?: string | null;
 }
 
 export function CategorySelector({
   categoryId,
   categories,
   onChange,
+  parentCategory,
+  parentSubcategory,
 }: CategorySelectorProps) {
   const current = categories.find((c) => c.id === categoryId);
   const [selectedCat, setSelectedCat] = useState<string | null>(
@@ -164,17 +168,49 @@ export function CategorySelector({
     .sort((a, b) => a.subcategory.localeCompare(b.subcategory));
 
   const handleCategoryChange = (cat: string | null) => {
-    setSelectedCat(cat);
     if (!cat) {
+      handleCategoryNone();
+      return;
+    }
+
+    setSelectedCat(cat);
+    const current = categories.find((c) => c.id === categoryId);
+    const currentSubcategory = current?.subcategory;
+    const subs = categories.filter((c) => c.category === cat);
+
+    // If current subcategory exists in new category → keep it
+    const subcategoryExists = subs.some((s) => s.subcategory === currentSubcategory);
+    if (subcategoryExists && currentSubcategory) {
+      const catId = findCategoryId(cat, currentSubcategory, categories);
+      onChange(catId);
+    } else {
+      // Default to "Other"
+      const otherCatId = findCategoryId(cat, "Other", categories);
+      onChange(otherCatId !== null ? otherCatId : subs[0]?.id || null);
+    }
+  };
+
+  const handleCategoryNone = () => {
+    setSelectedCat(null);
+    if (!parentCategory) {
       onChange(null);
       return;
     }
-    // Auto-select if only one subcategory exists
-    const subs = categories.filter((c) => c.category === cat);
-    if (subs.length === 1) {
-      onChange(subs[0].id);
+
+    // Check if current subcategory is valid for parent category
+    const current = categories.find((c) => c.id === categoryId);
+    const currentSubcategory = current?.subcategory;
+    const parentSubcats = categories.filter((c) => c.category === parentCategory);
+    const subcatValid = parentSubcats.some((s) => s.subcategory === currentSubcategory);
+
+    if (subcatValid && currentSubcategory) {
+      const catId = findCategoryId(parentCategory, currentSubcategory, categories);
+      onChange(catId);
+    } else if (parentSubcategory) {
+      const catId = findCategoryId(parentCategory, parentSubcategory, categories);
+      onChange(catId);
     } else {
-      onChange(null); // Clear until subcategory selected
+      onChange(null);
     }
   };
 
@@ -188,7 +224,15 @@ export function CategorySelector({
         }
       >
         <SelectTrigger className="h-8 w-[120px] text-xs">
-          <SelectValue placeholder="Category" />
+          <SelectValue
+            placeholder={
+              parentCategory ? (
+                <span className="text-muted-foreground">{parentCategory}</span>
+              ) : (
+                "Category"
+              )
+            }
+          />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="__none__">
@@ -208,15 +252,28 @@ export function CategorySelector({
       {/* Subcategory Dropdown */}
       <Select
         value={categoryId?.toString() || "__none__"}
-        onValueChange={(val) =>
-          onChange(val === "__none__" ? null : parseInt(val))
-        }
+        onValueChange={(val) => {
+          if (val === "__none__") {
+            const otherCatId = findCategoryId(selectedCat, "Other", categories);
+            onChange(otherCatId !== null ? otherCatId : null);
+          } else {
+            onChange(parseInt(val));
+          }
+        }}
         disabled={!selectedCat}
       >
         <SelectTrigger
           className={cn("h-8 w-[140px] text-xs", !selectedCat && "opacity-50")}
         >
-          <SelectValue placeholder="Subcategory" />
+          <SelectValue
+            placeholder={
+              parentSubcategory ? (
+                <span className="text-muted-foreground">{parentSubcategory}</span>
+              ) : (
+                "Subcategory"
+              )
+            }
+          />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="__none__">
@@ -238,16 +295,36 @@ export function CategorySelector({
 interface ReadOnlyCategorySelectorProps {
   categoryId: number | null;
   categories: Category[];
+  parentCategory?: string | null;
+  parentSubcategory?: string | null;
 }
 
 export function ReadOnlyCategorySelector({
   categoryId,
   categories,
+  parentCategory,
+  parentSubcategory,
 }: ReadOnlyCategorySelectorProps) {
   const current = categories.find((c) => c.id === categoryId);
+
+  if (!current && (parentCategory || parentSubcategory)) {
+    return (
+      <span className="text-xs text-muted-foreground">
+        {parentCategory || ""}
+        {parentSubcategory && (
+          <>
+            <ChevronRight className="inline h-3 w-3 mx-0.5" />
+            {parentSubcategory}
+          </>
+        )}
+      </span>
+    );
+  }
+
   if (!current) {
     return <span className="text-muted-foreground text-xs">-</span>;
   }
+
   return (
     <span className="text-xs">
       {current.category}

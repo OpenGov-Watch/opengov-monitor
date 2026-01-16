@@ -204,7 +204,7 @@ export default function ReferendaPage() {
 ```
 
 **Editable column types:**
-- `category-selector`: Dropdown with category → subcategory cascade
+- `category-selector`: Dropdown with category → subcategory cascade. Supports `parentCategory` and `parentSubcategory` for inheritance (see Child Bounties example)
 - `text`: Inline text input (saves on blur/Enter)
 - `checkbox`: Toggle checkbox
 
@@ -685,11 +685,87 @@ Override formatting via `columnOverrides` prop or update column-renderer.ts.
 
 ---
 
+## Category Inheritance Example (Child Bounties)
+
+For entities that inherit categories from parents, use `columnOverrides` with `CategorySelector`:
+
+```typescript
+import { CategorySelector, ReadOnlyCategorySelector } from "@/components/data-table/editable-cells";
+
+const queryConfig: QueryConfig = useMemo(() => ({
+  sourceTable: "ChildBounties",
+  columns: [
+    { column: "identifier" },
+    { column: "category_id" },
+    { column: "parent_cat.category", alias: "parentCategory" },
+    { column: "parent_cat.subcategory", alias: "parentSubcategory" },
+  ],
+  joins: [
+    {
+      type: "LEFT",
+      table: "Bounties",
+      alias: "b",
+      on: { left: "ChildBounties.parentBountyId", right: "b.id" }
+    },
+    {
+      type: "LEFT",
+      table: "Categories",
+      alias: "parent_cat",
+      on: { left: "b.category_id", right: "parent_cat.id" }
+    }
+  ],
+  orderBy: [{ column: "identifier", direction: "ASC" }],
+  limit: 1000
+}), []);
+
+const columnOverrides = useMemo(() => ({
+  category_id: {
+    header: "Category",
+    cell: ({ row }: { row: any }) => {
+      const categoryId = row.original.category_id;
+      const parentCategory = row.original.parentCategory;
+      const parentSubcategory = row.original.parentSubcategory;
+
+      if (isAuthenticated) {
+        return (
+          <CategorySelector
+            categoryId={categoryId}
+            categories={categories}
+            onChange={async (newCategoryId) => {
+              await api.childBounties.update(row.original.identifier, {
+                category_id: newCategoryId,
+              });
+            }}
+            parentCategory={parentCategory}
+            parentSubcategory={parentSubcategory}
+          />
+        );
+      }
+
+      return (
+        <ReadOnlyCategorySelector
+          categoryId={categoryId}
+          categories={categories}
+          parentCategory={parentCategory}
+          parentSubcategory={parentSubcategory}
+        />
+      );
+    },
+  },
+}), [isAuthenticated, categories]);
+```
+
+**Inheritance behavior:**
+- When `category_id` is NULL, displays parent's category/subcategory as grayed placeholder
+- Selecting "None" inherits from parent with matching subcategory or parent's subcategory
+- Changing category preserves subcategory if available, otherwise defaults to "Other"
+
 ## Examples in Codebase
 
 - **Simple read-only**: `frontend/src/pages/fellowship.tsx`
 - **JOINs + editing + filters**: `frontend/src/pages/referenda.tsx`
 - **Custom rendering + views**: `frontend/src/pages/treasury.tsx`
+- **Category inheritance**: `frontend/src/pages/child-bounties.tsx`
 
 ---
 

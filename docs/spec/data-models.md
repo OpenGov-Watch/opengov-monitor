@@ -45,7 +45,11 @@ Value fields: `DOT`, `USD_proposal_time`, `USD_latest`
 
 Manual fields: `category_id` (FK), `notes`, `hide_in_spends`
 
-**Category inheritance**: When `category_id` is NULL, UI displays parent bounty's category as grayed placeholder. User can override by selecting category or inherit by selecting "None".
+**Category inheritance**: Child bounties inherit parent bounty's category when `category_id` is NULL:
+- UI displays parent's `category` and `subcategory` as grayed placeholders via `parentCategory` and `parentSubcategory` (from JOIN on parent bounty's category)
+- User can override by selecting a category
+- Selecting "None" for category inherits from parent with matching subcategory if available, otherwise uses parent's subcategory
+- Changing category preserves subcategory if it exists in new category, otherwise defaults to "Other"
 
 ### Fellowship Treasury Spend
 
