@@ -31,6 +31,7 @@ interface GenerateColumnsOptions<TData> {
   facetedFilters?: string[];
   columnOverrides?: Record<string, Partial<ColumnDef<TData>>>;
   columnMapping?: Record<string, string>;
+  dashboardMode?: boolean;
 }
 
 export function generateColumns<TData>(
@@ -44,6 +45,7 @@ export function generateColumns<TData>(
     facetedFilters = [],
     columnOverrides = {},
     columnMapping = {},
+    dashboardMode = false,
   } = options;
 
   if (data.length === 0) return [];
@@ -241,7 +243,7 @@ export function generateColumns<TData>(
         }
 
         // Standard rendering via column config
-        return renderCellValue(value, renderConfig, row.original as any);
+        return renderCellValue(value, renderConfig, row.original as any, dashboardMode);
       },
     };
 
@@ -273,26 +275,49 @@ function formatColumnName(name: string): string {
     .replace(/\bUsdt\b/gi, "USDT");
 }
 
-function renderCellValue(value: any, config: ColumnRenderConfig, row: any) {
+function renderCellValue(value: any, config: ColumnRenderConfig, row: any, dashboardMode: boolean = false) {
+  // Helper to get text content for title attribute
+  const getTextContent = (val: any): string => {
+    if (val === null || val === undefined) return "-";
+    if (typeof val === "string" || typeof val === "number") return String(val);
+    return "";
+  };
+
+  // Helper to wrap content with dashboard overflow handling
+  const wrapWithOverflow = (content: React.ReactNode, title?: string) => {
+    if (!dashboardMode) return content;
+    return (
+      <div
+        className="overflow-hidden text-ellipsis whitespace-nowrap"
+        title={title || getTextContent(value)}
+      >
+        {content}
+      </div>
+    );
+  };
+
   // Handle null/undefined based on column type
   if (value === null || value === undefined) {
     const nullDisplay = <span className="text-muted-foreground">-</span>;
 
     // Right-align null values for currency and number columns
     if (config.render === "currency" || config.render === "number") {
-      return <div className="text-right">{nullDisplay}</div>;
+      return wrapWithOverflow(
+        <div className="text-right">{nullDisplay}</div>,
+        "-"
+      );
     }
 
-    return nullDisplay;
+    return wrapWithOverflow(nullDisplay, "-");
   }
 
   switch (config.render) {
     case "badge":
       if (typeof value === "string") {
         const variant = getBadgeVariant(value, config);
-        return <Badge variant={variant}>{value}</Badge>;
+        return wrapWithOverflow(<Badge variant={variant}>{value}</Badge>, value);
       }
-      return value;
+      return wrapWithOverflow(value);
 
     case "link":
       if (typeof value === "string" || typeof value === "number") {
@@ -305,7 +330,7 @@ function renderCellValue(value: any, config: ColumnRenderConfig, row: any) {
           url = String(value);
         }
 
-        return (
+        return wrapWithOverflow(
           <a
             href={url}
             target="_blank"
@@ -313,28 +338,43 @@ function renderCellValue(value: any, config: ColumnRenderConfig, row: any) {
             className="font-medium hover:underline text-blue-600"
           >
             {value}
-          </a>
+          </a>,
+          String(value)
         );
       }
-      return value;
+      return wrapWithOverflow(value);
 
     case "number":
       const formattedNumber = formatValue(value, config);
       if (config.color === "green") {
-        return <div className="text-right"><span className="text-green-600">{formattedNumber}</span></div>;
+        return wrapWithOverflow(
+          <div className="text-right"><span className="text-green-600">{formattedNumber}</span></div>,
+          formattedNumber
+        );
       }
       if (config.color === "red") {
-        return <div className="text-right"><span className="text-red-600">{formattedNumber}</span></div>;
+        return wrapWithOverflow(
+          <div className="text-right"><span className="text-red-600">{formattedNumber}</span></div>,
+          formattedNumber
+        );
       }
-      return <div className="text-right">{formattedNumber}</div>;
+      return wrapWithOverflow(
+        <div className="text-right">{formattedNumber}</div>,
+        formattedNumber
+      );
 
     case "currency":
-      return <div className="text-right">{formatValue(value, config)}</div>;
+      const formattedCurrency = formatValue(value, config);
+      return wrapWithOverflow(
+        <div className="text-right">{formattedCurrency}</div>,
+        formattedCurrency
+      );
 
     case "date":
     case "address":
     case "text":
     default:
-      return formatValue(value, config);
+      const formattedValue = formatValue(value, config);
+      return wrapWithOverflow(formattedValue, formattedValue);
   }
 }
