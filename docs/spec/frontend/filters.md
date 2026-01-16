@@ -41,9 +41,28 @@ Must provide multi-select dropdown filters for DataTable columns showing all uni
 - Must remove all selections on Clear
 
 ### State Management
-- Must store pending selections locally before applying
-- Must commit filters to table state on Apply
-- Must maintain filter state in view persistence
+
+**Unified State Requirements:**
+- Must share filter state with FilterGroupBuilder to prevent filter conflicts
+- Must use single source of truth for all filter operations
+- Must read applied filter values from shared state
+- Must write selections to shared state on Apply
+- Must merge with existing filters from other sources without overwriting
+- Must store pending selections locally before applying (transaction pattern)
+- Must maintain backward compatibility with existing saved views
+
+**Required State Flow:**
+1. Must read current filter values when user opens filter
+2. Must store selections locally while user makes changes
+3. Must commit selections to shared state only when user clicks Apply
+4. Must revert local selections when user clicks Cancel (no state change)
+5. Must allow FilterGroupBuilder to see and modify same filters
+
+**Integration Requirements:**
+- Must ensure faceted filters and advanced filters work together
+- Must display all active filters in both UIs
+- Must prevent filter state conflicts between UIs
+- Must preserve apply/cancel transaction pattern for user experience
 
 ### Integration
 - Must integrate with DataTable via `facetedFilters` prop listing column IDs
@@ -146,15 +165,18 @@ Must provide full-text search across all visible table columns.
 ## State Persistence Requirements
 
 ### DataTable Filters
-- Must store column filters in TanStack Table state
-- Must persist to localStorage per table
-- Must support saving in named views
+- Must store filters in unified state shared with FilterGroupBuilder
+- Must persist unified filter state to localStorage per table
+- Must support saving unified filter state in named views
 - Must support URL sharing via base64 encoding
+- Must use non-blocking state updates to maintain UI responsiveness
+- Must maintain backward compatibility with existing saved views
 
 ### QueryBuilder Filters
 - Must store in query configuration filter structure
 - Must persist to database with dashboard component
 - Must execute server-side via API
+- Must share same filter type definition with DataTable
 
 ### Global Search
 - Must store in TanStack Table global filter state

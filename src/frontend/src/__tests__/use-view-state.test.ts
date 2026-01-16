@@ -133,6 +133,42 @@ describe("useViewState", () => {
 
       expect(result.current.pagination).toEqual({ pageIndex: 5, pageSize: 100 });
     });
+
+    it("updates filterGroup state", () => {
+      const { result } = renderHook(() => useViewState("test-table"));
+
+      const filterGroup = {
+        operator: "AND" as const,
+        conditions: [
+          { column: "status", operator: "IN" as const, value: ["Active", "Pending"] },
+        ],
+      };
+
+      act(() => {
+        result.current.setFilterGroup(filterGroup);
+      });
+
+      expect(result.current.filterGroup).toEqual(filterGroup);
+    });
+
+    it("setFilterGroup is wrapped in startTransition for non-blocking updates", () => {
+      const { result } = renderHook(() => useViewState("test-table"));
+
+      const filterGroup = {
+        operator: "AND" as const,
+        conditions: [
+          { column: "status", operator: "IN" as const, value: ["Active"] },
+          { column: "track", operator: "IN" as const, value: ["root"] },
+        ],
+      };
+
+      // This should not throw and should update without blocking
+      act(() => {
+        result.current.setFilterGroup(filterGroup);
+      });
+
+      expect(result.current.filterGroup).toEqual(filterGroup);
+    });
   });
 
   describe("saveViewState", () => {
@@ -174,6 +210,59 @@ describe("useViewState", () => {
         { replace: true }
       );
     });
+
+    it("persists filterGroup to localStorage", () => {
+      const { result } = renderHook(() => useViewState("test-table"));
+
+      const filterGroup = {
+        operator: "AND" as const,
+        conditions: [
+          { column: "status", operator: "IN" as const, value: ["Active", "Pending"] },
+          { column: "amount", operator: ">" as const, value: 1000 },
+        ],
+      };
+
+      act(() => {
+        result.current.setFilterGroup(filterGroup);
+      });
+
+      act(() => {
+        result.current.saveViewState();
+      });
+
+      const savedValue = localStorageMock.setItem.mock.calls[0][1];
+      const parsed = JSON.parse(savedValue);
+      expect(parsed.filterGroup).toEqual(filterGroup);
+    });
+
+    it("persists filterGroup to URL params", () => {
+      const { result } = renderHook(() => useViewState("test-table"));
+
+      const filterGroup = {
+        operator: "AND" as const,
+        conditions: [
+          { column: "status", operator: "IN" as const, value: ["Active"] },
+        ],
+      };
+
+      act(() => {
+        result.current.setFilterGroup(filterGroup);
+      });
+
+      act(() => {
+        result.current.saveViewState();
+      });
+
+      // URL should be updated with view param
+      expect(mockNavigate).toHaveBeenCalled();
+      const callArgs = mockNavigate.mock.calls[0][0];
+      expect(callArgs).toMatch(/\/test\?view=/);
+
+      // Verify filterGroup was saved to localStorage (which is what gets encoded to URL)
+      const savedValue = localStorageMock.setItem.mock.calls[0][1];
+      const parsed = JSON.parse(savedValue);
+      expect(parsed.filterGroup).toEqual(filterGroup);
+    });
   });
 
   describe("loadViewState", () => {
@@ -195,6 +284,30 @@ describe("useViewState", () => {
       expect(result.current.sorting).toEqual([{ id: "date", desc: true }]);
       expect(result.current.columnFilters).toEqual([{ id: "status", value: "pending" }]);
       expect(result.current.pagination).toEqual({ pageIndex: 1, pageSize: 25 });
+    });
+
+    it("loads filterGroup from URL params", () => {
+      const filterGroup = {
+        operator: "AND" as const,
+        conditions: [
+          { column: "status", operator: "IN" as const, value: ["Active", "Pending"] },
+          { column: "track", operator: "IN" as const, value: ["root"] },
+        ],
+      };
+      const viewState = {
+        sorting: [],
+        columnFilters: [],
+        columnVisibility: {},
+        pagination: { pageIndex: 0, pageSize: 100 },
+        filterGroup,
+      };
+      const encoded = btoa(JSON.stringify(viewState));
+      mockSearchParams.set("view", encoded);
+
+      const { result } = renderHook(() => useViewState("test-table"));
+
+      // State should be loaded from URL including filterGroup
+      expect(result.current.filterGroup).toEqual(filterGroup);
     });
 
     it("handles missing localStorage entry gracefully", () => {
@@ -254,6 +367,29 @@ describe("useViewState", () => {
       expect(result.current.columnFilters).toEqual([]);
       expect(result.current.columnVisibility).toEqual({});
       expect(result.current.pagination).toEqual({ pageIndex: 0, pageSize: 100 });
+    });
+
+    it("resets filterGroup to undefined", () => {
+      const { result } = renderHook(() => useViewState("test-table"));
+
+      const filterGroup = {
+        operator: "AND" as const,
+        conditions: [
+          { column: "status", operator: "IN" as const, value: ["Active"] },
+        ],
+      };
+
+      act(() => {
+        result.current.setFilterGroup(filterGroup);
+      });
+
+      expect(result.current.filterGroup).toEqual(filterGroup);
+
+      act(() => {
+        result.current.clearViewState();
+      });
+
+      expect(result.current.filterGroup).toBeUndefined();
     });
 
     it("clears URL params", () => {
