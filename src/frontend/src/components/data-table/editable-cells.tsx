@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { ChevronRight } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -151,21 +151,33 @@ export function CategorySelector({
   parentCategory,
   parentSubcategory,
 }: CategorySelectorProps) {
-  const current = categories.find((c) => c.id === categoryId);
+  // Create Map for O(1) lookups by ID
+  const categoryMap = useMemo(
+    () => new Map(categories.map((c) => [c.id, c])),
+    [categories]
+  );
+
+  const current = categoryMap.get(categoryId ?? -1);
   const [selectedCat, setSelectedCat] = useState<string | null>(
     current?.category || null
   );
 
   // Sync selected category when categoryId prop changes
   useEffect(() => {
-    const cat = categories.find((c) => c.id === categoryId);
+    const cat = categoryMap.get(categoryId ?? -1);
     setSelectedCat(cat?.category || null);
-  }, [categoryId, categories]);
+  }, [categoryId, categoryMap]);
 
-  const uniqueCategories = [...new Set(categories.map((c) => c.category))].sort();
-  const availableSubcategories = categories
-    .filter((c) => c.category === selectedCat)
-    .sort((a, b) => a.subcategory.localeCompare(b.subcategory));
+  const uniqueCategories = useMemo(
+    () => [...new Set(categories.map((c) => c.category))].sort(),
+    [categories]
+  );
+  const availableSubcategories = useMemo(
+    () => categories
+      .filter((c) => c.category === selectedCat)
+      .sort((a, b) => a.subcategory.localeCompare(b.subcategory)),
+    [categories, selectedCat]
+  );
 
   const handleCategoryChange = (cat: string | null) => {
     if (!cat) {
@@ -305,7 +317,12 @@ export function ReadOnlyCategorySelector({
   parentCategory,
   parentSubcategory,
 }: ReadOnlyCategorySelectorProps) {
-  const current = categories.find((c) => c.id === categoryId);
+  // Create Map for O(1) lookup by ID
+  const categoryMap = useMemo(
+    () => new Map(categories.map((c) => [c.id, c])),
+    [categories]
+  );
+  const current = categoryMap.get(categoryId ?? -1);
 
   if (!current && (parentCategory || parentSubcategory)) {
     return (

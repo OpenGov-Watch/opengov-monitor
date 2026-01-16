@@ -129,3 +129,9 @@
     scrollbar-width: none;
   }
 }
+
+/* Performance: content-visibility for table rows (skip rendering off-screen rows) */
+table tbody tr {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 48px;
+}

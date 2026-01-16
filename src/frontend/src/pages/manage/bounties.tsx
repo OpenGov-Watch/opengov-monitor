@@ -24,7 +24,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Pencil, Plus, ChevronRight } from "lucide-react";
+import Pencil from "lucide-react/dist/esm/icons/pencil";
+import Plus from "lucide-react/dist/esm/icons/plus";
+import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import type { Bounty, Category } from "@/lib/db/types";
 import { formatNumber, cn } from "@/lib/utils";
 import { RequireAuth } from "@/components/auth/require-auth";

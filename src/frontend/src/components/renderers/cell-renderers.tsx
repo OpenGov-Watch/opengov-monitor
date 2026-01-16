@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ExternalLink } from "lucide-react";
+import ExternalLink from "lucide-react/dist/esm/icons/external-link";
 import { Badge } from "@/components/ui/badge";
 import { type ColumnRenderConfig } from "@/lib/column-renderer";
 

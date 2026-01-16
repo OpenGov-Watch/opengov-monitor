@@ -76,8 +76,9 @@ function parseCSVLine(line: string): string[] {
   const result: string[] = [];
   let current = "";
   let inQuotes = false;
+  const len = line.length;
 
-  for (let i = 0; i < line.length; i++) {
+  for (let i = 0; i < len; i++) {
     const char = line[i];
     if (char === '"') {
       // Handle escaped quotes ("")

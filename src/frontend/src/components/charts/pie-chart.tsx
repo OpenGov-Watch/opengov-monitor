@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import {
   PieChart as RechartsPieChart,
   Pie,
@@ -43,19 +43,21 @@ const DEFAULT_COLORS = [
   "#d0ed57",
 ];
 
-// Custom tooltip component with formatted values
-function CustomTooltip({
+// Memoized custom tooltip component with formatted values
+const CustomTooltip = memo(function CustomTooltip({
   active,
   payload,
   tableName,
   valueColumn,
   columnMapping,
+  total,
 }: {
   active?: boolean;
   payload?: Array<{ name: string; value: number; payload: PieChartData }>;
   tableName: string;
   valueColumn: string;
   columnMapping?: Record<string, string>;
+  total: number;
 }) {
   if (!active || !payload || !payload.length) return null;
 
@@ -63,7 +65,7 @@ function CustomTooltip({
   const sourceColumn = columnMapping?.[valueColumn] ?? valueColumn;
   const config = getColumnConfig(tableName, sourceColumn);
   const formatted = formatValue(entry.value, config);
-  const percent = ((entry.payload.value / payload.reduce((sum, p) => sum + p.payload.value, 0)) * 100).toFixed(1);
+  const percent = total > 0 ? ((entry.payload.value / total) * 100).toFixed(1) : "0.0";
 
   return (
     <div className="bg-background border rounded-lg shadow-lg p-3">
@@ -75,7 +77,7 @@ function CustomTooltip({
       <p className="text-sm text-muted-foreground">{percent}%</p>
     </div>
   );
-}
+});
 
 export const DashboardPieChart = memo(
   function DashboardPieChart({
@@ -87,6 +89,12 @@ export const DashboardPieChart = memo(
     valueColumn = "value",
     columnMapping,
   }: DashboardPieChartProps) {
+    // Pre-compute total for tooltip percentage calculation
+    const total = useMemo(
+      () => data.reduce((sum, item) => sum + item.value, 0),
+      [data]
+    );
+
     return (
       <ResponsiveContainer
         width="100%"
@@ -116,7 +124,7 @@ export const DashboardPieChart = memo(
           </Pie>
           {showTooltip && (
             <Tooltip
-              content={<CustomTooltip tableName={tableName} valueColumn={valueColumn} columnMapping={columnMapping} />}
+              content={<CustomTooltip tableName={tableName} valueColumn={valueColumn} columnMapping={columnMapping} total={total} />}
             />
           )}
           {showLegend && <Legend />}

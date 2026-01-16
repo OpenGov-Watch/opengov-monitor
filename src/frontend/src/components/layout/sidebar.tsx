@@ -1,29 +1,34 @@
 import { Link, useLocation } from "react-router";
 import { useState, useEffect } from "react";
-import { LucideIcon, LogIn, LogOut, User, ChevronLeft, ChevronRight, Server, ChevronDown } from "lucide-react";
-import {
-  Vote,
-  Wallet,
-  Gift,
-  Users,
-  Calendar,
-  UserCheck,
-  Clock,
-  TimerOff,
-  PieChart,
-  Tags,
-  Coins,
-  FileBox,
-  Database,
-  LayoutDashboard,
-  RefreshCw,
-  TrendingUp,
-  AlertTriangle,
-} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import LogIn from "lucide-react/dist/esm/icons/log-in";
+import LogOut from "lucide-react/dist/esm/icons/log-out";
+import User from "lucide-react/dist/esm/icons/user";
+import ChevronLeft from "lucide-react/dist/esm/icons/chevron-left";
+import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
+import Server from "lucide-react/dist/esm/icons/server";
+import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
+import Vote from "lucide-react/dist/esm/icons/vote";
+import Wallet from "lucide-react/dist/esm/icons/wallet";
+import Gift from "lucide-react/dist/esm/icons/gift";
+import Users from "lucide-react/dist/esm/icons/users";
+import Calendar from "lucide-react/dist/esm/icons/calendar";
+import UserCheck from "lucide-react/dist/esm/icons/user-check";
+import Clock from "lucide-react/dist/esm/icons/clock";
+import TimerOff from "lucide-react/dist/esm/icons/timer-off";
+import PieChart from "lucide-react/dist/esm/icons/pie-chart";
+import Tags from "lucide-react/dist/esm/icons/tags";
+import Coins from "lucide-react/dist/esm/icons/coins";
+import FileBox from "lucide-react/dist/esm/icons/file-box";
+import Database from "lucide-react/dist/esm/icons/database";
+import LayoutDashboard from "lucide-react/dist/esm/icons/layout-dashboard";
+import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
+import TrendingUp from "lucide-react/dist/esm/icons/trending-up";
+import AlertTriangle from "lucide-react/dist/esm/icons/alert-triangle";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { useApi } from "@/contexts/api-context";
-import { getApiBase } from "@/api/client";
+import { useDashboards } from "@/hooks/use-dashboards";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -48,11 +53,6 @@ interface NavSection {
   title?: string;
   items: NavItem[];
   requiresAuth?: boolean;
-}
-
-interface Dashboard {
-  id: number;
-  name: string;
 }
 
 // Static navigation sections
@@ -115,7 +115,7 @@ export function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps = 
   const pathname = location.pathname;
   const { isAuthenticated, user, logout, isLoading } = useAuth();
   const { apiBase, presets, currentPreset, setApi } = useApi();
-  const [dashboards, setDashboards] = useState<Dashboard[]>([]);
+  const { dashboards } = useDashboards();
   const [collapsed, setCollapsed] = useState(() => {
     return localStorage.getItem("sidebar-collapsed") === "true";
   });
@@ -124,14 +124,6 @@ export function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps = 
   useEffect(() => {
     localStorage.setItem("sidebar-collapsed", String(collapsed));
   }, [collapsed]);
-
-  // Fetch dashboards list (using dynamic API base)
-  useEffect(() => {
-    fetch(`${getApiBase()}/dashboards`)
-      .then((res) => res.json())
-      .then((data) => setDashboards(Array.isArray(data) ? data : []))
-      .catch(() => setDashboards([]));
-  }, [apiBase]); // Re-fetch when API changes
 
   // Build navigation based on auth state
   const visibleNavigation = [

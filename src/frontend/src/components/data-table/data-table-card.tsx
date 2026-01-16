@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { Row, flexRender } from "@tanstack/react-table";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
+import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 

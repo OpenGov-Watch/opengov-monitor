@@ -72,6 +72,43 @@ Centralized in `src/api/client.ts`:
 - `RequireAuth` component for protected routes
 - Cell-level auth: conditional rendering (edit vs readonly)
 
+## Data Fetching
+
+### SWR Hooks
+Shared data uses SWR for automatic deduplication:
+- `useCategories()` - Categories across all pages
+- `useDashboards()` - Dashboard list in sidebar
+
+Located in `src/frontend/src/hooks/`.
+
+### Page-Level Fetching
+Pages fetch their own data via `fetch()` in useEffect. DataTable handles query execution internally via `/api/query/execute`.
+
+## Performance Patterns
+
+### Icon Imports
+Use direct imports from lucide-react to avoid loading entire icon library:
+```typescript
+// ✅ Correct
+import Check from "lucide-react/dist/esm/icons/check"
+
+// ❌ Avoid (loads all icons)
+import { Check } from "lucide-react"
+```
+
+Type imports use the barrel:
+```typescript
+import type { LucideIcon } from "lucide-react"
+```
+
+### Memoization
+- Chart tooltips: `React.memo()` to prevent re-renders on hover
+- Category lookups: `useMemo()` with Map for O(1) access
+- Dashboard components: Custom `memo()` comparison functions
+
+### CSS Performance
+Table rows use `content-visibility: auto` for virtualization-like benefits without complexity. See `globals.css`.
+
 ## Key Files
 
 ```
@@ -89,7 +126,9 @@ src/frontend/src/
 │   ├── query-builder/        # SQL query builder
 │   └── tables/               # Column definitions
 ├── hooks/
-│   └── use-auth.ts           # Auth state
+│   ├── use-auth.ts           # Auth state
+│   ├── use-categories.ts     # SWR category hook
+│   └── use-dashboards.ts     # SWR dashboard hook
 └── lib/
     ├── auto-columns.ts       # Column generation
     └── column-renderer.ts    # Value formatting

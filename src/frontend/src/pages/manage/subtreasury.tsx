@@ -25,7 +25,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Pencil, Trash2, Plus, ChevronRight } from "lucide-react";
+import Pencil from "lucide-react/dist/esm/icons/pencil";
+import Trash2 from "lucide-react/dist/esm/icons/trash-2";
+import Plus from "lucide-react/dist/esm/icons/plus";
+import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import type { Subtreasury, Category } from "@/lib/db/types";
 import { formatNumber, formatDate, cn } from "@/lib/utils";
 import { RequireAuth } from "@/components/auth/require-auth";

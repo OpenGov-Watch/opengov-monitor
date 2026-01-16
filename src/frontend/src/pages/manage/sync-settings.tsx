@@ -9,7 +9,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Upload, FileText, Check, AlertCircle, Loader2, Database } from "lucide-react";
+import Upload from "lucide-react/dist/esm/icons/upload";
+import FileText from "lucide-react/dist/esm/icons/file-text";
+import Check from "lucide-react/dist/esm/icons/check";
+import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";
+import Loader2 from "lucide-react/dist/esm/icons/loader-2";
+import Database from "lucide-react/dist/esm/icons/database";
 import { api } from "@/api/client";
 import {
   parseReferendaCSV,

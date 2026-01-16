@@ -3,7 +3,14 @@
 import { useState, useEffect, useMemo, lazy, Suspense, memo, useRef } from "react";
 import Markdown from "react-markdown";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, RefreshCw, AlertCircle, Copy, ChevronDown, ChevronUp, Download } from "lucide-react";
+import Pencil from "lucide-react/dist/esm/icons/pencil";
+import Trash2 from "lucide-react/dist/esm/icons/trash-2";
+import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
+import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";
+import Copy from "lucide-react/dist/esm/icons/copy";
+import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
+import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
+import Download from "lucide-react/dist/esm/icons/download";
 import { exportChartAsPNG, copyChartToClipboard } from "@/lib/chart-export";
 
 // Import transform functions directly to avoid bundling chart components

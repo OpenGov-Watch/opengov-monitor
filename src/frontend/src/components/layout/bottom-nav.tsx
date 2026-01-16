@@ -1,5 +1,9 @@
 import { Link, useLocation } from "react-router";
-import { Vote, Wallet, Users, LayoutDashboard, Menu } from "lucide-react";
+import Vote from "lucide-react/dist/esm/icons/vote";
+import Wallet from "lucide-react/dist/esm/icons/wallet";
+import Users from "lucide-react/dist/esm/icons/users";
+import LayoutDashboard from "lucide-react/dist/esm/icons/layout-dashboard";
+import Menu from "lucide-react/dist/esm/icons/menu";
 import { cn } from "@/lib/utils";
 
 interface BottomNavProps {

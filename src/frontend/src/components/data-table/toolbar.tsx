@@ -2,7 +2,14 @@
 
 import * as React from "react";
 import { Table } from "@tanstack/react-table";
-import { X, Download, RotateCcw, Table as TableIcon, LayoutGrid, ChevronDown, ChevronUp, Filter } from "lucide-react";
+import X from "lucide-react/dist/esm/icons/x";
+import Download from "lucide-react/dist/esm/icons/download";
+import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
+import TableIcon from "lucide-react/dist/esm/icons/table";
+import LayoutGrid from "lucide-react/dist/esm/icons/layout-grid";
+import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
+import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
+import Filter from "lucide-react/dist/esm/icons/filter";
 
 import { Button } from "@/components/ui/button";
 import { DataTableColumnVisibility } from "./column-visibility";

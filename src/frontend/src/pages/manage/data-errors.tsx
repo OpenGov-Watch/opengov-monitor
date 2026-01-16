@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Eye } from "lucide-react";
+import Eye from "lucide-react/dist/esm/icons/eye";
 import { RequireAuth } from "@/components/auth/require-auth";
 
 interface DataError {

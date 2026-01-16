@@ -1,7 +1,9 @@
 "use client";
 
 import { Column } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
+import ArrowDown from "lucide-react/dist/esm/icons/arrow-down";
+import ArrowUp from "lucide-react/dist/esm/icons/arrow-up";
+import ChevronsUpDown from "lucide-react/dist/esm/icons/chevrons-up-down";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";

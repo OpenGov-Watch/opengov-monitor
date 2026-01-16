@@ -2,7 +2,11 @@
 
 import * as React from "react";
 import { SortingState } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, Plus, Trash2, ChevronsUpDown } from "lucide-react";
+import ArrowDown from "lucide-react/dist/esm/icons/arrow-down";
+import ArrowUp from "lucide-react/dist/esm/icons/arrow-up";
+import Plus from "lucide-react/dist/esm/icons/plus";
+import Trash2 from "lucide-react/dist/esm/icons/trash-2";
+import ChevronsUpDown from "lucide-react/dist/esm/icons/chevrons-up-down";
 import {
   Dialog,
   DialogContent,

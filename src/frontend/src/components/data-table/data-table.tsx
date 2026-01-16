@@ -25,7 +25,8 @@ import {
   TableFooter,
 } from "@/components/ui/table";
 
-import { Loader2, AlertCircle } from "lucide-react";
+import Loader2 from "lucide-react/dist/esm/icons/loader-2";
+import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";
 
 import { DataTablePagination } from "./pagination";
 import { DataTableToolbar } from "./toolbar";

@@ -20,7 +20,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Trash2, Plus, LayoutDashboard } from "lucide-react";
+import Trash2 from "lucide-react/dist/esm/icons/trash-2";
+import Plus from "lucide-react/dist/esm/icons/plus";
+import LayoutDashboard from "lucide-react/dist/esm/icons/layout-dashboard";
 import type { Dashboard } from "@/lib/db/types";
 import { formatDate } from "@/lib/utils";
 

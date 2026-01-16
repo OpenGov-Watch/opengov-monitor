@@ -2,7 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { DashboardGrid, ComponentEditor } from "@/components/dashboard";
-import { Plus, ArrowLeft, Eye, Check } from "lucide-react";
+import Plus from "lucide-react/dist/esm/icons/plus";
+import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
+import Eye from "lucide-react/dist/esm/icons/eye";
+import Check from "lucide-react/dist/esm/icons/check";
 import type {
   Dashboard,
   DashboardComponent,
@@ -62,15 +65,15 @@ export default function DashboardEditPage() {
     fetchData();
   }, [fetchData]);
 
-  // Sync editingComponent with components array when it updates
+  // Sync editingComponent with components array when it updates (only when editor is open)
   useEffect(() => {
-    if (editingComponent && editingComponent.id) {
+    if (editorOpen && editingComponent && editingComponent.id) {
       const updatedComponent = components.find(c => c.id === editingComponent.id);
       if (updatedComponent && updatedComponent !== editingComponent) {
         setEditingComponent(updatedComponent);
       }
     }
-  }, [components, editingComponent]);
+  }, [components, editingComponent, editorOpen]);
 
   async function handleLayoutChange(componentId: number, gridConfig: GridConfig) {
     try {

@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { DashboardGrid } from "@/components/dashboard";
-import { Pencil, ArrowLeft } from "lucide-react";
+import Pencil from "lucide-react/dist/esm/icons/pencil";
+import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
 import { useAuth } from "@/contexts/auth-context";
 import type { Dashboard, DashboardComponent } from "@/lib/db/types";
 

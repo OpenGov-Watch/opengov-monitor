@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import {
-  Vote,
-  Wallet,
-  Gift,
-  Users,
-  Calendar,
-  UserCheck,
-} from "lucide-react";
+import Vote from "lucide-react/dist/esm/icons/vote";
+import Wallet from "lucide-react/dist/esm/icons/wallet";
+import Gift from "lucide-react/dist/esm/icons/gift";
+import Users from "lucide-react/dist/esm/icons/users";
+import Calendar from "lucide-react/dist/esm/icons/calendar";
+import UserCheck from "lucide-react/dist/esm/icons/user-check";
 import { api } from "@/api/client";
 
 interface TableInfo {

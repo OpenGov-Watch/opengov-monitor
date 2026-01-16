@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { Column } from "@tanstack/react-table";
-import { Check, ChevronDown } from "lucide-react";
+import Check from "lucide-react/dist/esm/icons/check";
+import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";

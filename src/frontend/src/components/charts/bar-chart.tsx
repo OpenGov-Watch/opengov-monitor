@@ -52,8 +52,8 @@ const DEFAULT_COLORS = [
   "#d0ed57",
 ];
 
-// Custom tooltip component with formatted values
-function CustomTooltip({
+// Memoized custom tooltip component with formatted values
+const CustomTooltip = memo(function CustomTooltip({
   active,
   payload,
   label,
@@ -88,7 +88,7 @@ function CustomTooltip({
       })}
     </div>
   );
-}
+});
 
 export const DashboardBarChart = memo(
   function DashboardBarChart({

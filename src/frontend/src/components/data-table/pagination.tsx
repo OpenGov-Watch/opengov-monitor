@@ -1,12 +1,10 @@
 "use client";
 
 import { Table } from "@tanstack/react-table";
-import {
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-} from "lucide-react";
+import ChevronLeft from "lucide-react/dist/esm/icons/chevron-left";
+import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
+import ChevronsLeft from "lucide-react/dist/esm/icons/chevrons-left";
+import ChevronsRight from "lucide-react/dist/esm/icons/chevrons-right";
 
 import { Button } from "@/components/ui/button";
 import {

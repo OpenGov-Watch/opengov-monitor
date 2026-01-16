@@ -1,4 +1,4 @@
-import { Menu } from "lucide-react";
+import Menu from "lucide-react/dist/esm/icons/menu";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router";
 
