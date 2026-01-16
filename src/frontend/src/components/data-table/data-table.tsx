@@ -330,12 +330,12 @@ export function DataTable<TData>({
   // Schema-based dependency to prevent regeneration on every data fetch
   // Only regenerate when column structure changes, not when values change
   const dataSchema = useMemo(
-    () => (data.length > 0 && data[0] ? Object.keys(data[0] as Record<string, unknown>).sort().join(',') : ''),
-    [data.length > 0 && data[0] ? Object.keys(data[0] as Record<string, unknown>).sort().join(',') : '']
+    () => (data && data.length > 0 && data[0] ? Object.keys(data[0] as Record<string, unknown>).sort().join(',') : ''),
+    [data && data.length > 0 && data[0] ? Object.keys(data[0] as Record<string, unknown>).sort().join(',') : '']
   );
 
   const columns = useMemo(() => {
-    if (data.length === 0 || !configLoaded) return [];
+    if (!data || data.length === 0 || !configLoaded) return [];
 
     return generateColumns({
       data,
@@ -382,7 +382,7 @@ export function DataTable<TData>({
 
   // REACT TABLE INSTANCE
   const table = useReactTable({
-    data,
+    data: data ?? [],
     columns,
     state: {
       sorting,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, lazy, Suspense, memo } from "react";
 import Markdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { Pencil, Trash2, RefreshCw, AlertCircle, Copy, ChevronDown, ChevronUp } from "lucide-react";
@@ -30,13 +30,14 @@ interface DashboardComponentProps {
   onDelete?: () => void;
 }
 
-export function DashboardComponent({
-  component,
-  editable = false,
-  onEdit,
-  onDuplicate,
-  onDelete,
-}: DashboardComponentProps) {
+export const DashboardComponent = memo(
+  function DashboardComponent({
+    component,
+    editable = false,
+    onEdit,
+    onDuplicate,
+    onDelete,
+  }: DashboardComponentProps) {
   const [data, setData] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,6 +85,12 @@ export function DashboardComponent({
     loadColumnConfig().then(() => setConfigLoaded(true));
   }, []);
 
+  // Stringify queryConfig for stable useEffect dependency
+  const queryConfigString = useMemo(
+    () => JSON.stringify(queryConfig),
+    [queryConfig]
+  );
+
   useEffect(() => {
     // Text and table components don't need data fetching (DataTable handles it internally)
     if (component.type === "text" || component.type === "table") {
@@ -91,7 +98,7 @@ export function DashboardComponent({
       return;
     }
     fetchData();
-  }, [component.query_config, component.type]);
+  }, [queryConfigString, component.type, component.id]);
 
   async function fetchData() {
     setLoading(true);
@@ -131,28 +138,32 @@ export function DashboardComponent({
   // Memoize column mapping computation
   const columnMapping: Record<string, string> = useMemo(() => {
     const mapping: Record<string, string> = {};
-    for (const col of queryConfig.columns) {
-      const key = getColumnKey(col);
-      mapping[key] = col.column;
+    if (queryConfig.columns && Array.isArray(queryConfig.columns)) {
+      for (const col of queryConfig.columns) {
+        const key = getColumnKey(col);
+        mapping[key] = col.column;
+      }
     }
     return mapping;
   }, [queryConfig.columns]);
 
   // Memoize column identifiers
   const labelColumn = useMemo(
-    () => chartConfig.labelColumn || (queryConfig.columns[0] && getColumnKey(queryConfig.columns[0])),
+    () => chartConfig.labelColumn || (queryConfig.columns?.[0] && getColumnKey(queryConfig.columns[0])),
     [chartConfig.labelColumn, queryConfig.columns]
   );
 
   const valueColumn = useMemo(
-    () => chartConfig.valueColumn || (queryConfig.columns[1] && getColumnKey(queryConfig.columns[1])),
+    () => chartConfig.valueColumn || (queryConfig.columns?.[1] && getColumnKey(queryConfig.columns[1])),
     [chartConfig.valueColumn, queryConfig.columns]
   );
 
   const valueColumns = useMemo(
-    () => queryConfig.columns
-      .filter((c) => getColumnKey(c) !== labelColumn)
-      .map((c) => getColumnKey(c)),
+    () => (queryConfig.columns && Array.isArray(queryConfig.columns))
+      ? queryConfig.columns
+          .filter((c) => getColumnKey(c) !== labelColumn)
+          .map((c) => getColumnKey(c))
+      : [],
     [queryConfig.columns, labelColumn]
   );
 
@@ -368,4 +379,16 @@ export function DashboardComponent({
       <div className="flex-1 p-3 min-h-0 overflow-auto">{renderChart()}</div>
     </div>
   );
-}
+  },
+  (prevProps, nextProps) => {
+    // Custom comparison - only re-render if component data or config actually changed
+    return (
+      prevProps.component.id === nextProps.component.id &&
+      prevProps.component.query_config === nextProps.component.query_config &&
+      prevProps.component.chart_config === nextProps.component.chart_config &&
+      prevProps.component.name === nextProps.component.name &&
+      prevProps.component.type === nextProps.component.type &&
+      prevProps.editable === nextProps.editable
+    );
+  }
+);

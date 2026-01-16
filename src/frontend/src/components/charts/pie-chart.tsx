@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import {
   PieChart as RechartsPieChart,
   Pie,
@@ -76,52 +77,66 @@ function CustomTooltip({
   );
 }
 
-export function DashboardPieChart({
-  data,
-  colors = DEFAULT_COLORS,
-  showLegend = true,
-  showTooltip = true,
-  tableName = "",
-  valueColumn = "value",
-  columnMapping,
-}: DashboardPieChartProps) {
-  return (
-    <ResponsiveContainer
-      width="100%"
-      height="100%"
-      minHeight={200}
-      initialDimension={{ width: 400, height: 200 }}
-    >
-      <RechartsPieChart>
-        <Pie
-          data={data}
-          cx="50%"
-          cy="50%"
-          labelLine={false}
-          outerRadius="80%"
-          fill="#8884d8"
-          dataKey="value"
-          label={({ name, percent }) =>
-            `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
-          }
-        >
-          {data.map((_, index) => (
-            <Cell
-              key={`cell-${index}`}
-              fill={colors[index % colors.length]}
+export const DashboardPieChart = memo(
+  function DashboardPieChart({
+    data,
+    colors = DEFAULT_COLORS,
+    showLegend = true,
+    showTooltip = true,
+    tableName = "",
+    valueColumn = "value",
+    columnMapping,
+  }: DashboardPieChartProps) {
+    return (
+      <ResponsiveContainer
+        width="100%"
+        height="100%"
+        minHeight={200}
+        initialDimension={{ width: 400, height: 200 }}
+      >
+        <RechartsPieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            labelLine={false}
+            outerRadius="80%"
+            fill="#8884d8"
+            dataKey="value"
+            label={({ name, percent }) =>
+              `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
+            }
+          >
+            {data.map((_, index) => (
+              <Cell
+                key={`cell-${index}`}
+                fill={colors[index % colors.length]}
+              />
+            ))}
+          </Pie>
+          {showTooltip && (
+            <Tooltip
+              content={<CustomTooltip tableName={tableName} valueColumn={valueColumn} columnMapping={columnMapping} />}
             />
-          ))}
-        </Pie>
-        {showTooltip && (
-          <Tooltip
-            content={<CustomTooltip tableName={tableName} valueColumn={valueColumn} columnMapping={columnMapping} />}
-          />
-        )}
-        {showLegend && <Legend />}
-      </RechartsPieChart>
-    </ResponsiveContainer>
-  );
-}
+          )}
+          {showLegend && <Legend />}
+        </RechartsPieChart>
+      </ResponsiveContainer>
+    );
+  },
+  (prevProps, nextProps) => {
+    // Custom comparison - only re-render if data or config actually changed
+    return (
+      prevProps.data === nextProps.data &&
+      prevProps.colors === nextProps.colors &&
+      prevProps.showLegend === nextProps.showLegend &&
+      prevProps.showTooltip === nextProps.showTooltip &&
+      prevProps.tableName === nextProps.tableName &&
+      prevProps.valueColumn === nextProps.valueColumn &&
+      prevProps.columnMapping === nextProps.columnMapping
+    );
+  }
+);
 
 export function transformToPieData(
   data: Record<string, unknown>[],
