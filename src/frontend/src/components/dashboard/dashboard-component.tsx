@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo, lazy, Suspense, memo } from "react";
+import { useState, useEffect, useMemo, lazy, Suspense, memo, useRef } from "react";
 import Markdown from "react-markdown";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, RefreshCw, AlertCircle, Copy, ChevronDown, ChevronUp } from "lucide-react";
+import { Pencil, Trash2, RefreshCw, AlertCircle, Copy, ChevronDown, ChevronUp, Download } from "lucide-react";
+import { exportChartAsPNG, copyChartToClipboard } from "@/lib/chart-export";
 
 // Import transform functions directly to avoid bundling chart components
 import { transformToPieData } from "@/components/charts/pie-chart";
@@ -42,6 +43,8 @@ export const DashboardComponent = memo(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [, setConfigLoaded] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const chartContentRef = useRef<HTMLDivElement>(null);
 
   // Memoize parsed configs to prevent refetch loops
   // Use component.id + string value to ensure stability across parent re-renders
@@ -199,6 +202,36 @@ export const DashboardComponent = memo(
     return `table-${component.id}-${filtersKey}`;
   }, [component.id, component.type, queryConfig.filters]);
 
+  // Check if component is a chart type (for export buttons)
+  const isChartType = ["pie", "bar_stacked", "bar_grouped", "line"].includes(component.type);
+
+  async function handleDownloadChart() {
+    if (!chartContentRef.current) return;
+    setIsExporting(true);
+    try {
+      const filename = `${component.name.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.png`;
+      await exportChartAsPNG(chartContentRef.current, filename);
+    } catch (error) {
+      console.error("Failed to download chart:", error);
+      alert("Failed to download chart. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  async function handleCopyChart() {
+    if (!chartContentRef.current) return;
+    setIsExporting(true);
+    try {
+      await copyChartToClipboard(chartContentRef.current);
+    } catch (error) {
+      console.error("Failed to copy chart:", error);
+      alert("Failed to copy chart to clipboard. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   function renderChart() {
     if (loading) {
       return (
@@ -351,6 +384,30 @@ export const DashboardComponent = memo(
               <RefreshCw className="h-3.5 w-3.5" />
             </Button>
           )}
+          {isChartType && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={handleCopyChart}
+                disabled={isExporting || loading}
+                title="Copy chart to clipboard"
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={handleDownloadChart}
+                disabled={isExporting || loading}
+                title="Download chart as PNG"
+              >
+                <Download className="h-3.5 w-3.5" />
+              </Button>
+            </>
+          )}
           {editable && (
             <>
               <Button
@@ -386,7 +443,7 @@ export const DashboardComponent = memo(
       </div>
 
       {/* Content */}
-      <div className="flex-1 p-3 min-h-0 overflow-auto">{renderChart()}</div>
+      <div ref={chartContentRef} className="flex-1 p-3 min-h-0 overflow-auto">{renderChart()}</div>
     </div>
   );
   },
