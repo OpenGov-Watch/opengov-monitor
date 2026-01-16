@@ -108,12 +108,12 @@ export function convertFiltersToQueryConfig(
   columnFilters: ColumnFiltersState,
   filterGroup?: FilterGroup
 ): FilterCondition[] | FilterGroup {
-  // Prefer new filterGroup format if present
+  // Primary: use filterGroup if present (both faceted filters and advanced filter composer write here)
   if (filterGroup && filterGroup.conditions.length > 0) {
     return filterGroup;
   }
 
-  // Fall back to legacy columnFilters
+  // Fallback to legacy columnFilters (for backward compatibility with tables not using filterGroup)
   if (columnFilters && columnFilters.length > 0) {
     return filterStateToQueryFilters(columnFilters);
   }

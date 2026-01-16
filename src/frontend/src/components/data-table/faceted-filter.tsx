@@ -22,22 +22,41 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
+import { FilterGroup } from "@/lib/db/types";
 
 interface DataTableFacetedFilterProps<TData, TValue> {
   column: Column<TData, TValue>;
   title: string;
+  filterGroup?: FilterGroup;
+  onFilterGroupChange?: (group: FilterGroup | undefined) => void;
 }
 
 export function DataTableFacetedFilter<TData, TValue>({
   column,
   title,
+  filterGroup,
+  onFilterGroupChange,
 }: DataTableFacetedFilterProps<TData, TValue>) {
   const facets = column.getFacetedUniqueValues();
-  const filterValue = column.getFilterValue() as string[];
-  const appliedValues = React.useMemo(() => new Set(filterValue), [filterValue?.join(',')]);
+
+  // Read applied values from filterGroup instead of columnFilters
+  const appliedValues = React.useMemo(() => {
+    if (!filterGroup) return new Set<string>();
+
+    // Find condition for this column in filterGroup
+    const condition = filterGroup.conditions.find((c: any) =>
+      typeof c === 'object' && 'column' in c && c.column === column.id && c.operator === 'IN'
+    );
+
+    if (condition && typeof condition === 'object' && 'value' in condition && Array.isArray(condition.value)) {
+      return new Set(condition.value.map(String));
+    }
+
+    return new Set<string>();
+  }, [filterGroup, column.id]);
 
   // Local state for pending selections (not yet applied)
-  const [pendingValues, setPendingValues] = React.useState<Set<string>>(() => new Set(filterValue));
+  const [pendingValues, setPendingValues] = React.useState<Set<string>>(() => appliedValues);
   const [isOpen, setIsOpen] = React.useState(false);
 
   // Sync pending values when popover opens
@@ -65,8 +84,34 @@ export function DataTableFacetedFilter<TData, TValue>({
   };
 
   const handleApply = () => {
+    if (!onFilterGroupChange) {
+      // Fallback to legacy columnFilters if filterGroup not provided
+      const filterValues = Array.from(pendingValues);
+      column.setFilterValue(filterValues.length ? filterValues : undefined);
+      setIsOpen(false);
+      return;
+    }
+
+    // Write to filterGroup instead
     const filterValues = Array.from(pendingValues);
-    column.setFilterValue(filterValues.length ? filterValues : undefined);
+    const currentGroup = filterGroup || { operator: "AND" as const, conditions: [] };
+
+    // Remove existing condition for this column
+    const otherConditions = currentGroup.conditions.filter((c: any) =>
+      !(typeof c === 'object' && 'column' in c && c.column === column.id)
+    );
+
+    // Add new condition if values selected
+    const newConditions = filterValues.length > 0
+      ? [...otherConditions, { column: column.id, operator: "IN" as const, value: filterValues }]
+      : otherConditions;
+
+    // Update filterGroup
+    const newGroup = newConditions.length > 0
+      ? { operator: currentGroup.operator, conditions: newConditions }
+      : undefined;
+
+    onFilterGroupChange(newGroup);
     setIsOpen(false);
   };
 

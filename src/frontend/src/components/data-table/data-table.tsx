@@ -346,6 +346,8 @@ export function DataTable<TData>({
       columnOverrides,
       columnMapping,
       dashboardMode,
+      filterGroup,
+      onFilterGroupChange: setFilterGroup,
     });
   }, [
     dataSchema, // Changed from 'data' to 'dataSchema' to prevent regeneration on value changes
@@ -357,6 +359,8 @@ export function DataTable<TData>({
     columnMapping,
     configLoaded,
     dashboardMode,
+    filterGroup,
+    setFilterGroup,
   ]);
 
   // VIEW MODE STATE
