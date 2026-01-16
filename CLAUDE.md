@@ -6,6 +6,7 @@ Agent-specific instructions for working on this codebase. For project overview, 
 - Never create, read, update, or delete in the DB without consulting with the user first
 - Never apply DB migrations without explicit user consent
 - Never modify DB migration versions after they have been applied to the production DB
+- Don't use `taskkill`, only your own task kill tool.
 
 ## When planning changes
 - Planning Phase

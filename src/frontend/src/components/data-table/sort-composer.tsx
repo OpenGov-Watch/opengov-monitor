@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { SortingState } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, Trash2, ChevronsUpDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -84,10 +84,10 @@ export function SortComposer({ sorting, setSorting, availableColumns }: SortComp
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8" title="Multi-column sorting">
-          <ArrowUp className="h-4 w-4" />
-          {sorting.length > 1 && (
-            <span className="ml-2 rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
+        <Button variant="outline" size="sm" className="h-8 w-8 p-0 relative" title="Multi-column sorting">
+          <ChevronsUpDown className="h-4 w-4" />
+          {sorting.length > 0 && (
+            <span className="absolute -top-1 -right-1 rounded-full bg-primary w-4 h-4 text-[10px] text-primary-foreground flex items-center justify-center">
               {sorting.length}
             </span>
           )}

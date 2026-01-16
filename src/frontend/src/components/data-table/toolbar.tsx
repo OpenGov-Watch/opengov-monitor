@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Table } from "@tanstack/react-table";
-import { X, Download, RotateCcw, Table as TableIcon, LayoutGrid, ChevronDown, ChevronUp } from "lucide-react";
+import { X, Download, RotateCcw, Table as TableIcon, LayoutGrid, ChevronDown, ChevronUp, Filter } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { DataTableColumnVisibility } from "./column-visibility";
@@ -233,38 +233,6 @@ export function DataTableToolbar<TData>({
               compactMode ? "gap-1" : "gap-2"
             )}
           >
-
-            {/* Group By Dropdown */}
-            {onGroupByChange && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground hidden lg:inline">Group by:</span>
-                <Select
-                  value={groupBy || "none"}
-                  onValueChange={(value) => onGroupByChange(value === "none" ? undefined : value)}
-                >
-                  <SelectTrigger className={cn("w-[150px]", compactMode ? "h-7" : "h-8")}>
-                    <SelectValue placeholder="None" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {table.getAllColumns()
-                      .filter((col) =>
-                        col.getCanSort() && // Only sortable columns can be grouped
-                        col.id !== "actions" && // Exclude action columns
-                        col.id !== "select" // Exclude select columns
-                      )
-                      .map((col) => (
-                        <SelectItem key={col.id} value={col.id}>
-                          {typeof col.columnDef.header === "string"
-                            ? col.columnDef.header
-                            : col.id}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
             {/* Advanced Filters Dialog */}
             {onFilterGroupChange && (
               <Dialog>
@@ -272,11 +240,12 @@ export function DataTableToolbar<TData>({
                   <Button
                     variant="outline"
                     size="sm"
-                    className={cn(compactMode ? "h-7" : "h-8")}
+                    className={cn(compactMode ? "h-7 w-7 p-0" : "h-8 w-8 p-0", "relative")}
+                    title="Advanced Filters"
                   >
-                    Advanced Filters
+                    <Filter className="h-4 w-4" />
                     {filterGroup && filterGroup.conditions.length > 0 && (
-                      <span className="ml-2 rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
+                      <span className="absolute -top-1 -right-1 rounded-full bg-primary w-4 h-4 text-[10px] text-primary-foreground flex items-center justify-center">
                         {filterGroup.conditions.length}
                       </span>
                     )}
@@ -296,6 +265,54 @@ export function DataTableToolbar<TData>({
                   />
                 </DialogContent>
               </Dialog>
+            )}
+
+            {/* Multi-Sort Composer */}
+            <SortComposer
+              sorting={table.getState().sorting}
+              setSorting={table.setSorting}
+              availableColumns={sortableColumns}
+            />
+
+            {/* Reset View */}
+            {!compactMode && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onClearView}
+                className="h-8"
+                title="Reset view"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+            )}
+
+            {/* Group By Dropdown */}
+            {onGroupByChange && (
+              <Select
+                value={groupBy || "none"}
+                onValueChange={(value) => onGroupByChange(value === "none" ? undefined : value)}
+              >
+                <SelectTrigger className={cn("w-[150px]", compactMode ? "h-7" : "h-8")}>
+                  <SelectValue placeholder="Group by..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {table.getAllColumns()
+                    .filter((col) =>
+                      col.getCanSort() && // Only sortable columns can be grouped
+                      col.id !== "actions" && // Exclude action columns
+                      col.id !== "select" // Exclude select columns
+                    )
+                    .map((col) => (
+                      <SelectItem key={col.id} value={col.id}>
+                        {typeof col.columnDef.header === "string"
+                          ? col.columnDef.header
+                          : col.id}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
             )}
           </div>
 
@@ -337,13 +354,6 @@ export function DataTableToolbar<TData>({
           </div>
         )}
 
-        {/* Multi-Sort Composer */}
-        <SortComposer
-          sorting={table.getState().sorting}
-          setSorting={table.setSorting}
-          availableColumns={sortableColumns}
-        />
-
         {/* Clear Filters */}
         {isFiltered && (
           <Button
@@ -356,19 +366,6 @@ export function DataTableToolbar<TData>({
             title="Clear filters"
           >
             <X className="h-4 w-4" />
-          </Button>
-        )}
-
-        {/* Reset View */}
-        {!compactMode && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onClearView}
-            className="h-8"
-            title="Reset view"
-          >
-            <RotateCcw className="h-4 w-4" />
           </Button>
         )}
 
