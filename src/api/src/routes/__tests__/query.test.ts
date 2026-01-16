@@ -291,6 +291,9 @@ describe("Query Builder Security Tests", () => {
           filters: [],
         });
 
+      if (response.status !== 200) {
+        console.error("Response body:", response.body);
+      }
       expect(response.status).toBe(200);
     });
 
