@@ -5,9 +5,10 @@
  * into QueryConfig format for server-side sorting and filtering.
  */
 
-import { describe, it, expect } from "vitest";
-import { sortingStateToOrderBy, filterStateToQueryFilters } from "../query-config-utils";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { sortingStateToOrderBy, filterStateToQueryFilters, filtersToGroup, groupToFilters } from "../query-config-utils";
 import type { SortingState, ColumnFiltersState } from "@tanstack/react-table";
+import type { FilterCondition, FilterGroup } from "@/lib/db/types";
 
 describe("sortingStateToOrderBy", () => {
   it("converts empty sorting state", () => {
@@ -186,5 +187,232 @@ describe("filterStateToQueryFilters", () => {
     expect(result).toEqual([
       { column: "c.category", operator: "LIKE", value: "%Infrastructure%" }
     ]);
+  });
+});
+
+describe("filtersToGroup", () => {
+  it("converts empty array to empty FilterGroup", () => {
+    const filters: FilterCondition[] = [];
+    const result = filtersToGroup(filters);
+    expect(result).toEqual({
+      operator: "AND",
+      conditions: []
+    });
+  });
+
+  it("converts single filter to FilterGroup", () => {
+    const filters: FilterCondition[] = [
+      { column: "status", operator: "=", value: "Active" }
+    ];
+    const result = filtersToGroup(filters);
+    expect(result).toEqual({
+      operator: "AND",
+      conditions: [
+        { column: "status", operator: "=", value: "Active" }
+      ]
+    });
+  });
+
+  it("converts multiple filters to FilterGroup", () => {
+    const filters: FilterCondition[] = [
+      { column: "status", operator: "=", value: "Active" },
+      { column: "amount", operator: ">", value: 1000 },
+      { column: "category", operator: "IN", value: ["Infrastructure", "Events"] }
+    ];
+    const result = filtersToGroup(filters);
+    expect(result).toEqual({
+      operator: "AND",
+      conditions: filters
+    });
+  });
+
+  it("preserves all operator types", () => {
+    const filters: FilterCondition[] = [
+      { column: "col1", operator: "=", value: "test" },
+      { column: "col2", operator: "!=", value: "test" },
+      { column: "col3", operator: ">", value: 100 },
+      { column: "col4", operator: "<", value: 200 },
+      { column: "col5", operator: ">=", value: 50 },
+      { column: "col6", operator: "<=", value: 150 },
+      { column: "col7", operator: "LIKE", value: "%search%" },
+      { column: "col8", operator: "IN", value: ["a", "b", "c"] },
+      { column: "col9", operator: "IS NULL", value: null },
+      { column: "col10", operator: "IS NOT NULL", value: null }
+    ];
+    const result = filtersToGroup(filters);
+    expect(result.conditions).toEqual(filters);
+  });
+});
+
+describe("groupToFilters", () => {
+  // Mock console.warn to prevent test output noise
+  beforeEach(() => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("converts empty FilterGroup to empty array", () => {
+    const group: FilterGroup = {
+      operator: "AND",
+      conditions: []
+    };
+    const result = groupToFilters(group);
+    expect(result).toEqual([]);
+  });
+
+  it("converts FilterGroup with single condition", () => {
+    const group: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "status", operator: "=", value: "Active" }
+      ]
+    };
+    const result = groupToFilters(group);
+    expect(result).toEqual([
+      { column: "status", operator: "=", value: "Active" }
+    ]);
+  });
+
+  it("converts FilterGroup with multiple conditions", () => {
+    const group: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "status", operator: "=", value: "Active" },
+        { column: "amount", operator: ">", value: 1000 }
+      ]
+    };
+    const result = groupToFilters(group);
+    expect(result).toEqual([
+      { column: "status", operator: "=", value: "Active" },
+      { column: "amount", operator: ">", value: 1000 }
+    ]);
+  });
+
+  it("flattens nested FilterGroup with warning", () => {
+    const group: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "status", operator: "=", value: "Active" },
+        {
+          operator: "OR",
+          conditions: [
+            { column: "priority", operator: "=", value: "High" },
+            { column: "urgent", operator: "=", value: 1 }
+          ]
+        }
+      ]
+    };
+    const result = groupToFilters(group);
+    expect(result).toEqual([
+      { column: "status", operator: "=", value: "Active" },
+      { column: "priority", operator: "=", value: "High" },
+      { column: "urgent", operator: "=", value: 1 }
+    ]);
+    expect(console.warn).toHaveBeenCalledWith(
+      'Nested filter groups not yet supported in dashboards, flattening to AND'
+    );
+  });
+
+  it("flattens deeply nested FilterGroups with warnings", () => {
+    const group: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "col1", operator: "=", value: "a" },
+        {
+          operator: "OR",
+          conditions: [
+            { column: "col2", operator: "=", value: "b" },
+            {
+              operator: "AND",
+              conditions: [
+                { column: "col3", operator: "=", value: "c" },
+                { column: "col4", operator: "=", value: "d" }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+    const result = groupToFilters(group);
+    expect(result).toEqual([
+      { column: "col1", operator: "=", value: "a" },
+      { column: "col2", operator: "=", value: "b" },
+      { column: "col3", operator: "=", value: "c" },
+      { column: "col4", operator: "=", value: "d" }
+    ]);
+    expect(console.warn).toHaveBeenCalledTimes(2);
+  });
+
+  it("handles OR operator on root group (still flattens)", () => {
+    const group: FilterGroup = {
+      operator: "OR",
+      conditions: [
+        { column: "status", operator: "=", value: "Active" },
+        { column: "status", operator: "=", value: "Pending" }
+      ]
+    };
+    const result = groupToFilters(group);
+    expect(result).toEqual([
+      { column: "status", operator: "=", value: "Active" },
+      { column: "status", operator: "=", value: "Pending" }
+    ]);
+    expect(console.warn).not.toHaveBeenCalled();
+  });
+
+  it("preserves all operator types during flattening", () => {
+    const group: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "col1", operator: "IN", value: ["a", "b"] },
+        { column: "col2", operator: "IS NULL", value: null },
+        { column: "col3", operator: "IS NOT NULL", value: null },
+        { column: "col4", operator: "LIKE", value: "%test%" }
+      ]
+    };
+    const result = groupToFilters(group);
+    expect(result).toEqual([
+      { column: "col1", operator: "IN", value: ["a", "b"] },
+      { column: "col2", operator: "IS NULL", value: null },
+      { column: "col3", operator: "IS NOT NULL", value: null },
+      { column: "col4", operator: "LIKE", value: "%test%" }
+    ]);
+  });
+});
+
+describe("filtersToGroup and groupToFilters - Round-trip", () => {
+  it("round-trips flat filters without data loss", () => {
+    const originalFilters: FilterCondition[] = [
+      { column: "status", operator: "=", value: "Active" },
+      { column: "amount", operator: ">", value: 1000 },
+      { column: "category", operator: "IN", value: ["Infrastructure", "Events"] }
+    ];
+
+    const group = filtersToGroup(originalFilters);
+    const result = groupToFilters(group);
+
+    expect(result).toEqual(originalFilters);
+  });
+
+  it("round-trips empty filters", () => {
+    const originalFilters: FilterCondition[] = [];
+
+    const group = filtersToGroup(originalFilters);
+    const result = groupToFilters(group);
+
+    expect(result).toEqual([]);
+  });
+
+  it("round-trips single filter", () => {
+    const originalFilters: FilterCondition[] = [
+      { column: "id", operator: "=", value: 123 }
+    ];
+
+    const group = filtersToGroup(originalFilters);
+    const result = groupToFilters(group);
+
+    expect(result).toEqual(originalFilters);
   });
 });

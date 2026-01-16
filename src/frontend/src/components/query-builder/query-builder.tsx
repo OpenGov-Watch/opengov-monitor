@@ -24,12 +24,13 @@ import {
 import type {
   QueryConfig,
   ColumnSelection,
-  FilterCondition,
   OrderByConfig,
   ExpressionColumn,
   JoinConfig,
 } from "@/lib/db/types";
 import type { SchemaInfo, ColumnInfo } from "./types";
+import { FilterGroupBuilder } from "@/components/data-table/filter-group-builder";
+import { filtersToGroup, groupToFilters } from "@/lib/query-config-utils";
 
 interface QueryBuilderProps {
   initialConfig?: QueryConfig;
@@ -38,17 +39,6 @@ interface QueryBuilderProps {
 }
 
 const AGGREGATE_FUNCTIONS = ["COUNT", "SUM", "AVG", "MIN", "MAX"] as const;
-const FILTER_OPERATORS = [
-  "=",
-  "!=",
-  ">",
-  "<",
-  ">=",
-  "<=",
-  "LIKE",
-  "IS NULL",
-  "IS NOT NULL",
-] as const;
 const JOIN_TYPES: JoinConfig["type"][] = ["LEFT", "INNER", "RIGHT"];
 
 const defaultConfig: QueryConfig = {
@@ -322,33 +312,6 @@ export function QueryBuilder({
       columns: config.columns.map((c) =>
         c.column === columnName ? { ...c, aggregateFunction } : c
       ),
-    });
-  }
-
-  function addFilter() {
-    if (availableColumns.length === 0) return;
-    const existingFilters = Array.isArray(config.filters) ? config.filters : [];
-    updateConfig({
-      filters: [
-        ...existingFilters,
-        { column: availableColumns[0].fullName, operator: "=", value: "" },
-      ],
-    });
-  }
-
-  function updateFilter(index: number, updates: Partial<FilterCondition>) {
-    if (!Array.isArray(config.filters)) return;
-    updateConfig({
-      filters: config.filters.map((f, i) =>
-        i === index ? { ...f, ...updates } : f
-      ),
-    });
-  }
-
-  function removeFilter(index: number) {
-    if (!Array.isArray(config.filters)) return;
-    updateConfig({
-      filters: config.filters.filter((_, i) => i !== index),
     });
   }
 
@@ -848,71 +811,21 @@ export function QueryBuilder({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label>Filters</Label>
-            <Button variant="outline" size="sm" onClick={addFilter}>
-              <Plus className="h-4 w-4 mr-1" /> Add Filter
-            </Button>
           </div>
-          {Array.isArray(config.filters) && config.filters.length > 0 && (
-            <div className="rounded-md border p-4 space-y-3">
-              {config.filters.map((filter, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <Select
-                    value={filter.column}
-                    onValueChange={(v) => updateFilter(index, { column: v })}
-                  >
-                    <SelectTrigger className="w-40">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableColumns.map((col) => (
-                        <SelectItem key={col.fullName} value={col.fullName}>
-                          {col.fullName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <Select
-                    value={filter.operator}
-                    onValueChange={(v) =>
-                      updateFilter(index, {
-                        operator: v as FilterCondition["operator"],
-                      })
-                    }
-                  >
-                    <SelectTrigger className="w-32">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {FILTER_OPERATORS.map((op) => (
-                        <SelectItem key={op} value={op}>
-                          {op}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  {filter.operator !== "IS NULL" &&
-                    filter.operator !== "IS NOT NULL" && (
-                      <Input
-                        className="flex-1"
-                        placeholder="Value"
-                        value={filter.value?.toString() || ""}
-                        onChange={(e) =>
-                          updateFilter(index, { value: e.target.value })
-                        }
-                      />
-                    )}
-
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeFilter(index)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+          {availableColumns.length > 0 && (
+            <div className="rounded-md border p-4">
+              <FilterGroupBuilder
+                group={filtersToGroup(
+                  Array.isArray(config.filters) ? config.filters : []
+                )}
+                availableColumns={availableColumns.map(col => ({
+                  id: col.fullName,
+                  name: col.fullName
+                }))}
+                onUpdate={(group) => {
+                  updateConfig({ filters: groupToFilters(group) });
+                }}
+              />
             </div>
           )}
         </div>
