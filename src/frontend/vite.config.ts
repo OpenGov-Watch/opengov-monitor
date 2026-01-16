@@ -39,7 +39,7 @@ export default defineConfig({
             console.error("Proxy error:", err.message);
             if (res && "writeHead" in res && !res.headersSent) {
               res.writeHead(502, { "Content-Type": "application/json" });
-              res.end(JSON.stringify({ error: "API server unavailable" }));
+              res.end(JSON.stringify({ error: "Server unavailable" }));
             }
           });
         },

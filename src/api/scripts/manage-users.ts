@@ -25,7 +25,7 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Database path - check environment or use default relative path
-const DB_PATH = process.env.DATABASE_PATH || path.join(__dirname, "../../../data/polkadot.db");
+const DB_PATH = process.env.DATABASE_PATH || path.join(__dirname, "../../../data/local/polkadot.db");
 
 // Salt rounds for bcrypt
 const SALT_ROUNDS = 12;
@@ -277,7 +277,7 @@ Examples:
   npx tsx scripts/manage-users.ts delete olduser
 
 Environment:
-  DATABASE_PATH      Path to SQLite database (default: ../data/polkadot.db)
+  DATABASE_PATH      Path to SQLite database (default: data/local/polkadot.db)
 `);
 }
 
