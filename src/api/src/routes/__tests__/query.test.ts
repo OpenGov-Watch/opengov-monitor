@@ -60,7 +60,9 @@ beforeAll(() => {
         "DOT_latest" REAL,
         "USD_latest" REAL,
         "category" TEXT,
-        "subcategory" TEXT
+        "subcategory" TEXT,
+        "tally.ayes" REAL,
+        "latest status change" TEXT
       );
 
       CREATE TABLE IF NOT EXISTS "Treasury" (
