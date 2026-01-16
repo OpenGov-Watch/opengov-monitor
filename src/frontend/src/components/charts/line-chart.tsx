@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import {
   LineChart as RechartsLineChart,
   Line,
@@ -89,61 +90,77 @@ function CustomTooltip({
   );
 }
 
-export function DashboardLineChart({
-  data,
-  lines,
-  colors = DEFAULT_COLORS,
-  showLegend = true,
-  showTooltip = true,
-  showGrid = true,
-  showDots = true,
-  tableName = "",
-  columnMapping,
-}: DashboardLineChartProps) {
-  // Get config for first value column to determine Y-axis formatting
-  const firstValueColumn = lines[0]?.dataKey;
-  const sourceColumn = firstValueColumn
-    ? (columnMapping?.[firstValueColumn] ?? firstValueColumn)
-    : null;
-  const yAxisConfig = sourceColumn
-    ? getColumnConfig(tableName, sourceColumn)
-    : { render: "number" as const };
+export const DashboardLineChart = memo(
+  function DashboardLineChart({
+    data,
+    lines,
+    colors = DEFAULT_COLORS,
+    showLegend = true,
+    showTooltip = true,
+    showGrid = true,
+    showDots = true,
+    tableName = "",
+    columnMapping,
+  }: DashboardLineChartProps) {
+    // Get config for first value column to determine Y-axis formatting
+    const firstValueColumn = lines[0]?.dataKey;
+    const sourceColumn = firstValueColumn
+      ? (columnMapping?.[firstValueColumn] ?? firstValueColumn)
+      : null;
+    const yAxisConfig = sourceColumn
+      ? getColumnConfig(tableName, sourceColumn)
+      : { render: "number" as const };
 
-  // Y-axis tick formatter (abbreviated)
-  const yAxisFormatter = (value: number) => formatAbbreviated(value, yAxisConfig);
+    // Y-axis tick formatter (abbreviated)
+    const yAxisFormatter = (value: number) => formatAbbreviated(value, yAxisConfig);
 
-  return (
-    <ResponsiveContainer
-      width="100%"
-      height="100%"
-      minHeight={200}
-      initialDimension={{ width: 400, height: 200 }}
-    >
-      <RechartsLineChart data={data}>
-        {showGrid && <CartesianGrid strokeDasharray="3 3" />}
-        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-        <YAxis tick={{ fontSize: 12 }} tickFormatter={yAxisFormatter} />
-        {showTooltip && (
-          <Tooltip
-            content={<CustomTooltip tableName={tableName} columnMapping={columnMapping} />}
-          />
-        )}
-        {showLegend && <Legend />}
-        {lines.map((line, index) => (
-          <Line
-            key={line.dataKey}
-            type="monotone"
-            dataKey={line.dataKey}
-            name={line.name || line.dataKey}
-            stroke={line.color || colors[index % colors.length]}
-            dot={showDots}
-            activeDot={{ r: 8 }}
-          />
-        ))}
-      </RechartsLineChart>
-    </ResponsiveContainer>
-  );
-}
+    return (
+      <ResponsiveContainer
+        width="100%"
+        height="100%"
+        minHeight={200}
+        initialDimension={{ width: 400, height: 200 }}
+      >
+        <RechartsLineChart data={data}>
+          {showGrid && <CartesianGrid strokeDasharray="3 3" />}
+          <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+          <YAxis tick={{ fontSize: 12 }} tickFormatter={yAxisFormatter} />
+          {showTooltip && (
+            <Tooltip
+              content={<CustomTooltip tableName={tableName} columnMapping={columnMapping} />}
+            />
+          )}
+          {showLegend && <Legend />}
+          {lines.map((line, index) => (
+            <Line
+              key={line.dataKey}
+              type="monotone"
+              dataKey={line.dataKey}
+              name={line.name || line.dataKey}
+              stroke={line.color || colors[index % colors.length]}
+              dot={showDots}
+              activeDot={{ r: 8 }}
+            />
+          ))}
+        </RechartsLineChart>
+      </ResponsiveContainer>
+    );
+  },
+  (prevProps, nextProps) => {
+    // Custom comparison - only re-render if data or config actually changed
+    return (
+      prevProps.data === nextProps.data &&
+      prevProps.lines === nextProps.lines &&
+      prevProps.colors === nextProps.colors &&
+      prevProps.showLegend === nextProps.showLegend &&
+      prevProps.showTooltip === nextProps.showTooltip &&
+      prevProps.showGrid === nextProps.showGrid &&
+      prevProps.showDots === nextProps.showDots &&
+      prevProps.tableName === nextProps.tableName &&
+      prevProps.columnMapping === nextProps.columnMapping
+    );
+  }
+);
 
 export function transformToLineData(
   data: Record<string, unknown>[],

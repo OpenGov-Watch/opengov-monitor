@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import {
   BarChart as RechartsBarChart,
   Bar,
@@ -89,59 +90,75 @@ function CustomTooltip({
   );
 }
 
-export function DashboardBarChart({
-  data,
-  bars,
-  stacked = false,
-  colors = DEFAULT_COLORS,
-  showLegend = true,
-  showTooltip = true,
-  showGrid = true,
-  tableName = "",
-  columnMapping,
-}: DashboardBarChartProps) {
-  // Get config for first value column to determine Y-axis formatting
-  const firstValueColumn = bars[0]?.dataKey;
-  const sourceColumn = firstValueColumn
-    ? (columnMapping?.[firstValueColumn] ?? firstValueColumn)
-    : null;
-  const yAxisConfig = sourceColumn
-    ? getColumnConfig(tableName, sourceColumn)
-    : { render: "number" as const };
+export const DashboardBarChart = memo(
+  function DashboardBarChart({
+    data,
+    bars,
+    stacked = false,
+    colors = DEFAULT_COLORS,
+    showLegend = true,
+    showTooltip = true,
+    showGrid = true,
+    tableName = "",
+    columnMapping,
+  }: DashboardBarChartProps) {
+    // Get config for first value column to determine Y-axis formatting
+    const firstValueColumn = bars[0]?.dataKey;
+    const sourceColumn = firstValueColumn
+      ? (columnMapping?.[firstValueColumn] ?? firstValueColumn)
+      : null;
+    const yAxisConfig = sourceColumn
+      ? getColumnConfig(tableName, sourceColumn)
+      : { render: "number" as const };
 
-  // Y-axis tick formatter (abbreviated)
-  const yAxisFormatter = (value: number) => formatAbbreviated(value, yAxisConfig);
+    // Y-axis tick formatter (abbreviated)
+    const yAxisFormatter = (value: number) => formatAbbreviated(value, yAxisConfig);
 
-  return (
-    <ResponsiveContainer
-      width="100%"
-      height="100%"
-      minHeight={200}
-      initialDimension={{ width: 400, height: 200 }}
-    >
-      <RechartsBarChart data={data}>
-        {showGrid && <CartesianGrid strokeDasharray="3 3" />}
-        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-        <YAxis tick={{ fontSize: 12 }} tickFormatter={yAxisFormatter} />
-        {showTooltip && (
-          <Tooltip
-            content={<CustomTooltip tableName={tableName} columnMapping={columnMapping} />}
-          />
-        )}
-        {showLegend && <Legend />}
-        {bars.map((bar, index) => (
-          <Bar
-            key={bar.dataKey}
-            dataKey={bar.dataKey}
-            name={bar.name || bar.dataKey}
-            fill={bar.color || colors[index % colors.length]}
-            stackId={stacked ? "stack" : undefined}
-          />
-        ))}
-      </RechartsBarChart>
-    </ResponsiveContainer>
-  );
-}
+    return (
+      <ResponsiveContainer
+        width="100%"
+        height="100%"
+        minHeight={200}
+        initialDimension={{ width: 400, height: 200 }}
+      >
+        <RechartsBarChart data={data}>
+          {showGrid && <CartesianGrid strokeDasharray="3 3" />}
+          <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+          <YAxis tick={{ fontSize: 12 }} tickFormatter={yAxisFormatter} />
+          {showTooltip && (
+            <Tooltip
+              content={<CustomTooltip tableName={tableName} columnMapping={columnMapping} />}
+            />
+          )}
+          {showLegend && <Legend />}
+          {bars.map((bar, index) => (
+            <Bar
+              key={bar.dataKey}
+              dataKey={bar.dataKey}
+              name={bar.name || bar.dataKey}
+              fill={bar.color || colors[index % colors.length]}
+              stackId={stacked ? "stack" : undefined}
+            />
+          ))}
+        </RechartsBarChart>
+      </ResponsiveContainer>
+    );
+  },
+  (prevProps, nextProps) => {
+    // Custom comparison - only re-render if data or config actually changed
+    return (
+      prevProps.data === nextProps.data &&
+      prevProps.bars === nextProps.bars &&
+      prevProps.stacked === nextProps.stacked &&
+      prevProps.colors === nextProps.colors &&
+      prevProps.showLegend === nextProps.showLegend &&
+      prevProps.showTooltip === nextProps.showTooltip &&
+      prevProps.showGrid === nextProps.showGrid &&
+      prevProps.tableName === nextProps.tableName &&
+      prevProps.columnMapping === nextProps.columnMapping
+    );
+  }
+);
 
 export function transformToBarData(
   data: Record<string, unknown>[],
