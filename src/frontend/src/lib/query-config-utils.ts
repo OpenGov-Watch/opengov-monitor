@@ -121,3 +121,72 @@ export function convertFiltersToQueryConfig(
   // Return empty array if no filters
   return [];
 }
+
+/**
+ * Convert flat FilterCondition array to FilterGroup for UI editing.
+ * Used by QueryBuilder to convert dashboard storage format to FilterGroupBuilder format.
+ *
+ * @param filters - Flat array of filter conditions
+ * @returns FilterGroup with AND operator
+ *
+ * @example
+ * filtersToGroup([
+ *   { column: "status", operator: "=", value: "Active" },
+ *   { column: "amount", operator: ">", value: 1000 }
+ * ])
+ * // Returns: { operator: "AND", conditions: [...filters] }
+ */
+export function filtersToGroup(filters: FilterCondition[]): FilterGroup {
+  return {
+    operator: "AND",
+    conditions: filters
+  };
+}
+
+/**
+ * Convert FilterGroup back to flat FilterCondition array for storage.
+ * Flattens nested groups with console warning (dashboards don't support nesting yet).
+ *
+ * @param group - FilterGroup with potentially nested conditions
+ * @returns Flat array of filter conditions
+ *
+ * @example
+ * groupToFilters({
+ *   operator: "AND",
+ *   conditions: [
+ *     { column: "status", operator: "=", value: "Active" },
+ *     { column: "amount", operator: ">", value: 1000 }
+ *   ]
+ * })
+ * // Returns: [{ column: "status", ... }, { column: "amount", ... }]
+ *
+ * // Nested groups are flattened:
+ * groupToFilters({
+ *   operator: "AND",
+ *   conditions: [
+ *     { column: "status", operator: "=", value: "Active" },
+ *     {
+ *       operator: "OR",
+ *       conditions: [
+ *         { column: "priority", operator: "=", value: "High" }
+ *       ]
+ *     }
+ *   ]
+ * })
+ * // Returns: [{ column: "status", ... }, { column: "priority", ... }]
+ * // Logs warning: "Nested filter groups not yet supported in dashboards, flattening to AND"
+ */
+export function groupToFilters(group: FilterGroup): FilterCondition[] {
+  const conditions: FilterCondition[] = [];
+  for (const condition of group.conditions) {
+    if ('column' in condition) {
+      // It's a FilterCondition
+      conditions.push(condition);
+    } else {
+      // It's a nested FilterGroup - flatten with warning
+      console.warn('Nested filter groups not yet supported in dashboards, flattening to AND');
+      conditions.push(...groupToFilters(condition));
+    }
+  }
+  return conditions;
+}
