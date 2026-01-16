@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, startTransition } from "react";
 import {
   SortingState,
   ColumnFiltersState,
@@ -6,12 +6,15 @@ import {
   PaginationState,
 } from "@tanstack/react-table";
 import { useSearchParams, useNavigate, useLocation } from "react-router";
+import { FilterGroup } from "@/lib/db/types";
 
 export interface ViewState {
   sorting: SortingState;
   columnFilters: ColumnFiltersState;
   columnVisibility: VisibilityState;
   pagination: PaginationState;
+  filterGroup?: FilterGroup;  // New: nested filter groups with AND/OR
+  groupBy?: string;  // New: group by one column
 }
 
 export interface SavedView {
@@ -59,6 +62,8 @@ export function useViewState(tableName: string, options: UseViewStateOptions = {
     pageIndex: 0,
     pageSize: 100,
   });
+  const [filterGroup, setFilterGroup] = useState<FilterGroup | undefined>(undefined);
+  const [groupBy, setGroupBy] = useState<string | undefined>(undefined);
 
   // Current active view name
   const [currentViewName, setCurrentViewName] = useState<string | null>(null);
@@ -99,6 +104,8 @@ export function useViewState(tableName: string, options: UseViewStateOptions = {
         setColumnFilters(state.columnFilters);
         setColumnVisibility(state.columnVisibility);
         setPagination(state.pagination);
+        setFilterGroup(state.filterGroup);
+        setGroupBy(state.groupBy);
         return;
       }
     }
@@ -125,6 +132,8 @@ export function useViewState(tableName: string, options: UseViewStateOptions = {
     setColumnFilters(state.columnFilters);
     setColumnVisibility(state.columnVisibility);
     setPagination(state.pagination);
+    setFilterGroup(state.filterGroup);
+    setGroupBy(state.groupBy);
   }, []);
 
   // Get current state
@@ -134,9 +143,36 @@ export function useViewState(tableName: string, options: UseViewStateOptions = {
       columnFilters,
       columnVisibility,
       pagination,
+      filterGroup,
+      groupBy,
     }),
-    [sorting, columnFilters, columnVisibility, pagination]
+    [sorting, columnFilters, columnVisibility, pagination, filterGroup, groupBy]
   );
+
+  // Track last encoded state to prevent unnecessary URL updates
+  const lastEncodedState = useRef<string>('');
+
+  // Phase 3: URL sync - debounced URL updates on state changes
+  // Optimized: Only update URL if state actually changed (prevents blocking on every render)
+  useEffect(() => {
+    if (!initialLoadDone.current) return; // Don't sync during initial load
+
+    const timeoutId = setTimeout(() => {
+      const currentState = getCurrentState();
+      const encoded = encodeViewState(currentState);
+
+      // Only update URL if the encoded state actually changed
+      // This prevents unnecessary navigation and reduces main thread blocking
+      if (encoded && encoded !== lastEncodedState.current) {
+        lastEncodedState.current = encoded;
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("view", encoded);
+        navigate(`${location.pathname}?${params.toString()}`, { replace: true });
+      }
+    }, 500); // Debounce for 500ms
+
+    return () => clearTimeout(timeoutId);
+  }, [sorting, columnFilters, columnVisibility, pagination, filterGroup, groupBy, getCurrentState, navigate, location.pathname, searchParams]);
 
   // Save a named view
   const saveView = useCallback((name: string, overwrite: boolean = false): boolean => {
@@ -235,14 +271,21 @@ export function useViewState(tableName: string, options: UseViewStateOptions = {
   // Clear view state
   const clearViewState = useCallback(() => {
     localStorage.removeItem(STORAGE_PREFIX + tableName);
-    setSorting(defaultSorting);
-    setColumnFilters([]);
-    setColumnVisibility({});
-    setPagination({ pageIndex: 0, pageSize: 100 });
-    setCurrentViewName(null);
 
-    // Clear URL params
+    // Clear URL params immediately (outside of transition to avoid blocking)
     navigate(location.pathname, { replace: true });
+
+    // Wrap state updates in startTransition to prevent blocking the main thread
+    // This marks the updates as low-priority, allowing the UI to remain responsive
+    startTransition(() => {
+      setSorting(defaultSorting);
+      setColumnFilters([]);
+      setColumnVisibility({});
+      setPagination({ pageIndex: 0, pageSize: 100 });
+      setFilterGroup(undefined);
+      setGroupBy(undefined);
+      setCurrentViewName(null);
+    });
   }, [tableName, navigate, location.pathname, defaultSorting]);
 
   return {
@@ -254,6 +297,10 @@ export function useViewState(tableName: string, options: UseViewStateOptions = {
     setColumnVisibility,
     pagination,
     setPagination,
+    filterGroup,
+    setFilterGroup,
+    groupBy,
+    setGroupBy,
     // New multi-view API
     currentViewName,
     getSavedViews,

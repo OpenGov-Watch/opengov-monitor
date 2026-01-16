@@ -154,11 +154,15 @@ beforeEach(() => {
   testDb.exec('DELETE FROM "Categories"');
   testDb.exec('DELETE FROM "Bounties"');
 
-  // Seed existing categories (to test reuse)
+  // Seed existing categories (to test reuse and validation)
   testDb.exec(`
     INSERT INTO "Categories" (id, category, subcategory)
     VALUES (1, 'Development', 'Core'),
-           (2, 'Outreach', 'Content')
+           (2, 'Outreach', 'Content'),
+           (3, 'Development', 'Smart Contracts'),
+           (4, 'New Category', 'New Subcategory'),
+           (5, 'Development', ''),
+           (6, 'Outreach', 'Advertising')
   `);
 
   // Seed existing referenda (to test updates)
@@ -179,13 +183,13 @@ beforeEach(() => {
            (99, 'Parent Bounty 99')
   `);
 
-  // Seed existing child bounties
+  // Seed existing child bounties (using underscore format per data model spec)
   testDb.exec(`
     INSERT INTO "Child Bounties" (identifier, parentBountyId, description, status)
-    VALUES ('13-1332', 13, 'Existing CB', 'Claimed'),
-           ('33-331193', 33, 'Another CB', 'Active'),
-           ('17-17111', 17, 'Third CB', 'Pending'),
-           ('99-9999', 99, 'Fourth CB', 'Pending')
+    VALUES ('13_1332', 13, 'Existing CB', 'Claimed'),
+           ('33_331193', 33, 'Another CB', 'Active'),
+           ('17_17111', 17, 'Third CB', 'Pending'),
+           ('99_9999', 99, 'Fourth CB', 'Pending')
   `);
 
   // Clear mocks before each test
@@ -251,7 +255,7 @@ describe("Apply Defaults Integration Tests", () => {
       };
       expect(existingCategory.id).toBe(1); // Existing ID, not new
 
-      // Check new categories were created
+      // Check seeded category exists (no longer auto-created)
       const newCategory = testDb
         .prepare('SELECT * FROM "Categories" WHERE category = ?')
         .get("New Category") as {
@@ -260,6 +264,7 @@ describe("Apply Defaults Integration Tests", () => {
         subcategory: string;
       };
       expect(newCategory).toBeDefined();
+      expect(newCategory.id).toBe(4); // Pre-seeded category
       expect(newCategory.subcategory).toBe("New Subcategory");
 
       // Check referenda were updated
@@ -299,48 +304,84 @@ describe("Apply Defaults Integration Tests", () => {
       expect(ref500.category_id).toBe(newCategory.id); // New category
       expect(ref500.notes).toBe("New item");
 
-      // Check total category count (should not duplicate)
+      // Check total category count (should not change - all categories pre-seeded)
       const categoryCount = testDb
         .prepare('SELECT COUNT(*) as count FROM "Categories"')
         .get() as { count: number };
-      expect(categoryCount.count).toBe(3); // 2 original + 1 new
+      expect(categoryCount.count).toBe(6); // All pre-seeded categories
     });
 
-    it("should create new categories when they don't exist", async () => {
-      const csvWithNewCategory = `id,category,subcategory,notes,hide_in_spends
-1,Brand New Category,Brand New Sub,,0`;
+    it("should reject import when category doesn't exist", async () => {
+      const csvWithInvalidCategory = `id,category,subcategory,notes,hide_in_spends
+1,Nonexistent Category,Nonexistent Sub,,0`;
 
       vi.mocked(existsSync).mockReturnValue(true);
-      vi.mocked(readFileSync).mockReturnValue(csvWithNewCategory);
+      vi.mocked(readFileSync).mockReturnValue(csvWithInvalidCategory);
 
       const syncResponse = await request(app).get(
         "/api/sync/defaults/referenda"
       );
       const parsedItems = parseCSVForTest(syncResponse.body.content);
 
-      const categoryResponse = await request(app)
-        .post("/api/categories/lookup")
-        .send({
-          category: parsedItems[0].category!,
-          subcategory: parsedItems[0].subcategory!,
-        });
+      const items = parsedItems.map((item) => ({
+        id: item.id!,
+        category: item.category,
+        subcategory: item.subcategory,
+        notes: item.notes,
+        hide_in_spends: item.hide_in_spends,
+      }));
 
-      expect(categoryResponse.status).toBe(200);
-      const categoryId = categoryResponse.body.id;
-
-      await request(app)
+      // Import should fail with validation error
+      const importResponse = await request(app)
         .post("/api/referenda/import")
-        .send({ items: [{ id: 1, category_id: categoryId }] });
+        .send({ items });
 
-      // Verify new category was created
-      const newCategory = testDb
-        .prepare('SELECT * FROM "Categories" WHERE category = ?')
-        .get("Brand New Category") as {
-        id: number;
-        subcategory: string;
-      };
-      expect(newCategory).toBeDefined();
-      expect(newCategory.subcategory).toBe("Brand New Sub");
+      expect(importResponse.status).toBe(400);
+      expect(importResponse.body.error).toContain("Import rejected");
+      expect(importResponse.body.error).toContain("non-existent categories");
+      expect(importResponse.body.error).toContain("Row 2"); // Row 2 (1 + header)
+      expect(importResponse.body.error).toContain("Nonexistent Category");
+      expect(importResponse.body.error).toContain("Nonexistent Sub");
+    });
+
+    it("should show first 10 violations when many invalid categories", async () => {
+      // Create CSV with 15 invalid categories
+      const rows = Array.from({ length: 15 }, (_, i) =>
+        `${i + 1},Invalid Cat ${i},Invalid Sub ${i},,0`
+      );
+      const csvWithManyInvalid = `id,category,subcategory,notes,hide_in_spends\n${rows.join("\n")}`;
+
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readFileSync).mockReturnValue(csvWithManyInvalid);
+
+      const syncResponse = await request(app).get(
+        "/api/sync/defaults/referenda"
+      );
+      const parsedItems = parseCSVForTest(syncResponse.body.content);
+
+      const items = parsedItems.map((item) => ({
+        id: item.id!,
+        category: item.category,
+        subcategory: item.subcategory,
+        notes: item.notes,
+        hide_in_spends: item.hide_in_spends,
+      }));
+
+      const importResponse = await request(app)
+        .post("/api/referenda/import")
+        .send({ items });
+
+      expect(importResponse.status).toBe(400);
+      expect(importResponse.body.error).toContain("15 row(s)");
+      expect(importResponse.body.error).toContain("First 10 violations");
+
+      // Verify first 10 are shown
+      expect(importResponse.body.error).toContain("Invalid Cat 0");
+      expect(importResponse.body.error).toContain("Invalid Cat 9");
+
+      // Verify 11th+ are not shown (only first 10)
+      expect(importResponse.body.error).not.toContain("Invalid Cat 10");
+      expect(importResponse.body.error).not.toContain("Invalid Cat 14");
     });
 
     it("should reuse existing categories when they match", async () => {
@@ -369,7 +410,7 @@ describe("Apply Defaults Integration Tests", () => {
       const categoryCount = testDb
         .prepare('SELECT COUNT(*) as count FROM "Categories"')
         .get() as { count: number };
-      expect(categoryCount.count).toBe(2); // Still 2 original categories
+      expect(categoryCount.count).toBe(6); // Still only seeded categories
     });
 
     it("should handle empty subcategories", async () => {
@@ -523,8 +564,8 @@ describe("Apply Defaults Integration Tests", () => {
   describe("Child Bounties Apply Defaults Workflow", () => {
     const mockChildBountiesCSV = `identifier,category,subcategory,notes,hide_in_spends
 13-1332,Development,Smart Contracts,,0
-33-331193,,Advertising,,0
-99-9999,New Category,New Sub,,1`;
+33-331193,Outreach,Advertising,,0
+99-9999,Outreach,Content,,1`;
 
     it("should complete full workflow: fetch CSV → parse → lookup categories → import", async () => {
       // 1. Mock fs to return CSV
@@ -561,84 +602,72 @@ describe("Apply Defaults Integration Tests", () => {
 
       // 6. Verify database state
 
-      // Check new categories were created
-      const newCategory = testDb
-        .prepare('SELECT * FROM "Categories" WHERE category = ?')
-        .get("New Category") as {
-        id: number;
-        subcategory: string;
-      };
-      expect(newCategory).toBeDefined();
-      expect(newCategory.subcategory).toBe("New Sub");
-
-      // Check child bounties were updated
+      // Check child bounties were updated (using underscore format in DB)
       const cb1 = testDb
         .prepare('SELECT * FROM "Child Bounties" WHERE identifier = ?')
-        .get("13-1332") as {
+        .get("13_1332") as {
         category_id: number;
         hide_in_spends: number;
       };
-      expect(cb1.category_id).toBeDefined();
+      expect(cb1.category_id).toBe(3); // Development/Smart Contracts
       expect(cb1.hide_in_spends).toBe(0);
 
       const cb2 = testDb
         .prepare('SELECT * FROM "Child Bounties" WHERE identifier = ?')
-        .get("33-331193") as {
-        category_id: number | null;
-      };
-      expect(cb2.category_id).toBeNull(); // Empty category in CSV
-
-      const cb3 = testDb
-        .prepare('SELECT * FROM "Child Bounties" WHERE identifier = ?')
-        .get("99-9999") as {
+        .get("33_331193") as {
         category_id: number;
         hide_in_spends: number;
       };
-      expect(cb3.category_id).toBe(newCategory.id);
+      expect(cb2.category_id).toBe(6); // Outreach/Advertising
+
+      const cb3 = testDb
+        .prepare('SELECT * FROM "Child Bounties" WHERE identifier = ?')
+        .get("99_9999") as {
+        category_id: number;
+        hide_in_spends: number;
+      };
+      expect(cb3.category_id).toBe(2); // Outreach/Content
       expect(cb3.hide_in_spends).toBe(1);
 
-      // Check total category count
+      // Check total category count (should not change - all categories pre-seeded)
       const categoryCount = testDb
         .prepare('SELECT COUNT(*) as count FROM "Categories"')
         .get() as { count: number };
-      expect(categoryCount.count).toBe(4); // 2 original + 1 new (Development/Smart Contracts) + 1 new (New Category/New Sub)
+      expect(categoryCount.count).toBe(6); // All pre-seeded categories
     });
 
-    it("should create new categories when they don't exist", async () => {
-      const csvWithNewCategory = `identifier,category,subcategory,notes,hide_in_spends
-13-1332,Brand New CB Category,Brand New CB Sub,,0`;
+    it("should reject import when category doesn't exist", async () => {
+      const csvWithInvalidCategory = `identifier,category,subcategory,notes,hide_in_spends
+13-1332,Nonexistent CB Category,Nonexistent CB Sub,,0
+99-9999,Another Invalid,Category,,0`;
 
       vi.mocked(existsSync).mockReturnValue(true);
-      vi.mocked(readFileSync).mockReturnValue(csvWithNewCategory);
+      vi.mocked(readFileSync).mockReturnValue(csvWithInvalidCategory);
 
       const syncResponse = await request(app).get(
         "/api/sync/defaults/child-bounties"
       );
       const parsedItems = parseCSVForTest(syncResponse.body.content);
 
-      const categoryResponse = await request(app)
-        .post("/api/categories/lookup")
-        .send({
-          category: parsedItems[0].category!,
-          subcategory: parsedItems[0].subcategory!,
-        });
+      const items = parsedItems.map((item) => ({
+        identifier: item.identifier!,
+        category: item.category,
+        subcategory: item.subcategory,
+        notes: item.notes,
+        hide_in_spends: item.hide_in_spends,
+      }));
 
-      expect(categoryResponse.status).toBe(200);
-      const categoryId = categoryResponse.body.id;
-
-      await request(app)
+      // Import should fail with validation error
+      const importResponse = await request(app)
         .post("/api/child-bounties/import")
-        .send({ items: [{ identifier: "13-1332", category_id: categoryId }] });
+        .send({ items });
 
-      // Verify new category was created
-      const newCategory = testDb
-        .prepare('SELECT * FROM "Categories" WHERE category = ?')
-        .get("Brand New CB Category") as {
-        id: number;
-        subcategory: string;
-      };
-      expect(newCategory).toBeDefined();
-      expect(newCategory.subcategory).toBe("Brand New CB Sub");
+      expect(importResponse.status).toBe(400);
+      expect(importResponse.body.error).toContain("Import rejected");
+      expect(importResponse.body.error).toContain("non-existent categories");
+      expect(importResponse.body.error).toContain("2 row(s)");
+      expect(importResponse.body.error).toContain("13-1332");
+      expect(importResponse.body.error).toContain("Nonexistent CB Category");
     });
 
     it("should reuse existing categories when they match", async () => {
@@ -667,7 +696,7 @@ describe("Apply Defaults Integration Tests", () => {
       const categoryCount = testDb
         .prepare('SELECT COUNT(*) as count FROM "Categories"')
         .get() as { count: number };
-      expect(categoryCount.count).toBe(2); // Still 2 original categories
+      expect(categoryCount.count).toBe(6); // Still only seeded categories
     });
 
     it("should handle composite identifiers", async () => {
@@ -704,15 +733,15 @@ describe("Apply Defaults Integration Tests", () => {
       expect(importResponse.status).toBe(200);
       expect(importResponse.body.count).toBe(2);
 
-      // Verify both were updated
+      // Verify both were updated (using underscore format in DB)
       const cb1 = testDb
         .prepare('SELECT * FROM "Child Bounties" WHERE identifier = ?')
-        .get("13-1332");
+        .get("13_1332");
       expect(cb1).toBeDefined();
 
       const cb2 = testDb
         .prepare('SELECT * FROM "Child Bounties" WHERE identifier = ?')
-        .get("99-9999");
+        .get("99_9999");
       expect(cb2).toBeDefined();
     });
 

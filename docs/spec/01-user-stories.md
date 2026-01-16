@@ -19,7 +19,6 @@
 **So that** I can discover patterns in treasury spending and referendum outcomes
 
 **Acceptance Criteria:**
-- Global search across all visible columns
 - Sorting
   - Sort by any column (ascending/descending/none cycle)
   - Sort by multiple columns (shift+click, or via a composer)

@@ -14,6 +14,7 @@ import { api } from "@/api/client";
 import {
   parseReferendaCSV,
   parseChildBountiesCSV,
+  parseBountiesCSV,
   parseTreasuryNetflowsCSV,
 } from "@/lib/csv-parser";
 import { RequireAuth } from "@/components/auth/require-auth";
@@ -23,6 +24,7 @@ type StatusType = { type: "success" | "error"; message: string } | null;
 function SyncSettingsPageContent() {
   const [referendaFile, setReferendaFile] = useState<File | null>(null);
   const [childBountiesFile, setChildBountiesFile] = useState<File | null>(null);
+  const [bountiesFile, setBountiesFile] = useState<File | null>(null);
   const [netflowsFile, setNetflowsFile] = useState<File | null>(null);
   const [status, setStatus] = useState<StatusType>(null);
   const [importing, setImporting] = useState(false);
@@ -214,6 +216,66 @@ function SyncSettingsPageContent() {
     }
   }
 
+  async function handleBountiesUpload() {
+    if (!bountiesFile) return;
+    setImporting(true);
+    setStatus(null);
+    try {
+      const content = await bountiesFile.text();
+      const rawItems = parseBountiesCSV(content);
+      if (rawItems.length === 0) {
+        setStatus({ type: "error", message: "No valid rows in CSV file" });
+        return;
+      }
+
+      const items = rawItems.map((item) => ({
+        id: item.id,
+        category: item.category,
+        subcategory: item.subcategory,
+      }));
+
+      const result = await api.bounties.import(items);
+      setStatus({
+        type: "success",
+        message: `Imported ${result.count} bounty categories`,
+      });
+      setBountiesFile(null);
+    } catch (error) {
+      setStatus({ type: "error", message: (error as Error).message });
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function applyDefaultBounties() {
+    setImporting(true);
+    setStatus(null);
+    try {
+      const { content } = await api.sync.getDefaultBounties();
+      const rawItems = parseBountiesCSV(content);
+      if (rawItems.length === 0) {
+        setStatus({ type: "error", message: "No valid rows in default file" });
+        return;
+      }
+
+      const items = rawItems.map((item) => ({
+        id: item.id,
+        category: item.category,
+        subcategory: item.subcategory,
+      }));
+
+      const result = await api.bounties.import(items);
+      setStatus({
+        type: "success",
+        message: `Applied ${result.count} default bounty categories`,
+      });
+    } catch (error) {
+      setStatus({ type: "error", message: (error as Error).message });
+    } finally {
+      setImporting(false);
+    }
+  }
+
   async function handleNetflowsUpload() {
     if (!netflowsFile) return;
     setImporting(true);
@@ -275,18 +337,20 @@ function SyncSettingsPageContent() {
 
       {status && (
         <div
-          className={`flex items-center gap-2 p-4 rounded-lg ${
+          className={`flex items-start gap-2 p-4 rounded-lg ${
             status.type === "success"
               ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
               : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
           }`}
         >
           {status.type === "success" ? (
-            <Check className="h-4 w-4" />
+            <Check className="h-4 w-4 mt-0.5 flex-shrink-0" />
           ) : (
-            <AlertCircle className="h-4 w-4" />
+            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
           )}
-          {status.message}
+          <pre className="whitespace-pre-wrap font-sans text-sm flex-1">
+            {status.message}
+          </pre>
         </div>
       )}
 
@@ -372,6 +436,54 @@ function SyncSettingsPageContent() {
               <Button
                 variant="outline"
                 onClick={applyDefaultChildBounties}
+                disabled={importing}
+              >
+                {importing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <FileText className="mr-2 h-4 w-4" />
+                )}
+                Apply Defaults
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Bounties Categories</CardTitle>
+            <CardDescription>
+              Import category mappings for parent bounties
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="bounties-csv">Upload CSV File</Label>
+              <Input
+                id="bounties-csv"
+                type="file"
+                accept=".csv"
+                onChange={(e) =>
+                  setBountiesFile(e.target.files?.[0] || null)
+                }
+                disabled={importing}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleBountiesUpload}
+                disabled={!bountiesFile || importing}
+              >
+                {importing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="mr-2 h-4 w-4" />
+                )}
+                Import CSV
+              </Button>
+              <Button
+                variant="outline"
+                onClick={applyDefaultBounties}
                 disabled={importing}
               >
                 {importing ? (

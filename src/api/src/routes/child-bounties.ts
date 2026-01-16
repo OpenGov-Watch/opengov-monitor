@@ -28,6 +28,10 @@ childBountiesRouter.post("/import", requireAuth, (req, res) => {
     const count = bulkUpdateChildBounties(items);
     res.json({ success: true, count });
   } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
+    const errorMessage = (error as Error).message;
+    // Validation errors (e.g., "Import rejected: ...") are client errors (400)
+    // Other errors are server errors (500)
+    const statusCode = errorMessage.includes("Import rejected") ? 400 : 500;
+    res.status(statusCode).json({ error: errorMessage });
   }
 });

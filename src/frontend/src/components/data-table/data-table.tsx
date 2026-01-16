@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   ColumnDef,
   SortingState,
@@ -136,6 +136,9 @@ export function DataTable<TData>({
   const [totalCount, setTotalCount] = useState<number | undefined>(undefined);
   const [serverFacets, setServerFacets] = useState<Record<string, Map<any, number>>>({});
 
+  // AbortController ref to cancel in-flight requests
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   // Pass through the original setters without any wrapping
   const setSorting = setViewSorting;
   const setColumnFilters = setViewColumnFilters;
@@ -164,7 +167,19 @@ export function DataTable<TData>({
   }, [baseQueryConfig, sorting, columnFilters, filterGroup, groupBy, pagination, defaultFilters]);
 
   useEffect(() => {
-    async function fetchData() {
+    // Debounce fetch to prevent blocking on every keystroke/change
+    // This allows the UI to remain responsive while user is actively editing
+    const timeoutId = setTimeout(() => {
+      // Cancel any in-flight request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      // Create new AbortController for this request
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      async function fetchData() {
       setLoading(true);
       setError(null);
       try {
@@ -174,6 +189,7 @@ export function DataTable<TData>({
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify(queryConfig),
+          signal: controller.signal,
         });
 
         // Create facet fetch promise if facetedFilters are defined
@@ -183,13 +199,14 @@ export function DataTable<TData>({
             sourceTable: baseQueryConfig.sourceTable,
             columns: facetedFilters,
             joins: baseQueryConfig.joins,
-            filters: convertFiltersToQueryConfig(columnFilters, filterGroup),
+            filters: queryConfig.filters, // Use filters from queryConfig (already computed)
           };
           facetPromise = fetch("/api/query/facets", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
             body: JSON.stringify(facetConfig),
+            signal: controller.signal,
           });
         }
 
@@ -223,15 +240,34 @@ export function DataTable<TData>({
           console.warn("Facet fetch failed, using client-side faceting");
           setServerFacets({});
         }
-      } catch (err) {
-        setError((err as Error).message);
+      } catch (err: any) {
+        // Ignore abort errors - these are expected when user changes filters rapidly
+        if (err.name === 'AbortError') {
+          console.log('Request cancelled');
+          return;
+        }
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     }
 
-    fetchData();
-  }, [queryConfig, facetedFilters, columnFilters, baseQueryConfig]);
+      fetchData();
+
+      // Cleanup: abort on unmount
+      return () => {
+        controller.abort();
+      };
+    }, 300); // 300ms debounce - balance between responsiveness and reducing blocking
+
+    // Cleanup: cancel timeout and abort request
+    return () => {
+      clearTimeout(timeoutId);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [queryConfig, baseQueryConfig]); // Removed facetedFilters and columnFilters - they're already in queryConfig
 
   // Wrap editConfig to update local data optimistically
   const editConfigWithRefresh = useMemo(() => {
@@ -291,6 +327,13 @@ export function DataTable<TData>({
   }, [editConfig]);
 
   // COLUMN GENERATION
+  // Schema-based dependency to prevent regeneration on every data fetch
+  // Only regenerate when column structure changes, not when values change
+  const dataSchema = useMemo(
+    () => (data.length > 0 && data[0] ? Object.keys(data[0] as Record<string, unknown>).sort().join(',') : ''),
+    [data.length > 0 && data[0] ? Object.keys(data[0] as Record<string, unknown>).sort().join(',') : '']
+  );
+
   const columns = useMemo(() => {
     if (data.length === 0 || !configLoaded) return [];
 
@@ -304,7 +347,7 @@ export function DataTable<TData>({
       columnMapping,
     });
   }, [
-    data,
+    dataSchema, // Changed from 'data' to 'dataSchema' to prevent regeneration on value changes
     tableName,
     editConfigWithRefresh,
     isAuthenticated,

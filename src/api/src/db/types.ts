@@ -321,7 +321,7 @@ export interface QueryConfig {
   columns: ColumnSelection[];
   expressionColumns?: ExpressionColumn[];
   joins?: JoinConfig[];     // Array of joins
-  filters: FilterCondition[];
+  filters: FilterCondition[] | FilterGroup;  // Support both old array and new group format
   groupBy?: string[];
   orderBy?: OrderByConfig[];
   limit?: number;
@@ -332,7 +332,7 @@ export interface FacetQueryConfig {
   sourceTable: string;
   columns: string[];       // Columns to compute facets for
   joins?: JoinConfig[];
-  filters?: FilterCondition[];
+  filters?: FilterCondition[] | FilterGroup;  // Support both formats
 }
 
 export interface FacetValue {
@@ -364,6 +364,11 @@ export interface FilterCondition {
     | "IS NULL"
     | "IS NOT NULL";
   value: string | number | string[] | null;
+}
+
+export interface FilterGroup {
+  operator: "AND" | "OR";
+  conditions: (FilterCondition | FilterGroup)[];
 }
 
 export interface OrderByConfig {
@@ -410,6 +415,15 @@ export interface ChildBountyImportItem {
   subcategory?: string | null;
   notes?: string | null;
   hide_in_spends?: number | null;
+}
+
+export interface BountyImportItem {
+  id: number;
+  // Option A: Direct category ID (existing)
+  category_id?: number | null;
+  // Option B: Category strings (new - backend will resolve)
+  category?: string | null;
+  subcategory?: string | null;
 }
 
 export interface NetflowImportItem {

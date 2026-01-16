@@ -6,14 +6,113 @@ import { X, Download, RotateCcw, Table as TableIcon, LayoutGrid, ChevronDown, Ch
 
 import { Button } from "@/components/ui/button";
 import { DataTableColumnVisibility } from "./column-visibility";
+import { SortComposer } from "./sort-composer";
+import { FilterGroupBuilder } from "./filter-group-builder";
 import { exportToCSV, exportToJSON } from "@/lib/export";
+import { FilterGroup } from "@/lib/db/types";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+
+// Dialog content with local state for advanced filters
+function AdvancedFiltersDialogContent({
+  filterGroup,
+  availableColumns,
+  onApply,
+}: {
+  filterGroup?: FilterGroup;
+  availableColumns: { id: string; name: string }[];
+  onApply: (group: FilterGroup | undefined) => void;
+}) {
+  // Local state - changes don't trigger queries until Apply is clicked
+  const [localGroup, setLocalGroup] = React.useState<FilterGroup>(
+    filterGroup || { operator: "AND", conditions: [] }
+  );
+  const [isApplying, setIsApplying] = React.useState(false);
+
+  // Reset local state when dialog opens (filterGroup prop changes)
+  React.useEffect(() => {
+    setLocalGroup(filterGroup || { operator: "AND", conditions: [] });
+  }, [filterGroup]);
+
+  const handleApply = () => {
+    // Prevent spam clicking
+    if (isApplying) return;
+    setIsApplying(true);
+
+    // Wrap state update in startTransition to prevent blocking
+    React.startTransition(() => {
+      onApply(localGroup.conditions.length > 0 ? localGroup : undefined);
+
+      // Re-enable button after a delay
+      setTimeout(() => setIsApplying(false), 500);
+    });
+  };
+
+  const handleClear = () => {
+    // Prevent spam clicking
+    if (isApplying) return;
+    setIsApplying(true);
+
+    const emptyGroup: FilterGroup = { operator: "AND", conditions: [] };
+    setLocalGroup(emptyGroup);
+    // Wrap state update in startTransition to prevent blocking
+    React.startTransition(() => {
+      onApply(undefined);
+
+      // Re-enable button after a delay
+      setTimeout(() => setIsApplying(false), 500);
+    });
+  };
+
+  return (
+    <>
+      <FilterGroupBuilder
+        group={localGroup}
+        availableColumns={availableColumns}
+        onUpdate={setLocalGroup}
+      />
+      <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleClear}
+          disabled={isApplying}
+        >
+          Clear All
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          onClick={handleApply}
+          disabled={isApplying}
+        >
+          Apply Filters
+        </Button>
+      </div>
+    </>
+  );
+}
 
 interface DataTableToolbarProps<TData> {
   table: Table<TData>;
@@ -27,6 +126,10 @@ interface DataTableToolbarProps<TData> {
   initialToolbarCollapsed?: boolean;
   toolbarCollapsed?: boolean;
   onToolbarCollapseChange?: (collapsed: boolean) => void;
+  groupBy?: string;
+  onGroupByChange?: (columnId: string | undefined) => void;
+  filterGroup?: FilterGroup;
+  onFilterGroupChange?: (group: FilterGroup | undefined) => void;
 }
 
 export function DataTableToolbar<TData>({
@@ -41,6 +144,10 @@ export function DataTableToolbar<TData>({
   initialToolbarCollapsed = false,
   toolbarCollapsed: controlledCollapsed,
   onToolbarCollapseChange,
+  groupBy,
+  onGroupByChange,
+  filterGroup,
+  onFilterGroupChange,
 }: DataTableToolbarProps<TData>) {
   const isFiltered = table.getState().columnFilters.length > 0;
 
@@ -85,6 +192,30 @@ export function DataTableToolbar<TData>({
     exportToJSON(data, tableName);
   };
 
+  // Memoize available columns to prevent recreation on every render
+  // This prevents 50-100ms blocking when interacting with filters/dialogs
+  const filterableColumns = React.useMemo(
+    () => table
+      .getAllColumns()
+      .filter((col) => col.getCanFilter())
+      .map((col) => ({
+        id: col.id,
+        name: typeof col.columnDef.header === "string" ? col.columnDef.header : col.id,
+      })),
+    [table.getAllColumns().length] // Only recompute if column count changes
+  );
+
+  const sortableColumns = React.useMemo(
+    () => table
+      .getAllColumns()
+      .filter((col) => col.getCanSort())
+      .map((col) => ({
+        id: col.id,
+        name: typeof col.columnDef.header === "string" ? col.columnDef.header : col.id,
+      })),
+    [table.getAllColumns().length] // Only recompute if column count changes
+  );
+
   return (
     <div
       className={cn(
@@ -98,29 +229,80 @@ export function DataTableToolbar<TData>({
         <>
           <div
             className={cn(
-              "flex flex-1 items-center min-w-0",
-              compactMode ? "space-x-1" : "space-x-2"
+              "flex flex-1 items-center min-w-0 flex-wrap",
+              compactMode ? "gap-1" : "gap-2"
             )}
           >
-            {/* Clear Filters */}
-            {isFiltered && (
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  table.resetColumnFilters();
-                }}
-                className={cn("px-2 lg:px-3", compactMode ? "h-7" : "h-8")}
-              >
-                Reset
-                <X className="ml-2 h-4 w-4" />
-              </Button>
+
+            {/* Group By Dropdown */}
+            {onGroupByChange && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground hidden lg:inline">Group by:</span>
+                <Select
+                  value={groupBy || "none"}
+                  onValueChange={(value) => onGroupByChange(value === "none" ? undefined : value)}
+                >
+                  <SelectTrigger className={cn("w-[150px]", compactMode ? "h-7" : "h-8")}>
+                    <SelectValue placeholder="None" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {table.getAllColumns()
+                      .filter((col) =>
+                        col.getCanSort() && // Only sortable columns can be grouped
+                        col.id !== "actions" && // Exclude action columns
+                        col.id !== "select" // Exclude select columns
+                      )
+                      .map((col) => (
+                        <SelectItem key={col.id} value={col.id}>
+                          {typeof col.columnDef.header === "string"
+                            ? col.columnDef.header
+                            : col.id}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Advanced Filters Dialog */}
+            {onFilterGroupChange && (
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(compactMode ? "h-7" : "h-8")}
+                  >
+                    Advanced Filters
+                    {filterGroup && filterGroup.conditions.length > 0 && (
+                      <span className="ml-2 rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
+                        {filterGroup.conditions.length}
+                      </span>
+                    )}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Advanced Filters</DialogTitle>
+                    <DialogDescription>
+                      Create complex filters with AND/OR logic. Nest filter groups for advanced queries.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <AdvancedFiltersDialogContent
+                    filterGroup={filterGroup}
+                    availableColumns={filterableColumns}
+                    onApply={onFilterGroupChange}
+                  />
+                </DialogContent>
+              </Dialog>
             )}
           </div>
 
           <div
             className={cn(
-              "flex items-center flex-shrink-0",
-              compactMode ? "space-x-1" : "space-x-2"
+              "flex items-center flex-shrink-0 flex-wrap",
+              compactMode ? "gap-1" : "gap-2"
             )}
           >
         {/* View Mode Toggle */}
@@ -155,14 +337,39 @@ export function DataTableToolbar<TData>({
           </div>
         )}
 
+        {/* Multi-Sort Composer */}
+        <SortComposer
+          sorting={table.getState().sorting}
+          setSorting={table.setSorting}
+          availableColumns={sortableColumns}
+        />
+
+        {/* Clear Filters */}
+        {isFiltered && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              table.resetColumnFilters();
+            }}
+            className={cn(compactMode ? "h-7" : "h-8")}
+            title="Clear filters"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
+
+        {/* Reset View */}
         {!compactMode && (
-          <div className="hidden md:flex items-center space-x-2">
-            {/* Reset View */}
-            <Button variant="outline" size="sm" onClick={onClearView} className="h-8">
-              <RotateCcw className="mr-2 h-4 w-4" />
-              <span className="hidden lg:inline">Reset</span>
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onClearView}
+            className="h-8"
+            title="Reset view"
+          >
+            <RotateCcw className="h-4 w-4" />
+          </Button>
         )}
 
         {/* Export Dropdown */}
@@ -172,9 +379,9 @@ export function DataTableToolbar<TData>({
               variant="outline"
               size="sm"
               className={compactMode ? "h-7" : "h-8"}
+              title="Export data"
             >
-              <Download className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">Export</span>
+              <Download className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent>

@@ -1,4 +1,5 @@
 import type { SortingState, ColumnFiltersState } from "@tanstack/react-table";
+import type { FilterGroup } from "@/lib/db/types";
 
 /**
  * OrderBy configuration for QueryConfig
@@ -93,4 +94,30 @@ export function filterStateToQueryFilters(
       value: value as string | number
     };
   });
+}
+
+/**
+ * Convert filters to QueryConfig format. Supports both legacy ColumnFiltersState
+ * and new FilterGroup format.
+ *
+ * @param columnFilters - Legacy TanStack Table column filters (for backward compatibility)
+ * @param filterGroup - New FilterGroup with AND/OR logic
+ * @returns Filters in QueryConfig format (FilterCondition[] or FilterGroup)
+ */
+export function convertFiltersToQueryConfig(
+  columnFilters: ColumnFiltersState,
+  filterGroup?: FilterGroup
+): FilterCondition[] | FilterGroup {
+  // Prefer new filterGroup format if present
+  if (filterGroup && filterGroup.conditions.length > 0) {
+    return filterGroup;
+  }
+
+  // Fall back to legacy columnFilters
+  if (columnFilters && columnFilters.length > 0) {
+    return filterStateToQueryFilters(columnFilters);
+  }
+
+  // Return empty array if no filters
+  return [];
 }

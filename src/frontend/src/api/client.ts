@@ -149,6 +149,17 @@ export const api = {
       }),
     delete: (id: number) =>
       fetchJSON(`/bounties/${id}`, { method: "DELETE" }),
+    import: (
+      items: Array<{
+        id: number;
+        category?: string | null;
+        subcategory?: string | null;
+      }>
+    ) =>
+      fetchJSON<{ success: boolean; count: number }>("/bounties/import", {
+        method: "POST",
+        body: JSON.stringify({ items }),
+      }),
   },
   subtreasury: {
     getAll: () => fetchJSON<unknown[]>("/subtreasury"),
@@ -237,6 +248,7 @@ export const api = {
   sync: {
     getDefaultReferenda: () => fetchJSON<{ content: string }>("/sync/defaults/referenda"),
     getDefaultChildBounties: () => fetchJSON<{ content: string }>("/sync/defaults/child-bounties"),
+    getDefaultBounties: () => fetchJSON<{ content: string }>("/sync/defaults/bounties"),
     getDefaultTreasuryNetflows: () => fetchJSON<{ content: string }>("/sync/defaults/treasury-netflows"),
   },
 };

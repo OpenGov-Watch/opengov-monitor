@@ -10,7 +10,7 @@ Full deployment validation: build → test → push → check CI → verify cont
 4. `git push origin $(git branch --show-current)` - Report branch pushed
 5. Use `/check-github-action-runs` skill - Watch CI completion
 6. Check container health and migration version:
-   - Fetch `https://opengov.win/api/health` and report status, database version, and applied timestamp
+   - Fetch `https://https://polkadot-treasury-monitor.cypherpunk.agency/api/health` and report status, database version, and applied timestamp
    - If migration expected, verify version matches expected migration number
 7. If applies: Check the change with Chrome Devtools
 

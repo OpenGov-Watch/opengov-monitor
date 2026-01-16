@@ -20,6 +20,13 @@ export interface ChildBountyCsvRow {
   hide_in_spends: number;
 }
 
+export interface BountyCsvRow {
+  id: number;
+  name: string;
+  category: string | null;
+  subcategory: string | null;
+}
+
 export interface NetflowCsvRow {
   month: string;
   asset_name: string;
@@ -157,6 +164,35 @@ export function parseChildBountiesCSV(content: string): ChildBountyCsvRow[] {
       return { identifier, category, subcategory, notes, hide_in_spends };
     })
     .filter((row) => row.identifier !== "");
+}
+
+/**
+ * Parse bounties CSV content.
+ * Expected format: id, name, category, subcategory
+ */
+export function parseBountiesCSV(content: string): BountyCsvRow[] {
+  const rows = parseCSV(content);
+  return rows
+    .map((row) => {
+      // Support multiple column name formats
+      const id = parseInt(row.id || row["#"] || "", 10);
+      if (isNaN(id)) {
+        console.warn(`Invalid or missing bounty ID, skipping row`);
+        return null;
+      }
+
+      const name = row.name || "";
+      const category = (row.category || row.Category || "").trim();
+      const subcategory = (row.subcategory || row.Subcategory || row.sub_category || row.subcategory_name || "").trim();
+
+      return {
+        id,
+        name,
+        category: category || null,
+        subcategory: subcategory || null,
+      };
+    })
+    .filter((row): row is BountyCsvRow => row !== null);
 }
 
 /**

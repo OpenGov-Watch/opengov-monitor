@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getBounties, getBountyById, upsertBounty, updateBountyCategory, deleteBounty } from "../db/queries.js";
+import { getBounties, getBountyById, upsertBounty, updateBountyCategory, deleteBounty, bulkUpdateBounties, type BountyImportItem } from "../db/queries.js";
 import { requireAuth } from "../middleware/auth.js";
 
 export const bountiesRouter: Router = Router();
@@ -99,5 +99,23 @@ bountiesRouter.delete("/:id", requireAuth, (req, res) => {
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// Bulk import from CSV
+bountiesRouter.post("/import", requireAuth, (req, res) => {
+  try {
+    const { items } = req.body as { items: BountyImportItem[] };
+    if (!Array.isArray(items)) {
+      return res.status(400).json({ error: "items must be an array" });
+    }
+    const count = bulkUpdateBounties(items);
+    res.json({ success: true, count });
+  } catch (error) {
+    const errorMessage = (error as Error).message;
+    // Validation errors (e.g., "Import rejected: ...") are client errors (400)
+    // Other errors are server errors (500)
+    const statusCode = errorMessage.includes("Import rejected") ? 400 : 500;
+    res.status(statusCode).json({ error: errorMessage });
   }
 });

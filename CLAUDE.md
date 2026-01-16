@@ -3,6 +3,7 @@
 Agent-specific instructions for working on this codebase. For project overview, architecture, commands, and general documentation, see [README.md](README.md).
 
 ## Rules
+- Never create, read, update, or delete in the DB without consulting with the user first
 - Never apply DB migrations without explicit user consent
 - Never modify DB migration versions after they have been applied to the production DB
 
@@ -19,6 +20,9 @@ Agent-specific instructions for working on this codebase. For project overview, 
 - Testing
   - Update unit tests, then run full test suite
   - Use Chrome DevTools to verify frontend changes
+
+## When Debugging
+- The server has hot reloading. Don't claim a restart will fix it. Find the real issue.
 
 ## Tool usage
 - Use `pnpm`, not `npm`

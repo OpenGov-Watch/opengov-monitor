@@ -422,6 +422,46 @@ export function updateReferendum(id: number, data: ReferendumUpdate): void {
 
 export function bulkUpdateReferenda(items: ReferendumImportItem[]): number {
   const db = getWritableDatabase();
+
+  // Pre-validation: Check that all referenced categories exist
+  const violations: Array<{row: number, id: number, category: string, subcategory: string}> = [];
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    // Only validate if category/subcategory strings are provided (not when category_id is direct)
+    // Skip validation if both are null/undefined/empty (will result in category_id = null)
+    if (item.category_id === undefined && (item.category || item.subcategory)) {
+      const category = item.category || "";
+      const subcategory = item.subcategory || "";
+
+      // Check if this category/subcategory combination exists
+      const exists = db.prepare(`
+        SELECT 1 FROM "${TABLE_NAMES.categories}"
+        WHERE category = ? AND subcategory = ?
+      `).get(category, subcategory);
+
+      if (!exists) {
+        violations.push({
+          row: i + 2, // +2 for header row + 0-index
+          id: item.id,
+          category,
+          subcategory
+        });
+      }
+    }
+  }
+
+  // If there are violations, reject the entire import
+  if (violations.length > 0) {
+    const first10 = violations.slice(0, 10);
+    const errorMessage =
+      `Import rejected: ${violations.length} row(s) reference non-existent categories.\n` +
+      `First 10 violations:\n` +
+      first10.map(v => `  Row ${v.row}: referendum ${v.id} → category="${v.category}", subcategory="${v.subcategory}"`).join('\n');
+    throw new Error(errorMessage);
+  }
+
+  // Proceed with transaction only if validation passed
   const stmt = db.prepare(`
     UPDATE "${TABLE_NAMES.referenda}"
     SET category_id = ?, notes = ?, hide_in_spends = ?
@@ -437,13 +477,17 @@ export function bulkUpdateReferenda(items: ReferendumImportItem[]): number {
       if (item.category_id !== undefined) {
         // Option A: Direct category_id provided
         categoryId = item.category_id;
-      } else if (item.category) {
-        // Option B: Category strings provided - resolve them
-        const category = findOrCreateCategory(
-          item.category,
-          item.subcategory || ""
-        );
-        categoryId = category.id;
+      } else if (item.category !== undefined || item.subcategory !== undefined) {
+        // Option B: Category/subcategory strings provided - lookup only (no auto-create)
+        const category = item.category || "";
+        const subcategory = item.subcategory || "";
+
+        const existingCategory = db.prepare(`
+          SELECT id FROM "${TABLE_NAMES.categories}"
+          WHERE category = ? AND subcategory = ?
+        `).get(category, subcategory) as { id: number } | undefined;
+
+        categoryId = existingCategory?.id ?? null;
       }
 
       const result = stmt.run(
@@ -470,6 +514,9 @@ export interface ChildBountyUpdate {
 
 export function updateChildBounty(identifier: string, data: ChildBountyUpdate): void {
   const db = getWritableDatabase();
+  // Normalize identifier: convert hyphens to underscores to match DB format
+  const normalizedIdentifier = identifier.replace(/-/g, '_');
+
   const setClauses: string[] = [];
   const values: (string | number | null)[] = [];
 
@@ -488,7 +535,7 @@ export function updateChildBounty(identifier: string, data: ChildBountyUpdate): 
 
   if (setClauses.length === 0) return;
 
-  values.push(identifier);
+  values.push(normalizedIdentifier);
   db.prepare(`UPDATE "${TABLE_NAMES.childBounties}" SET ${setClauses.join(", ")} WHERE identifier = ?`).run(...values);
 }
 
@@ -496,6 +543,46 @@ export function updateChildBounty(identifier: string, data: ChildBountyUpdate): 
 
 export function bulkUpdateChildBounties(items: ChildBountyImportItem[]): number {
   const db = getWritableDatabase();
+
+  // Pre-validation: Check that all referenced categories exist
+  const violations: Array<{row: number, identifier: string, category: string, subcategory: string}> = [];
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    // Only validate if category/subcategory strings are provided (not when category_id is direct)
+    // Skip validation if both are null/undefined/empty (will result in category_id = null)
+    if (item.category_id === undefined && (item.category || item.subcategory)) {
+      const category = item.category || "";
+      const subcategory = item.subcategory || "";
+
+      // Check if this category/subcategory combination exists
+      const exists = db.prepare(`
+        SELECT 1 FROM "${TABLE_NAMES.categories}"
+        WHERE category = ? AND subcategory = ?
+      `).get(category, subcategory);
+
+      if (!exists) {
+        violations.push({
+          row: i + 2, // +2 for header row + 0-index
+          identifier: item.identifier,
+          category,
+          subcategory
+        });
+      }
+    }
+  }
+
+  // If there are violations, reject the entire import
+  if (violations.length > 0) {
+    const first10 = violations.slice(0, 10);
+    const errorMessage =
+      `Import rejected: ${violations.length} row(s) reference non-existent categories.\n` +
+      `First 10 violations:\n` +
+      first10.map(v => `  Row ${v.row}: "${v.identifier}" → category="${v.category}", subcategory="${v.subcategory}"`).join('\n');
+    throw new Error(errorMessage);
+  }
+
+  // Proceed with transaction only if validation passed
   const stmt = db.prepare(`
     UPDATE "${TABLE_NAMES.childBounties}"
     SET category_id = ?, notes = ?, hide_in_spends = ?
@@ -505,27 +592,115 @@ export function bulkUpdateChildBounties(items: ChildBountyImportItem[]): number 
   const transaction = db.transaction((items: ChildBountyImportItem[]) => {
     let count = 0;
     for (const item of items) {
+      // Normalize identifier: convert hyphens to underscores to match DB format
+      const normalizedIdentifier = item.identifier.replace(/-/g, '_');
+
       // Resolve category_id
       let categoryId: number | null = null;
 
       if (item.category_id !== undefined) {
         // Option A: Direct category_id provided
         categoryId = item.category_id;
-      } else if (item.category) {
-        // Option B: Category strings provided - resolve them
-        const category = findOrCreateCategory(
-          item.category,
-          item.subcategory || ""
-        );
-        categoryId = category.id;
+      } else if (item.category !== undefined || item.subcategory !== undefined) {
+        // Option B: Category/subcategory strings provided - lookup only (no auto-create)
+        const category = item.category || "";
+        const subcategory = item.subcategory || "";
+
+        const existingCategory = db.prepare(`
+          SELECT id FROM "${TABLE_NAMES.categories}"
+          WHERE category = ? AND subcategory = ?
+        `).get(category, subcategory) as { id: number } | undefined;
+
+        categoryId = existingCategory?.id ?? null;
       }
 
       const result = stmt.run(
         categoryId,
         item.notes ?? null,
         item.hide_in_spends ?? null,
-        item.identifier
+        normalizedIdentifier
       );
+      if (result.changes > 0) count++;
+    }
+    return count;
+  });
+
+  return transaction(items);
+}
+
+// Bulk update bounties from CSV import
+
+export function bulkUpdateBounties(items: BountyImportItem[]): number {
+  const db = getWritableDatabase();
+
+  // Pre-validation: Check that all referenced categories exist
+  const violations: Array<{row: number, id: number, category: string, subcategory: string}> = [];
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    // Only validate if category/subcategory strings are provided (not when category_id is direct)
+    // Skip validation if both are null/undefined/empty (will result in category_id = null)
+    if (item.category_id === undefined && (item.category || item.subcategory)) {
+      const category = item.category || "";
+      const subcategory = item.subcategory || "";
+
+      // Check if this category/subcategory combination exists
+      const exists = db.prepare(`
+        SELECT 1 FROM "${TABLE_NAMES.categories}"
+        WHERE category = ? AND subcategory = ?
+      `).get(category, subcategory);
+
+      if (!exists) {
+        violations.push({
+          row: i + 2, // +2 for header row + 0-index
+          id: item.id,
+          category,
+          subcategory
+        });
+      }
+    }
+  }
+
+  // If there are violations, reject the entire import
+  if (violations.length > 0) {
+    const first10 = violations.slice(0, 10);
+    const errorMessage =
+      `Import rejected: ${violations.length} row(s) reference non-existent categories.\n` +
+      `First 10 violations:\n` +
+      first10.map(v => `  Row ${v.row}: bounty ${v.id} → category="${v.category}", subcategory="${v.subcategory}"`).join('\n');
+    throw new Error(errorMessage);
+  }
+
+  // Proceed with transaction only if validation passed
+  const stmt = db.prepare(`
+    UPDATE "${TABLE_NAMES.bounties}"
+    SET category_id = ?
+    WHERE id = ?
+  `);
+
+  const transaction = db.transaction((items: BountyImportItem[]) => {
+    let count = 0;
+    for (const item of items) {
+      // Resolve category_id
+      let categoryId: number | null = null;
+
+      if (item.category_id !== undefined) {
+        // Option A: Direct category_id provided
+        categoryId = item.category_id;
+      } else if (item.category || item.subcategory) {
+        // Option B: Category/subcategory strings provided - lookup only (no auto-create)
+        const category = item.category || "";
+        const subcategory = item.subcategory || "";
+
+        const existingCategory = db.prepare(`
+          SELECT id FROM "${TABLE_NAMES.categories}"
+          WHERE category = ? AND subcategory = ?
+        `).get(category, subcategory) as { id: number } | undefined;
+
+        categoryId = existingCategory?.id ?? null;
+      }
+
+      const result = stmt.run(categoryId, item.id);
       if (result.changes > 0) count++;
     }
     return count;

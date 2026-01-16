@@ -47,6 +47,20 @@ syncRouter.get("/defaults/child-bounties", (_req, res) => {
   }
 });
 
+// GET /api/sync/defaults/bounties - Read default bounties CSV
+syncRouter.get("/defaults/bounties", (_req, res) => {
+  try {
+    const filePath = join(getDataPath(), "bounties-categories.csv");
+    if (!existsSync(filePath)) {
+      return res.status(404).json({ error: "Default file not found" });
+    }
+    const content = readFileSync(filePath, "utf-8");
+    res.json({ content });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 // GET /api/sync/defaults/treasury-netflows - Read default treasury netflows CSV
 syncRouter.get("/defaults/treasury-netflows", (_req, res) => {
   try {

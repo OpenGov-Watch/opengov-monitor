@@ -191,9 +191,11 @@ function validateQueryConfig(config: QueryConfig): string | null {
     }
   }
 
-  for (const filter of config.filters || []) {
-    if (!ALLOWED_OPERATORS.has(filter.operator)) {
-      return `Invalid operator: ${filter.operator}`;
+  // Validate filters (supports both FilterCondition[] and FilterGroup)
+  if (config.filters) {
+    const filterError = validateFilterOperators(config.filters);
+    if (filterError) {
+      return filterError;
     }
   }
 
@@ -356,9 +358,17 @@ function validateFilterOperators(filters: FilterCondition[] | FilterGroup): stri
 function buildSingleCondition(
   filter: FilterCondition,
   sourceTable: string | undefined,
-  params: (string | number)[]
+  params: (string | number)[],
+  hasJoins: boolean
 ): string {
-  const colName = sanitizeColumnName(filter.column, sourceTable);
+  // If we have JOINs and the column doesn't have a table prefix, add the source table prefix
+  // This prevents "ambiguous column name" errors when multiple joined tables have the same column
+  let columnRef = filter.column;
+  if (hasJoins && sourceTable && !columnRef.includes('.')) {
+    columnRef = `${sourceTable}.${columnRef}`;
+  }
+
+  const colName = sanitizeColumnName(columnRef, sourceTable);
 
   switch (filter.operator) {
     case "IS NULL":
@@ -366,13 +376,17 @@ function buildSingleCondition(
     case "IS NOT NULL":
       return `${colName} IS NOT NULL`;
     case "IN":
-      if (Array.isArray(filter.value)) {
+      if (Array.isArray(filter.value) && filter.value.length > 0) {
         const placeholders = filter.value.map(() => "?").join(", ");
         params.push(...filter.value);
         return `${colName} IN (${placeholders})`;
       }
       return "";
     default:
+      // Skip conditions with empty/null values (except IS NULL operators)
+      if (filter.value === null || filter.value === undefined || filter.value === "") {
+        return "";
+      }
       params.push(filter.value as string | number);
       return `${colName} ${filter.operator} ?`;
   }
@@ -382,7 +396,8 @@ function buildSingleCondition(
 function buildFilterGroupConditions(
   group: FilterGroup,
   sourceTable: string | undefined,
-  params: (string | number)[]
+  params: (string | number)[],
+  hasJoins: boolean
 ): string {
   if (!group.conditions || group.conditions.length === 0) {
     return "";
@@ -393,13 +408,13 @@ function buildFilterGroupConditions(
   for (const condition of group.conditions) {
     if (isFilterGroup(condition)) {
       // Recursive case: nested FilterGroup
-      const subGroup = buildFilterGroupConditions(condition, sourceTable, params);
+      const subGroup = buildFilterGroupConditions(condition, sourceTable, params, hasJoins);
       if (subGroup) {
         subConditions.push(`(${subGroup})`);
       }
     } else {
       // Base case: FilterCondition
-      const singleCondition = buildSingleCondition(condition, sourceTable, params);
+      const singleCondition = buildSingleCondition(condition, sourceTable, params, hasJoins);
       if (singleCondition) {
         subConditions.push(singleCondition);
       }
@@ -411,14 +426,15 @@ function buildFilterGroupConditions(
 
 function buildWhereClause(
   filters: FilterCondition[] | FilterGroup,
-  sourceTable?: string
+  sourceTable: string | undefined,
+  hasJoins: boolean
 ): { clause: string; params: (string | number)[] } {
   const params: (string | number)[] = [];
   let conditionString = "";
 
   if (isFilterGroup(filters)) {
     // New format: FilterGroup with recursive nesting
-    conditionString = buildFilterGroupConditions(filters, sourceTable, params);
+    conditionString = buildFilterGroupConditions(filters, sourceTable, params, hasJoins);
   } else {
     // Old format: FilterCondition[] (backward compatibility)
     if (!filters || filters.length === 0) {
@@ -427,7 +443,7 @@ function buildWhereClause(
 
     const conditions: string[] = [];
     for (const filter of filters) {
-      const singleCondition = buildSingleCondition(filter, sourceTable, params);
+      const singleCondition = buildSingleCondition(filter, sourceTable, params, hasJoins);
       if (singleCondition) {
         conditions.push(singleCondition);
       }
@@ -504,7 +520,8 @@ function buildQuery(config: QueryConfig): { sql: string; params: (string | numbe
   const selectClause = buildSelectClause(config, availableColumns);
   const tableName = `"${config.sourceTable}"`;
   const joinClause = buildJoinClause(config.joins);
-  const { clause: whereClause, params } = buildWhereClause(config.filters || [], config.sourceTable);
+  const hasJoins = !!(config.joins && config.joins.length > 0);
+  const { clause: whereClause, params } = buildWhereClause(config.filters || [], config.sourceTable, hasJoins);
   const groupByClause = buildGroupByClause(config.groupBy, config.sourceTable);
   const orderByClause = buildOrderByClause(config.orderBy, config);
   const limit = Math.min(config.limit || MAX_ROWS, MAX_ROWS);
@@ -532,7 +549,8 @@ function buildQuery(config: QueryConfig): { sql: string; params: (string | numbe
 function buildCountQuery(config: QueryConfig): { sql: string; params: (string | number)[] } {
   const tableName = `"${config.sourceTable}"`;
   const joinClause = buildJoinClause(config.joins);
-  const { clause: whereClause, params } = buildWhereClause(config.filters || [], config.sourceTable);
+  const hasJoins = !!(config.joins && config.joins.length > 0);
+  const { clause: whereClause, params } = buildWhereClause(config.filters || [], config.sourceTable, hasJoins);
 
   const sql = [
     `SELECT COUNT(*) as total`,
@@ -576,9 +594,11 @@ function buildFacetQuery(
     );
   }
 
+  const hasJoins = !!(config.joins && config.joins.length > 0);
   const { clause: whereClause, params } = buildWhereClause(
     filtersExcludingFacetedColumn,
-    config.sourceTable
+    config.sourceTable,
+    hasJoins
   );
 
   const colName = sanitizeColumnName(columnName, config.sourceTable);

@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -21,15 +22,33 @@ export function DataTableColumnHeader<TData, TValue>({
     return <div className={cn(className)}>{title}</div>;
   }
 
+  // Get the sort order index for multi-column sorting
+  const sortIndex = column.getSortIndex();
+  const isSorted = column.getIsSorted();
+
   // Cycle through: none -> asc -> desc -> none
-  const handleSort = () => {
+  // With shift key: append to existing sorts (multi-column sort)
+  const handleSort = (event: React.MouseEvent) => {
     const currentSort = column.getIsSorted();
-    if (currentSort === false) {
-      column.toggleSorting(false); // Set to ascending
-    } else if (currentSort === "asc") {
-      column.toggleSorting(true); // Set to descending
+
+    if (event.shiftKey) {
+      // Multi-column sort: toggle this column without clearing others
+      if (currentSort === false) {
+        column.toggleSorting(false, true); // multi = true
+      } else if (currentSort === "asc") {
+        column.toggleSorting(true, true); // multi = true
+      } else {
+        column.clearSorting();
+      }
     } else {
-      column.clearSorting(); // Clear sorting
+      // Single column sort: cycle through states
+      if (currentSort === false) {
+        column.toggleSorting(false); // Set to ascending
+      } else if (currentSort === "asc") {
+        column.toggleSorting(true); // Set to descending
+      } else {
+        column.clearSorting(); // Clear sorting
+      }
     }
   };
 
@@ -42,12 +61,18 @@ export function DataTableColumnHeader<TData, TValue>({
         onClick={handleSort}
       >
         <span>{title}</span>
-        {column.getIsSorted() === "desc" ? (
+        {isSorted === "desc" ? (
           <ArrowDown className="ml-2 h-4 w-4" />
-        ) : column.getIsSorted() === "asc" ? (
+        ) : isSorted === "asc" ? (
           <ArrowUp className="ml-2 h-4 w-4" />
         ) : (
           <ChevronsUpDown className="ml-2 h-4 w-4" />
+        )}
+        {/* Show sort order number for multi-column sorting */}
+        {isSorted && sortIndex !== -1 && (
+          <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 text-xs flex items-center justify-center">
+            {sortIndex + 1}
+          </Badge>
         )}
       </Button>
     </div>

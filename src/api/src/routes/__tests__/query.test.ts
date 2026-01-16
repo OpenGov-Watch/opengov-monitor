@@ -10,9 +10,12 @@ import request from "supertest";
 import express from "express";
 import { queryRouter } from "../query.js";
 import Database from "better-sqlite3";
+import * as fs from "fs";
+import * as path from "path";
 
 // Create test database and mock the db module
 let testDb: Database.Database;
+let testDbPath: string;
 
 vi.mock("../../db/index.js", () => ({
   getDatabase: () => testDb,
@@ -27,109 +30,90 @@ function createApp(): express.Express {
   return app;
 }
 
-// Schema SQL for test database
-const SCHEMA_SQL = `
-  CREATE TABLE IF NOT EXISTS "Referenda" (
-    "id" INTEGER PRIMARY KEY,
-    "url" TEXT,
-    "title" TEXT,
-    "status" TEXT,
-    "DOT_proposal_time" REAL,
-    "USD_proposal_time" REAL,
-    "track" TEXT,
-    "tally.ayes" REAL,
-    "tally.nays" REAL,
-    "proposal_time" TEXT,
-    "latest_status_change" TEXT,
-    "DOT_latest" REAL,
-    "USD_latest" REAL,
-    "DOT_component" REAL,
-    "USDC_component" REAL,
-    "USDT_component" REAL,
-    "category" TEXT,
-    "subcategory" TEXT
-  );
-
-  CREATE TABLE IF NOT EXISTS "Treasury" (
-    "id" INTEGER PRIMARY KEY,
-    "url" TEXT,
-    "referendumIndex" INTEGER,
-    "status" TEXT,
-    "description" TEXT,
-    "DOT_proposal_time" REAL,
-    "USD_proposal_time" REAL,
-    "proposal_time" TEXT,
-    "latest_status_change" TEXT,
-    "DOT_latest" REAL,
-    "USD_latest" REAL,
-    "DOT_component" REAL,
-    "USDC_component" REAL,
-    "USDT_component" REAL,
-    "validFrom" TEXT,
-    "expireAt" TEXT
-  );
-
-  CREATE TABLE IF NOT EXISTS "Child Bounties" (
-    "identifier" TEXT PRIMARY KEY,
-    "url" TEXT,
-    "index" INTEGER,
-    "parentBountyId" INTEGER,
-    "status" TEXT,
-    "description" TEXT,
-    "DOT" REAL,
-    "USD_proposal_time" REAL,
-    "beneficiary" TEXT,
-    "proposal_time" TEXT,
-    "latest_status_change" TEXT,
-    "USD_latest" REAL,
-    "category" TEXT,
-    "subcategory" TEXT
-  );
-
-  CREATE TABLE IF NOT EXISTS "categories" (
-    "id" INTEGER PRIMARY KEY,
-    "category" TEXT,
-    "subcategory" TEXT
-  );
-
-  CREATE TABLE IF NOT EXISTS "bounties" (
-    "id" INTEGER PRIMARY KEY,
-    "name" TEXT,
-    "category" TEXT,
-    "subcategory" TEXT,
-    "remaining_dot" REAL,
-    "url" TEXT
-  );
-
-  CREATE TABLE IF NOT EXISTS "secret_data" (
-    "id" INTEGER PRIMARY KEY,
-    "password" TEXT
-  );
-
-  CREATE VIEW IF NOT EXISTS "outstanding_claims" AS
-    SELECT id, url, status FROM "Treasury" WHERE status = 'Approved';
-
-  CREATE VIEW IF NOT EXISTS "all_spending" AS
-    SELECT id, url FROM "Referenda";
-`;
-
 let app: express.Express;
 
 beforeAll(() => {
-  testDb = new Database(":memory:");
-  testDb.exec(SCHEMA_SQL);
+  // Copy the production database to a temp location for testing
+  const prodDbPath = path.resolve(process.cwd(), "../../data/local/polkadot.db");
+  testDbPath = path.resolve(process.cwd(), "../../data/local/polkadot-test.db");
 
-  // Seed test data
+  // Copy the database file
+  if (fs.existsSync(prodDbPath)) {
+    fs.copyFileSync(prodDbPath, testDbPath);
+    testDb = new Database(testDbPath);
+  } else {
+    // Fallback: create in-memory database if prod DB doesn't exist
+    console.warn("Production database not found, using in-memory database for tests");
+    testDb = new Database(":memory:");
+
+    // Create minimal schema for security tests
+    testDb.exec(`
+      CREATE TABLE IF NOT EXISTS "Referenda" (
+        "id" INTEGER PRIMARY KEY,
+        "url" TEXT,
+        "title" TEXT,
+        "status" TEXT,
+        "DOT_proposal_time" REAL,
+        "USD_proposal_time" REAL,
+        "track" TEXT,
+        "DOT_latest" REAL,
+        "USD_latest" REAL,
+        "category" TEXT,
+        "subcategory" TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS "Treasury" (
+        "id" INTEGER PRIMARY KEY,
+        "url" TEXT,
+        "status" TEXT,
+        "DOT_latest" REAL,
+        "description" TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS "Child Bounties" (
+        "identifier" TEXT PRIMARY KEY,
+        "url" TEXT,
+        "status" TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS "categories" (
+        "id" INTEGER PRIMARY KEY,
+        "category" TEXT,
+        "subcategory" TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS "secret_data" (
+        "id" INTEGER PRIMARY KEY,
+        "password" TEXT
+      );
+
+      CREATE VIEW IF NOT EXISTS "outstanding_claims" AS
+        SELECT id, url, status FROM "Treasury" WHERE status = 'Approved';
+
+      CREATE VIEW IF NOT EXISTS "all_spending" AS
+        SELECT id, url FROM "Referenda";
+
+      INSERT INTO "Referenda" (id, title, status, DOT_latest, track)
+      VALUES (1, 'Test Ref 1', 'Executed', 1000, 'Treasurer'),
+             (2, 'Test Ref 2', 'Ongoing', 2000, 'SmallSpender');
+
+      INSERT INTO "Treasury" (id, status, DOT_latest, description)
+      VALUES (1, 'Approved', 1000, 'Test'),
+             (2, 'Paid', 2000, 'Test 2');
+
+      INSERT INTO "secret_data" (id, password)
+      VALUES (1, 'supersecret123');
+    `);
+  }
+
+  // Add secret_data table for security testing (not in prod DB)
   testDb.exec(`
-    INSERT INTO "Referenda" (id, title, status, DOT_latest, track)
-    VALUES (1, 'Test Ref 1', 'Executed', 1000, 'Treasurer'),
-           (2, 'Test Ref 2', 'Ongoing', 2000, 'SmallSpender');
+    CREATE TABLE IF NOT EXISTS "secret_data" (
+      "id" INTEGER PRIMARY KEY,
+      "password" TEXT
+    );
 
-    INSERT INTO "Treasury" (id, status, DOT_latest, description)
-    VALUES (1, 'Approved', 1000, 'Test'),
-           (2, 'Paid', 2000, 'Test 2');
-
-    INSERT INTO "secret_data" (id, password)
+    INSERT OR IGNORE INTO "secret_data" (id, password)
     VALUES (1, 'supersecret123');
   `);
 
@@ -138,6 +122,15 @@ beforeAll(() => {
 
 afterAll(() => {
   testDb.close();
+
+  // Clean up test database file
+  if (testDbPath && fs.existsSync(testDbPath)) {
+    try {
+      fs.unlinkSync(testDbPath);
+    } catch (err) {
+      console.warn("Failed to delete test database:", err);
+    }
+  }
 });
 
 describe("Query Builder Security Tests", () => {
@@ -493,7 +486,7 @@ describe("Query Builder Security Tests", () => {
         .send({
           sourceTable: "Referenda",
           columns: [{ column: "id" }],
-          filters: [{ column: "category", operator: "IS NULL", value: null }],
+          filters: [{ column: "title", operator: "IS NULL", value: null }],
         });
 
       expect(response.status).toBe(200);
@@ -505,7 +498,7 @@ describe("Query Builder Security Tests", () => {
         .send({
           sourceTable: "Referenda",
           columns: [{ column: "id" }],
-          filters: [{ column: "category", operator: "IS NOT NULL", value: null }],
+          filters: [{ column: "title", operator: "IS NOT NULL", value: null }],
         });
 
       expect(response.status).toBe(200);
@@ -1567,5 +1560,400 @@ describe("Regular Column Alias Security Tests", () => {
       expect(response.status).toBe(500);
       expect(response.body.error).toContain("Invalid alias");
     });
+  });
+});
+
+// ===========================================================================
+// FilterGroup and Empty Filter Condition Tests
+// ===========================================================================
+describe("FilterGroup and Empty Filter Condition Tests", () => {
+  describe("Empty Filter Conditions", () => {
+    it("ignores filter condition with empty string value", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          filters: {
+            operator: "AND",
+            conditions: [
+              { column: "id", operator: "=", value: "" }
+            ]
+          },
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toBeDefined();
+      // Should return all data since empty condition is ignored
+      expect(response.body.data.length).toBeGreaterThan(0);
+    });
+
+    it("ignores filter condition with null value", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          filters: {
+            operator: "AND",
+            conditions: [
+              { column: "id", operator: "=", value: null }
+            ]
+          },
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toBeDefined();
+    });
+
+    it("ignores filter condition with undefined value", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          filters: {
+            operator: "AND",
+            conditions: [
+              { column: "id", operator: ">", value: undefined }
+            ]
+          },
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toBeDefined();
+    });
+
+    it("applies valid conditions while ignoring empty ones", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }, { column: "status" }],
+          filters: {
+            operator: "AND",
+            conditions: [
+              { column: "id", operator: "=", value: "" },  // Ignored
+              { column: "status", operator: "=", value: "Executed" }  // Applied
+            ]
+          },
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toBeDefined();
+      // Should only return Executed referenda
+      expect(response.body.data.length).toBeGreaterThan(0);
+      expect(response.body.data[0].status).toBe("Executed");
+    });
+
+    it("allows IS NULL operator with null value", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          filters: {
+            operator: "AND",
+            conditions: [
+              { column: "title", operator: "IS NULL", value: null }
+            ]
+          },
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toBeDefined();
+    });
+
+    it("allows IS NOT NULL operator with null value", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          filters: {
+            operator: "AND",
+            conditions: [
+              { column: "title", operator: "IS NOT NULL", value: null }
+            ]
+          },
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toBeDefined();
+    });
+
+    it("ignores IN operator with empty array", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          filters: {
+            operator: "AND",
+            conditions: [
+              { column: "status", operator: "IN", value: [] }
+            ]
+          },
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toBeDefined();
+      // Should return all data since empty IN is ignored
+    });
+  });
+
+  describe("Nested FilterGroup with Empty Conditions", () => {
+    it("handles nested FilterGroup with some empty conditions", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          filters: {
+            operator: "AND",
+            conditions: [
+              { column: "status", operator: "=", value: "Executed" },
+              {
+                operator: "OR",
+                conditions: [
+                  { column: "id", operator: ">", value: "" },  // Ignored
+                  { column: "track", operator: "=", value: "Treasurer" }
+                ]
+              }
+            ]
+          },
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toBeDefined();
+    });
+
+    it("handles FilterGroup with all conditions empty", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          filters: {
+            operator: "AND",
+            conditions: [
+              { column: "id", operator: "=", value: "" },
+              { column: "status", operator: "=", value: "" }
+            ]
+          },
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toBeDefined();
+      // Should return all data since all conditions are empty
+      expect(response.body.data.length).toBeGreaterThan(0);
+    });
+
+    it("handles empty FilterGroup", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }],
+          filters: {
+            operator: "AND",
+            conditions: []
+          },
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toBeDefined();
+    });
+  });
+
+  describe("Facet Query with Empty Conditions", () => {
+    it("handles facet query with empty filter conditions", async () => {
+      const response = await request(app)
+        .post("/api/query/facets")
+        .send({
+          sourceTable: "Referenda",
+          columns: ["status"],
+          filters: {
+            operator: "AND",
+            conditions: [
+              { column: "id", operator: ">", value: "" }
+            ]
+          },
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.facets).toBeDefined();
+      expect(response.body.facets.status).toBeDefined();
+    });
+
+    it("applies valid conditions in facet query while ignoring empty ones", async () => {
+      const response = await request(app)
+        .post("/api/query/facets")
+        .send({
+          sourceTable: "Referenda",
+          columns: ["track"],
+          filters: {
+            operator: "AND",
+            conditions: [
+              { column: "id", operator: "=", value: "" },  // Ignored
+              { column: "status", operator: "=", value: "Executed" }
+            ]
+          },
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.facets).toBeDefined();
+    });
+  });
+});
+
+describe("Filters with JOINs and Ambiguous Column Names", () => {
+  it("handles filters on ambiguous columns when JOINs are present", async () => {
+    // This tests the fix for: when a query has JOINs and filters on a column
+    // that exists in multiple tables (e.g., "id" in both Referenda and Categories),
+    // the filter should add table prefix to avoid SQL "ambiguous column name" error
+    const response = await request(app)
+      .post("/api/query/execute")
+      .send({
+        sourceTable: "Referenda",
+        columns: [
+          { column: "id" },
+          { column: "title" },
+          { column: "status" },
+          { column: "c.category", alias: "category" },
+        ],
+        joins: [
+          {
+            type: "LEFT",
+            table: "Categories",
+            alias: "c",
+            on: {
+              left: "Referenda.category_id",
+              right: "c.id"
+            }
+          }
+        ],
+        filters: {
+          operator: "AND",
+          conditions: [
+            { column: "id", operator: "=", value: 1 }
+          ]
+        },
+        limit: 10
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toBeDefined();
+    expect(Array.isArray(response.body.data)).toBe(true);
+  });
+
+  it("handles facet queries with ambiguous columns when JOINs are present", async () => {
+    // Test that facet queries also handle ambiguous columns correctly
+    const response = await request(app)
+      .post("/api/query/facets")
+      .send({
+        sourceTable: "Referenda",
+        columns: ["status"],
+        joins: [
+          {
+            type: "LEFT",
+            table: "Categories",
+            alias: "c",
+            on: {
+              left: "Referenda.category_id",
+              right: "c.id"
+            }
+          }
+        ],
+        filters: {
+          operator: "AND",
+          conditions: [
+            { column: "id", operator: ">", value: 100 }
+          ]
+        }
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.facets).toBeDefined();
+    expect(response.body.facets.status).toBeDefined();
+  });
+
+  it("preserves explicit table.column references in filters", async () => {
+    // Test that if user explicitly specifies table.column, it's preserved
+    const response = await request(app)
+      .post("/api/query/execute")
+      .send({
+        sourceTable: "Referenda",
+        columns: [
+          { column: "id" },
+          { column: "title" },
+        ],
+        joins: [
+          {
+            type: "LEFT",
+            table: "Categories",
+            alias: "c",
+            on: {
+              left: "Referenda.category_id",
+              right: "c.id"
+            }
+          }
+        ],
+        filters: {
+          operator: "AND",
+          conditions: [
+            { column: "Referenda.id", operator: "=", value: 1 }
+          ]
+        },
+        limit: 10
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toBeDefined();
+  });
+
+  it("handles nested FilterGroups with JOINs", async () => {
+    // Test that nested filter groups also handle ambiguous columns correctly
+    const response = await request(app)
+      .post("/api/query/execute")
+      .send({
+        sourceTable: "Referenda",
+        columns: [
+          { column: "id" },
+          { column: "title" },
+        ],
+        joins: [
+          {
+            type: "LEFT",
+            table: "Categories",
+            alias: "c",
+            on: {
+              left: "Referenda.category_id",
+              right: "c.id"
+            }
+          }
+        ],
+        filters: {
+          operator: "OR",
+          conditions: [
+            {
+              operator: "AND",
+              conditions: [
+                { column: "id", operator: "=", value: 1 }
+              ]
+            },
+            {
+              operator: "AND",
+              conditions: [
+                { column: "id", operator: "=", value: 2 }
+              ]
+            }
+          ]
+        },
+        limit: 10
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toBeDefined();
   });
 });

@@ -311,3 +311,236 @@ describe("Validation", () => {
     });
   });
 });
+
+describe("POST /api/bounties/import", () => {
+  it("bulk updates multiple bounties with category strings", async () => {
+    // Insert test bounties
+    testDb.exec(`
+      INSERT INTO "Bounties" (id, name, category_id, remaining_dot)
+      VALUES (10, 'Bounty 10', NULL, 1000),
+             (11, 'Bounty 11', NULL, 2000)
+    `);
+
+    const response = await request(app)
+      .post("/api/bounties/import")
+      .send({
+        items: [
+          { id: 10, category: "Development", subcategory: "Core" },
+          { id: 11, category: "Marketing", subcategory: "Events" },
+        ],
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.count).toBe(2);
+
+    const result1 = testDb.prepare('SELECT * FROM "Bounties" WHERE id = ?').get(10) as {
+      category_id: number;
+    };
+    expect(result1.category_id).toBe(1); // Development/Core
+
+    const result2 = testDb.prepare('SELECT * FROM "Bounties" WHERE id = ?').get(11) as {
+      category_id: number;
+    };
+    expect(result2.category_id).toBe(2); // Marketing/Events
+  });
+
+  it("handles empty categories (sets to null)", async () => {
+    testDb.exec(`
+      INSERT INTO "Bounties" (id, name, category_id, remaining_dot)
+      VALUES (10, 'Bounty 10', 1, 1000)
+    `);
+
+    const response = await request(app)
+      .post("/api/bounties/import")
+      .send({
+        items: [
+          { id: 10, category: null, subcategory: null },
+        ],
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.count).toBe(1);
+
+    const result = testDb.prepare('SELECT * FROM "Bounties" WHERE id = ?').get(10) as {
+      category_id: number | null;
+    };
+    expect(result.category_id).toBeNull();
+  });
+
+  it("rejects import when category doesn't exist", async () => {
+    testDb.exec(`
+      INSERT INTO "Bounties" (id, name, category_id, remaining_dot)
+      VALUES (10, 'Bounty 10', NULL, 1000)
+    `);
+
+    const response = await request(app)
+      .post("/api/bounties/import")
+      .send({
+        items: [
+          { id: 10, category: "Nonexistent Category", subcategory: "Nonexistent Sub" },
+        ],
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain("Import rejected");
+    expect(response.body.error).toContain("non-existent categories");
+    expect(response.body.error).toContain("Row 2"); // Row 2 (1 + header)
+    expect(response.body.error).toContain("bounty 10");
+    expect(response.body.error).toContain("Nonexistent Category");
+    expect(response.body.error).toContain("Nonexistent Sub");
+  });
+
+  it("shows first 10 violations when many invalid categories", async () => {
+    // Insert 15 bounties
+    for (let i = 1; i <= 15; i++) {
+      testDb.exec(`
+        INSERT INTO "Bounties" (id, name, remaining_dot)
+        VALUES (${i}, 'Bounty ${i}', 1000)
+      `);
+    }
+
+    const items = Array.from({ length: 15 }, (_, i) => ({
+      id: i + 1,
+      category: `Invalid Cat ${i}`,
+      subcategory: `Invalid Sub ${i}`,
+    }));
+
+    const response = await request(app)
+      .post("/api/bounties/import")
+      .send({ items });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain("15 row(s)");
+    expect(response.body.error).toContain("First 10 violations");
+
+    // Verify first 10 are shown
+    expect(response.body.error).toContain("Invalid Cat 0");
+    expect(response.body.error).toContain("Invalid Cat 9");
+
+    // Verify 11th+ are not shown (only first 10)
+    expect(response.body.error).not.toContain("Invalid Cat 10");
+    expect(response.body.error).not.toContain("Invalid Cat 14");
+  });
+
+  it("reuses existing categories when they match", async () => {
+    testDb.exec(`
+      INSERT INTO "Bounties" (id, name, category_id, remaining_dot)
+      VALUES (10, 'Bounty 10', NULL, 1000)
+    `);
+
+    const response = await request(app)
+      .post("/api/bounties/import")
+      .send({
+        items: [
+          { id: 10, category: "Development", subcategory: "Core" },
+        ],
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.count).toBe(1);
+
+    const result = testDb.prepare('SELECT * FROM "Bounties" WHERE id = ?').get(10) as {
+      category_id: number;
+    };
+    expect(result.category_id).toBe(1); // Existing category ID
+
+    // Verify category count didn't increase
+    const categoryCount = testDb
+      .prepare('SELECT COUNT(*) as count FROM "Categories"')
+      .get() as { count: number };
+    expect(categoryCount.count).toBe(3); // Still only 3 seeded categories
+  });
+
+  it("handles partial updates (some bounties with categories, some without)", async () => {
+    testDb.exec(`
+      INSERT INTO "Bounties" (id, name, category_id, remaining_dot)
+      VALUES (10, 'Bounty 10', NULL, 1000),
+             (11, 'Bounty 11', NULL, 2000),
+             (12, 'Bounty 12', NULL, 3000)
+    `);
+
+    const response = await request(app)
+      .post("/api/bounties/import")
+      .send({
+        items: [
+          { id: 10, category: "Development", subcategory: "Core" },
+          { id: 11, category: null, subcategory: null },
+          { id: 12, category: "Development", subcategory: "" },
+        ],
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.count).toBe(3);
+
+    const result1 = testDb.prepare('SELECT category_id FROM "Bounties" WHERE id = 10').get() as {
+      category_id: number;
+    };
+    expect(result1.category_id).toBe(1);
+
+    const result2 = testDb.prepare('SELECT category_id FROM "Bounties" WHERE id = 11').get() as {
+      category_id: number | null;
+    };
+    expect(result2.category_id).toBeNull();
+
+    const result3 = testDb.prepare('SELECT category_id FROM "Bounties" WHERE id = 12').get() as {
+      category_id: number;
+    };
+    expect(result3.category_id).toBe(3); // Development with empty subcategory
+  });
+
+  it("returns 400 when items is not an array", async () => {
+    const response = await request(app)
+      .post("/api/bounties/import")
+      .send({ items: "not an array" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain("items must be an array");
+  });
+
+  it("returns count 0 when no bounty ids match", async () => {
+    const response = await request(app)
+      .post("/api/bounties/import")
+      .send({
+        items: [
+          { id: 999, category: "Development", subcategory: "Core" },
+          { id: 1000, category: "Marketing", subcategory: "Events" },
+        ],
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.count).toBe(0);
+  });
+
+  it("handles empty array", async () => {
+    const response = await request(app)
+      .post("/api/bounties/import")
+      .send({ items: [] });
+
+    expect(response.status).toBe(200);
+    expect(response.body.count).toBe(0);
+  });
+
+  it("can use category_id directly (backward compatibility)", async () => {
+    testDb.exec(`
+      INSERT INTO "Bounties" (id, name, category_id, remaining_dot)
+      VALUES (10, 'Bounty 10', NULL, 1000)
+    `);
+
+    const response = await request(app)
+      .post("/api/bounties/import")
+      .send({
+        items: [
+          { id: 10, category_id: 2 },
+        ],
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.count).toBe(1);
+
+    const result = testDb.prepare('SELECT * FROM "Bounties" WHERE id = ?').get(10) as {
+      category_id: number;
+    };
+    expect(result.category_id).toBe(2);
+  });
+});

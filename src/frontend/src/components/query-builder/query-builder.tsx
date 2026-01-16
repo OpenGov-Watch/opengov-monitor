@@ -159,7 +159,7 @@ export function QueryBuilder({
       }
     }
 
-    if (config.filters && config.filters.length > 0) {
+    if (config.filters && Array.isArray(config.filters) && config.filters.length > 0) {
       const conditions = config.filters.map((f) => {
         const colName = `"${f.column}"`;
         if (f.operator === "IS NULL" || f.operator === "IS NOT NULL") {
@@ -327,15 +327,17 @@ export function QueryBuilder({
 
   function addFilter() {
     if (availableColumns.length === 0) return;
+    const existingFilters = Array.isArray(config.filters) ? config.filters : [];
     updateConfig({
       filters: [
-        ...config.filters,
+        ...existingFilters,
         { column: availableColumns[0].fullName, operator: "=", value: "" },
       ],
     });
   }
 
   function updateFilter(index: number, updates: Partial<FilterCondition>) {
+    if (!Array.isArray(config.filters)) return;
     updateConfig({
       filters: config.filters.map((f, i) =>
         i === index ? { ...f, ...updates } : f
@@ -344,6 +346,7 @@ export function QueryBuilder({
   }
 
   function removeFilter(index: number) {
+    if (!Array.isArray(config.filters)) return;
     updateConfig({
       filters: config.filters.filter((_, i) => i !== index),
     });
@@ -415,9 +418,9 @@ export function QueryBuilder({
     );
 
     // Remove filters referencing the deleted table
-    const updatedFilters = config.filters?.filter(
-      (f) => !f.column.startsWith(`${tableName}.`)
-    );
+    const updatedFilters = Array.isArray(config.filters)
+      ? config.filters.filter((f) => !f.column.startsWith(`${tableName}.`))
+      : config.filters;
 
     // Remove order by clauses referencing the deleted table
     const updatedOrderBy = config.orderBy?.filter(
@@ -849,7 +852,7 @@ export function QueryBuilder({
               <Plus className="h-4 w-4 mr-1" /> Add Filter
             </Button>
           </div>
-          {config.filters.length > 0 && (
+          {Array.isArray(config.filters) && config.filters.length > 0 && (
             <div className="rounded-md border p-4 space-y-3">
               {config.filters.map((filter, index) => (
                 <div key={index} className="flex items-center gap-2">
