@@ -428,19 +428,6 @@ export function DataTableToolbar<TData>({
               )}
             </Button>
           )}
-
-          {/* Reset View Button */}
-          {!compactMode && isFiltered && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onClearView}
-              className="h-8 hidden md:flex"
-            >
-              <RotateCcw className="mr-2 h-4 w-4" />
-              <span className="hidden lg:inline">Reset View</span>
-            </Button>
-          )}
         </div>
       )}
     </div>
