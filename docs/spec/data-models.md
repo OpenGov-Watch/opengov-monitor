@@ -45,11 +45,7 @@ Value fields: `DOT`, `USD_proposal_time`, `USD_latest`
 
 Manual fields: `category_id` (FK), `notes`, `hide_in_spends`
 
-**Category inheritance**: Child bounties inherit parent bounty's category when `category_id` is NULL:
-- UI displays parent's `category` and `subcategory` as grayed placeholders via `parentCategory` and `parentSubcategory` (from JOIN on parent bounty's category)
-- User can override by selecting a category
-- Selecting "None" for category inherits from parent with matching subcategory if available, otherwise uses parent's subcategory
-- Changing category preserves subcategory if it exists in new category, otherwise defaults to "Other"
+**Category inheritance**: Child bounties inherit parent category when `category_id` is NULL
 
 ### Fellowship Treasury Spend
 
@@ -63,7 +59,7 @@ Primary key: `cycle`
 
 Core fields: `budget_usdc`, `registeredCount`, `registeredPaidCount`, `registered_paid_amount_usdc`, `total_registrations_usdc`, `unregistered_paid_usdc`
 
-Note: Fellowship salaries are paid in USDC with 6 decimal places (÷ 10^6)
+Note: Fellowship salaries paid in USDC with 6 decimal places (÷ 10^6)
 
 Period fields: `registration_period`, `payout_period`, `start_block`, `end_block`, `start_time`, `end_time`
 
@@ -75,7 +71,7 @@ Core fields: `display_name`, `name`, `short_address`, `status_type`, `rank`, `la
 
 Amount fields: `registered_amount_usdc`, `attempt_amount_usdc`, `attempt_id`
 
-Note: Fellowship salary amounts are paid in USDC with 6 decimal places (÷ 10^6)
+Note: Fellowship salary amounts paid in USDC with 6 decimal places (÷ 10^6)
 
 ### Fellowship Salary Payment
 
@@ -93,18 +89,31 @@ Primary key: `id` (auto-increment)
 
 Fields: `category`, `subcategory`
 
-Unique constraint: (category, subcategory)
+**Constraints:**
+- Unique constraint: `(category, subcategory)` - no duplicate pairs allowed
+- Both fields are TEXT, nullable
 
-**Requirement**: Every category must have an "Other" subcategory for fallback scenarios in UI selection logic.
+**Category Assignment Rules:**
+- Empty category + empty subcategory (`""`, `""`) = NULL `category_id` (intentional "no category")
+- Non-empty values must reference existing Categories table entries
+- Foreign key references to Categories resolve to `category_id`
 
-**Bulk Import**: Import unique category/subcategory pairs via Sync Settings (`/manage/sync`):
-- **Default file**: `data/defaults/categories.csv` - 81 unique pairs aggregated from bounties, child bounties, and referenda
-- **CSV format**: `category,subcategory`
-- **Import logic**: Uses `INSERT OR IGNORE` to prevent duplicates on re-import
-- **API endpoints**:
-  - GET `/api/sync/defaults/categories` - Retrieve default categories CSV
-  - POST `/api/categories/import` - Bulk insert (authenticated)
-- **Frontend**: First card in sync settings grid with "Upload CSV" and "Apply Defaults" buttons
+**Requirements:**
+- Every category must have an "Other" subcategory for UI fallback selection
+- All category/subcategory pairs must exist in Categories before bulk importing entities
+
+**CSV Format:**
+```
+category,subcategory
+Development,Infrastructure
+Development,Other
+```
+
+**Import Validation:**
+- Pre-validates all category references before import
+- Rejects entire import (400 error) if any non-existent pairs found
+- Empty pairs (`""`, `""`) skip validation (allowed)
+- Error message shows first 10 violations with row numbers
 
 ### Bounties
 
@@ -158,32 +167,15 @@ Component types: `table`, `pie`, `bar_stacked`, `bar_grouped`, `line`, `text`
 
 ### DataErrors
 
-Generic error logging table for data validation and insertion failures across all tables.
+Generic error logging for data validation and insertion failures.
 
 Primary key: `id` (autoincrement)
 
-| Column | Type | Nullable | Description |
-|--------|------|----------|-------------|
-| `id` | INTEGER | NOT NULL | Auto-incrementing error ID |
-| `table_name` | TEXT | NOT NULL | Which table the error occurred for (e.g., "Treasury", "Referenda") |
-| `record_id` | TEXT | NOT NULL | ID of the record that failed (stored as TEXT for flexibility) |
-| `error_type` | TEXT | NOT NULL | Error category (e.g., "missing_value", "invalid_asset", "price_conversion_failed") |
-| `error_message` | TEXT | NOT NULL | Specific error details |
-| `raw_data` | TEXT | NULL | Full JSON from source API (optional, may be NULL for historical errors) |
-| `metadata` | TEXT | NULL | Additional context as JSON (e.g., status, description, null_columns) |
-| `timestamp` | TIMESTAMP | NOT NULL | When the error occurred |
+Fields: `table_name`, `record_id`, `error_type`, `error_message`, `raw_data` (JSON, nullable), `metadata` (JSON, nullable), `timestamp`
 
-**Indexes:**
-- `idx_data_errors_table` on (`table_name`)
-- `idx_data_errors_record` on (`table_name`, `record_id`)
-- `idx_data_errors_type` on (`error_type`)
-- `idx_data_errors_timestamp` on (`timestamp`)
+**Indexes**: `table_name`, (`table_name`, `record_id`), `error_type`, `timestamp`
 
-**Usage:**
-- Backend validation logs errors via `sink.log_data_error()`
-- Errors viewable in `/manage/data-errors` page (authentication required)
-- No unique constraint - same record can appear multiple times with different timestamps
-- API endpoint: `GET /api/data-errors` (authenticated, supports filtering by `table_name` and `error_type`)
+**Usage**: Backend logs via `sink.log_data_error()`, viewable at `/manage/data-errors` (authenticated). No unique constraint - same record can appear multiple times. API: GET `/api/data-errors` (authenticated, supports filtering by `table_name` and `error_type`)
 
 ---
 
@@ -205,15 +197,14 @@ Adds: `days_since_expiry`
 
 Union of all spending types (7 sources). See `business-rules.md` for type definitions.
 
-**Column details:**
-- `year`, `year_month`, `year_quarter`: Computed date grouping columns from `latest_status_change`
+**Column details**:
+- `year`, `year_month`, `year_quarter`: Computed from `latest_status_change`
 - `category`, `subcategory`: Assignment varies by type:
-  - **Direct Spend**: From Referenda's category_id (via Categories table)
-  - **Claim**: Inherited from linked Referenda via referendumIndex (Treasury has no category_id field)
+  - **Direct Spend**: From Referenda's category_id
+  - **Claim**: Inherited from linked Referenda via referendumIndex
   - **Bounty**: From Child Bounty's category_id, falls back to parent Bounty's category_id if NULL
   - **Subtreasury**: From Subtreasury's category_id
   - **Fellowship Salary/Grants**: Hardcoded to 'Development' / 'Polkadot Protocol & SDK'
   - **Custom Spending**: From Custom Spending's category_id
 
-**Business logic:**
-- `hide_in_spends` flag: Direct Spend and Bounty types exclude records where `hide_in_spends = 1`
+**Business logic**: `hide_in_spends` (INTEGER): When set, record is excluded from spending calculations
