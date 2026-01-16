@@ -45,6 +45,8 @@ Value fields: `DOT`, `USD_proposal_time`, `USD_latest`
 
 Manual fields: `category_id` (FK), `notes`, `hide_in_spends`
 
+**Category inheritance**: When `category_id` is NULL, UI displays parent bounty's category as grayed placeholder. User can override by selecting category or inherit by selecting "None".
+
 ### Fellowship Treasury Spend
 
 Primary key: `id`
@@ -88,6 +90,17 @@ Primary key: `id` (auto-increment)
 Fields: `category`, `subcategory`
 
 Unique constraint: (category, subcategory)
+
+**Requirement**: Every category must have an "Other" subcategory for fallback scenarios in UI selection logic.
+
+**Bulk Import**: Import unique category/subcategory pairs via Sync Settings (`/manage/sync`):
+- **Default file**: `data/defaults/categories.csv` - 81 unique pairs aggregated from bounties, child bounties, and referenda
+- **CSV format**: `category,subcategory`
+- **Import logic**: Uses `INSERT OR IGNORE` to prevent duplicates on re-import
+- **API endpoints**:
+  - GET `/api/sync/defaults/categories` - Retrieve default categories CSV
+  - POST `/api/categories/import` - Bulk insert (authenticated)
+- **Frontend**: First card in sync settings grid with "Upload CSV" and "Apply Defaults" buttons
 
 ### Bounties
 

@@ -35,6 +35,11 @@ export interface NetflowCsvRow {
   amount_dot_equivalent: number;
 }
 
+export interface CategoriesCSV {
+  category: string;
+  subcategory: string;
+}
+
 /**
  * Parse a single CSV line, handling quoted values with commas
  */
@@ -218,4 +223,20 @@ export function parseTreasuryNetflowsCSV(content: string): NetflowCsvRow[] {
       };
     })
     .filter((row) => row.month && row.asset_name && row.flow_type);
+}
+
+/**
+ * Parse categories CSV content.
+ * Expected format: category, subcategory
+ */
+export function parseCategoriesCSV(content: string): CategoriesCSV[] {
+  const rows = parseCSV(content);
+  return rows
+    .map((row) => {
+      const category = (row.category || row.Category || "").trim();
+      const subcategory = (row.subcategory || row.Subcategory || "").trim();
+
+      return { category, subcategory };
+    })
+    .filter((row) => row.category !== "");
 }

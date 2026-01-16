@@ -128,6 +128,11 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ category, subcategory }),
       }),
+    import: (items: Array<{ category: string; subcategory: string }>) =>
+      fetchJSON<{ count: number }>("/categories/import", {
+        method: "POST",
+        body: JSON.stringify(items),
+      }),
   },
   bounties: {
     getAll: () => fetchJSON<unknown[]>("/bounties"),
@@ -250,5 +255,6 @@ export const api = {
     getDefaultChildBounties: () => fetchJSON<{ content: string }>("/sync/defaults/child-bounties"),
     getDefaultBounties: () => fetchJSON<{ content: string }>("/sync/defaults/bounties"),
     getDefaultTreasuryNetflows: () => fetchJSON<{ content: string }>("/sync/defaults/treasury-netflows"),
+    getDefaultCategories: () => fetchJSON<{ content: string }>("/sync/defaults/categories"),
   },
 };
