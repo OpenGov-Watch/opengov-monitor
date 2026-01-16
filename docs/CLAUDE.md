@@ -7,10 +7,10 @@
     - This means: Whatever you want to write, it likely doesn't belong into the root README...
 - Roles:
   - each file type has a specific role. Make sure that you respect the roles:
-  - `docs/01_requirements/` is only for specification of requirements. It does not specify or document implementation details
-  - `docs/02_specification/` is for technical specifications (data models, schemas)
-  - `docs/03_design/`
-    - may document implementation; but remember that the main intention is to have a quick overview of key parts of the codebase.
+  - `docs/01_requirements/` functional, non-functional requirements, and use cases
+  - `docs/02_specification/` specifies API, data model, migration
+  - `docs/03_design/` architecture, adrs, sequences
+    - explains architecture and design decisions
     - Don't show code, link to code.
   - `docs/howtos/` explain how to use features
   - `CLAUDE.md` and `README.md` files

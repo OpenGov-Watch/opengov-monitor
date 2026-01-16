@@ -471,6 +471,12 @@ export function DataTable<TData>({
         onGroupByChange={setGroupBy}
         filterGroup={filterGroup}
         onFilterGroupChange={setFilterGroup}
+        joins={baseQueryConfig.joins}
+        columnIdToRef={columnIdToRef}
+        queryConfigColumns={baseQueryConfig.columns?.map(col => ({
+          id: getColumnKey(col),
+          name: col.alias || col.column,
+        }))}
       />
 
       {viewMode === "card" ? (

@@ -1,5 +1,5 @@
 import type { SortingState, ColumnFiltersState } from "@tanstack/react-table";
-import type { FilterGroup } from "@/lib/db/types";
+import type { FilterGroup, FacetQueryConfig, QueryConfig } from "@/lib/db/types";
 
 /**
  * OrderBy configuration for QueryConfig
@@ -150,7 +150,7 @@ export function filterStateToQueryFilters(
  * @param columnIdToRef - Mapping from column IDs to original references
  * @returns FilterGroup with resolved column references
  */
-function resolveFilterGroupAliases(
+export function resolveFilterGroupAliases(
   filterGroup: FilterGroup,
   columnIdToRef: Record<string, string>
 ): FilterGroup {
@@ -277,4 +277,58 @@ export function groupToFilters(group: FilterGroup): FilterCondition[] {
     }
   }
   return conditions;
+}
+
+/**
+ * Parameters for building a FacetQueryConfig with proper alias resolution.
+ */
+export interface BuildFacetQueryConfigParams {
+  sourceTable: string;
+  columns: string[];
+  joins?: QueryConfig["joins"];
+  filters?: FilterGroup;
+  columnIdToRef?: Record<string, string>;
+}
+
+/**
+ * Build a FacetQueryConfig with proper alias resolution.
+ * Resolves column aliases and filter aliases before sending to backend.
+ *
+ * @param params - Configuration parameters
+ * @returns FacetQueryConfig ready to send to the facets API
+ *
+ * @example
+ * const config = buildFacetQueryConfig({
+ *   sourceTable: "Referenda",
+ *   columns: ["category", "subcategory"],
+ *   joins: [{ type: "LEFT", table: "Categories", alias: "c", on: {...} }],
+ *   filters: { operator: "AND", conditions: [...] },
+ *   columnIdToRef: { category: "c.category", subcategory: "c.subcategory" }
+ * });
+ * // config.columns will be ["c.category", "c.subcategory"]
+ * // config.filters will have resolved column references
+ */
+export function buildFacetQueryConfig({
+  sourceTable,
+  columns,
+  joins,
+  filters,
+  columnIdToRef
+}: BuildFacetQueryConfigParams): FacetQueryConfig {
+  // Resolve column aliases
+  const resolvedColumns = columnIdToRef
+    ? columns.map(col => columnIdToRef[col] || col)
+    : columns;
+
+  // Resolve filter aliases
+  const resolvedFilters = filters && columnIdToRef
+    ? resolveFilterGroupAliases(filters, columnIdToRef)
+    : filters;
+
+  return {
+    sourceTable,
+    columns: resolvedColumns,
+    ...(joins && { joins }),
+    ...(resolvedFilters && { filters: resolvedFilters })
+  };
 }

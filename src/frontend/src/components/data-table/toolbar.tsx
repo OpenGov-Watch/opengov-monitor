@@ -9,7 +9,7 @@ import { DataTableColumnVisibility } from "./column-visibility";
 import { SortComposer } from "./sort-composer";
 import { FilterGroupBuilder } from "./filter-group-builder";
 import { exportToCSV, exportToJSON } from "@/lib/export";
-import { FilterGroup } from "@/lib/db/types";
+import { FilterGroup, QueryConfig } from "@/lib/db/types";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,11 +39,15 @@ function AdvancedFiltersDialogContent({
   availableColumns,
   onApply,
   sourceTable,
+  joins,
+  columnIdToRef,
 }: {
   filterGroup?: FilterGroup;
   availableColumns: { id: string; name: string }[];
   onApply: (group: FilterGroup | undefined) => void;
   sourceTable: string;
+  joins?: QueryConfig["joins"];
+  columnIdToRef?: Record<string, string>;
 }) {
   // Local state - changes don't trigger queries until Apply is clicked
   const [localGroup, setLocalGroup] = React.useState<FilterGroup>(
@@ -93,6 +97,8 @@ function AdvancedFiltersDialogContent({
         availableColumns={availableColumns}
         onUpdate={setLocalGroup}
         sourceTable={sourceTable}
+        joins={joins}
+        columnIdToRef={columnIdToRef}
       />
       <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
         <Button
@@ -134,6 +140,9 @@ interface DataTableToolbarProps<TData> {
   onGroupByChange?: (columnId: string | undefined) => void;
   filterGroup?: FilterGroup;
   onFilterGroupChange?: (group: FilterGroup | undefined) => void;
+  joins?: QueryConfig["joins"];  // JOIN configuration for advanced filters
+  columnIdToRef?: Record<string, string>;  // Mapping from column IDs to DB references
+  queryConfigColumns?: { id: string; name: string }[];  // Fallback columns when table empty
 }
 
 export function DataTableToolbar<TData>({
@@ -153,6 +162,9 @@ export function DataTableToolbar<TData>({
   onGroupByChange,
   filterGroup,
   onFilterGroupChange,
+  joins,
+  columnIdToRef,
+  queryConfigColumns,
 }: DataTableToolbarProps<TData>) {
   const isFiltered = table.getState().columnFilters.length > 0;
 
@@ -199,15 +211,20 @@ export function DataTableToolbar<TData>({
 
   // Memoize available columns to prevent recreation on every render
   // This prevents 50-100ms blocking when interacting with filters/dialogs
+  // Use queryConfigColumns as fallback when table has no columns (e.g., 0 results)
   const filterableColumns = React.useMemo(
-    () => table
-      .getAllColumns()
-      .filter((col) => col.getCanFilter())
-      .map((col) => ({
-        id: col.id,
-        name: typeof col.columnDef.header === "string" ? col.columnDef.header : col.id,
-      })),
-    [table.getAllColumns().length] // Only recompute if column count changes
+    () => {
+      const tableColumns = table
+        .getAllColumns()
+        .filter((col) => col.getCanFilter())
+        .map((col) => ({
+          id: col.id,
+          name: typeof col.columnDef.header === "string" ? col.columnDef.header : col.id,
+        }));
+      // Use queryConfigColumns as fallback when table has no columns
+      return tableColumns.length > 0 ? tableColumns : (queryConfigColumns || []);
+    },
+    [table.getAllColumns().length, queryConfigColumns] // Only recompute if column count changes
   );
 
   const sortableColumns = React.useMemo(
@@ -268,6 +285,8 @@ export function DataTableToolbar<TData>({
                     availableColumns={filterableColumns}
                     onApply={onFilterGroupChange}
                     sourceTable={sourceTable}
+                    joins={joins}
+                    columnIdToRef={columnIdToRef}
                   />
                 </DialogContent>
               </Dialog>

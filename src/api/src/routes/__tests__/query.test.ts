@@ -1973,4 +1973,39 @@ describe("Filters with JOINs and Ambiguous Column Names", () => {
     expect(response.status).toBe(200);
     expect(response.body.data).toBeDefined();
   });
+
+  it("handles facet query on joined column with null value in IN filter", async () => {
+    // Test that facet queries on joined columns (e.g., c.category) handle
+    // null values in IN filters gracefully - IN with null should be skipped
+    // (same as IN with empty array)
+    const response = await request(app)
+      .post("/api/query/facets")
+      .send({
+        sourceTable: "Referenda",
+        columns: ["c.category"],
+        joins: [
+          {
+            type: "LEFT",
+            table: "Categories",
+            alias: "c",
+            on: {
+              left: "Referenda.category_id",
+              right: "c.id"
+            }
+          }
+        ],
+        filters: {
+          operator: "AND",
+          conditions: [
+            { column: "c.category", operator: "IN", value: null }
+          ]
+        }
+      });
+
+    // Joined columns (c.category) are now allowed in facet queries
+    // IN with null value is skipped (same as empty array)
+    expect(response.status).toBe(200);
+    expect(response.body.facets).toBeDefined();
+    expect(response.body.facets["c.category"]).toBeDefined();
+  });
 });

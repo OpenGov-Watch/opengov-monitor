@@ -85,7 +85,24 @@ filters: convertFiltersToQueryConfig(columnFilters, filterGroup, columnIdToRef)
 
 Without resolution, backend receives alias and incorrectly prefixes source table → `"Referenda.category"` → error.
 
-See `data-table.tsx` and `query-config-utils.ts` (`sortingStateToOrderBy`, `resolveFilterGroupAliases`, `convertFiltersToQueryConfig`).
+**Facet queries need the same resolution** plus reverse mapping for responses:
+
+```typescript
+// buildFacetQueryConfig() resolves aliases before sending
+const facetConfig = buildFacetQueryConfig({
+  sourceTable, columns: ["category"], joins, columnIdToRef
+});
+// Sends: columns: ["c.category"]
+
+// Response returns resolved keys
+{ facets: { "c.category": [...] } }
+
+// Must map back to aliases for UI lookup
+const refToAlias = { "c.category": "category" };
+facetsData["category"] = response.facets["c.category"];
+```
+
+See `data-table.tsx`, `query-config-utils.ts`, and `filter-group-builder.tsx`.
 
 ### Chart Data May Need Pivot
 

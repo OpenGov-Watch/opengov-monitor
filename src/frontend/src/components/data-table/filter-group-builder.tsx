@@ -12,9 +12,10 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FilterCondition, FilterGroup, FacetValue, FacetQueryConfig, FacetQueryResponse } from "@/lib/db/types";
+import { FilterCondition, FilterGroup, FacetValue, FacetQueryResponse, QueryConfig } from "@/lib/db/types";
 import { FilterMultiselect } from "./filter-multiselect";
 import { isCategoricalColumn, getColumnType, getOperatorsForColumnType } from "@/lib/column-metadata";
+import { buildFacetQueryConfig } from "@/lib/query-config-utils";
 
 interface FilterGroupBuilderProps {
   group: FilterGroup;
@@ -22,6 +23,8 @@ interface FilterGroupBuilderProps {
   onUpdate: (group: FilterGroup) => void;
   level?: number;
   sourceTable: string;  // Required for fetching facets
+  joins?: QueryConfig["joins"];  // JOIN configuration for accessing joined tables
+  columnIdToRef?: Record<string, string>;  // Mapping from column IDs to original DB references
 }
 
 const OPERATORS = [
@@ -202,6 +205,8 @@ export const FilterGroupBuilder = React.memo(function FilterGroupBuilder({
   onUpdate,
   level = 0,
   sourceTable,
+  joins,
+  columnIdToRef,
 }: FilterGroupBuilderProps) {
   // Extract all categorical columns from the filter group (recursively)
   const categoricalColumnsInGroup = React.useMemo(() => {
@@ -233,11 +238,14 @@ export const FilterGroupBuilder = React.memo(function FilterGroupBuilder({
 
     const controller = new AbortController();
 
-    const facetConfig: FacetQueryConfig = {
+    // Build facet config with proper alias resolution for joined columns
+    const facetConfig = buildFacetQueryConfig({
       sourceTable,
       columns: categoricalColumnsInGroup,
+      joins,
       filters: group, // Use current filter group for accurate counts
-    };
+      columnIdToRef,
+    });
 
     fetch("/api/query/facets", {
       method: "POST",
@@ -253,7 +261,30 @@ export const FilterGroupBuilder = React.memo(function FilterGroupBuilder({
           return;
         }
         const result: FacetQueryResponse = await response.json();
-        setFacetsData(result.facets);
+
+        // Map facet keys back from resolved columns to aliases
+        // e.g., "c.category" → "category" so UI can look up by alias
+        // Also filter out null values (use IS NULL operator instead)
+        const filterNulls = (values: FacetValue[]) =>
+          values.filter(v => v.value !== null);
+
+        if (columnIdToRef) {
+          const refToAlias = Object.fromEntries(
+            Object.entries(columnIdToRef).map(([alias, ref]) => [ref, alias])
+          );
+          const mappedFacets: Record<string, FacetValue[]> = {};
+          for (const [key, values] of Object.entries(result.facets)) {
+            const alias = refToAlias[key] || key;
+            mappedFacets[alias] = filterNulls(values);
+          }
+          setFacetsData(mappedFacets);
+        } else {
+          const filteredFacets: Record<string, FacetValue[]> = {};
+          for (const [key, values] of Object.entries(result.facets)) {
+            filteredFacets[key] = filterNulls(values);
+          }
+          setFacetsData(filteredFacets);
+        }
       })
       .catch((err) => {
         if (err.name !== 'AbortError') {
@@ -265,7 +296,7 @@ export const FilterGroupBuilder = React.memo(function FilterGroupBuilder({
     return () => {
       controller.abort();
     };
-  }, [categoricalColumnsInGroup, sourceTable, group]);
+  }, [categoricalColumnsInGroup, sourceTable, group, joins, columnIdToRef]);
 
   // Wrap all handlers in useCallback to prevent child re-renders
   const addCondition = React.useCallback(() => {
@@ -368,6 +399,8 @@ export const FilterGroupBuilder = React.memo(function FilterGroupBuilder({
                   onUpdate={(updatedGroup) => updateNestedGroup(index, updatedGroup)}
                   level={level + 1}
                   sourceTable={sourceTable}
+                  joins={joins}
+                  columnIdToRef={columnIdToRef}
                 />
                 <Button
                   type="button"
@@ -435,6 +468,8 @@ export const FilterGroupBuilder = React.memo(function FilterGroupBuilder({
     prevProps.onUpdate === nextProps.onUpdate &&
     prevProps.sourceTable === nextProps.sourceTable &&
     JSON.stringify(prevProps.group) === JSON.stringify(nextProps.group) &&
-    JSON.stringify(prevProps.availableColumns) === JSON.stringify(nextProps.availableColumns)
+    JSON.stringify(prevProps.availableColumns) === JSON.stringify(nextProps.availableColumns) &&
+    JSON.stringify(prevProps.joins) === JSON.stringify(nextProps.joins) &&
+    JSON.stringify(prevProps.columnIdToRef) === JSON.stringify(nextProps.columnIdToRef)
   );
 });

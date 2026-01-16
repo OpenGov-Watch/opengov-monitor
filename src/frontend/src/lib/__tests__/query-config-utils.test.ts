@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getColumnKey, sortingStateToOrderBy, filterStateToQueryFilters, filtersToGroup, groupToFilters, convertFiltersToQueryConfig } from "../query-config-utils";
+import { getColumnKey, sortingStateToOrderBy, filterStateToQueryFilters, filtersToGroup, groupToFilters, convertFiltersToQueryConfig, buildFacetQueryConfig } from "../query-config-utils";
 import type { SortingState, ColumnFiltersState } from "@tanstack/react-table";
 import type { FilterCondition, FilterGroup } from "@/lib/db/types";
 
@@ -1054,5 +1054,187 @@ describe("convertFiltersToQueryConfig - Unified State Model", () => {
 
     expect(result).toEqual(filterGroup);
     expect((result as FilterGroup).conditions.length).toBe(3);
+  });
+});
+
+describe("buildFacetQueryConfig - Facet Query Alias Resolution", () => {
+  it("resolves column aliases for facet columns", () => {
+    const columns = ["category", "subcategory"];
+    const columnIdToRef = {
+      category: "c.category",
+      subcategory: "c.subcategory"
+    };
+
+    const result = buildFacetQueryConfig({
+      sourceTable: "Referenda",
+      columns,
+      columnIdToRef
+    });
+
+    expect(result.columns).toEqual(["c.category", "c.subcategory"]);
+  });
+
+  it("includes joins configuration in facet query", () => {
+    const joins = [{
+      type: "LEFT" as const,
+      table: "Categories",
+      alias: "c",
+      on: { left: "Referenda.category_id", right: "c.id" }
+    }];
+
+    const result = buildFacetQueryConfig({
+      sourceTable: "Referenda",
+      columns: ["category"],
+      joins,
+      columnIdToRef: { category: "c.category" }
+    });
+
+    expect(result.joins).toEqual(joins);
+  });
+
+  it("resolves filter aliases in facet query", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "category", operator: "IN", value: ["Treasury"] }
+      ]
+    };
+    const columnIdToRef = { category: "c.category" };
+
+    const result = buildFacetQueryConfig({
+      sourceTable: "Referenda",
+      columns: ["category"],
+      filters: filterGroup,
+      columnIdToRef
+    });
+
+    expect(result.filters).toEqual({
+      operator: "AND",
+      conditions: [
+        { column: "c.category", operator: "IN", value: ["Treasury"] }
+      ]
+    });
+  });
+
+  it("leaves non-aliased columns unchanged", () => {
+    const result = buildFacetQueryConfig({
+      sourceTable: "Referenda",
+      columns: ["status", "track"],
+      columnIdToRef: { category: "c.category" }
+    });
+
+    expect(result.columns).toEqual(["status", "track"]);
+  });
+
+  it("handles mixed aliased and non-aliased columns", () => {
+    const result = buildFacetQueryConfig({
+      sourceTable: "Referenda",
+      columns: ["status", "category", "track"],
+      columnIdToRef: { category: "c.category" }
+    });
+
+    expect(result.columns).toEqual(["status", "c.category", "track"]);
+  });
+
+  it("works without columnIdToRef (backward compatibility)", () => {
+    const result = buildFacetQueryConfig({
+      sourceTable: "Referenda",
+      columns: ["status"]
+    });
+
+    expect(result.columns).toEqual(["status"]);
+    expect(result.sourceTable).toBe("Referenda");
+  });
+
+  it("works without filters", () => {
+    const result = buildFacetQueryConfig({
+      sourceTable: "Referenda",
+      columns: ["category"],
+      columnIdToRef: { category: "c.category" }
+    });
+
+    expect(result.columns).toEqual(["c.category"]);
+    expect(result.filters).toBeUndefined();
+  });
+
+  it("preserves sourceTable in output", () => {
+    const result = buildFacetQueryConfig({
+      sourceTable: "ChildBounties",
+      columns: ["category"],
+      columnIdToRef: { category: "c.category" }
+    });
+
+    expect(result.sourceTable).toBe("ChildBounties");
+  });
+
+  it("handles deeply nested filter groups with alias resolution", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "status", operator: "=", value: "Active" },
+        {
+          operator: "OR",
+          conditions: [
+            { column: "category", operator: "=", value: "Treasury" },
+            { column: "subcategory", operator: "=", value: "Bounties" }
+          ]
+        }
+      ]
+    };
+    const columnIdToRef = {
+      category: "c.category",
+      subcategory: "c.subcategory"
+    };
+
+    const result = buildFacetQueryConfig({
+      sourceTable: "Referenda",
+      columns: ["category"],
+      filters: filterGroup,
+      columnIdToRef
+    });
+
+    expect(result.filters).toEqual({
+      operator: "AND",
+      conditions: [
+        { column: "status", operator: "=", value: "Active" },
+        {
+          operator: "OR",
+          conditions: [
+            { column: "c.category", operator: "=", value: "Treasury" },
+            { column: "c.subcategory", operator: "=", value: "Bounties" }
+          ]
+        }
+      ]
+    });
+  });
+
+  it("handles empty filters (undefined)", () => {
+    const result = buildFacetQueryConfig({
+      sourceTable: "Referenda",
+      columns: ["category"],
+      filters: undefined,
+      columnIdToRef: { category: "c.category" }
+    });
+
+    expect(result.filters).toBeUndefined();
+  });
+
+  it("handles empty conditions in filter group", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: []
+    };
+
+    const result = buildFacetQueryConfig({
+      sourceTable: "Referenda",
+      columns: ["category"],
+      filters: filterGroup,
+      columnIdToRef: { category: "c.category" }
+    });
+
+    expect(result.filters).toEqual({
+      operator: "AND",
+      conditions: []
+    });
   });
 });

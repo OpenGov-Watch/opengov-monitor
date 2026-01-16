@@ -575,11 +575,16 @@ function buildFacetQuery(
   config: FacetQueryConfig,
   columnName: string
 ): { sql: string; params: (string | number)[] } {
-  // Validate column exists in source table
-  const availableColumns = getTableColumns(config.sourceTable);
-  if (!availableColumns.includes(columnName)) {
-    throw new Error(`Column ${columnName} not found in table ${config.sourceTable}`);
+  // Validate column exists in source table or is a joined column (has table/alias prefix)
+  const hasTablePrefix = columnName.includes('.');
+  if (!hasTablePrefix) {
+    const availableColumns = getTableColumns(config.sourceTable);
+    if (!availableColumns.includes(columnName)) {
+      throw new Error(`Column ${columnName} not found in table ${config.sourceTable}`);
+    }
   }
+  // For prefixed columns (e.g., "c.category"), we trust the caller provided valid JOINs
+  // The SQL will fail naturally if the column/alias doesn't exist
 
   const tableName = `"${config.sourceTable}"`;
   const joinClause = buildJoinClause(config.joins);

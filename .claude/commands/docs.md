@@ -1,3 +1,4 @@
+- Review uncommitted changes to understand what has been modified.
 - Update the documentation with relevant insights from your current context. 
 - Respect the @docs/CLAUDE.md guideline.
 - First look up the relevant documentation.
