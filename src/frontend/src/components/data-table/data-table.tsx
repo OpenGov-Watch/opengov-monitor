@@ -345,6 +345,7 @@ export function DataTable<TData>({
       facetedFilters,
       columnOverrides,
       columnMapping,
+      dashboardMode,
     });
   }, [
     dataSchema, // Changed from 'data' to 'dataSchema' to prevent regeneration on value changes
@@ -355,6 +356,7 @@ export function DataTable<TData>({
     columnOverrides,
     columnMapping,
     configLoaded,
+    dashboardMode,
   ]);
 
   // VIEW MODE STATE
