@@ -74,3 +74,17 @@ syncRouter.get("/defaults/treasury-netflows", (_req, res) => {
     res.status(500).json({ error: (error as Error).message });
   }
 });
+
+// GET /api/sync/defaults/categories - Read default categories CSV
+syncRouter.get("/defaults/categories", (_req, res) => {
+  try {
+    const filePath = join(getDataPath(), "categories.csv");
+    if (!existsSync(filePath)) {
+      return res.status(404).json({ error: "Default file not found" });
+    }
+    const content = readFileSync(filePath, "utf-8");
+    res.json({ content });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});

@@ -60,6 +60,9 @@ export interface ChildBounty {
   subcategory?: string | null;
   // Denormalized from Bounties table
   parentBountyName?: string | null;
+  // Denormalized from parent Bounty's category (via Categories JOIN)
+  parentCategory?: string | null;
+  parentSubcategory?: string | null;
   notes: string | null;
   hide_in_spends: number | null;
 }

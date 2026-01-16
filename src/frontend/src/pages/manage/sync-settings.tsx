@@ -16,12 +16,14 @@ import {
   parseChildBountiesCSV,
   parseBountiesCSV,
   parseTreasuryNetflowsCSV,
+  parseCategoriesCSV,
 } from "@/lib/csv-parser";
 import { RequireAuth } from "@/components/auth/require-auth";
 
 type StatusType = { type: "success" | "error"; message: string } | null;
 
 function SyncSettingsPageContent() {
+  const [categoriesFile, setCategoriesFile] = useState<File | null>(null);
   const [referendaFile, setReferendaFile] = useState<File | null>(null);
   const [childBountiesFile, setChildBountiesFile] = useState<File | null>(null);
   const [bountiesFile, setBountiesFile] = useState<File | null>(null);
@@ -326,6 +328,57 @@ function SyncSettingsPageContent() {
     }
   }
 
+  async function handleCategoriesUpload() {
+    if (!categoriesFile) return;
+    setImporting(true);
+    setStatus(null);
+    try {
+      const content = await categoriesFile.text();
+      const items = parseCategoriesCSV(content);
+      if (items.length === 0) {
+        setStatus({ type: "error", message: "No valid rows found in CSV" });
+        return;
+      }
+
+      const result = await api.categories.import(items);
+      setStatus({
+        type: "success",
+        message: `Imported ${result.count} categories`,
+      });
+      setCategoriesFile(null);
+      // Reset file input
+      const input = document.getElementById("categories-csv") as HTMLInputElement;
+      if (input) input.value = "";
+    } catch (error) {
+      setStatus({ type: "error", message: (error as Error).message });
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function applyDefaultCategories() {
+    setImporting(true);
+    setStatus(null);
+    try {
+      const { content } = await api.sync.getDefaultCategories();
+      const items = parseCategoriesCSV(content);
+      if (items.length === 0) {
+        setStatus({ type: "error", message: "No valid rows in default file" });
+        return;
+      }
+
+      const result = await api.categories.import(items);
+      setStatus({
+        type: "success",
+        message: `Applied ${result.count} default categories`,
+      });
+    } catch (error) {
+      setStatus({ type: "error", message: (error as Error).message });
+    } finally {
+      setImporting(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -355,6 +408,52 @@ function SyncSettingsPageContent() {
       )}
 
       <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Categories</CardTitle>
+            <CardDescription>
+              Import all unique category/subcategory pairs (aggregated from all sources)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="categories-csv">Upload CSV File</Label>
+              <Input
+                id="categories-csv"
+                type="file"
+                accept=".csv"
+                onChange={(e) => setCategoriesFile(e.target.files?.[0] || null)}
+                disabled={importing}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleCategoriesUpload}
+                disabled={!categoriesFile || importing}
+              >
+                {importing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="mr-2 h-4 w-4" />
+                )}
+                Import CSV
+              </Button>
+              <Button
+                variant="outline"
+                onClick={applyDefaultCategories}
+                disabled={importing}
+              >
+                {importing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <FileText className="mr-2 h-4 w-4" />
+                )}
+                Apply Defaults
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Referenda Categories</CardTitle>
@@ -577,6 +676,12 @@ function SyncSettingsPageContent() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            <strong>Categories CSV:</strong>{" "}
+            <code className="bg-muted px-1 rounded">
+              category, subcategory
+            </code>
+          </p>
           <p className="text-sm text-muted-foreground">
             <strong>Referenda CSV:</strong>{" "}
             <code className="bg-muted px-1 rounded">

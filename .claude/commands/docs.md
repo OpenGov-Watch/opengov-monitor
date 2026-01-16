@@ -1,0 +1,4 @@
+- Update the documentation with relevant insights from your current context. 
+- Respect the @docs/CLAUDE.md guideline.
+- First look up the relevant documentation.
+- If you can add value, do so at the right place.
