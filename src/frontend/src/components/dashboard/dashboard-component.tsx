@@ -138,28 +138,32 @@ export const DashboardComponent = memo(
   // Memoize column mapping computation
   const columnMapping: Record<string, string> = useMemo(() => {
     const mapping: Record<string, string> = {};
-    for (const col of queryConfig.columns) {
-      const key = getColumnKey(col);
-      mapping[key] = col.column;
+    if (queryConfig.columns && Array.isArray(queryConfig.columns)) {
+      for (const col of queryConfig.columns) {
+        const key = getColumnKey(col);
+        mapping[key] = col.column;
+      }
     }
     return mapping;
   }, [queryConfig.columns]);
 
   // Memoize column identifiers
   const labelColumn = useMemo(
-    () => chartConfig.labelColumn || (queryConfig.columns[0] && getColumnKey(queryConfig.columns[0])),
+    () => chartConfig.labelColumn || (queryConfig.columns?.[0] && getColumnKey(queryConfig.columns[0])),
     [chartConfig.labelColumn, queryConfig.columns]
   );
 
   const valueColumn = useMemo(
-    () => chartConfig.valueColumn || (queryConfig.columns[1] && getColumnKey(queryConfig.columns[1])),
+    () => chartConfig.valueColumn || (queryConfig.columns?.[1] && getColumnKey(queryConfig.columns[1])),
     [chartConfig.valueColumn, queryConfig.columns]
   );
 
   const valueColumns = useMemo(
-    () => queryConfig.columns
-      .filter((c) => getColumnKey(c) !== labelColumn)
-      .map((c) => getColumnKey(c)),
+    () => (queryConfig.columns && Array.isArray(queryConfig.columns))
+      ? queryConfig.columns
+          .filter((c) => getColumnKey(c) !== labelColumn)
+          .map((c) => getColumnKey(c))
+      : [],
     [queryConfig.columns, labelColumn]
   );
 
