@@ -211,5 +211,5 @@ patterns:
 
 ## See Also
 
-- [DataTable Specification](../../spec/frontend/data-table.md) - Column system overview
+- [DataTable Specification](../../01_requirements/frontend/data-table.md) - Column system overview
 - [DataTable How-To](../../howtos/data-table.md) - Custom rendering examples

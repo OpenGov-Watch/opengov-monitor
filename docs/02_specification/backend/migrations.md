@@ -161,8 +161,8 @@ This inserts records into `schema_migrations` with:
 ## See Also
 
 - [Migrations README](../../../src/backend/migrations/README.md) - User guide for creating and running migrations
-- [Migration System Design](../../reference/backend/migration-system-design.md) - Architecture and design decisions
-- [Migration Patterns](../../reference/migrations/patterns.md) - Common patterns (add/remove columns, views, indexes)
-- [Troubleshooting](../../reference/migrations/troubleshooting.md) - Common issues and fixes
-- [Testing Strategies](../../reference/migrations/testing-strategies.md) - How to test migrations
-- [Advanced Examples](../../reference/migrations/advanced-examples.md) - Complex migration scenarios
+- [Migration System Design](../../03_design/backend/migration-system-design.md) - Architecture and design decisions
+- [Migration Patterns](../../03_design/migrations/patterns.md) - Common patterns (add/remove columns, views, indexes)
+- [Troubleshooting](../../03_design/migrations/troubleshooting.md) - Common issues and fixes
+- [Testing Strategies](../../03_design/migrations/testing-strategies.md) - How to test migrations
+- [Advanced Examples](../../03_design/migrations/advanced-examples.md) - Complex migration scenarios

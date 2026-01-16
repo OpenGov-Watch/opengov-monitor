@@ -169,5 +169,5 @@ See [DataTable How-To Guide](../../howtos/data-table.md) for complete examples.
 
 ## See Also
 
-- [DataTable Specification](../../spec/frontend/data-table.md) - Architecture and design
+- [DataTable Specification](../../01_requirements/frontend/data-table.md) - Architecture and design
 - [DataTable How-To](../../howtos/data-table.md) - Practical examples

@@ -137,4 +137,4 @@ Display categorical data distribution:
 
 - For bar charts, line charts, and complex queries, see [Dashboard Advanced](./dashboard-advanced.md)
 - For query building details, see [QueryBuilder How-To](./query-builder.md)
-- For architecture details, see [Dashboard Specification](../spec/frontend/dashboard.md)
+- For architecture details, see [Dashboard Specification](../01_requirements/frontend/dashboard.md)

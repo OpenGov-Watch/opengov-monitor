@@ -231,6 +231,6 @@ Fully customizable AND/OR logic.
 ## See Also
 
 - [Filtering Basics](./filters-basics.md) - Getting started
-- [Filters Specification](../spec/frontend/filters.md) - Technical details
+- [Filters Specification](../01_requirements/frontend/filters.md) - Technical details
 - [QueryBuilder How-To](./query-builder.md) - Building complex queries
 - [Dashboard How-To](./dashboard.md) - Using filters in dashboards

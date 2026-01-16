@@ -206,4 +206,4 @@ See `lib/column-renderer.ts` for full configuration.
 
 - For editable tables, default views, and complex examples, see [DataTable Advanced](./data-table-advanced.md)
 - For filter strategies, see [Filtering How-To](./filters.md)
-- For architecture details, see [DataTable Specification](../spec/frontend/data-table.md)
+- For architecture details, see [DataTable Specification](../01_requirements/frontend/data-table.md)

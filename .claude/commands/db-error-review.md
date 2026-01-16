@@ -27,4 +27,4 @@ gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
   --command="sudo docker exec opengov-monitor sqlite3 /data/polkadot.db 'DELETE FROM DataErrors'"
 ```
 
-See [docs/reference/error-logging.md](../../docs/reference/error-logging.md) for details.
+See [docs/03_design/error-logging.md](../../docs/03_design/error-logging.md) for details.

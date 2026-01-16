@@ -365,7 +365,7 @@ pnpm migrate:baseline --version 1
 
 ## See Also
 
-- [Migration System Spec](../../spec/backend/migrations.md) - Requirements
+- [Migration System Spec](../../02_specification/backend/migrations.md) - Requirements
 - [Migrations README](../../../src/backend/migrations/README.md) - Usage guide
-- [Migration Patterns](./patterns.md) - Common patterns
-- [Troubleshooting](./troubleshooting.md) - Common issues
+- [Migration Patterns](../migrations/patterns.md) - Common patterns
+- [Troubleshooting](../migrations/troubleshooting.md) - Common issues

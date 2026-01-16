@@ -373,5 +373,5 @@ When `category_id` is NULL, displays parent's category as grayed placeholder. Se
 ## See Also
 
 - [DataTable Basics](./data-table-basics.md) - Getting started
-- [DataTable Specification](../spec/frontend/data-table.md) - Architecture details
-- [Table Systems Reference](../reference/frontend/table-systems.md) - Implementation reference
+- [DataTable Specification](../01_requirements/frontend/data-table.md) - Architecture details
+- [Table Systems Reference](../03_design/frontend/table-systems.md) - Implementation reference

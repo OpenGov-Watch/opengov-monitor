@@ -218,5 +218,5 @@ frontend/src/components/
 - [Data Table Howto](../../howtos/data-table.md) - Usage guide
 - [Query Builder Howto](../../howtos/query-builder.md) - Building queries
 - [Filter Howto](../../howtos/filters.md) - Filter patterns
-- [Data Table Spec](../../spec/frontend/data-table.md) - Requirements
-- [Dashboard Spec](../../spec/frontend/dashboard.md) - Dashboard requirements
+- [Data Table Spec](../../01_requirements/frontend/data-table.md) - Requirements
+- [Dashboard Spec](../../01_requirements/frontend/dashboard.md) - Dashboard requirements

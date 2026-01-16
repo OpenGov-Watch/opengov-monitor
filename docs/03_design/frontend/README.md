@@ -18,5 +18,5 @@ This directory contains detailed API reference documentation for frontend compon
 
 ## See Also
 
-- [Specifications](../../spec/frontend/) - Technical architecture and design
+- [Specifications](../../01_requirements/frontend/) - Technical requirements and design
 - [How-To Guides](../../howtos/) - Practical examples and recipes

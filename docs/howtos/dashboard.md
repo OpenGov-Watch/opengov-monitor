@@ -44,6 +44,6 @@ Use this guide for complex dashboards.
 
 ## See Also
 
-- [Dashboard Specification](../spec/frontend/dashboard.md) - Architecture details
+- [Dashboard Specification](../01_requirements/frontend/dashboard.md) - Architecture details
 - [QueryBuilder How-To](./query-builder.md) - Query building guide
-- [Table Systems Reference](../reference/frontend/table-systems.md) - Table architecture
+- [Table Systems Reference](../03_design/frontend/table-systems.md) - Table architecture

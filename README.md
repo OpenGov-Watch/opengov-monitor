@@ -63,7 +63,7 @@ data/
 ├── local/         Local development databases (polkadot.db, sessions.db)
 ├── defaults/      Default CSV configs (tracked in git)
 └── backup/        Production database backups
-docs/spec/         Detailed specifications
+docs/              Documentation (see docs/README.md)
 ```
 
 ## Key Entry Points
@@ -73,7 +73,7 @@ docs/spec/         Detailed specifications
 | Add/modify API endpoint | `src/api/src/routes/`, `src/api/src/db/queries.ts` |
 | Add new page | `src/frontend/src/router.tsx`, `src/frontend/src/pages/` |
 | Modify data fetching | `src/backend/data_providers/subsquare.py` |
-| Modifying database schema | `docs/spec/backend/migrations.md` |
+| Modifying database schema | `docs/02_specification/backend/migrations.md` |
 
 ## Available Commands
 
@@ -126,25 +126,23 @@ Verifies that ID sequences in key tables are continuous with no gaps. See [docs/
 
 | Topic | Location |
 |-------|----------|
-| System overview | [docs/architecture.md](docs/architecture.md) |
-| Project-specific quirks | [docs/reference/gotchas.md](docs/reference/gotchas.md) |
-| Data schemas (shared) | [docs/spec/data-models.md](docs/spec/data-models.md) |
-| Error logging & validation | [docs/reference/error-logging.md](docs/reference/error-logging.md) |
-| Frontend table system | [docs/spec/frontend/tables.md](docs/spec/frontend/tables.md) |
-| Backend business rules | [src/backend/docs/spec/business-rules.md](src/backend/docs/spec/business-rules.md) |
-| API validation | [src/api/docs/spec/validation.md](src/api/docs/spec/validation.md) |
-| Database migrations | [docs/spec/backend/migrations.md](docs/spec/backend/migrations.md), [src/backend/migrations/README.md](src/backend/migrations/README.md) |
+| System overview | [docs/03_design/architecture.md](docs/03_design/architecture.md) |
+| Project-specific quirks | [docs/03_design/gotchas.md](docs/03_design/gotchas.md) |
+| Data schemas (shared) | [docs/02_specification/data-models.md](docs/02_specification/data-models.md) |
+| Error logging & validation | [docs/03_design/error-logging.md](docs/03_design/error-logging.md) |
+| Frontend table system | [docs/01_requirements/frontend/data-table.md](docs/01_requirements/frontend/data-table.md) |
+| Backend business rules | [docs/01_requirements/business-rules.md](docs/01_requirements/business-rules.md) |
+| Database migrations | [docs/02_specification/backend/migrations.md](docs/02_specification/backend/migrations.md), [src/backend/migrations/README.md](src/backend/migrations/README.md) |
 | Database sanity checks | [docs/howtos/sanity-checks.md](docs/howtos/sanity-checks.md) |
 | Deployment (overview) | [src/deploy/README.md](src/deploy/README.md) |
 | Deployment (agent guide) | [src/deploy/CLAUDE.md](src/deploy/CLAUDE.md) |
 
 ## Authentication
 
-The manage section (`/manage/*` routes) requires authentication for administrative operations.
+The manage section (`/manage/*` routes) requires authentication.
 
-### Login
-- Navigate to: http://localhost:3000/login
-- Default credentials must be created via API or initial setup flow
+- **Login:** http://localhost:3000/login
+- **User management:** `pnpm --filter api run users --help`
 
 ### Creating the First User
 On first run, if no users exist, you can create an admin user:

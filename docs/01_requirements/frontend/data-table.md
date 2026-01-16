@@ -126,6 +126,6 @@ Must provide unified table interface for viewing, filtering, and analyzing datab
 ## See Also
 
 - [DataTable How-To Guide](../../howtos/data-table.md)
-- [DataTable API Reference](../../reference/frontend/data-table-api.md)
+- [DataTable API Reference](../../03_design/frontend/data-table-api.md)
 - [Dashboard System](./dashboard.md)
 - [Filtering Systems](./filters.md)

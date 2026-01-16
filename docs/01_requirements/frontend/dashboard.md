@@ -127,6 +127,6 @@ Must provide three page types:
 ## See Also
 
 - [Dashboard How-To Guide](../../howtos/dashboard.md)
-- [Dashboard API Reference](../../reference/frontend/dashboard-api.md)
+- [Dashboard API Reference](../../03_design/frontend/dashboard-api.md)
 - [QueryBuilder Specification](./query-builder.md)
 - [DataTable System](./data-table.md)

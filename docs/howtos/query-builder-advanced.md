@@ -297,6 +297,6 @@ Count executed proposals by track:
 ## See Also
 
 - [QueryBuilder Basics](./query-builder-basics.md) - Getting started
-- [QueryBuilder Specification](../spec/frontend/query-builder.md) - Architecture details
+- [QueryBuilder Specification](../01_requirements/frontend/query-builder.md) - Architecture details
 - [Dashboard How-To](./dashboard.md) - Using QueryBuilder in dashboards
 - [Filtering How-To](./filters.md) - Advanced filtering patterns

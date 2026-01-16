@@ -101,6 +101,6 @@ The QueryBuilder automatically detects JOIN conditions based on these patterns:
 
 ## See Also
 
-- [QueryBuilder Specification](../../spec/frontend/query-builder.md) - Architecture and design
+- [QueryBuilder Specification](../../01_requirements/frontend/query-builder.md) - Architecture and design
 - [QueryBuilder How-To](../../howtos/query-builder.md) - Practical examples
 - [Dashboard How-To](../../howtos/dashboard.md) - Using QueryBuilder in dashboards

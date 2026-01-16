@@ -149,4 +149,4 @@ When using aggregates, sort by the alias:
 
 - For expressions, aggregates, and complex filters, see [QueryBuilder Advanced](./query-builder-advanced.md)
 - For using QueryBuilder in dashboards, see [Dashboard How-To](./dashboard.md)
-- For architecture details, see [QueryBuilder Specification](../spec/frontend/query-builder.md)
+- For architecture details, see [QueryBuilder Specification](../01_requirements/frontend/query-builder.md)

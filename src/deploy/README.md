@@ -69,11 +69,11 @@ Expected: Health returns 200, all processes RUNNING (nginx, api, cron)
 
 ### Production Deployment
 
-1. Complete [Pre-Deployment Checklist](../../docs/reference/deployment/pre-deployment-checklist.md)
+1. Complete [Pre-Deployment Checklist](../../docs/03_design/deployment/pre-deployment-checklist.md)
 2. Push to `production` branch
 3. GitHub Actions builds image → GHCR
 4. Server pulls and restarts
-5. Run [Post-Deployment Verification](../../docs/reference/deployment/post-deployment-verification.md)
+5. Run [Post-Deployment Verification](../../docs/03_design/deployment/post-deployment-verification.md)
 
 ## Pre-Deployment Checklist
 
@@ -87,7 +87,7 @@ Expected: Health returns 200, all processes RUNNING (nginx, api, cron)
 
 **Golden Rule:** If you wouldn't deploy it locally, don't deploy it to production.
 
-See [full checklist](../../docs/reference/deployment/pre-deployment-checklist.md) for detailed steps.
+See [full checklist](../../docs/03_design/deployment/pre-deployment-checklist.md) for detailed steps.
 
 ## Post-Deployment Verification
 
@@ -111,7 +111,7 @@ curl -f https://polkadot-treasury-monitor.cypherpunk.agency/api/categories
 
 Expected: Container healthy, all processes RUNNING, endpoints return 200.
 
-See [full verification guide](../../docs/reference/deployment/post-deployment-verification.md) for details.
+See [full verification guide](../../docs/03_design/deployment/post-deployment-verification.md) for details.
 
 ## Key Files
 
@@ -128,11 +128,11 @@ See [full verification guide](../../docs/reference/deployment/post-deployment-ve
 ## Learn More
 
 **Deployment:**
-- [Pre-Deployment Checklist](../../docs/reference/deployment/pre-deployment-checklist.md) - Detailed pre-deploy steps
-- [Post-Deployment Verification](../../docs/reference/deployment/post-deployment-verification.md) - Post-deploy checks
-- [Debugging](../../docs/reference/deployment/debugging.md) - Troubleshooting commands
-- [Common Issues](../../docs/reference/deployment/common-issues.md) - Frequent problems and solutions
-- [Local Docker Development](../../docs/reference/deployment/local-docker-development.md) - Local development with Docker
+- [Pre-Deployment Checklist](../../docs/03_design/deployment/pre-deployment-checklist.md) - Detailed pre-deploy steps
+- [Post-Deployment Verification](../../docs/03_design/deployment/post-deployment-verification.md) - Post-deploy checks
+- [Debugging](../../docs/03_design/deployment/debugging.md) - Troubleshooting commands
+- [Common Issues](../../docs/03_design/deployment/common-issues.md) - Frequent problems and solutions
+- [Local Docker Development](../../docs/03_design/deployment/local-docker-development.md) - Local development with Docker
 
 **General:**
 - [CLAUDE.md](./CLAUDE.md) - Agent navigation

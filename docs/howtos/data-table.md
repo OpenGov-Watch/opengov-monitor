@@ -60,6 +60,6 @@ const queryConfig: QueryConfig = {
 
 ## See Also
 
-- [DataTable Specification](../spec/frontend/data-table.md) - Requirements and architecture
-- [Table Systems Reference](../reference/frontend/table-systems.md) - Implementation details
+- [DataTable Specification](../01_requirements/frontend/data-table.md) - Requirements and architecture
+- [Table Systems Reference](../03_design/frontend/table-systems.md) - Implementation details
 - [Filtering Guide](./filters.md) - Filter strategies

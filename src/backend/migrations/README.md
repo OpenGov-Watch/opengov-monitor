@@ -169,14 +169,14 @@ Or update `package.json` scripts to use `Scripts\python.exe`.
 ## See Also
 
 **Migration Guides:**
-- [Migration Patterns](../../docs/reference/migrations/patterns.md) - Common patterns (add/remove columns, data transformations)
-- [Troubleshooting](../../docs/reference/migrations/troubleshooting.md) - Common issues and fixes
-- [Testing Strategies](../../docs/reference/migrations/testing-strategies.md) - How to test migrations
-- [Advanced Examples](../../docs/reference/migrations/advanced-examples.md) - Complex scenarios (views, data migrations)
+- [Migration Patterns](../../docs/03_design/migrations/patterns.md) - Common patterns (add/remove columns, data transformations)
+- [Troubleshooting](../../docs/03_design/migrations/troubleshooting.md) - Common issues and fixes
+- [Testing Strategies](../../docs/03_design/migrations/testing-strategies.md) - How to test migrations
+- [Advanced Examples](../../docs/03_design/migrations/advanced-examples.md) - Complex scenarios (views, data migrations)
 
 **Architecture:**
-- [Migration System Design](../../docs/reference/backend/migration-system-design.md) - Design decisions and rationale
+- [Migration System Design](../../docs/03_design/backend/migration-system-design.md) - Design decisions and rationale
 
 **Specifications:**
-- [Full Migration Specification](../../docs/spec/backend/migrations.md) - Requirements and architecture
+- [Full Migration Specification](../../docs/02_specification/backend/migrations.md) - Requirements and architecture
 - [Schema Definitions](../data_sinks/sqlite/schema.py) - Table schemas

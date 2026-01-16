@@ -100,4 +100,4 @@ Each faceted filter column uses AND logic between columns, OR within column.
 
 - For QueryBuilder advanced filters and complex patterns, see [Filtering Advanced](./filters-advanced.md)
 - For DataTable filtering examples, see [DataTable How-To](./data-table.md)
-- For architecture details, see [Filters Specification](../spec/frontend/filters.md)
+- For architecture details, see [Filters Specification](../01_requirements/frontend/filters.md)

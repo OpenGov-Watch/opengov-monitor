@@ -19,6 +19,7 @@ pnpm api:dev      # Development with hot reload
 pnpm build        # Build for production
 pnpm start        # Run production build
 pnpm test:run     # Run tests
+pnpm users        # User management (list/add/set-password/delete)
 ```
 
 ## Configuration
@@ -40,6 +41,7 @@ pnpm test:run     # Run tests
 
 ### Auth (`/api/auth`)
 - `/me`, `/login`, `/logout` - Session management
+- User management: `pnpm users` command (see Commands section)
 
 ### Backup (`/api/backup`)
 - `GET /api/backup/info` - Get database file info (size, last write timestamp)
@@ -67,5 +69,4 @@ The API tracks the timestamp of the last database write operation in-memory (res
 
 ## References
 
-- [Validation rules](docs/spec/validation.md) - API validation and error responses
-- [Data models](../docs/spec/data-models.md) - Table schemas
+- [Data models](../docs/02_specification/data-models.md) - Table schemas

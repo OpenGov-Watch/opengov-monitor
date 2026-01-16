@@ -116,6 +116,6 @@ const ROW_HEIGHT = 80;
 
 ## See Also
 
-- [Dashboard Specification](../../spec/frontend/dashboard.md) - Architecture and design
+- [Dashboard Specification](../../01_requirements/frontend/dashboard.md) - Architecture and design
 - [Dashboard How-To](../../howtos/dashboard.md) - Practical examples
 - [QueryBuilder API](./query-builder-api.md) - Query configuration

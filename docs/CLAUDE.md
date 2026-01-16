@@ -4,11 +4,13 @@
   - Our docs are directed at an expert audience. Don't explain basic concepts. Don't explain things that can be looked up in the code. Rather, show how it works and how it connects.
   - Do not describe "recent changes", just describe the current state.
   - Avoid text duplication between docs files, README, and CLAUDE.md. They play together. Keep each file terse and only provide an overview over this level of detail. Further details should be in files in subfolders or linked documentation. If a file has more than 100 lines, consider splitting it up.
+    - This means: Whatever you want to write, it likely doesn't belong into the root README...
 - Roles:
   - each file type has a specific role. Make sure that you respect the roles:
-  - `docs/spec/` is only for specification of requirements. It does not specify or document implementation details
-  - `docs/reference`
-    - may document implementation; but remember that the main intention is to have a quick overview of key parts of the codebase. 
+  - `docs/01_requirements/` is only for specification of requirements. It does not specify or document implementation details
+  - `docs/02_specification/` is for technical specifications (data models, schemas)
+  - `docs/03_design/`
+    - may document implementation; but remember that the main intention is to have a quick overview of key parts of the codebase.
     - Don't show code, link to code.
   - `docs/howtos/` explain how to use features
   - `CLAUDE.md` and `README.md` files

@@ -184,6 +184,6 @@ Solution: Remove duplicates from CSV or use audit script to identify conflicts
 
 ## See Also
 
-- [data-models.md](../spec/data-models.md#categories) - Categories table specification
-- [business-rules.md](../../src/backend/docs/spec/business-rules.md) - Spending categorization rules
+- [data-models.md](../02_specification/data-models.md#categories) - Categories table specification
+- [business-rules.md](../01_requirements/business-rules.md) - Spending categorization rules
 - [src/api/src/db/queries.ts](../../src/api/src/db/queries.ts) - Import/validation implementation

@@ -134,4 +134,4 @@ Must be usable in:
 - [QueryBuilder How-To Guide](../../howtos/query-builder.md)
 - [Dashboard System](./dashboard.md)
 - [Filtering Systems](./filters.md)
-- [QueryBuilder API Reference](../../reference/frontend/query-builder-api.md)
+- [QueryBuilder API Reference](../../03_design/frontend/query-builder-api.md)

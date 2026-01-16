@@ -8,11 +8,12 @@ Agent-specific instructions for working on this codebase. For project overview, 
 - Never modify DB migration versions after they have been applied to the production DB
 - Don't use `taskkill`, only your own task kill tool.
 - For frontend changes, use the `react-best-practices` skill
+- don't start a server. the user will do that. by default, assume out localhost:3000
 
 ## When planning changes
 - Planning Phase
   - Review the specification. If it is not mentioned in the spec, discuss updating the spec with the user
-  - Database schema changes must consider `docs/spec/backend/migrations.md`
+  - Database schema changes must consider `docs/02_specification/backend/migrations.md`
 - Specification
   - Update Spec
   - Prospectively update unit tests to match spec

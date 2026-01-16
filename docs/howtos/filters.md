@@ -39,6 +39,6 @@ Use this guide for complex filtering needs in dashboards.
 
 ## See Also
 
-- [Filters Specification](../spec/frontend/filters.md) - Technical details
+- [Filters Specification](../01_requirements/frontend/filters.md) - Technical details
 - [DataTable How-To](./data-table.md) - DataTable filtering examples
 - [QueryBuilder How-To](./query-builder.md) - Building complex queries

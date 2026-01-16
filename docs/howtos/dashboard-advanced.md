@@ -247,6 +247,6 @@ filters: [
 ## See Also
 
 - [Dashboard Basics](./dashboard-basics.md) - Getting started
-- [Dashboard Specification](../spec/frontend/dashboard.md) - Architecture details
+- [Dashboard Specification](../01_requirements/frontend/dashboard.md) - Architecture details
 - [QueryBuilder How-To](./query-builder.md) - Query building details
-- [Table Systems Reference](../reference/frontend/table-systems.md) - Table architecture
+- [Table Systems Reference](../03_design/frontend/table-systems.md) - Table architecture

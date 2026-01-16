@@ -143,6 +143,32 @@ Primary key: `id` (auto-increment)
 
 Fields: `username` (unique), `password_hash`, `created_at`
 
+### Treasury Netflows
+
+CSV-backed table for quarterly treasury flow data.
+
+Fields: `month` (YYYY-MM), `asset_name`, `flow_type`, `amount_usd`, `amount_dot_equivalent`
+
+Import: Full table replacement via Sync Settings
+
+### Cross Chain Flows
+
+CSV-backed table for cross-chain transaction tracking.
+
+Fields: `message_hash`, `from_account`, `to_account`, `block`, `origin_event_index`, `dest_event_index`, `time`, `from_chain_id`, `destination_chain_id`, `value`, `protocol`, `status`
+
+Import: Full table replacement via Sync Settings
+
+### Local Flows
+
+CSV-backed table for local transaction tracking.
+
+Primary key: `extrinsic_id`
+
+Fields: `date`, `block`, `hash`, `symbol`, `from_account`, `to_account`, `value`, `result`, `year_month`, `quarter`
+
+Import: Full table replacement via Sync Settings
+
 ---
 
 ## Dashboard Tables
