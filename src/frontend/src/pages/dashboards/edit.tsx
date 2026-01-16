@@ -62,6 +62,16 @@ export default function DashboardEditPage() {
     fetchData();
   }, [fetchData]);
 
+  // Sync editingComponent with components array when it updates
+  useEffect(() => {
+    if (editingComponent && editingComponent.id) {
+      const updatedComponent = components.find(c => c.id === editingComponent.id);
+      if (updatedComponent && updatedComponent !== editingComponent) {
+        setEditingComponent(updatedComponent);
+      }
+    }
+  }, [components, editingComponent]);
+
   async function handleLayoutChange(componentId: number, gridConfig: GridConfig) {
     try {
       await fetch("/api/dashboards/components", {
