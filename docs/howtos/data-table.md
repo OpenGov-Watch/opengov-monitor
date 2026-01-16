@@ -1,9 +1,5 @@
 # How to Create and Configure DataTables
 
-**⚠️ This file has been renamed to `data-table.md` - Please see [data-table.md](./data-table.md) for the current version**
-
----
-
 This guide covers creating table pages using the query-driven DataTable system with auto-generated columns.
 
 ## Table of Contents
@@ -694,3 +690,11 @@ Override formatting via `columnOverrides` prop or update column-renderer.ts.
 - **Simple read-only**: `frontend/src/pages/fellowship.tsx`
 - **JOINs + editing + filters**: `frontend/src/pages/referenda.tsx`
 - **Custom rendering + views**: `frontend/src/pages/treasury.tsx`
+
+---
+
+## See Also
+
+- [DataTable Specification](../spec/frontend/data-table.md) - Detailed architecture
+- [DataTable API Reference](../reference/frontend/data-table-api.md) - Props and configuration
+- [Filtering How-To](./filters.md) - Filtering strategies
