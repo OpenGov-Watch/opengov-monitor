@@ -38,10 +38,12 @@ function AdvancedFiltersDialogContent({
   filterGroup,
   availableColumns,
   onApply,
+  sourceTable,
 }: {
   filterGroup?: FilterGroup;
   availableColumns: { id: string; name: string }[];
   onApply: (group: FilterGroup | undefined) => void;
+  sourceTable: string;
 }) {
   // Local state - changes don't trigger queries until Apply is clicked
   const [localGroup, setLocalGroup] = React.useState<FilterGroup>(
@@ -90,6 +92,7 @@ function AdvancedFiltersDialogContent({
         group={localGroup}
         availableColumns={availableColumns}
         onUpdate={setLocalGroup}
+        sourceTable={sourceTable}
       />
       <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
         <Button
@@ -118,6 +121,7 @@ interface DataTableToolbarProps<TData> {
   table: Table<TData>;
   onClearView: () => void;
   tableName: string;
+  sourceTable: string;  // Required for categorical filter dropdowns
   viewMode?: "table" | "card";
   onViewModeChange?: (mode: "table" | "card") => void;
   compactMode?: boolean;
@@ -136,6 +140,7 @@ export function DataTableToolbar<TData>({
   table,
   onClearView,
   tableName,
+  sourceTable,
   viewMode = "table",
   onViewModeChange,
   compactMode = false,
@@ -262,6 +267,7 @@ export function DataTableToolbar<TData>({
                     filterGroup={filterGroup}
                     availableColumns={filterableColumns}
                     onApply={onFilterGroupChange}
+                    sourceTable={sourceTable}
                   />
                 </DialogContent>
               </Dialog>

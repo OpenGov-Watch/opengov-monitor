@@ -444,6 +444,7 @@ export function DataTable<TData>({
         table={table}
         onClearView={clearViewState}
         tableName={tableName}
+        sourceTable={baseQueryConfig.sourceTable}
         viewMode={viewMode}
         onViewModeChange={compactMode ? undefined : setViewMode}
         compactMode={compactMode}

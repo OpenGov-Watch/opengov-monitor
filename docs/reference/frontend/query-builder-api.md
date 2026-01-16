@@ -39,10 +39,14 @@ const FILTER_OPERATORS = [
   ">=",
   "<=",
   "LIKE",
+  "IN",
+  "NOT IN",
   "IS NULL",
   "IS NOT NULL",
 ] as const;
 ```
+
+**Categorical Column Enhancement:** When using `IN` or `NOT IN` operators on categorical columns (`status`, `status_type`, `track`, `type`, `category`, `subcategory`), the filter builder automatically displays a multiselect dropdown with searchable values and counts instead of free text input.
 
 ## JOIN Types
 

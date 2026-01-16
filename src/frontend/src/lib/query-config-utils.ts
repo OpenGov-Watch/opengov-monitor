@@ -14,7 +14,7 @@ export interface OrderByConfig {
  */
 export interface FilterCondition {
   column: string;
-  operator: "=" | "!=" | ">" | "<" | ">=" | "<=" | "LIKE" | "IN" | "IS NULL" | "IS NOT NULL";
+  operator: "=" | "!=" | ">" | "<" | ">=" | "<=" | "LIKE" | "IN" | "NOT IN" | "IS NULL" | "IS NOT NULL";
   value: string | number | null | string[];
 }
 

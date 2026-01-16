@@ -12,13 +12,16 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FilterCondition, FilterGroup } from "@/lib/db/types";
+import { FilterCondition, FilterGroup, FacetValue, FacetQueryConfig, FacetQueryResponse } from "@/lib/db/types";
+import { FilterMultiselect } from "./filter-multiselect";
+import { isCategoricalColumn, getColumnType, getOperatorsForColumnType } from "@/lib/column-metadata";
 
 interface FilterGroupBuilderProps {
   group: FilterGroup;
   availableColumns: { id: string; name: string }[];
   onUpdate: (group: FilterGroup) => void;
   level?: number;
+  sourceTable: string;  // Required for fetching facets
 }
 
 const OPERATORS = [
@@ -30,6 +33,7 @@ const OPERATORS = [
   { value: "<=", label: "less than or equal" },
   { value: "LIKE", label: "contains" },
   { value: "IN", label: "in list" },
+  { value: "NOT IN", label: "not in list" },
   { value: "IS NULL", label: "is null" },
   { value: "IS NOT NULL", label: "is not null" },
 ] as const;
@@ -45,19 +49,45 @@ const FilterConditionRow = React.memo(function FilterConditionRow({
   availableColumns,
   updateCondition,
   removeItem,
+  facetsData,
 }: {
   item: FilterCondition;
   index: number;
   availableColumns: { id: string; name: string }[];
   updateCondition: (index: number, updates: Partial<FilterCondition>) => void;
   removeItem: (index: number) => void;
+  facetsData?: Record<string, FacetValue[]>;
 }) {
+  const isCategorical = isCategoricalColumn(item.column);
+  const isIN = item.operator === 'IN' || item.operator === 'NOT IN';
+  const isNullCheck = item.operator === 'IS NULL' || item.operator === 'IS NOT NULL';
+
+  // Get column type and filter available operators
+  const columnType = getColumnType(item.column);
+  const availableOperators = React.useMemo(() => {
+    const allowedOps = getOperatorsForColumnType(columnType);
+    return OPERATORS.filter(op => allowedOps.includes(op.value));
+  }, [columnType]);
+
   return (
     <div className="flex gap-2 items-center p-2 border rounded bg-background">
       {/* Column Selection */}
       <Select
         value={item.column}
-        onValueChange={(value) => updateCondition(index, { column: value })}
+        onValueChange={(value) => {
+          // When column changes, reset operator to first available for new column type
+          const newColumnType = getColumnType(value);
+          const newAvailableOps = getOperatorsForColumnType(newColumnType);
+          const currentOpAllowed = newAvailableOps.includes(item.operator);
+
+          updateCondition(index, {
+            column: value,
+            // Reset operator if current operator not available for new column type
+            operator: currentOpAllowed ? item.operator : newAvailableOps[0] as FilterCondition["operator"],
+            // Reset value when changing columns
+            value: null
+          });
+        }}
       >
         <SelectTrigger className="w-40">
           <SelectValue placeholder="Select column" />
@@ -84,7 +114,7 @@ const FilterConditionRow = React.memo(function FilterConditionRow({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {OPERATORS.map((op) => (
+          {availableOperators.map((op) => (
             <SelectItem key={op.value} value={op.value}>
               {op.label}
             </SelectItem>
@@ -92,37 +122,55 @@ const FilterConditionRow = React.memo(function FilterConditionRow({
         </SelectContent>
       </Select>
 
-      {/* Value Input (only for operators that need a value) */}
-      {item.operator !== "IS NULL" && item.operator !== "IS NOT NULL" && (
-        <Input
-          className="flex-1"
-          placeholder={
-            item.operator === "IN" ? "value1, value2, ..." : "value"
-          }
-          value={
-            Array.isArray(item.value)
-              ? item.value.join(", ")
-              : item.value ?? ""
-          }
-          onChange={(e) => {
-            const inputValue = e.target.value;
-            let parsedValue: string | number | string[];
+      {/* Value Input - conditional rendering based on column type and operator */}
+      {!isNullCheck && (
+        <>
+          {isCategorical && isIN ? (
+            // Multiselect for categorical columns with IN/NOT IN operators
+            <div className="flex-1">
+              <FilterMultiselect
+                values={Array.isArray(item.value) ? item.value : []}
+                options={facetsData?.[item.column] || []}
+                onChange={(newValues) => updateCondition(index, { value: newValues })}
+                placeholder={`Select ${item.column}...`}
+                searchPlaceholder={`Search ${item.column}...`}
+              />
+            </div>
+          ) : (
+            // Free text input for non-categorical columns
+            <Input
+              className="flex-1"
+              placeholder={
+                item.operator === "IN" || item.operator === "NOT IN"
+                  ? "value1, value2, ..."
+                  : "value"
+              }
+              value={
+                Array.isArray(item.value)
+                  ? item.value.join(", ")
+                  : item.value ?? ""
+              }
+              onChange={(e) => {
+                const inputValue = e.target.value;
+                let parsedValue: string | number | string[];
 
-            if (item.operator === "IN") {
-              // Parse comma-separated list
-              parsedValue = inputValue
-                .split(",")
-                .map((v) => v.trim())
-                .filter((v) => v !== "");
-            } else {
-              // Try to parse as number, otherwise keep as string
-              const num = Number(inputValue);
-              parsedValue = isNaN(num) ? inputValue : num;
-            }
+                if (item.operator === "IN" || item.operator === "NOT IN") {
+                  // Parse comma-separated list
+                  parsedValue = inputValue
+                    .split(",")
+                    .map((v) => v.trim())
+                    .filter((v) => v !== "");
+                } else {
+                  // Try to parse as number, otherwise keep as string
+                  const num = Number(inputValue);
+                  parsedValue = isNaN(num) ? inputValue : num;
+                }
 
-            updateCondition(index, { value: parsedValue });
-          }}
-        />
+                updateCondition(index, { value: parsedValue });
+              }}
+            />
+          )}
+        </>
       )}
 
       {/* Remove Button */}
@@ -143,7 +191,8 @@ const FilterConditionRow = React.memo(function FilterConditionRow({
     JSON.stringify(prevProps.item) === JSON.stringify(nextProps.item) &&
     prevProps.updateCondition === nextProps.updateCondition &&
     prevProps.removeItem === nextProps.removeItem &&
-    JSON.stringify(prevProps.availableColumns) === JSON.stringify(nextProps.availableColumns)
+    JSON.stringify(prevProps.availableColumns) === JSON.stringify(nextProps.availableColumns) &&
+    JSON.stringify(prevProps.facetsData) === JSON.stringify(nextProps.facetsData)
   );
 });
 
@@ -152,7 +201,72 @@ export const FilterGroupBuilder = React.memo(function FilterGroupBuilder({
   availableColumns,
   onUpdate,
   level = 0,
+  sourceTable,
 }: FilterGroupBuilderProps) {
+  // Extract all categorical columns from the filter group (recursively)
+  const categoricalColumnsInGroup = React.useMemo(() => {
+    const columns = new Set<string>();
+
+    function extractColumns(g: FilterGroup) {
+      g.conditions.forEach(condition => {
+        if ('column' in condition && isCategoricalColumn(condition.column)) {
+          columns.add(condition.column);
+        } else if ('conditions' in condition) {
+          extractColumns(condition);
+        }
+      });
+    }
+
+    extractColumns(group);
+    return Array.from(columns);
+  }, [group]);
+
+  // State for facets data
+  const [facetsData, setFacetsData] = React.useState<Record<string, FacetValue[]>>({});
+
+  // Fetch facets for categorical columns
+  React.useEffect(() => {
+    if (categoricalColumnsInGroup.length === 0) {
+      setFacetsData({});
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const facetConfig: FacetQueryConfig = {
+      sourceTable,
+      columns: categoricalColumnsInGroup,
+      filters: group, // Use current filter group for accurate counts
+    };
+
+    fetch("/api/query/facets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(facetConfig),
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          console.warn("Facet fetch failed");
+          setFacetsData({});
+          return;
+        }
+        const result: FacetQueryResponse = await response.json();
+        setFacetsData(result.facets);
+      })
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          console.warn("Error fetching facets:", err);
+          setFacetsData({});
+        }
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [categoricalColumnsInGroup, sourceTable, group]);
+
   // Wrap all handlers in useCallback to prevent child re-renders
   const addCondition = React.useCallback(() => {
     const newCondition: FilterCondition = {
@@ -253,6 +367,7 @@ export const FilterGroupBuilder = React.memo(function FilterGroupBuilder({
                   availableColumns={availableColumns}
                   onUpdate={(updatedGroup) => updateNestedGroup(index, updatedGroup)}
                   level={level + 1}
+                  sourceTable={sourceTable}
                 />
                 <Button
                   type="button"
@@ -273,6 +388,7 @@ export const FilterGroupBuilder = React.memo(function FilterGroupBuilder({
                 availableColumns={availableColumns}
                 updateCondition={updateCondition}
                 removeItem={removeItem}
+                facetsData={facetsData}
               />
             )}
           </div>
@@ -317,6 +433,7 @@ export const FilterGroupBuilder = React.memo(function FilterGroupBuilder({
   return (
     prevProps.level === nextProps.level &&
     prevProps.onUpdate === nextProps.onUpdate &&
+    prevProps.sourceTable === nextProps.sourceTable &&
     JSON.stringify(prevProps.group) === JSON.stringify(nextProps.group) &&
     JSON.stringify(prevProps.availableColumns) === JSON.stringify(nextProps.availableColumns)
   );
