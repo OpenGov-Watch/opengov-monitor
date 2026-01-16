@@ -6,9 +6,51 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { sortingStateToOrderBy, filterStateToQueryFilters, filtersToGroup, groupToFilters, convertFiltersToQueryConfig } from "../query-config-utils";
+import { getColumnKey, sortingStateToOrderBy, filterStateToQueryFilters, filtersToGroup, groupToFilters, convertFiltersToQueryConfig } from "../query-config-utils";
 import type { SortingState, ColumnFiltersState } from "@tanstack/react-table";
 import type { FilterCondition, FilterGroup } from "@/lib/db/types";
+
+describe("getColumnKey", () => {
+  it("returns alias when provided", () => {
+    const result = getColumnKey({ column: "c.category", alias: "category" });
+    expect(result).toBe("category");
+  });
+
+  it("returns formatted aggregate key for SUM", () => {
+    const result = getColumnKey({ column: "amount", aggregateFunction: "SUM" });
+    expect(result).toBe("sum_amount");
+  });
+
+  it("returns formatted aggregate key for COUNT", () => {
+    const result = getColumnKey({ column: "id", aggregateFunction: "COUNT" });
+    expect(result).toBe("count_id");
+  });
+
+  it("returns formatted aggregate key for AVG", () => {
+    const result = getColumnKey({ column: "DOT_value", aggregateFunction: "AVG" });
+    expect(result).toBe("avg_DOT_value");
+  });
+
+  it("returns column name when no alias or aggregate", () => {
+    const result = getColumnKey({ column: "id" });
+    expect(result).toBe("id");
+  });
+
+  it("handles dots in column names for aggregate functions", () => {
+    const result = getColumnKey({ column: "tally.ayes", aggregateFunction: "SUM" });
+    expect(result).toBe("sum_tally_ayes");
+  });
+
+  it("handles spaces in column names for aggregate functions", () => {
+    const result = getColumnKey({ column: "proposal time", aggregateFunction: "AVG" });
+    expect(result).toBe("avg_proposal_time");
+  });
+
+  it("prefers alias over aggregate function", () => {
+    const result = getColumnKey({ column: "amount", alias: "total_amount", aggregateFunction: "SUM" });
+    expect(result).toBe("total_amount");
+  });
+});
 
 describe("sortingStateToOrderBy", () => {
   it("converts empty sorting state", () => {
@@ -53,6 +95,117 @@ describe("sortingStateToOrderBy", () => {
     expect(result).toEqual([
       { column: "c.category", direction: "DESC" }
     ]);
+  });
+
+  describe("with column reference resolution", () => {
+    it("resolves joined column aliases using columnIdToRef mapping", () => {
+      const sorting: SortingState = [{ id: "category", desc: false }];
+      const columnIdToRef = { category: "c.category" };
+      const result = sortingStateToOrderBy(sorting, undefined, columnIdToRef);
+      expect(result).toEqual([
+        { column: "c.category", direction: "ASC" }
+      ]);
+    });
+
+    it("resolves multiple joined column aliases", () => {
+      const sorting: SortingState = [
+        { id: "category", desc: false },
+        { id: "subcategory", desc: true }
+      ];
+      const columnIdToRef = {
+        category: "c.category",
+        subcategory: "c.subcategory"
+      };
+      const result = sortingStateToOrderBy(sorting, undefined, columnIdToRef);
+      expect(result).toEqual([
+        { column: "c.category", direction: "ASC" },
+        { column: "c.subcategory", direction: "DESC" }
+      ]);
+    });
+
+    it("falls back to queryConfig lookup when columnIdToRef mapping missing", () => {
+      const sorting: SortingState = [{ id: "category", desc: false }];
+      const queryConfig = {
+        columns: [
+          { column: "c.category", alias: "category" },
+          { column: "c.subcategory", alias: "subcategory" }
+        ]
+      };
+      const result = sortingStateToOrderBy(sorting, queryConfig);
+      expect(result).toEqual([
+        { column: "c.category", direction: "ASC" }
+      ]);
+    });
+
+    it("uses column ID as-is when no mapping or queryConfig provided (backward compatibility)", () => {
+      const sorting: SortingState = [{ id: "status", desc: true }];
+      const result = sortingStateToOrderBy(sorting);
+      expect(result).toEqual([
+        { column: "status", direction: "DESC" }
+      ]);
+    });
+
+    it("handles mixed aliases and regular columns", () => {
+      const sorting: SortingState = [
+        { id: "category", desc: false },
+        { id: "id", desc: true },
+        { id: "status", desc: false }
+      ];
+      const columnIdToRef = { category: "c.category" };
+      const result = sortingStateToOrderBy(sorting, undefined, columnIdToRef);
+      expect(result).toEqual([
+        { column: "c.category", direction: "ASC" },
+        { column: "id", direction: "DESC" },
+        { column: "status", direction: "ASC" }
+      ]);
+    });
+
+    it("handles empty columnIdToRef mapping gracefully", () => {
+      const sorting: SortingState = [{ id: "status", desc: false }];
+      const columnIdToRef = {};
+      const result = sortingStateToOrderBy(sorting, undefined, columnIdToRef);
+      expect(result).toEqual([
+        { column: "status", direction: "ASC" }
+      ]);
+    });
+
+    it("prioritizes columnIdToRef over queryConfig", () => {
+      const sorting: SortingState = [{ id: "category", desc: false }];
+      const queryConfig = {
+        columns: [
+          { column: "wrong.category", alias: "category" }
+        ]
+      };
+      const columnIdToRef = { category: "c.category" };
+      const result = sortingStateToOrderBy(sorting, queryConfig, columnIdToRef);
+      expect(result).toEqual([
+        { column: "c.category", direction: "ASC" }
+      ]);
+    });
+
+    it("handles multiple JOINs with same column names", () => {
+      const sorting: SortingState = [
+        { id: "category", desc: false },
+        { id: "parent_category", desc: true }
+      ];
+      const columnIdToRef = {
+        category: "c.category",
+        parent_category: "parent_cat.category"
+      };
+      const result = sortingStateToOrderBy(sorting, undefined, columnIdToRef);
+      expect(result).toEqual([
+        { column: "c.category", direction: "ASC" },
+        { column: "parent_cat.category", direction: "DESC" }
+      ]);
+    });
+
+    it("handles undefined columnIdToRef and queryConfig (graceful degradation)", () => {
+      const sorting: SortingState = [{ id: "status", desc: false }];
+      const result = sortingStateToOrderBy(sorting, undefined, undefined);
+      expect(result).toEqual([
+        { column: "status", direction: "ASC" }
+      ]);
+    });
   });
 });
 

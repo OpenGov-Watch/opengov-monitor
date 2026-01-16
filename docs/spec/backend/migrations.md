@@ -108,27 +108,7 @@ def down(conn: sqlite3.Connection) -> None:
 
 ## Docker Integration
 
-Migrations run before API starts via wrapper script:
-
-**`deploy/run-migrations-then-api.sh`:**
-```bash
-#!/bin/bash
-# Run migrations first
-python /app/backend/migrations/migration_runner.py --db /data/polkadot.db || exit 1
-
-# Start API only if migrations succeed
-exec node /app/api/dist/index.js
-```
-
-**`deploy/supervisord.conf`:**
-```ini
-[program:api]
-command=/bin/bash /app/deploy/run-migrations-then-api.sh
-priority=10
-autorestart=true
-```
-
-This prevents race conditions where API starts before migrations complete.
+Migrations run automatically in Docker before API starts via wrapper script
 
 ## Local Development
 
@@ -167,34 +147,9 @@ This inserts records into `schema_migrations` with:
 **When modifying schema:**
 1. Create migration file: `pnpm migrate:create --name add_field --type sql`
 2. Write migration SQL/Python
-3. Update `backend/data_sinks/sqlite/schema.py` to match end state
+3. Update `backend/data_sinks/sqlite/schema.py` (must stay in sync with final migration state)
 4. Test locally: `pnpm migrate`
 5. Commit both migration and schema files
-
-**Schema.py role:**
-- Defines desired end state of schema
-- Used by backend code for table creation
-- Must stay in sync with migrations
-
-## Key Design Decisions
-
-**Why checksums?**
-- Prevents accidental modification of applied migrations
-- Forces explicit new migrations for fixes
-- Maintains audit trail
-
-**Why explicit transactions?**
-- SQLite `executescript()` auto-commits between statements
-- Explicit `BEGIN` allows atomic rollback on failure
-
-**Why wrapper script?**
-- Prevents API from starting before migrations complete
-- Avoids SQLite lock conflicts
-- Cleaner than supervisord dependency management
-
-**Why not drop tables?**
-- Migrations must preserve existing data
-- Table recreation only for column removal (SQLite limitation)
 
 ## Security
 
@@ -202,3 +157,12 @@ This inserts records into `schema_migrations` with:
 - Runner requires write access to database
 - Checksum validation prevents tampering
 - All executions logged for audit trail
+
+## See Also
+
+- [Migrations README](../../../src/backend/migrations/README.md) - User guide for creating and running migrations
+- [Migration System Design](../../reference/backend/migration-system-design.md) - Architecture and design decisions
+- [Migration Patterns](../../reference/migrations/patterns.md) - Common patterns (add/remove columns, views, indexes)
+- [Troubleshooting](../../reference/migrations/troubleshooting.md) - Common issues and fixes
+- [Testing Strategies](../../reference/migrations/testing-strategies.md) - How to test migrations
+- [Advanced Examples](../../reference/migrations/advanced-examples.md) - Complex migration scenarios

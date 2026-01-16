@@ -36,5 +36,23 @@ Step-by-step guides for using features. Code examples included.
 
 Quick overview of key implementation patterns. Links to code, doesn't show code.
 
+**General:**
 - [gotchas.md](reference/gotchas.md) - Project-specific quirks and workarounds
+
+**Backend:**
+- [backend/migration-system-design.md](reference/backend/migration-system-design.md) - Migration architecture and design decisions
+- [migrations/patterns.md](reference/migrations/patterns.md) - Common migration patterns
+- [migrations/troubleshooting.md](reference/migrations/troubleshooting.md) - Migration issues and fixes
+- [migrations/testing-strategies.md](reference/migrations/testing-strategies.md) - How to test migrations
+- [migrations/advanced-examples.md](reference/migrations/advanced-examples.md) - Complex migration scenarios
+
+**Frontend:**
 - [frontend/table-systems.md](reference/frontend/table-systems.md) - DataTable architecture reference
+- [frontend/column-formatting.md](reference/frontend/column-formatting.md) - Column formatting and configuration
+
+**Deployment:**
+- [deployment/pre-deployment-checklist.md](reference/deployment/pre-deployment-checklist.md) - Detailed pre-deployment steps
+- [deployment/post-deployment-verification.md](reference/deployment/post-deployment-verification.md) - Verification after deploy
+- [deployment/debugging.md](reference/deployment/debugging.md) - Debugging deployments
+- [deployment/common-issues.md](reference/deployment/common-issues.md) - Common deployment issues
+- [deployment/local-docker-development.md](reference/deployment/local-docker-development.md) - Local Docker workflow

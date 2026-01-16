@@ -10,8 +10,7 @@ Must provide composable dashboard system for combining multiple data visualizati
 
 - Must support drag-to-reposition components in edit mode
 - Must support resize handles in edit mode
-- Must use 12-column grid system
-- Must provide responsive breakpoints: lg (1200), md (996), sm (768), xs (480), xxs (0)
+- Must support responsive grid layout with drag-and-drop positioning
 - Must persist layout changes to database
 - Must properly constrain component heights to enable internal scrolling
 - Must prevent component content from expanding entire grid
@@ -115,26 +114,8 @@ Must provide three page types:
 ## Scrolling Requirements
 
 - Must establish proper height chain from page → grid → component
-- Must use flexbox layout with `min-h-0` to enable scrolling
-- Must apply `overflow: hidden` to grid items to constrain heights
-- Must provide internal scrolling within components
+- Must properly constrain component heights to enable internal scrolling
 - Must support sticky table headers within scrollable areas
-
-## Comparison with DataTable
-
-Dashboard tables must differ from full DataTable:
-- **Read-only** (no sorting, filtering, pagination, or views)
-- **Grid-integrated** (positioned via x, y, width, height coordinates)
-- **Database-backed** (configuration stored in DB, not localStorage)
-- **Simple rendering** (plain HTML table, not TanStack Table)
-- **Limited features** (display only, no user interaction)
-
-DataTable must be used for:
-- Interactive data exploration
-- Advanced features (sort, filter, paginate)
-- Full-page dedicated views
-- Client-side state management
-- Editable cells
 
 ## Performance Requirements
 

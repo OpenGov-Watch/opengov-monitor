@@ -4,7 +4,7 @@ Requirements for filtering mechanisms across the frontend.
 
 ## Overview
 
-Must provide three distinct filtering systems for different use cases:
+Must provide three distinct filtering systems:
 
 1. **FacetedFilter** - Multi-select dropdown filters with counts (DataTable)
 2. **FilterGroupBuilder** - Advanced filter builder with AND/OR logic (QueryBuilder/Dashboard)
@@ -13,216 +13,114 @@ Must provide three distinct filtering systems for different use cases:
 ## FacetedFilter Requirements
 
 ### Purpose
-Must provide multi-select dropdown filters for DataTable columns showing all unique values with counts.
+Multi-select dropdown filters for DataTable columns showing all unique values with counts.
 
 ### Features
-- Must show multi-select checkboxes for all distinct values
-- Must display count next to each value
-- Must provide Apply/Cancel buttons for confirmation
-- Must support searchable dropdown
-- Must sort values alphabetically
-- Must fetch data from server
-
-### Server-Side Behavior
-- Must fetch facet data via API endpoint accepting facet query configuration
-- Must return ALL distinct values with counts from full dataset (not just current page)
-- Must fetch facet data in parallel with table data
-- Must update facet values when other filters change
-- Must use database indexes for performance
-- Must gracefully fall back to client-side if server fails
+- Must show multi-select checkboxes for all distinct values with counts
+- Must provide Apply/Cancel buttons, searchable dropdown, alphabetical sort
+- Must fetch data from server via API endpoint
+- Must return ALL distinct values from full dataset (not just current page)
+- Must fetch in parallel with table data, update when filters change
+- Must use database indexes, gracefully fall back to client-side on failure
 
 ### UI Requirements
-- Must show column name on trigger button
-- Must display badge with number of selected values when filters applied
-- Must provide search input within dropdown
-- Must show Clear, Cancel, and Apply buttons
-- Must maintain pending selections until Apply clicked
-- Must revert to previous state on Cancel
-- Must remove all selections on Clear
+- Must show column name on trigger button with badge showing selected count
+- Must provide search input, Clear/Cancel/Apply buttons within dropdown
+- Must maintain pending selections until Apply, revert on Cancel
 
 ### State Management
 
-**Unified State Requirements:**
-- Must share filter state with FilterGroupBuilder to prevent filter conflicts
-- Must use single source of truth for all filter operations
-- Must read applied filter values from shared state
-- Must write selections to shared state on Apply
-- Must merge with existing filters from other sources without overwriting
-- Must store pending selections locally before applying (transaction pattern)
-- Must maintain backward compatibility with existing saved views
+**Unified State**: Must share filter state with FilterGroupBuilder using single source of truth. Must read from and write to shared state, merge with existing filters without overwriting. Must maintain backward compatibility with saved views.
 
-**Required State Flow:**
-1. Must read current filter values when user opens filter
-2. Must store selections locally while user makes changes
-3. Must commit selections to shared state only when user clicks Apply
-4. Must revert local selections when user clicks Cancel (no state change)
-5. Must allow FilterGroupBuilder to see and modify same filters
+**State Flow**: Read current values when opened → Store locally during changes → Commit to shared state on Apply → Revert on Cancel
 
-**Integration Requirements:**
-- Must ensure faceted filters and advanced filters work together
-- Must display all active filters in both UIs
-- Must prevent filter state conflicts between UIs
-- Must preserve apply/cancel transaction pattern for user experience
+**Integration**: Must ensure faceted and advanced filters work together without conflicts, preserving apply/cancel transaction pattern.
 
 ### Integration
-- Must integrate with DataTable via `facetedFilters` prop listing column IDs
+- Must integrate via DataTable's `facetedFilters` prop listing column IDs
 - Must work with TanStack Table's faceting system
 - Must disable sorting on faceted filter columns
 
 ## FilterGroupBuilder Requirements
 
 ### Purpose
-Must provide advanced filter builder with nested AND/OR logic for complex queries.
+Advanced filter builder with nested AND/OR logic for complex queries.
 
 ### Data Structure
-Must support hierarchical filter structure with:
-- Filter groups with AND or OR operators
-- Individual filter conditions with column, operator, and value
-- Nested groups at arbitrary depth
+Must support hierarchical structure with filter groups (AND/OR operators), individual conditions (column, operator, value), and nested groups at arbitrary depth.
 
-**Storage Format**: FilterGroup is the canonical format for both DataTable and Dashboard systems. Legacy FilterCondition[] arrays are automatically converted to FilterGroup format for backward compatibility.
+**Storage Format**: FilterGroup is canonical format. Legacy FilterCondition[] arrays automatically converted for backward compatibility.
 
 ### Column Type System
-Must identify column types and restrict operators accordingly:
 
-**Column Types:**
-- **Categorical**: `status`, `status_type`, `track`, `type`, `category`, `subcategory`
-- **Numeric**: Columns containing `DOT`, `USD`, `USDC`, `USDT`, amounts, counts, IDs
-- **Text**: `title`, `description`, `notes`, `beneficiary`, addresses
-- **Date**: Columns ending in `_time`, `_at`, or containing `date`
+Must identify column types and restrict operators:
 
-**Operator Availability by Type:**
+**Column Types**: Categorical (status, track, type, category), Numeric (DOT, USD, IDs), Text (title, description, notes), Date (*_time, *_at, *date*)
 
-| Column Type | Available Operators |
-|-------------|-------------------|
-| Categorical | `IN`, `NOT IN`, `IS NULL`, `IS NOT NULL` |
-| Numeric | `=`, `!=`, `>`, `<`, `>=`, `<=`, `IS NULL`, `IS NOT NULL` |
-| Text | `=`, `!=`, `LIKE`, `IS NULL`, `IS NOT NULL` |
-| Date | `=`, `!=`, `>`, `<`, `>=`, `<=`, `IS NULL`, `IS NOT NULL` |
-
-**Rationale:**
-- Categorical columns have finite value sets - use `IN`/`NOT IN` for multiselect
-- Numeric columns need range comparisons
-- Text columns need pattern matching (`LIKE`)
-- Date columns need range comparisons
-- All types support null checks
+**Operator Availability**:
+- **Categorical**: `IN`, `NOT IN`, `IS NULL`, `IS NOT NULL`
+- **Numeric**: `=`, `!=`, `>`, `<`, `>=`, `<=`, `IS NULL`, `IS NOT NULL`
+- **Text**: `=`, `!=`, `LIKE`, `IS NULL`, `IS NOT NULL`
+- **Date**: `=`, `!=`, `>`, `<`, `>=`, `<=`, `IS NULL`, `IS NOT NULL`
 
 ### UI Requirements
-- Must allow toggling between AND/OR at group level
-- Must list all conditions and sub-groups within group
-- Must provide buttons to add condition or add nested group
-- Must show column selector, operator selector, and value input per condition
-- Must filter operator list based on selected column type
-- Must provide remove button per condition
+- Must allow AND/OR toggle at group level, list conditions and sub-groups
+- Must provide add condition/group buttons, column/operator/value selectors per condition
+- Must filter operators by column type, show remove button per condition
 - Must show visual indentation for nested groups
-- Must track nesting level
 
 ### Categorical Column Handling
+
 Must detect categorical columns and provide multiselect dropdowns:
 
-**Column Identification:**
-- `status`, `status_type`, `track`, `type`, `category`, `subcategory`
-- Detected by `isCategoricalColumn()` helper function
-- Detected by `getColumnType()` returning `'categorical'`
+**Column Identification**: Detected by `isCategoricalColumn()` / `getColumnType()` for status, track, type, category columns
 
-**Available Operators:**
-- Only `IN`, `NOT IN`, `IS NULL`, `IS NOT NULL` shown for categorical columns
-- Equality (`=`, `!=`) not needed - use `IN` with single value instead
-- Comparison (`>`, `<`, `>=`, `<=`) not applicable to categorical data
-- Pattern matching (`LIKE`) not needed - multiselect provides search
+**Available Operators**: Only `IN`, `NOT IN`, `IS NULL`, `IS NOT NULL` (no equals/comparison/LIKE needed)
 
-**UI Behavior:**
-- Must show multiselect dropdown when categorical column uses `IN` or `NOT IN` operator
-- Must show "No value needed" message for `IS NULL` and `IS NOT NULL` operators
-- Must fetch facet data automatically for categorical columns in filter group
-- Must display facet counts next to each option in dropdown
-- Must provide search functionality within dropdown
-- Must use Apply/Cancel pattern matching FacetedFilter UX
+**UI Behavior**: Must show multiselect dropdown for IN/NOT IN, "No value needed" message for NULL operators, fetch facet data with counts, provide search, use Apply/Cancel pattern
 
-**Data Fetching:**
-- Must accept `sourceTable` prop for facet API calls
-- Must extract categorical columns from filter group recursively
-- Must fetch facets via `/api/query/facets` endpoint
-- Must update facets when filter group changes
-- Must gracefully handle fetch failures (empty dropdown)
-
-**Integration:**
-- Must work within nested filter groups
-- Must share visual style with DataTableFacetedFilter
-- Must maintain backward compatibility with existing filters (auto-convert `=` to `IN` if needed)
+**Data Fetching**: Must fetch facets via `/api/query/facets`, update on filter changes, handle failures gracefully
 
 ### Recursive Structure
-- Must render nested groups recursively
-- Must support unlimited nesting depth
+- Must render nested groups recursively with unlimited depth
 - Must prevent excessive nesting from degrading performance
 
 ### State Management
-- Must provide onUpdate callback with complete filter structure
-- Must use memoization to prevent unnecessary re-renders via WeakMap caching
-- Must optimize individual condition row updates
-- Must preserve nested group structure without flattening
+- Must provide onUpdate callback with complete structure
+- Must use WeakMap caching for memoization to prevent re-renders
+- Must preserve nested structure without flattening
 
 ### Integration
-Must be usable in:
-- DataTable advanced filter dialogs
-- QueryBuilder for building WHERE clauses **with full nested group support**
-- Dashboard component editor with nested AND/OR logic
+Must work in DataTable advanced filter dialogs, QueryBuilder WHERE clauses (with full nested support), Dashboard component editor
 
 ## Global Search Requirements
 
 ### Purpose
-Must provide full-text search across all visible table columns.
+Full-text search across all visible table columns.
 
 ### Features
-- Must search all visible columns simultaneously
-- Must use case-insensitive substring matching
-- Must filter in real-time as user types
-- Must persist search state with view
-
-### Behavior
-- Must filter rows where ANY visible column contains search text
-- Must use substring matching (not exact match)
-- Must update faceted filter counts to reflect only matching rows
-- Must save search state to localStorage
-- Must include search state in URL sharing
+- Must search all visible columns simultaneously with case-insensitive substring matching
+- Must filter in real-time as typed, persist with view state
+- Must filter where ANY visible column contains text, update facet counts
+- Must save to localStorage, include in URL sharing
 
 ### UI Requirements
-- Must provide text input in DataTable toolbar
-- Must show placeholder "Search all columns..."
-- Must respond to every keystroke
-- Must be part of view state persistence
+- Must provide text input in DataTable toolbar with "Search all columns..." placeholder
+- Must respond to every keystroke, be part of view state persistence
 
 ## Filter System Comparison
 
-### Use Case Guidelines
+**Use FacetedFilter**: Column has < 100 distinct values, need value counts, multi-select common, frequently filtered, simple equality sufficient
 
-**Use FacetedFilter when:**
-- Column has limited distinct values (< 100)
-- Users need to see value counts
-- Multi-select is common use case
-- Column is frequently filtered
-- Simple equality filtering sufficient
+**Use FilterGroupBuilder**: Complex AND/OR logic required, custom queries, advanced users, multiple operators needed, programmatic filtering
 
-**Use FilterGroupBuilder when:**
-- Complex AND/OR logic required
-- Building custom queries
-- Advanced users creating dashboards
-- Multiple operators needed
-- Programmatic filtering required
-
-**Use Global Search when:**
-- Quick data exploration needed
-- Unknown which column contains value
-- Simple text matching sufficient
-- No need for counts or complex logic
-- Fastest way to find data
+**Use Global Search**: Quick exploration, unknown column, simple text matching, no counts/complex logic needed, fastest data finding
 
 ## Data Model Unification
 
 ### FilterGroup as Canonical Format
 
-Both DataTable and Dashboard systems use `FilterGroup` as the primary filter storage format:
-
+Both systems use `FilterGroup`:
 ```typescript
 interface FilterGroup {
   operator: "AND" | "OR";
@@ -232,79 +130,43 @@ interface FilterGroup {
 
 ### Backward Compatibility
 
-Legacy dashboards with `FilterCondition[]` format are automatically converted to `FilterGroup` on first edit:
-- Conversion uses memoized helper with WeakMap caching
-- Legacy format: `[{column, operator, value}, ...]`
-- Converted to: `{operator: "AND", conditions: [...]}`
-- No data migration required - happens transparently in UI
+Legacy `FilterCondition[]` format auto-converted to FilterGroup on first edit. Conversion uses memoized helper with WeakMap caching. No data migration required - happens transparently in UI.
 
 ### Performance Optimizations
 
-**WeakMap Caching**: Legacy filter arrays are cached to prevent creating duplicate FilterGroup objects on every render, improving React performance.
+**WeakMap Caching**: Legacy arrays cached to prevent duplicate FilterGroup objects, improving React performance.
 
-**Stable Callbacks**: Filter update callbacks use `useCallback` to maintain referential equality, preventing unnecessary re-renders of FilterGroupBuilder.
+**Stable Callbacks**: Filter update callbacks use `useCallback` for referential equality, preventing unnecessary FilterGroupBuilder re-renders.
 
 ## State Persistence Requirements
 
 ### DataTable Filters
-- Must store filters in unified state shared with FilterGroupBuilder
-- Must persist unified filter state to localStorage per table
-- Must support saving unified filter state in named views
-- Must support URL sharing via base64 encoding
-- Must use non-blocking state updates to maintain UI responsiveness
-- Must maintain backward compatibility with existing saved views
+Must store in unified state shared with FilterGroupBuilder. Must persist to localStorage per table, support named views, support URL sharing via base64, use non-blocking updates, maintain backward compatibility.
 
 ### QueryBuilder Filters
-- Must store in query configuration filter structure
-- Must persist to database with dashboard component
-- Must execute server-side via API
-- Must share same filter type definition with DataTable
+Must store in query configuration, persist to database with dashboard component, execute server-side via API, share filter type definition with DataTable.
 
 ### Global Search
-- Must store in TanStack Table global filter state
-- Must persist to localStorage with view state
-- Must include in URL-shared views
+Must store in TanStack Table global filter state, persist to localStorage with view, include in URL-shared views.
 
 ## API Integration Requirements
 
 ### Faceted Filters API
-Must POST to facets endpoint with:
-- Source table specification
-- List of columns to facet
-- Current active filters
-
-Must return:
-- Object mapping column names to value/count pairs
-- All distinct values with full dataset counts
-- Filtered results based on other active filters
+**POST to facets endpoint** with source table, columns to facet, active filters. **Returns** object mapping columns to value/count pairs, all distinct values with full dataset counts, filtered based on other active filters.
 
 ### FilterGroupBuilder API
-Must POST to query execute endpoint with:
-- Query configuration including filter structure
-- Filters translated to SQL WHERE clauses
-- Proper operator handling and value escaping
-
-Must execute:
-- Server-side SQL queries with WHERE conditions
-- Proper precedence for AND/OR nesting
-- Secure parameter binding
+**POST to query execute endpoint** with query configuration including filter structure, filters translated to SQL WHERE clauses, proper operator handling and value escaping. **Executes** server-side SQL with WHERE conditions, proper AND/OR precedence, secure parameter binding.
 
 ## Performance Requirements
 
 ### Faceted Filters
-- Must use database indexes on faceted columns
-- Must execute parallel fetches with table data
-- Must cache facet results until filters change
+Must use database indexes on faceted columns, execute parallel fetches with table data, cache results until filters change.
 
 ### FilterGroupBuilder
-- Must use memoization to prevent re-render cascades
-- Must optimize condition row updates
-- Must handle deep nesting without performance degradation
+Must use memoization to prevent re-render cascades, optimize condition row updates, handle deep nesting without degradation.
 
 ### Global Search
-- Must perform client-side filtering efficiently
-- Must avoid blocking UI during typing
-- Must update facet counts efficiently
+Must perform client-side filtering efficiently, avoid blocking UI during typing, update facet counts efficiently.
 
 ## See Also
 
