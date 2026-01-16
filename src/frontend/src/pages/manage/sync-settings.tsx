@@ -17,6 +17,8 @@ import {
   parseBountiesCSV,
   parseTreasuryNetflowsCSV,
   parseCategoriesCSV,
+  parseCrossChainFlowsCSV,
+  parseLocalFlowsCSV,
 } from "@/lib/csv-parser";
 import { RequireAuth } from "@/components/auth/require-auth";
 
@@ -28,6 +30,8 @@ function SyncSettingsPageContent() {
   const [childBountiesFile, setChildBountiesFile] = useState<File | null>(null);
   const [bountiesFile, setBountiesFile] = useState<File | null>(null);
   const [netflowsFile, setNetflowsFile] = useState<File | null>(null);
+  const [crossChainFlowsFile, setCrossChainFlowsFile] = useState<File | null>(null);
+  const [localFlowsFile, setLocalFlowsFile] = useState<File | null>(null);
   const [status, setStatus] = useState<StatusType>(null);
   const [importing, setImporting] = useState(false);
   const [backupInfo, setBackupInfo] = useState<{
@@ -320,6 +324,106 @@ function SyncSettingsPageContent() {
       setStatus({
         type: "success",
         message: `Applied ${result.count} default treasury netflow records (table replaced)`,
+      });
+    } catch (error) {
+      setStatus({ type: "error", message: (error as Error).message });
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function handleCrossChainFlowsUpload() {
+    if (!crossChainFlowsFile) return;
+    setImporting(true);
+    setStatus(null);
+    try {
+      const content = await crossChainFlowsFile.text();
+      const items = parseCrossChainFlowsCSV(content);
+      if (items.length === 0) {
+        setStatus({ type: "error", message: "No valid rows found in CSV" });
+        return;
+      }
+
+      const result = await api.crossChainFlows.import(items);
+      setStatus({
+        type: "success",
+        message: `Imported ${result.count} cross chain flow records (table replaced)`,
+      });
+      setCrossChainFlowsFile(null);
+      const input = document.getElementById("cross-chain-flows-csv") as HTMLInputElement;
+      if (input) input.value = "";
+    } catch (error) {
+      setStatus({ type: "error", message: (error as Error).message });
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function applyDefaultCrossChainFlows() {
+    setImporting(true);
+    setStatus(null);
+    try {
+      const { content } = await api.sync.getDefaultCrossChainFlows();
+      const items = parseCrossChainFlowsCSV(content);
+      if (items.length === 0) {
+        setStatus({ type: "error", message: "No valid rows in default file" });
+        return;
+      }
+
+      const result = await api.crossChainFlows.import(items);
+      setStatus({
+        type: "success",
+        message: `Applied ${result.count} default cross chain flow records (table replaced)`,
+      });
+    } catch (error) {
+      setStatus({ type: "error", message: (error as Error).message });
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function handleLocalFlowsUpload() {
+    if (!localFlowsFile) return;
+    setImporting(true);
+    setStatus(null);
+    try {
+      const content = await localFlowsFile.text();
+      const items = parseLocalFlowsCSV(content);
+      if (items.length === 0) {
+        setStatus({ type: "error", message: "No valid rows found in CSV" });
+        return;
+      }
+
+      const result = await api.localFlows.import(items);
+      setStatus({
+        type: "success",
+        message: `Imported ${result.count} local flow records (table replaced)`,
+      });
+      setLocalFlowsFile(null);
+      const input = document.getElementById("local-flows-csv") as HTMLInputElement;
+      if (input) input.value = "";
+    } catch (error) {
+      setStatus({ type: "error", message: (error as Error).message });
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function applyDefaultLocalFlows() {
+    setImporting(true);
+    setStatus(null);
+    try {
+      const { content } = await api.sync.getDefaultLocalFlows();
+      const items = parseLocalFlowsCSV(content);
+      if (items.length === 0) {
+        setStatus({ type: "error", message: "No valid rows in default file" });
+        return;
+      }
+
+      const result = await api.localFlows.import(items);
+      setStatus({
+        type: "success",
+        message: `Applied ${result.count} default local flow records (table replaced)`,
       });
     } catch (error) {
       setStatus({ type: "error", message: (error as Error).message });
@@ -644,6 +748,98 @@ function SyncSettingsPageContent() {
 
         <Card>
           <CardHeader>
+            <CardTitle>Cross Chain Flows</CardTitle>
+            <CardDescription>
+              Import cross chain flow data (replaces existing data)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="cross-chain-flows-csv">Upload CSV File</Label>
+              <Input
+                id="cross-chain-flows-csv"
+                type="file"
+                accept=".csv"
+                onChange={(e) => setCrossChainFlowsFile(e.target.files?.[0] || null)}
+                disabled={importing}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleCrossChainFlowsUpload}
+                disabled={!crossChainFlowsFile || importing}
+              >
+                {importing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="mr-2 h-4 w-4" />
+                )}
+                Import CSV
+              </Button>
+              <Button
+                variant="outline"
+                onClick={applyDefaultCrossChainFlows}
+                disabled={importing}
+              >
+                {importing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <FileText className="mr-2 h-4 w-4" />
+                )}
+                Apply Defaults
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Local Flows</CardTitle>
+            <CardDescription>
+              Import local flow data (replaces existing data)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="local-flows-csv">Upload CSV File</Label>
+              <Input
+                id="local-flows-csv"
+                type="file"
+                accept=".csv"
+                onChange={(e) => setLocalFlowsFile(e.target.files?.[0] || null)}
+                disabled={importing}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleLocalFlowsUpload}
+                disabled={!localFlowsFile || importing}
+              >
+                {importing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="mr-2 h-4 w-4" />
+                )}
+                Import CSV
+              </Button>
+              <Button
+                variant="outline"
+                onClick={applyDefaultLocalFlows}
+                disabled={importing}
+              >
+                {importing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <FileText className="mr-2 h-4 w-4" />
+                )}
+                Apply Defaults
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>Database Backup</CardTitle>
             <CardDescription>
               Download a complete copy of the database
@@ -698,6 +894,18 @@ function SyncSettingsPageContent() {
             <strong>Treasury Netflows CSV:</strong>{" "}
             <code className="bg-muted px-1 rounded">
               month, asset_name, flow_type, amount_usd, amount_dot_equivalent
+            </code>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            <strong>Cross Chain Flows CSV:</strong>{" "}
+            <code className="bg-muted px-1 rounded">
+              Message Hash, From Account, To Account, Block, Time, Value, Protocol, Status, ...
+            </code>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            <strong>Local Flows CSV:</strong>{" "}
+            <code className="bg-muted px-1 rounded">
+              Extrinsic ID, Date, Block, Hash, Symbol, From, To, Value, Result, year-month, quarter
             </code>
           </p>
           <p className="text-sm text-muted-foreground mt-4">

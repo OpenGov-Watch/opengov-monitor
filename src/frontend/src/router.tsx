@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from "react-router";
 import { Layout } from "@/components/layout/Layout";
 import { RequireAuth } from "@/components/auth/require-auth";
 import { RouteErrorBoundary } from "@/components/error/RouteErrorBoundary";
+import { NotFound } from "@/components/error/NotFound";
 
 // Lazy load pages
 import { lazy, Suspense } from "react";
@@ -57,6 +58,7 @@ export const router = createBrowserRouter([
   {
     path: "/",
     element: <Layout />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       { index: true, element: <Navigate to="/referenda" replace /> },
       { path: "referenda", element: withSuspense(ReferendaPage), errorElement: childErrorElement },
@@ -78,6 +80,8 @@ export const router = createBrowserRouter([
       { path: "dashboards", element: withSuspense(DashboardsListPage), errorElement: childErrorElement },
       { path: "dashboards/:id", element: withSuspense(DashboardViewPage), errorElement: childErrorElement },
       { path: "dashboards/:id/edit", element: <RequireAuth>{withSuspense(DashboardEditPage)}</RequireAuth>, errorElement: childErrorElement },
+      // Catch-all for 404s within Layout
+      { path: "*", element: <NotFound /> },
     ],
   },
 ]);

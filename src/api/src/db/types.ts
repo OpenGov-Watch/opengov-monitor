@@ -450,6 +450,8 @@ export const TABLE_NAMES = {
   customSpending: "Custom Spending",
   fellowshipSubtreasury: "Fellowship Subtreasury",
   treasuryNetflows: "Treasury Netflows",
+  crossChainFlows: "Cross Chain Flows",
+  localFlows: "Local Flows",
   // Dashboard tables
   dashboards: "Dashboards",
   dashboardComponents: "Dashboard Components",

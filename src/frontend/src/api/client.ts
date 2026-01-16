@@ -199,6 +199,51 @@ export const api = {
       }),
   },
 
+  crossChainFlows: {
+    import: (
+      items: Array<{
+        message_hash: string;
+        from_account: string;
+        to_account: string;
+        block: number;
+        origin_event_index: string;
+        dest_event_index: string;
+        time: string;
+        from_chain_id: string;
+        destination_chain_id: string;
+        value: string;
+        protocol: string;
+        status: string;
+      }>
+    ) =>
+      fetchJSON<{ success: boolean; count: number }>("/cross-chain-flows/import", {
+        method: "POST",
+        body: JSON.stringify({ items }),
+      }),
+  },
+
+  localFlows: {
+    import: (
+      items: Array<{
+        extrinsic_id: string;
+        date: string;
+        block: number;
+        hash: string;
+        symbol: string;
+        from_account: string;
+        to_account: string;
+        value: string;
+        result: string;
+        year_month: string;
+        quarter: string;
+      }>
+    ) =>
+      fetchJSON<{ success: boolean; count: number }>("/local-flows/import", {
+        method: "POST",
+        body: JSON.stringify({ items }),
+      }),
+  },
+
   // Dashboards
   dashboards: {
     getAll: () => fetchJSON<unknown[]>("/dashboards"),
@@ -256,5 +301,7 @@ export const api = {
     getDefaultBounties: () => fetchJSON<{ content: string }>("/sync/defaults/bounties"),
     getDefaultTreasuryNetflows: () => fetchJSON<{ content: string }>("/sync/defaults/treasury-netflows"),
     getDefaultCategories: () => fetchJSON<{ content: string }>("/sync/defaults/categories"),
+    getDefaultCrossChainFlows: () => fetchJSON<{ content: string }>("/sync/defaults/cross-chain-flows"),
+    getDefaultLocalFlows: () => fetchJSON<{ content: string }>("/sync/defaults/local-flows"),
   },
 };

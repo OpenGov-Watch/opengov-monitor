@@ -325,6 +325,44 @@ export function deleteCustomSpending(id: number): void {
   db.prepare(`DELETE FROM "${TABLE_NAMES.customSpending}" WHERE id = ?`).run(id);
 }
 
+// Shared Table Replacement Infrastructure
+
+/**
+ * Creates a function that replaces all rows in a table with new items.
+ * Used for CSV-backed tables that are periodically fully replaced.
+ *
+ * @param tableName - The name of the table to replace data in
+ * @param columns - Array of column names in insert order
+ * @param mapItem - Function that maps an item to an array of values matching column order
+ * @returns A function that replaces all table data with the provided items
+ */
+function createTableReplacer<T>(
+  tableName: string,
+  columns: string[],
+  mapItem: (item: T) => unknown[]
+): (items: T[]) => number {
+  return (items: T[]) => {
+    const db = getWritableDatabase();
+
+    const deleteAll = db.prepare(`DELETE FROM "${tableName}"`);
+    const placeholders = columns.map(() => "?").join(", ");
+    const insert = db.prepare(`
+      INSERT INTO "${tableName}" (${columns.join(", ")})
+      VALUES (${placeholders})
+    `);
+
+    const replaceTransaction = db.transaction((items: T[]) => {
+      deleteAll.run();
+      for (const item of items) {
+        insert.run(...mapItem(item));
+      }
+    });
+
+    replaceTransaction(items);
+    return items.length;
+  };
+}
+
 // Treasury Netflows
 
 export interface NetflowImportItem {
@@ -335,33 +373,70 @@ export interface NetflowImportItem {
   amount_dot_equivalent: number;
 }
 
-export function replaceAllNetflows(items: NetflowImportItem[]): number {
-  const db = getWritableDatabase();
+export const replaceAllNetflows = createTableReplacer<NetflowImportItem>(
+  TABLE_NAMES.treasuryNetflows,
+  ["month", "asset_name", "flow_type", "amount_usd", "amount_dot_equivalent"],
+  (item) => [item.month, item.asset_name, item.flow_type, item.amount_usd, item.amount_dot_equivalent]
+);
 
-  // Full table replacement strategy for quarterly updates
-  const deleteAll = db.prepare(`DELETE FROM "${TABLE_NAMES.treasuryNetflows}"`);
-  const insert = db.prepare(`
-    INSERT INTO "${TABLE_NAMES.treasuryNetflows}"
-    (month, asset_name, flow_type, amount_usd, amount_dot_equivalent)
-    VALUES (?, ?, ?, ?, ?)
-  `);
+// Cross Chain Flows
 
-  const replaceTransaction = db.transaction((items: NetflowImportItem[]) => {
-    deleteAll.run();
-    for (const item of items) {
-      insert.run(
-        item.month,
-        item.asset_name,
-        item.flow_type,
-        item.amount_usd,
-        item.amount_dot_equivalent
-      );
-    }
-  });
-
-  replaceTransaction(items);
-  return items.length;
+export interface CrossChainFlowItem {
+  message_hash: string;
+  from_account: string;
+  to_account: string;
+  block: number;
+  origin_event_index: string;
+  dest_event_index: string;
+  time: string;
+  from_chain_id: string;
+  destination_chain_id: string;
+  value: string;
+  protocol: string;
+  status: string;
 }
+
+export const replaceAllCrossChainFlows = createTableReplacer<CrossChainFlowItem>(
+  TABLE_NAMES.crossChainFlows,
+  [
+    "message_hash", "from_account", "to_account", "block",
+    "origin_event_index", "dest_event_index", "time",
+    "from_chain_id", "destination_chain_id", "value", "protocol", "status"
+  ],
+  (item) => [
+    item.message_hash, item.from_account, item.to_account, item.block,
+    item.origin_event_index, item.dest_event_index, item.time,
+    item.from_chain_id, item.destination_chain_id, item.value, item.protocol, item.status
+  ]
+);
+
+// Local Flows
+
+export interface LocalFlowItem {
+  extrinsic_id: string;
+  date: string;
+  block: number;
+  hash: string;
+  symbol: string;
+  from_account: string;
+  to_account: string;
+  value: string;
+  result: string;
+  year_month: string;
+  quarter: string;
+}
+
+export const replaceAllLocalFlows = createTableReplacer<LocalFlowItem>(
+  TABLE_NAMES.localFlows,
+  [
+    "extrinsic_id", "date", "block", "hash", "symbol",
+    "from_account", "to_account", "value", "result", "year_month", "quarter"
+  ],
+  (item) => [
+    item.extrinsic_id, item.date, item.block, item.hash, item.symbol,
+    item.from_account, item.to_account, item.value, item.result, item.year_month, item.quarter
+  ]
+);
 
 // Fellowship Subtreasury (read-only, fetched from API)
 

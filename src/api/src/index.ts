@@ -28,6 +28,8 @@ import { bountiesRouter } from "./routes/bounties.js";
 import { subtreasuryRouter } from "./routes/subtreasury.js";
 import { customSpendingRouter } from "./routes/custom-spending.js";
 import { treasuryNetflowsRouter } from "./routes/treasury-netflows.js";
+import { crossChainFlowsRouter } from "./routes/cross-chain-flows.js";
+import { localFlowsRouter } from "./routes/local-flows.js";
 import { dashboardsRouter } from "./routes/dashboards.js";
 import { queryRouter } from "./routes/query.js";
 import { statsRouter } from "./routes/stats.js";
@@ -54,7 +56,7 @@ app.use(
     credentials: true, // Required for cookies
   })
 );
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // Session middleware
 // Cross-origin auth: Set CROSS_ORIGIN_AUTH=true to enable sameSite: "none" for cross-origin cookies
@@ -130,6 +132,8 @@ app.use("/api/bounties", bountiesRouter);
 app.use("/api/subtreasury", subtreasuryRouter);
 app.use("/api/custom-spending", customSpendingRouter);
 app.use("/api/treasury-netflows", treasuryNetflowsRouter);
+app.use("/api/cross-chain-flows", crossChainFlowsRouter);
+app.use("/api/local-flows", localFlowsRouter);
 app.use("/api/dashboards", dashboardsRouter);
 app.use("/api/query", queryRouter);
 app.use("/api/stats", statsRouter);

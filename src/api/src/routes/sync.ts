@@ -88,3 +88,31 @@ syncRouter.get("/defaults/categories", (_req, res) => {
     res.status(500).json({ error: (error as Error).message });
   }
 });
+
+// GET /api/sync/defaults/cross-chain-flows - Read default cross chain flows CSV
+syncRouter.get("/defaults/cross-chain-flows", (_req, res) => {
+  try {
+    const filePath = join(getDataPath(), "cross chain flows.csv");
+    if (!existsSync(filePath)) {
+      return res.status(404).json({ error: "Default file not found" });
+    }
+    const content = readFileSync(filePath, "utf-8");
+    res.json({ content });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// GET /api/sync/defaults/local-flows - Read default local flows CSV
+syncRouter.get("/defaults/local-flows", (_req, res) => {
+  try {
+    const filePath = join(getDataPath(), "local flows.csv");
+    if (!existsSync(filePath)) {
+      return res.status(404).json({ error: "Default file not found" });
+    }
+    const content = readFileSync(filePath, "utf-8");
+    res.json({ content });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});

@@ -40,6 +40,35 @@ export interface CategoriesCSV {
   subcategory: string;
 }
 
+export interface CrossChainFlowCsvRow {
+  message_hash: string;
+  from_account: string;
+  to_account: string;
+  block: number;
+  origin_event_index: string;
+  dest_event_index: string;
+  time: string;
+  from_chain_id: string;
+  destination_chain_id: string;
+  value: string;
+  protocol: string;
+  status: string;
+}
+
+export interface LocalFlowCsvRow {
+  extrinsic_id: string;
+  date: string;
+  block: number;
+  hash: string;
+  symbol: string;
+  from_account: string;
+  to_account: string;
+  value: string;
+  result: string;
+  year_month: string;
+  quarter: string;
+}
+
 /**
  * Parse a single CSV line, handling quoted values with commas
  */
@@ -239,4 +268,81 @@ export function parseCategoriesCSV(content: string): CategoriesCSV[] {
       return { category, subcategory };
     })
     .filter((row) => row.category !== "");
+}
+
+/**
+ * Parse cross chain flows CSV content.
+ * CSV headers: Message Hash, From Account, To Account, Block, Origin Event Index,
+ *              Dest Event Index, Time, From Chain ID, Destination Chain ID, Value, Protocol, Status
+ */
+export function parseCrossChainFlowsCSV(content: string): CrossChainFlowCsvRow[] {
+  const rows = parseCSV(content);
+  return rows
+    .map((row) => {
+      const message_hash = (row["Message Hash"] || row.message_hash || "").trim();
+      const from_account = (row["From Account"] || row.from_account || "").trim();
+      const to_account = (row["To Account"] || row.to_account || "").trim();
+      const block = parseInt(row["Block"] || row.block || "0", 10);
+      const origin_event_index = (row["Origin Event Index"] || row.origin_event_index || "").trim();
+      const dest_event_index = (row["Dest Event Index"] || row.dest_event_index || "").trim();
+      const time = (row["Time"] || row.time || "").trim();
+      const from_chain_id = (row["From Chain ID"] || row.from_chain_id || "").trim();
+      const destination_chain_id = (row["Destination Chain ID"] || row.destination_chain_id || "").trim();
+      const value = (row["Value"] || row.value || "").trim();
+      const protocol = (row["Protocol"] || row.protocol || "").trim();
+      const status = (row["Status"] || row.status || "").trim();
+
+      return {
+        message_hash,
+        from_account,
+        to_account,
+        block: isNaN(block) ? 0 : block,
+        origin_event_index,
+        dest_event_index,
+        time,
+        from_chain_id,
+        destination_chain_id,
+        value,
+        protocol,
+        status,
+      };
+    })
+    .filter((row) => row.message_hash !== "");
+}
+
+/**
+ * Parse local flows CSV content.
+ * CSV headers: Extrinsic ID, Date, Block, Hash, Symbol, From, To, Value, Result, year-month, quarter
+ */
+export function parseLocalFlowsCSV(content: string): LocalFlowCsvRow[] {
+  const rows = parseCSV(content);
+  return rows
+    .map((row) => {
+      const extrinsic_id = (row["Extrinsic ID"] || row.extrinsic_id || "").trim();
+      const date = (row["Date"] || row.date || "").trim();
+      const block = parseInt(row["Block"] || row.block || "0", 10);
+      const hash = (row["Hash"] || row.hash || "").trim();
+      const symbol = (row["Symbol"] || row.symbol || "").trim();
+      const from_account = (row["From"] || row.from_account || "").trim();
+      const to_account = (row["To"] || row.to_account || "").trim();
+      const value = (row["Value"] || row.value || "").trim();
+      const result = (row["Result"] || row.result || "").trim();
+      const year_month = (row["year-month"] || row.year_month || "").trim();
+      const quarter = (row["quarter"] || row.quarter || "").trim();
+
+      return {
+        extrinsic_id,
+        date,
+        block: isNaN(block) ? 0 : block,
+        hash,
+        symbol,
+        from_account,
+        to_account,
+        value,
+        result,
+        year_month,
+        quarter,
+      };
+    })
+    .filter((row) => row.extrinsic_id !== "");
 }
