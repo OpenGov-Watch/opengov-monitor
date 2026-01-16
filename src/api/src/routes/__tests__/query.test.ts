@@ -59,10 +59,16 @@ beforeAll(() => {
         "track" TEXT,
         "DOT_latest" REAL,
         "USD_latest" REAL,
-        "category" TEXT,
-        "subcategory" TEXT,
         "tally.ayes" REAL,
-        "latest status change" TEXT
+        "tally.nays" REAL,
+        "proposal_time" TIMESTAMP,
+        "latest_status_change" TIMESTAMP,
+        "DOT_component" REAL,
+        "USDC_component" REAL,
+        "USDT_component" REAL,
+        "category_id" INTEGER,
+        "notes" TEXT,
+        "hide_in_spends" INTEGER
       );
 
       CREATE TABLE IF NOT EXISTS "Treasury" (
@@ -79,7 +85,7 @@ beforeAll(() => {
         "status" TEXT
       );
 
-      CREATE TABLE IF NOT EXISTS "categories" (
+      CREATE TABLE IF NOT EXISTS "Categories" (
         "id" INTEGER PRIMARY KEY,
         "category" TEXT,
         "subcategory" TEXT
@@ -96,9 +102,13 @@ beforeAll(() => {
       CREATE VIEW IF NOT EXISTS "all_spending" AS
         SELECT id, url FROM "Referenda";
 
-      INSERT INTO "Referenda" (id, title, status, DOT_latest, track)
-      VALUES (1, 'Test Ref 1', 'Executed', 1000, 'Treasurer'),
-             (2, 'Test Ref 2', 'Ongoing', 2000, 'SmallSpender');
+      INSERT INTO "Categories" (id, category, subcategory)
+      VALUES (1, 'Development', 'Infrastructure'),
+             (2, 'Marketing', 'Community');
+
+      INSERT INTO "Referenda" (id, title, status, DOT_latest, track, category_id)
+      VALUES (1, 'Test Ref 1', 'Executed', 1000, 'Treasurer', 1),
+             (2, 'Test Ref 2', 'Ongoing', 2000, 'SmallSpender', 2);
 
       INSERT INTO "Treasury" (id, status, DOT_latest, description)
       VALUES (1, 'Approved', 1000, 'Test'),
