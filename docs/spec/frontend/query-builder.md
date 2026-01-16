@@ -1,347 +1,142 @@
 # QueryBuilder Specification
 
-This document specifies the QueryBuilder component - a visual SQL query builder for creating dashboard components.
+Requirements for visual SQL query builder interface.
 
-## Overview
+## Purpose
 
-**Component**: `QueryBuilder`
-**Location**: `components/query-builder/query-builder.tsx`
-**Purpose**: Visual interface for building SQL queries without writing SQL
-**Output**: `QueryConfig` object for API execution
+Must provide visual interface for constructing SQL queries without writing SQL code, primarily for creating dashboard components.
 
-## Architecture
+## Query Configuration Output Requirements
 
-### Component Structure
+Must produce query configuration object specifying:
+- Source table selection
+- Column selections with optional aliases
+- Computed expression columns
+- JOIN configurations
+- Filter conditions with AND/OR logic
+- GROUP BY clauses
+- ORDER BY specifications
+- Row limits
 
-```
-QueryBuilder
-├── Table Selection
-├── JOIN Configuration
-│   ├── Table Selector
-│   ├── Alias Input
-│   └── ON Clause (auto-populated)
-├── Column Selection
-│   ├── Standard Columns (with aliases)
-│   └── Expression Columns (computed)
-├── Filter Builder
-│   └── FilterGroupBuilder (AND/OR logic)
-├── ORDER BY Configuration
-└── Live Preview
-```
+## Workflow Requirements
 
-## QueryConfig Output
-
-The QueryBuilder produces a `QueryConfig` object:
-
-```typescript
-interface QueryConfig {
-  sourceTable: string;
-  columns: ColumnSelection[];
-  expressionColumns?: ExpressionColumn[];
-  joins?: JoinConfig[];
-  filters: FilterCondition[];
-  groupBy?: string[];
-  orderBy?: OrderByConfig[];
-  limit?: number;
-}
-```
-
-## Workflow
-
-The QueryBuilder follows a logical workflow order:
+Must follow logical workflow order:
 
 1. **Table Selection**
-   - Choose source table from allowlist
-   - Tables must be in API's `ALLOWED_SOURCES`
+   - Must choose source table from allowlist
+   - Must validate against API's allowed sources
 
 2. **JOIN Configuration** (optional)
-   - Add LEFT, INNER, or RIGHT joins
-   - Auto-populated ON conditions based on FK patterns
-   - Optional table aliases for shorter column references
+   - Must support LEFT, INNER, and RIGHT join types
+   - Must auto-populate ON conditions from foreign key patterns
+   - Must support optional table aliases
 
 3. **Column Selection**
-   - Pick columns from source and joined tables
-   - Columns grouped by table name
-   - Optionally add aliases for display names
-   - Add expression columns for computed values
+   - Must pick columns from source and joined tables
+   - Must group columns by table name
+   - Must support column aliases
+   - Must support expression columns for computed values
 
 4. **Expression Columns** (optional)
-   - Define computed columns: `column1 + column2`
-   - Supports aggregate functions: COUNT, SUM, AVG, MIN, MAX
-   - Used with GROUP BY for aggregations
+   - Must define computed columns using SQL expressions
+   - Must support aggregate functions: COUNT, SUM, AVG, MIN, MAX
+   - Must work with GROUP BY for aggregations
 
 5. **Filters** (optional)
-   - WHERE clause conditions
-   - Supports AND/OR logic via FilterGroupBuilder
-   - Multiple operators: =, !=, >, <, >=, <=, LIKE, IS NULL, IS NOT NULL
+   - Must build WHERE clause conditions
+   - Must support AND/OR logic nesting
+   - Must support multiple operators
 
 6. **ORDER BY** (optional)
-   - Sort results by one or more columns
-   - ASC or DESC direction
+   - Must sort by one or more columns
+   - Must support ASC and DESC directions
 
 7. **Preview**
-   - Execute query and show results
-   - Displays generated SQL
-   - Limited to 1000 rows for dashboard queries
+   - Must execute query and display results
+   - Must show generated SQL
+   - Must limit to 1000 rows for dashboards
 
-## JOIN System
+## JOIN Requirements
 
-### Auto-Detected Foreign Keys
-
-The QueryBuilder automatically detects foreign key relationships based on naming patterns:
-
-**Pattern 1: `{table}_id` columns**
-```
-category_id → joins to Categories.id
-parent_bounty_id → joins to Bounties.id
-```
-
-**Pattern 2: `{table}Id` camelCase**
-```
-parentBountyId → joins to Bounties.id
-referendumId → joins to Referenda.id
-```
-
-**Pattern 3: `{table}Index`**
-```
-referendumIndex → joins to Referenda.id
-```
-
-**Special case: Child Bounties**
-```
-Uses identifier as primary key (not id)
-Joins TO Child Bounties use Child Bounties.identifier
-```
+### Foreign Key Auto-Detection
+Must automatically detect foreign key relationships by these naming patterns:
+- `{table}_id` columns → joins to `{Table}.id`
+- `{table}Id` camelCase → joins to `{Table}.id`
+- `{table}Index` → joins to `{Table}.id`
+- Special case: Child Bounties uses `identifier` not `id`
 
 ### JOIN Configuration
+Must specify for each join:
+- Join type (LEFT, INNER, or RIGHT)
+- Target table name
+- Optional table alias
+- ON clause with left and right column references
 
-```typescript
-interface JoinConfig {
-  type: "LEFT" | "INNER" | "RIGHT";
-  table: string;
-  alias?: string;
-  on: {
-    left: string;   // e.g., "Referenda.category_id"
-    right: string;  // e.g., "Categories.id"
-  };
-}
-```
+### Fallback Behavior
+- Must leave ON clause empty when no FK pattern detected
+- Must allow manual column selection for ON clause
 
-### JOIN Examples
-
-**Example 1: Single JOIN with auto-detection**
-```typescript
-{
-  sourceTable: "Referenda",
-  joins: [{
-    type: "LEFT",
-    table: "Categories",
-    alias: "c",
-    on: {
-      left: "Referenda.category_id",  // Auto-detected
-      right: "c.id"
-    }
-  }],
-  columns: [
-    { column: "id" },
-    { column: "title" },
-    { column: "c.category", alias: "category" }
-  ]
-}
-```
-
-**Example 2: Multiple JOINs**
-```typescript
-{
-  sourceTable: "Child Bounties",
-  joins: [
-    {
-      type: "LEFT",
-      table: "Categories",
-      alias: "c",
-      on: {
-        left: "Child Bounties.category_id",
-        right: "c.id"
-      }
-    },
-    {
-      type: "LEFT",
-      table: "Bounties",
-      alias: "b",
-      on: {
-        left: "Child Bounties.parentBountyId",
-        right: "b.id"
-      }
-    }
-  ],
-  columns: [
-    { column: "Child Bounties.title" },
-    { column: "c.name", alias: "category" },
-    { column: "b.title", alias: "parent_bounty" }
-  ]
-}
-```
-
-## Column Selection
+## Column Selection Requirements
 
 ### Standard Columns
-
-```typescript
-interface ColumnSelection {
-  column: string;      // Fully qualified: "table.column" or just "column"
-  alias?: string;      // Display name
-}
-```
-
-**Examples:**
-```typescript
-{ column: "id" }                              // Simple
-{ column: "Referenda.title" }                 // Qualified
-{ column: "c.category", alias: "category" }   // With alias
-```
+- Must support fully qualified names (table.column) or simple names
+- Must allow optional aliases for display customization
+- Must show columns grouped by source table and joined tables
 
 ### Expression Columns
+- Must accept SQL expressions (calculations, aggregates)
+- Must require alias for all expressions
+- Must validate expression syntax
 
-```typescript
-interface ExpressionColumn {
-  expression: string;   // SQL expression
-  alias: string;        // Required for expressions
-}
-```
+## Filter System Requirements
 
-**Examples:**
-```typescript
-{ expression: "SUM(DOT_latest)", alias: "total_dot" }
-{ expression: "COUNT(*)", alias: "count" }
-{ expression: "AVG(USD_latest)", alias: "avg_usd" }
-```
+Must support filter conditions with:
+- Column selection
+- Operator selection: =, !=, >, <, >=, <=, LIKE, IS NULL, IS NOT NULL
+- Value input (text or number)
+- Nested AND/OR groups for complex logic
 
-### Column Organization
+### Filter Group Structure
+- Must support AND and OR operators at group level
+- Must allow unlimited nesting depth
+- Must support adding/removing conditions dynamically
+- Must support adding/removing nested groups
 
-In the UI, columns are grouped by table:
-- Source table columns listed first
-- Joined table columns grouped by table name
-- Expression columns in separate section
+## Aggregate Function Requirements
 
-## Filter System
+When using aggregates (COUNT, SUM, AVG, MIN, MAX):
+- Must require GROUP BY specification
+- Must group by non-aggregated columns
+- Must allow ordering by aggregate results
 
-Filters use the FilterGroupBuilder component for AND/OR logic.
+## Security Requirements
 
-### Filter Operators
+- Must limit queries to allowlisted tables only
+- Must validate all query inputs
+- Must sanitize expressions and values
+- Must prevent SQL injection
+- Must prevent subqueries
+- Must prevent UNION operations
 
-```typescript
-const FILTER_OPERATORS = [
-  "=",           // equals
-  "!=",          // not equals
-  ">",           // greater than
-  "<",           // less than
-  ">=",          // greater than or equal
-  "<=",          // less than or equal
-  "LIKE",        // pattern matching
-  "IS NULL",     // null check
-  "IS NOT NULL", // not null check
-] as const;
-```
+## Preview Requirements
 
-### Filter Examples
+- Must execute current query via API
+- Must display results in simple table format
+- Must show generated SQL for debugging
+- Must enforce 1000-row limit
+- Must display errors clearly
+- Must help validate queries before saving
 
-**Simple filter:**
-```typescript
-{
-  column: "status",
-  operator: "=",
-  value: "Executed"
-}
-```
+## Integration Requirements
 
-**Complex filter with AND/OR:**
-```typescript
-{
-  operator: "AND",
-  conditions: [
-    { column: "status", operator: "=", value: "Executed" },
-    {
-      operator: "OR",
-      conditions: [
-        { column: "DOT_latest", operator: ">", value: "1000" },
-        { column: "USD_latest", operator: ">", value: "10000" }
-      ]
-    }
-  ]
-}
-```
-
-## Aggregate Functions
-
-When using aggregate functions (COUNT, SUM, AVG, MIN, MAX), GROUP BY is required:
-
-```typescript
-{
-  sourceTable: "Referenda",
-  columns: [
-    { column: "status" }
-  ],
-  expressionColumns: [
-    { expression: "COUNT(*)", alias: "count" },
-    { expression: "SUM(DOT_latest)", alias: "total_dot" }
-  ],
-  groupBy: ["status"],
-  orderBy: [{ column: "count", direction: "DESC" }]
-}
-```
-
-## ORDER BY
-
-```typescript
-interface OrderByConfig {
-  column: string;              // Column name or alias
-  direction: "ASC" | "DESC";
-}
-```
-
-**Examples:**
-```typescript
-orderBy: [
-  { column: "id", direction: "DESC" },
-  { column: "proposal_time", direction: "ASC" }
-]
-```
-
-## Limitations
-
-- **Row Limit**: Dashboard queries are limited to 1000 rows
-- **Table Allowlist**: Only tables in API's `ALLOWED_SOURCES` can be queried
-- **Security**: Queries are validated and sanitized by the API
-- **No Subqueries**: Subqueries are not supported
-- **No UNION**: UNION operations are not supported
-
-## Live Preview
-
-The preview feature:
-- Executes the current query via POST `/api/query/execute`
-- Displays results in a simple table
-- Shows the generated SQL for debugging
-- Limited to 1000 rows
-- Helps validate queries before saving
-
-## Integration
-
-The QueryBuilder is primarily used in:
-- **Dashboard ComponentEditor**: Create/edit dashboard components
-- **Custom Query Pages**: Any page needing dynamic query building
-
-## Key Files
-
-```
-frontend/src/components/query-builder/
-├── query-builder.tsx        # Main component
-├── sortable-column.tsx      # Drag-and-drop column ordering
-└── types.ts                 # TypeScript interfaces
-```
+Must be usable in:
+- Dashboard component editor (primary use case)
+- Any custom query interface
+- Must output standardized query configuration format
 
 ## See Also
 
-- [QueryBuilder How-To Guide](../../howtos/query-builder.md) - Practical examples
-- [Dashboard System](./dashboard.md) - Primary use case for QueryBuilder
-- [Filtering Systems](./filters.md) - Filter builder details
-- [QueryBuilder API Reference](../../reference/frontend/query-builder-api.md) - Props and callbacks
+- [QueryBuilder How-To Guide](../../howtos/query-builder.md)
+- [Dashboard System](./dashboard.md)
+- [Filtering Systems](./filters.md)
+- [QueryBuilder API Reference](../../reference/frontend/query-builder-api.md)
