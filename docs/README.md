@@ -31,19 +31,24 @@ Defines **what** the system must do, not **how** it's implemented.
 Quick overview of key implementation patterns. Links to code, doesn't show code.
 
 **General:**
-- [architecture.md](03_design/architecture.md) - System architecture
+- [architecture.md](03_design/architecture.md) - System architecture overview
 - [gotchas.md](03_design/gotchas.md) - Project-specific quirks and workarounds
 - [error-logging.md](03_design/error-logging.md) - Error logging system
 - [database-backups.md](03_design/database-backups.md) - Backup procedures
 
 **Backend:**
+- [backend/architecture.md](03_design/backend/architecture.md) - Backend data pipeline architecture
 - [backend/migration-system-design.md](03_design/backend/migration-system-design.md) - Migration architecture and design decisions
 - [migrations/patterns.md](03_design/migrations/patterns.md) - Common migration patterns
 - [migrations/troubleshooting.md](03_design/migrations/troubleshooting.md) - Migration issues and fixes
 - [migrations/testing-strategies.md](03_design/migrations/testing-strategies.md) - How to test migrations
 - [migrations/advanced-examples.md](03_design/migrations/advanced-examples.md) - Complex migration scenarios
 
+**API:**
+- [api/architecture.md](03_design/api/architecture.md) - Express API architecture
+
 **Frontend:**
+- [frontend/architecture.md](03_design/frontend/architecture.md) - Frontend React architecture
 - [frontend/table-systems.md](03_design/frontend/table-systems.md) - DataTable architecture reference
 - [frontend/column-formatting.md](03_design/frontend/column-formatting.md) - Column formatting and configuration
 
