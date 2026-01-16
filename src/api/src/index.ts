@@ -4,11 +4,12 @@ import session from "express-session";
 import detectPort from "detect-port";
 import fs from "fs";
 import path from "path";
+import http from "http";
 import { fileURLToPath } from "url";
-import { createSessionStore } from "./db/session-store.js";
+import { createSessionStore, closeSessionStore } from "./db/session-store.js";
 import { ensureUsersTable } from "./db/auth-queries.js";
 import { generalLimiter, writeLimiter, authLimiter } from "./middleware/rate-limit.js";
-import { getDatabase } from "./db/index.js";
+import { getDatabase, closeDatabase } from "./db/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -165,12 +166,70 @@ app.use((err: Error, req: express.Request, res: express.Response, _next: express
   res.status(500).json({ error: err.message });
 });
 
+let server: http.Server;
+
+// Cleanup port file
+function cleanup(): void {
+  try {
+    if (fs.existsSync(PORT_FILE)) {
+      fs.unlinkSync(PORT_FILE);
+    }
+  } catch {
+    // Ignore cleanup errors
+  }
+}
+
+async function gracefulShutdown(signal: string): Promise<void> {
+  console.log(`\n${signal} received, starting graceful shutdown...`);
+
+  const shutdownTimeout = setTimeout(() => {
+    console.error("Shutdown timeout reached, forcing exit");
+    process.exit(1);
+  }, 2000);
+
+  try {
+    // Stop accepting new connections
+    await new Promise<void>((resolve, reject) => {
+      server.close((err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+    console.log("HTTP server closed");
+
+    // Checkpoint and close databases
+    try {
+      const db = getDatabase();
+      db.pragma("wal_checkpoint(TRUNCATE)");
+      console.log("Main database checkpointed");
+    } catch (err) {
+      console.warn("Failed to checkpoint main database:", err);
+    }
+
+    closeDatabase();
+    console.log("Main database connections closed");
+
+    closeSessionStore();
+    console.log("Session store closed");
+
+    cleanup();
+
+    clearTimeout(shutdownTimeout);
+    console.log("Graceful shutdown complete");
+    process.exit(0);
+  } catch (err) {
+    console.error("Error during graceful shutdown:", err);
+    clearTimeout(shutdownTimeout);
+    process.exit(1);
+  }
+}
+
 // Start server with dynamic port detection
 async function startServer() {
   const port = await detectPort(DEFAULT_PORT);
 
   // Bind to 127.0.0.1 explicitly to avoid dual-stack issues on Windows
-  const server = app.listen(port, "127.0.0.1", () => {
+  server = app.listen(port, "127.0.0.1", () => {
     console.log(`API server running on http://127.0.0.1:${port}`);
 
     // Write port to file for frontend to read
@@ -186,25 +245,9 @@ async function startServer() {
   server.keepAliveTimeout = 65000;
   server.headersTimeout = 66000;
 
-  // Cleanup port file on exit
-  const cleanup = () => {
-    try {
-      if (fs.existsSync(PORT_FILE)) {
-        fs.unlinkSync(PORT_FILE);
-      }
-    } catch {
-      // Ignore cleanup errors
-    }
-  };
-
-  process.on("SIGINT", () => {
-    cleanup();
-    process.exit(0);
-  });
-  process.on("SIGTERM", () => {
-    cleanup();
-    process.exit(0);
-  });
+  // Graceful shutdown on signals
+  process.on("SIGINT", () => void gracefulShutdown("SIGINT"));
+  process.on("SIGTERM", () => void gracefulShutdown("SIGTERM"));
 }
 
 startServer();

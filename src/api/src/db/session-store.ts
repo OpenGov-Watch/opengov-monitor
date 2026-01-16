@@ -148,11 +148,38 @@ class SQLiteStore extends session.Store {
       callback(err as Error);
     }
   }
+
+  close(): void {
+    try {
+      if (this.db) {
+        this.db.close();
+      }
+    } catch (err) {
+      console.error("Error closing session store:", err);
+    }
+  }
 }
+
+let sessionStoreInstance: SQLiteStore | null = null;
 
 /**
  * Creates a session store compatible with express-session.
+ * Uses singleton pattern to maintain reference for cleanup.
  */
 export function createSessionStore(): session.Store {
-  return new SQLiteStore();
+  if (!sessionStoreInstance) {
+    sessionStoreInstance = new SQLiteStore();
+  }
+  return sessionStoreInstance;
+}
+
+/**
+ * Closes the session store database connection.
+ * Should be called during graceful shutdown.
+ */
+export function closeSessionStore(): void {
+  if (sessionStoreInstance) {
+    sessionStoreInstance.close();
+    sessionStoreInstance = null;
+  }
 }

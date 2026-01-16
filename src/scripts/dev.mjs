@@ -63,8 +63,10 @@ async function main() {
   const processes = [];
 
   // Handle exit signals
-  const handleExit = () => {
+  const handleExit = async () => {
     log("dev", BOLD, "Shutting down...");
+
+    // Send SIGTERM to all processes
     processes.forEach((p) => {
       try {
         p.kill("SIGTERM");
@@ -72,12 +74,27 @@ async function main() {
         // Process may have already exited
       }
     });
+
+    // Wait 2 seconds for graceful shutdown
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Force kill any remaining processes
+    processes.forEach((p) => {
+      try {
+        if (!p.killed) {
+          p.kill("SIGKILL");
+        }
+      } catch {
+        // Process already exited
+      }
+    });
+
     cleanup();
     process.exit(0);
   };
 
-  process.on("SIGINT", handleExit);
-  process.on("SIGTERM", handleExit);
+  process.on("SIGINT", () => void handleExit());
+  process.on("SIGTERM", () => void handleExit());
 
   // Start API server
   log("api", BLUE, "Starting API server...");
