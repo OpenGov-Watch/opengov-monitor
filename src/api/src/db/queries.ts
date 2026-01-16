@@ -434,6 +434,11 @@ export function bulkUpdateReferenda(items: ReferendumImportItem[]): number {
       const category = item.category || "";
       const subcategory = item.subcategory || "";
 
+      // Skip validation for ("", "") - this represents "no category"
+      if (category === "" && subcategory === "") {
+        continue;
+      }
+
       // Check if this category/subcategory combination exists
       const exists = db.prepare(`
         SELECT 1 FROM "${TABLE_NAMES.categories}"
@@ -643,6 +648,11 @@ export function bulkUpdateBounties(items: BountyImportItem[]): number {
     if (item.category_id === undefined && (item.category || item.subcategory)) {
       const category = item.category || "";
       const subcategory = item.subcategory || "";
+
+      // Skip validation for ("", "") - this represents "no category"
+      if (category === "" && subcategory === "") {
+        continue;
+      }
 
       // Check if this category/subcategory combination exists
       const exists = db.prepare(`
