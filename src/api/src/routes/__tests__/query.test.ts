@@ -12,6 +12,7 @@ import { queryRouter } from "../query.js";
 import Database from "better-sqlite3";
 import * as fs from "fs";
 import * as path from "path";
+import { closeSessionStore } from "../../db/session-store.js";
 
 // Create test database and mock the db module
 let testDb: Database.Database;
@@ -122,6 +123,7 @@ beforeAll(() => {
 
 afterAll(() => {
   testDb.close();
+  closeSessionStore();
 
   // Clean up test database file
   if (testDbPath && fs.existsSync(testDbPath)) {
