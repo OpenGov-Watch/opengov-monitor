@@ -169,7 +169,7 @@ export function ComponentEditor({
     // Text components show markdown preview
     if (type === "text") {
       return (
-        <div className="h-64 overflow-auto border rounded p-4 prose prose-sm max-w-none dark:prose-invert">
+        <div className="h-64 overflow-x-auto overflow-y-auto border rounded p-4 prose prose-sm max-w-none dark:prose-invert">
           {chartConfig.content ? (
             <Markdown>{chartConfig.content}</Markdown>
           ) : (
@@ -196,7 +196,7 @@ export function ComponentEditor({
     switch (type) {
       case "table":
         return (
-          <div className="h-64 overflow-auto border rounded">
+          <div className="h-64 overflow-x-auto overflow-y-auto border rounded">
             <DashboardDataTable data={previewData} maxRows={50} />
           </div>
         );
