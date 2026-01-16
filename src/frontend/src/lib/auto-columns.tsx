@@ -1,7 +1,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { DataTableFacetedFilter } from "@/components/data-table/faceted-filter";
-import { DataTableEditConfig } from "@/lib/db/types";
+import { DataTableEditConfig, FilterGroup } from "@/lib/db/types";
 import {
   getColumnConfig,
   getBadgeVariant,
@@ -32,6 +32,8 @@ interface GenerateColumnsOptions<TData> {
   columnOverrides?: Record<string, Partial<ColumnDef<TData>>>;
   columnMapping?: Record<string, string>;
   dashboardMode?: boolean;
+  filterGroup?: FilterGroup;
+  onFilterGroupChange?: (group: FilterGroup) => void;
 }
 
 export function generateColumns<TData>(
@@ -46,6 +48,8 @@ export function generateColumns<TData>(
     columnOverrides = {},
     columnMapping = {},
     dashboardMode = false,
+    filterGroup,
+    onFilterGroupChange,
   } = options;
 
   if (data.length === 0) return [];
@@ -182,7 +186,13 @@ export function generateColumns<TData>(
       header: ({ column }) => (
         <div className="flex items-center space-x-2">
           {isFacetedFilter && (
-            <DataTableFacetedFilter column={column} title={formatColumnName(columnName)} />
+            <DataTableFacetedFilter
+              column={column}
+              title={formatColumnName(columnName)}
+              filterGroup={filterGroup}
+              onFilterGroupChange={onFilterGroupChange}
+              columnName={columnName}
+            />
           )}
           {!isFacetedFilter && (
             <DataTableColumnHeader column={column} title={formatColumnName(columnName)} />
