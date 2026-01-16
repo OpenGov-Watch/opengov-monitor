@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { type ColumnRenderConfig } from "@/lib/column-renderer";
@@ -14,7 +15,7 @@ interface CurrencyCellProps {
   decimals?: number;
 }
 
-export function CurrencyCell({ value, currency = "DOT", decimals = 0 }: CurrencyCellProps) {
+export const CurrencyCell = React.memo(function CurrencyCell({ value, currency = "DOT", decimals = 0 }: CurrencyCellProps) {
   if (value === null || value === undefined) {
     return <span className="text-muted-foreground">-</span>;
   }
@@ -29,7 +30,7 @@ export function CurrencyCell({ value, currency = "DOT", decimals = 0 }: Currency
       {formatted} {currency}
     </div>
   );
-}
+});
 
 // ============================================================================
 // Number Cell
@@ -41,7 +42,7 @@ interface NumberCellProps {
   color?: "green" | "red";
 }
 
-export function NumberCell({ value, decimals = 0, color }: NumberCellProps) {
+export const NumberCell = React.memo(function NumberCell({ value, decimals = 0, color }: NumberCellProps) {
   if (value === null || value === undefined) {
     return <span className="text-muted-foreground">-</span>;
   }
@@ -56,7 +57,7 @@ export function NumberCell({ value, decimals = 0, color }: NumberCellProps) {
   if (color === "red") colorClass = "text-red-600";
 
   return <div className={`text-right ${colorClass}`}>{formatted}</div>;
-}
+});
 
 // ============================================================================
 // Date Cell
@@ -67,7 +68,7 @@ interface DateCellProps {
   format?: "date" | "datetime";
 }
 
-export function DateCell({ value }: DateCellProps) {
+export const DateCell = React.memo(function DateCell({ value }: DateCellProps) {
   if (!value) {
     return <span className="text-muted-foreground">-</span>;
   }
@@ -79,7 +80,7 @@ export function DateCell({ value }: DateCellProps) {
   const formatted = `${year}-${month}-${day}`;
 
   return <span>{formatted}</span>;
-}
+});
 
 // ============================================================================
 // Badge Cell
@@ -90,7 +91,7 @@ interface BadgeCellProps {
   variants?: Record<string, string>;
 }
 
-export function BadgeCell({ value, variants }: BadgeCellProps) {
+export const BadgeCell = React.memo(function BadgeCell({ value, variants }: BadgeCellProps) {
   if (!value) {
     return <span className="text-muted-foreground">-</span>;
   }
@@ -112,7 +113,7 @@ export function BadgeCell({ value, variants }: BadgeCellProps) {
       {value}
     </Badge>
   );
-}
+});
 
 // ============================================================================
 // Link Cell
@@ -126,7 +127,7 @@ interface LinkCellProps {
   showIcon?: boolean;
 }
 
-export function LinkCell({
+export const LinkCell = React.memo(function LinkCell({
   value,
   urlTemplate,
   urlField,
@@ -160,7 +161,7 @@ export function LinkCell({
       {showIcon && <ExternalLink className="h-3 w-3 flex-shrink-0" />}
     </a>
   );
-}
+});
 
 // ============================================================================
 // Address Cell
@@ -171,7 +172,7 @@ interface AddressCellProps {
   truncate?: boolean;
 }
 
-export function AddressCell({ value, truncate = true }: AddressCellProps) {
+export const AddressCell = React.memo(function AddressCell({ value, truncate = true }: AddressCellProps) {
   if (!value) {
     return <span className="text-muted-foreground">-</span>;
   }
@@ -186,7 +187,7 @@ export function AddressCell({ value, truncate = true }: AddressCellProps) {
       {displayValue}
     </span>
   );
-}
+});
 
 // ============================================================================
 // Text Cell
@@ -198,7 +199,7 @@ interface TextCellProps {
   maxWidth?: number;
 }
 
-export function TextCell({ value, truncate = false, maxWidth = 350 }: TextCellProps) {
+export const TextCell = React.memo(function TextCell({ value, truncate = false, maxWidth = 350 }: TextCellProps) {
   if (value === null || value === undefined) {
     return <span className="text-muted-foreground">-</span>;
   }
@@ -218,7 +219,7 @@ export function TextCell({ value, truncate = false, maxWidth = 350 }: TextCellPr
   }
 
   return <span>{strValue}</span>;
-}
+});
 
 // ============================================================================
 // Dynamic Cell (Main Dispatcher)
@@ -230,7 +231,7 @@ interface DynamicCellProps {
   row?: Record<string, unknown>;
 }
 
-export function DynamicCell({ value, config, row }: DynamicCellProps) {
+export const DynamicCell = React.memo(function DynamicCell({ value, config, row }: DynamicCellProps) {
   switch (config.render) {
     case "currency":
       return (
@@ -280,4 +281,4 @@ export function DynamicCell({ value, config, row }: DynamicCellProps) {
     default:
       return <TextCell value={value as string | number | null} />;
   }
-}
+});

@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import Markdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { Pencil, Trash2, RefreshCw, AlertCircle, Copy, ChevronDown, ChevronUp } from "lucide-react";
-import {
-  DashboardPieChart,
-  DashboardBarChart,
-  DashboardLineChart,
-  transformToPieData,
-  transformToBarData,
-  transformToLineData,
-} from "@/components/charts";
+
+// Import transform functions directly to avoid bundling chart components
+import { transformToPieData } from "@/components/charts/pie-chart";
+import { transformToBarData } from "@/components/charts/bar-chart";
+import { transformToLineData } from "@/components/charts/line-chart";
+
+// Lazy load chart components for better bundle splitting
+const DashboardPieChart = lazy(() => import("@/components/charts/pie-chart").then(m => ({ default: m.DashboardPieChart })));
+const DashboardBarChart = lazy(() => import("@/components/charts/bar-chart").then(m => ({ default: m.DashboardBarChart })));
+const DashboardLineChart = lazy(() => import("@/components/charts/line-chart").then(m => ({ default: m.DashboardLineChart })));
 import { DataTable } from "@/components/data-table/data-table";
 import { loadColumnConfig } from "@/lib/column-renderer";
 import type {
@@ -58,15 +60,23 @@ export function DashboardComponent({
   const [isToolbarCollapsed, setIsToolbarCollapsed] = useState(() => {
     if (component.type !== "table") return true;
     const key = `opengov-toolbar-collapsed-${tableName}-${component.id}`;
-    const stored = localStorage.getItem(key);
-    return stored !== null ? stored === "true" : true; // Default collapsed
+    try {
+      const stored = localStorage.getItem(key);
+      return stored !== null ? stored === "true" : true;
+    } catch {
+      return true; // Fallback for tests or when localStorage is unavailable
+    }
   });
 
   const toggleToolbarCollapse = () => {
     const newState = !isToolbarCollapsed;
     setIsToolbarCollapsed(newState);
     const key = `opengov-toolbar-collapsed-${tableName}-${component.id}`;
-    localStorage.setItem(key, String(newState));
+    try {
+      localStorage.setItem(key, String(newState));
+    } catch {
+      // Ignore localStorage errors in tests
+    }
   };
 
   useEffect(() => {
@@ -109,6 +119,66 @@ export function DashboardComponent({
     }
   }
 
+  // Helper to get the actual key name used in query results
+  const getColumnKey = (col: { column: string; alias?: string; aggregateFunction?: string }) => {
+    if (col.alias) return col.alias;
+    if (col.aggregateFunction) {
+      return `${col.aggregateFunction.toLowerCase()}_${col.column.replace(/[.\s]/g, "_")}`;
+    }
+    return col.column;
+  };
+
+  // Memoize column mapping computation
+  const columnMapping: Record<string, string> = useMemo(() => {
+    const mapping: Record<string, string> = {};
+    for (const col of queryConfig.columns) {
+      const key = getColumnKey(col);
+      mapping[key] = col.column;
+    }
+    return mapping;
+  }, [queryConfig.columns]);
+
+  // Memoize column identifiers
+  const labelColumn = useMemo(
+    () => chartConfig.labelColumn || (queryConfig.columns[0] && getColumnKey(queryConfig.columns[0])),
+    [chartConfig.labelColumn, queryConfig.columns]
+  );
+
+  const valueColumn = useMemo(
+    () => chartConfig.valueColumn || (queryConfig.columns[1] && getColumnKey(queryConfig.columns[1])),
+    [chartConfig.valueColumn, queryConfig.columns]
+  );
+
+  const valueColumns = useMemo(
+    () => queryConfig.columns
+      .filter((c) => getColumnKey(c) !== labelColumn)
+      .map((c) => getColumnKey(c)),
+    [queryConfig.columns, labelColumn]
+  );
+
+  // Memoize chart data transformations
+  // Only transform when we have valid data and required columns
+  const pieChartData = useMemo(
+    () => component.type === "pie" && labelColumn && valueColumn && Array.isArray(data) && data.length > 0
+      ? transformToPieData(data, labelColumn, valueColumn)
+      : [],
+    [component.type, data, labelColumn, valueColumn]
+  );
+
+  const barChartData = useMemo(
+    () => (component.type === "bar_stacked" || component.type === "bar_grouped") && Array.isArray(data) && data.length > 0
+      ? transformToBarData(data, labelColumn, valueColumns, tableName)
+      : { data: [], bars: [] },
+    [component.type, data, labelColumn, valueColumns, tableName]
+  );
+
+  const lineChartData = useMemo(
+    () => component.type === "line" && Array.isArray(data) && data.length > 0
+      ? transformToLineData(data, labelColumn, valueColumns, tableName)
+      : { data: [], lines: [] },
+    [component.type, data, labelColumn, valueColumns, tableName]
+  );
+
   function renderChart() {
     if (loading) {
       return (
@@ -141,37 +211,13 @@ export function DashboardComponent({
     }
 
     // Table components fetch their own data, so skip the empty data check
-    if (component.type !== "table" && data.length === 0) {
+    if (component.type !== "table" && (!data || !Array.isArray(data) || data.length === 0)) {
       return (
         <div className="flex items-center justify-center h-full text-muted-foreground">
           No data available
         </div>
       );
     }
-
-    // Helper to get the actual key name used in query results
-    const getColumnKey = (col: { column: string; alias?: string; aggregateFunction?: string }) => {
-      if (col.alias) return col.alias;
-      if (col.aggregateFunction) {
-        return `${col.aggregateFunction.toLowerCase()}_${col.column.replace(/[.\s]/g, "_")}`;
-      }
-      return col.column;
-    };
-
-    // Build column mapping: result column key → source column name
-    const columnMapping: Record<string, string> = {};
-    for (const col of queryConfig.columns) {
-      const key = getColumnKey(col);
-      columnMapping[key] = col.column;
-    }
-
-    const labelColumn =
-      chartConfig.labelColumn || (queryConfig.columns[0] && getColumnKey(queryConfig.columns[0]));
-    const valueColumn =
-      chartConfig.valueColumn || (queryConfig.columns[1] && getColumnKey(queryConfig.columns[1]));
-    const valueColumns = queryConfig.columns
-      .filter((c) => getColumnKey(c) !== labelColumn)
-      .map((c) => getColumnKey(c));
 
     switch (component.type) {
       case "table":
@@ -198,54 +244,48 @@ export function DashboardComponent({
           );
         }
         return (
-          <DashboardPieChart
-            data={transformToPieData(data, labelColumn, valueColumn)}
-            showLegend={chartConfig.showLegend ?? true}
-            showTooltip={chartConfig.showTooltip ?? true}
-            colors={chartConfig.colors}
-            tableName={tableName}
-            valueColumn={valueColumn}
-            columnMapping={columnMapping}
-          />
+          <Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground">Loading chart...</div>}>
+            <DashboardPieChart
+              data={pieChartData}
+              showLegend={chartConfig.showLegend ?? true}
+              showTooltip={chartConfig.showTooltip ?? true}
+              colors={chartConfig.colors}
+              tableName={tableName}
+              valueColumn={valueColumn}
+              columnMapping={columnMapping}
+            />
+          </Suspense>
         );
 
       case "bar_stacked":
       case "bar_grouped": {
-        const { data: barData, bars } = transformToBarData(
-          data,
-          labelColumn,
-          valueColumns,
-          tableName
-        );
         return (
-          <DashboardBarChart
-            data={barData}
-            bars={bars}
-            stacked={component.type === "bar_stacked"}
-            showLegend={chartConfig.showLegend ?? true}
-            showTooltip={chartConfig.showTooltip ?? true}
-            tableName={tableName}
-            columnMapping={columnMapping}
-          />
+          <Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground">Loading chart...</div>}>
+            <DashboardBarChart
+              data={barChartData.data}
+              bars={barChartData.bars}
+              stacked={component.type === "bar_stacked"}
+              showLegend={chartConfig.showLegend ?? true}
+              showTooltip={chartConfig.showTooltip ?? true}
+              tableName={tableName}
+              columnMapping={columnMapping}
+            />
+          </Suspense>
         );
       }
 
       case "line": {
-        const { data: lineData, lines } = transformToLineData(
-          data,
-          labelColumn,
-          valueColumns,
-          tableName
-        );
         return (
-          <DashboardLineChart
-            data={lineData}
-            lines={lines}
-            showLegend={chartConfig.showLegend ?? true}
-            showTooltip={chartConfig.showTooltip ?? true}
-            tableName={tableName}
-            columnMapping={columnMapping}
-          />
+          <Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground">Loading chart...</div>}>
+            <DashboardLineChart
+              data={lineChartData.data}
+              lines={lineChartData.lines}
+              showLegend={chartConfig.showLegend ?? true}
+              showTooltip={chartConfig.showTooltip ?? true}
+              tableName={tableName}
+              columnMapping={columnMapping}
+            />
+          </Suspense>
         );
       }
 

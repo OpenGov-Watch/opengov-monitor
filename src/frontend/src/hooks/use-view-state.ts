@@ -288,17 +288,43 @@ export function useViewState(tableName: string, options: UseViewStateOptions = {
     });
   }, [tableName, navigate, location.pathname, defaultSorting]);
 
+  // Wrap state setters in startTransition for non-urgent updates
+  // This keeps the UI responsive during filter/sort/pagination changes
+  const setSortingTransitioned = useCallback((updater: SortingState | ((old: SortingState) => SortingState)) => {
+    startTransition(() => {
+      setSorting(updater);
+    });
+  }, []);
+
+  const setColumnFiltersTransitioned = useCallback((updater: ColumnFiltersState | ((old: ColumnFiltersState) => ColumnFiltersState)) => {
+    startTransition(() => {
+      setColumnFilters(updater);
+    });
+  }, []);
+
+  const setPaginationTransitioned = useCallback((updater: PaginationState | ((old: PaginationState) => PaginationState)) => {
+    startTransition(() => {
+      setPagination(updater);
+    });
+  }, []);
+
+  const setFilterGroupTransitioned = useCallback((updater: FilterGroup | undefined | ((old: FilterGroup | undefined) => FilterGroup | undefined)) => {
+    startTransition(() => {
+      setFilterGroup(updater);
+    });
+  }, []);
+
   return {
     sorting,
-    setSorting,
+    setSorting: setSortingTransitioned,
     columnFilters,
-    setColumnFilters,
+    setColumnFilters: setColumnFiltersTransitioned,
     columnVisibility,
     setColumnVisibility,
     pagination,
-    setPagination,
+    setPagination: setPaginationTransitioned,
     filterGroup,
-    setFilterGroup,
+    setFilterGroup: setFilterGroupTransitioned,
     groupBy,
     setGroupBy,
     // New multi-view API

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { WidthProvider, Responsive, type Layout, type LayoutItem } from "react-grid-layout/legacy";
 import { DashboardComponent } from "./dashboard-component";
 import type {
@@ -56,25 +56,6 @@ export function DashboardGrid({
   onDeleteComponent,
 }: DashboardGridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState<number>(0);
-
-  // Measure container width on mount and when it changes
-  useEffect(() => {
-    if (!gridRef.current) return;
-
-    const measureWidth = () => {
-      if (gridRef.current) {
-        setContainerWidth(gridRef.current.offsetWidth);
-      }
-    };
-
-    // Measure initially
-    measureWidth();
-
-    // Remeasure on window resize
-    window.addEventListener('resize', measureWidth);
-    return () => window.removeEventListener('resize', measureWidth);
-  }, []);
 
   // Scroll to bottom when new component is added
   useEffect(() => {
@@ -215,7 +196,6 @@ export function DashboardGrid({
   return (
     <div ref={gridRef} className="w-full h-full overflow-auto">
       <ResponsiveGridLayout
-        key={`grid-${containerWidth}`}
         className="layout"
         layouts={layouts}
         breakpoints={BREAKPOINTS}
