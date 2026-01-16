@@ -72,10 +72,10 @@ export function DashboardGrid({
   }, [highlightComponentId, components]);
 
   // Create a stable signature of components to prevent unnecessary re-renders
-  // This only changes when component IDs or grid_config values actually change,
+  // This only changes when component IDs, grid_config, or query_config values actually change,
   // not when the components array reference changes
   const componentSignature = useMemo(
-    () => components.map((c) => `${c.id}:${c.grid_config}`).join("|"),
+    () => components.map((c) => `${c.id}:${c.grid_config}:${c.query_config}`).join("|"),
     [components]
   );
 

@@ -190,6 +190,15 @@ export const DashboardComponent = memo(
     [component.type, data, labelColumn, valueColumns, tableName]
   );
 
+  // Generate a stable key that changes when filters change
+  // This forces DataTable to remount and fetch fresh data with new filters
+  const tableKey = useMemo(() => {
+    if (component.type !== "table") return undefined;
+    // Create a deterministic string from filters
+    const filtersKey = JSON.stringify(queryConfig.filters || []);
+    return `table-${component.id}-${filtersKey}`;
+  }, [component.id, component.type, queryConfig.filters]);
+
   function renderChart() {
     if (loading) {
       return (
@@ -234,6 +243,7 @@ export const DashboardComponent = memo(
       case "table":
         return (
           <DataTable
+            key={tableKey}
             queryConfig={queryConfig}
             tableName={tableName}
             columnMapping={columnMapping}

@@ -7,6 +7,7 @@ Agent-specific instructions for working on this codebase. For project overview, 
 - Never apply DB migrations without explicit user consent
 - Never modify DB migration versions after they have been applied to the production DB
 - Don't use `taskkill`, only your own task kill tool.
+- For frontend changes, use the `react-best-practices` skill
 
 ## When planning changes
 - Planning Phase
