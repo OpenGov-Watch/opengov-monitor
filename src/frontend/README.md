@@ -115,7 +115,7 @@ columns:
 
 **Precedence:** Table-specific → Global columns → Patterns → Default (text)
 
-See [Column Configuration System](../docs/spec/frontend/tables.md#column-configuration-system) for details.
+See [Column Configuration System](../docs/reference/frontend/table-systems.md#column-configuration) for details.
 
 ## API Context
 
@@ -163,7 +163,7 @@ pnpm test:run      # Single run
 ## Documentation
 
 - [CLAUDE.md](./CLAUDE.md) - Agent navigation guide
-- [Frontend Tables](../docs/spec/frontend/tables.md) - Table systems specification
+- [Table Systems](../docs/reference/frontend/table-systems.md) - DataTable architecture reference
 - [Project Root](../README.md) - Full system overview
 - [Architecture](../docs/architecture.md) - System design
 

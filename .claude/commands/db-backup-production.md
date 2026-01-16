@@ -8,37 +8,11 @@ Ask Claude: "backup production database"
 
 ## What it does
 
-- Authenticates with production API
+- Connect to the production server via gcloud SSH
 - Triggers WAL checkpoint to merge pending writes
 - Downloads `polkadot.db` to `data/backup/polkadot_prod_backup_YYYYMMDD_HHMMSS.db`
 - Ensures backup contains all committed data
 
-## Command (API-based - Recommended)
-
-```bash
-# Set production URL
-PROD_URL="https://your-production-url.com"
-
-# Generate timestamp
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-
-# Ensure backup directory exists
-mkdir -p data/backup
-
-# Login and save session cookie
-curl -c ~/.opengov/session.txt \
-  -X POST \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"your-password"}' \
-  "$PROD_URL/api/auth/login"
-
-# Download backup (with automatic checkpoint)
-curl -b ~/.opengov/session.txt \
-  "$PROD_URL/api/backup/download" \
-  -o data/backup/polkadot_prod_backup_$TIMESTAMP.db
-
-echo "✓ Backup saved to: data/backup/polkadot_prod_backup_$TIMESTAMP.db"
-```
 
 ## Alternative: Direct Container Access
 

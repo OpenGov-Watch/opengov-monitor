@@ -135,7 +135,8 @@ Verifies that ID sequences in key tables are continuous with no gaps. See [docs/
 | API validation | [src/api/docs/spec/validation.md](src/api/docs/spec/validation.md) |
 | Database migrations | [docs/spec/backend/migrations.md](docs/spec/backend/migrations.md), [src/backend/migrations/README.md](src/backend/migrations/README.md) |
 | Database sanity checks | [docs/howtos/sanity-checks.md](docs/howtos/sanity-checks.md) |
-| Deployment & Docker | [src/deploy/CLAUDE.md](src/deploy/CLAUDE.md) |
+| Deployment (overview) | [src/deploy/README.md](src/deploy/README.md) |
+| Deployment (agent guide) | [src/deploy/CLAUDE.md](src/deploy/CLAUDE.md) |
 
 ## Authentication
 
