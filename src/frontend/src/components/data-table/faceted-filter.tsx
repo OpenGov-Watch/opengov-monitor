@@ -22,22 +22,44 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
+import { FilterGroup, FilterCondition } from "@/lib/db/types";
 
 interface DataTableFacetedFilterProps<TData, TValue> {
   column: Column<TData, TValue>;
   title: string;
+  // New props for unified filter state
+  filterGroup?: FilterGroup;
+  onFilterGroupChange?: (group: FilterGroup) => void;
+  columnName?: string; // e.g., "status", "track"
 }
 
 export function DataTableFacetedFilter<TData, TValue>({
   column,
   title,
+  filterGroup,
+  onFilterGroupChange,
+  columnName,
 }: DataTableFacetedFilterProps<TData, TValue>) {
   const facets = column.getFacetedUniqueValues();
-  const filterValue = column.getFilterValue() as string[];
-  const appliedValues = React.useMemo(() => new Set(filterValue), [filterValue?.join(',')]);
+
+  // Read applied values from filterGroup (fallback to column.getFilterValue() for backward compat)
+  const appliedValues = React.useMemo(() => {
+    if (filterGroup && columnName) {
+      // New path: read from filterGroup
+      const conditions = filterGroup.conditions.filter(
+        (c): c is FilterCondition =>
+          'column' in c && c.column === columnName && c.operator === 'IN'
+      );
+      const values = conditions.flatMap(c => Array.isArray(c.value) ? c.value : []);
+      return new Set(values.map(String));
+    }
+    // Legacy path: read from TanStack Table
+    const filterValue = column.getFilterValue() as string[] | undefined;
+    return new Set(filterValue || []);
+  }, [filterGroup, columnName, column]);
 
   // Local state for pending selections (not yet applied)
-  const [pendingValues, setPendingValues] = React.useState<Set<string>>(() => new Set(filterValue));
+  const [pendingValues, setPendingValues] = React.useState<Set<string>>(() => appliedValues);
   const [isOpen, setIsOpen] = React.useState(false);
 
   // Sync pending values when popover opens
@@ -45,7 +67,7 @@ export function DataTableFacetedFilter<TData, TValue>({
     if (isOpen) {
       setPendingValues(new Set(appliedValues));
     }
-  }, [isOpen]);
+  }, [isOpen, appliedValues]);
 
   // Sort facet values alphabetically
   const sortedFacets = React.useMemo(() => {
@@ -65,8 +87,31 @@ export function DataTableFacetedFilter<TData, TValue>({
   };
 
   const handleApply = () => {
-    const filterValues = Array.from(pendingValues);
-    column.setFilterValue(filterValues.length ? filterValues : undefined);
+    if (onFilterGroupChange && columnName) {
+      // New path: write to filterGroup
+      // Remove existing conditions for this column with IN operator
+      const newConditions = filterGroup?.conditions.filter(
+        c => !('column' in c && c.column === columnName && c.operator === 'IN')
+      ) || [];
+
+      // Add new condition if values were selected
+      if (pendingValues.size > 0) {
+        newConditions.push({
+          column: columnName,
+          operator: 'IN',
+          value: Array.from(pendingValues)
+        });
+      }
+
+      onFilterGroupChange({
+        operator: filterGroup?.operator || 'AND',
+        conditions: newConditions
+      });
+    } else {
+      // Legacy path: write to TanStack Table
+      const filterValues = Array.from(pendingValues);
+      column.setFilterValue(filterValues.length ? filterValues : undefined);
+    }
     setIsOpen(false);
   };
 

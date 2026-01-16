@@ -97,23 +97,29 @@ export function filterStateToQueryFilters(
 }
 
 /**
- * Convert filters to QueryConfig format. Supports both legacy ColumnFiltersState
- * and new FilterGroup format.
+ * Convert filters to QueryConfig format.
  *
- * @param columnFilters - Legacy TanStack Table column filters (for backward compatibility)
- * @param filterGroup - New FilterGroup with AND/OR logic
+ * PRIMARY STATE: filterGroup is the unified filter state used by both faceted filters
+ * and advanced filter composer. Both UI components read from and write to filterGroup.
+ *
+ * BACKWARD COMPATIBILITY: columnFilters (TanStack Table state) is supported for legacy
+ * saved views and scenarios where filterGroup is not provided. In the unified state model,
+ * faceted filters no longer write to columnFilters - they write directly to filterGroup.
+ *
+ * @param columnFilters - Legacy TanStack Table column filters (backward compatibility)
+ * @param filterGroup - Primary unified filter state with AND/OR logic
  * @returns Filters in QueryConfig format (FilterCondition[] or FilterGroup)
  */
 export function convertFiltersToQueryConfig(
   columnFilters: ColumnFiltersState,
   filterGroup?: FilterGroup
 ): FilterCondition[] | FilterGroup {
-  // Prefer new filterGroup format if present
+  // PRIMARY: Use filterGroup as the single source of truth
   if (filterGroup && filterGroup.conditions.length > 0) {
     return filterGroup;
   }
 
-  // Fall back to legacy columnFilters
+  // FALLBACK: Support legacy columnFilters for backward compatibility
   if (columnFilters && columnFilters.length > 0) {
     return filterStateToQueryFilters(columnFilters);
   }

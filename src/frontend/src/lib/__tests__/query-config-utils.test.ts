@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { sortingStateToOrderBy, filterStateToQueryFilters, filtersToGroup, groupToFilters } from "../query-config-utils";
+import { sortingStateToOrderBy, filterStateToQueryFilters, filtersToGroup, groupToFilters, convertFiltersToQueryConfig } from "../query-config-utils";
 import type { SortingState, ColumnFiltersState } from "@tanstack/react-table";
 import type { FilterCondition, FilterGroup } from "@/lib/db/types";
 
@@ -547,5 +547,151 @@ describe("FilterGroup nested structure preservation", () => {
     expect('column' in mixed.conditions[1]).toBe(true);
     expect('operator' in mixed.conditions[2] && !('column' in mixed.conditions[2])).toBe(true);
     expect('column' in mixed.conditions[3]).toBe(true);
+  });
+});
+
+describe("convertFiltersToQueryConfig - Unified State Model", () => {
+  it("prioritizes filterGroup over columnFilters when both present", () => {
+    const columnFilters: ColumnFiltersState = [
+      { id: "status", value: ["Active"] }
+    ];
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "status", operator: "IN", value: ["Pending", "Completed"] },
+        { column: "amount", operator: ">", value: 1000 }
+      ]
+    };
+
+    const result = convertFiltersToQueryConfig(columnFilters, filterGroup);
+
+    // Should return filterGroup, not columnFilters
+    expect(result).toEqual(filterGroup);
+  });
+
+  it("falls back to columnFilters when filterGroup empty", () => {
+    const columnFilters: ColumnFiltersState = [
+      { id: "status", value: ["Active", "Pending"] },
+      { id: "title", value: "test" }
+    ];
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: []
+    };
+
+    const result = convertFiltersToQueryConfig(columnFilters, filterGroup);
+
+    // Should return converted columnFilters
+    expect(result).toEqual([
+      { column: "status", operator: "IN", value: ["Active", "Pending"] },
+      { column: "title", operator: "LIKE", value: "%test%" }
+    ]);
+  });
+
+  it("falls back to columnFilters when filterGroup undefined", () => {
+    const columnFilters: ColumnFiltersState = [
+      { id: "track", value: ["root", "fellowship"] }
+    ];
+
+    const result = convertFiltersToQueryConfig(columnFilters, undefined);
+
+    expect(result).toEqual([
+      { column: "track", operator: "IN", value: ["root", "fellowship"] }
+    ]);
+  });
+
+  it("returns empty array when both are empty", () => {
+    const columnFilters: ColumnFiltersState = [];
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: []
+    };
+
+    const result = convertFiltersToQueryConfig(columnFilters, filterGroup);
+
+    expect(result).toEqual([]);
+  });
+
+  it("returns empty array when both are undefined/empty", () => {
+    const columnFilters: ColumnFiltersState = [];
+
+    const result = convertFiltersToQueryConfig(columnFilters, undefined);
+
+    expect(result).toEqual([]);
+  });
+
+  it("handles filterGroup with nested conditions", () => {
+    const columnFilters: ColumnFiltersState = [];
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "status", operator: "IN", value: ["Active"] },
+        {
+          operator: "OR",
+          conditions: [
+            { column: "priority", operator: "=", value: "High" },
+            { column: "urgent", operator: "=", value: 1 }
+          ]
+        }
+      ]
+    };
+
+    const result = convertFiltersToQueryConfig(columnFilters, filterGroup);
+
+    // Should return filterGroup with nested structure intact
+    expect(result).toEqual(filterGroup);
+  });
+
+  it("backward compatibility: handles legacy columnFilters-only saved views", () => {
+    // Simulates loading old saved view that only has columnFilters
+    const columnFilters: ColumnFiltersState = [
+      { id: "status", value: ["Active", "Pending", "Completed"] },
+      { id: "track", value: ["root"] },
+      { id: "title", value: "governance" }
+    ];
+
+    const result = convertFiltersToQueryConfig(columnFilters, undefined);
+
+    expect(result).toEqual([
+      { column: "status", operator: "IN", value: ["Active", "Pending", "Completed"] },
+      { column: "track", operator: "IN", value: ["root"] },
+      { column: "title", operator: "LIKE", value: "%governance%" }
+    ]);
+  });
+
+  it("unified state: faceted filters write to filterGroup", () => {
+    // Simulates new behavior where faceted filter writes to filterGroup
+    const columnFilters: ColumnFiltersState = []; // No longer used by faceted filters
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "status", operator: "IN", value: ["Active", "Pending"] },
+        { column: "track", operator: "IN", value: ["root"] }
+      ]
+    };
+
+    const result = convertFiltersToQueryConfig(columnFilters, filterGroup);
+
+    expect(result).toEqual(filterGroup);
+  });
+
+  it("unified state: advanced filter and faceted filter coexist in filterGroup", () => {
+    const columnFilters: ColumnFiltersState = [];
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        // From faceted filter (status dropdown)
+        { column: "status", operator: "IN", value: ["Active"] },
+        // From faceted filter (track dropdown)
+        { column: "track", operator: "IN", value: ["root", "fellowship"] },
+        // From advanced filter composer
+        { column: "DOT_proposal_time", operator: ">", value: 10000 }
+      ]
+    };
+
+    const result = convertFiltersToQueryConfig(columnFilters, filterGroup);
+
+    expect(result).toEqual(filterGroup);
+    expect((result as FilterGroup).conditions.length).toBe(3);
   });
 });
