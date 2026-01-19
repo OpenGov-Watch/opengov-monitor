@@ -38,7 +38,7 @@ const defaultChildBountiesViews: SavedView[] = [
   {
     name: "All",
     state: {
-      sorting: [{ id: "identifier", desc: true }],
+      sorting: [{ id: "latest_status_change", desc: true }],
       columnFilters: [],
       columnVisibility: {},
       pagination: { pageIndex: 0, pageSize: 100 },
@@ -237,7 +237,7 @@ export default function ChildBountiesPage() {
         isAuthenticated={isAuthenticated}
         facetedFilters={["status"]}
         columnOverrides={columnOverrides}
-        defaultSorting={[{ id: "identifier", desc: true }]}
+        defaultSorting={[{ id: "latest_status_change", desc: true }]}
         defaultViews={defaultChildBountiesViews}
       />
     </div>
