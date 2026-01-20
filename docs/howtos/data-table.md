@@ -25,6 +25,14 @@ Advanced features and patterns. Covers:
 
 Use this guide for complex table implementations.
 
+### [Table Views](./table-views.md)
+Working with saved views. Covers:
+- Default views configuration
+- Protected (non-deletable) views
+- FilterGroup for complex filters
+- URL sharing
+- Troubleshooting
+
 ## Quick Reference
 
 **Basic table structure:**

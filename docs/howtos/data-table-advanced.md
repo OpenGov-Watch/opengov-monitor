@@ -90,43 +90,28 @@ export default function ReferendaPage() {
 
 ## Default Views
 
-Pre-configure saved views.
+Pre-configure saved views for tables. See [Working with Table Views](./table-views.md) for complete guide.
 
 ```typescript
 import { SavedView } from "@/hooks/use-view-state";
 
-const defaultTreasuryViews: SavedView[] = [
+const defaultViews: SavedView[] = [
   {
     name: "All",
+    deletable: false,  // Protected from deletion
     state: {
       sorting: [{ id: "id", desc: true }],
       columnFilters: [],
       columnVisibility: {},
-      globalFilter: "",
-      pagination: { pageIndex: 0, pageSize: 100 }
+      pagination: { pageIndex: 0, pageSize: 100 },
     },
-    isDefault: true
   },
-  {
-    name: "Positive DOT Value",
-    state: {
-      sorting: [{ id: "id", desc: true }],
-      columnFilters: [{ id: "DOT_proposal_time", value: "positive" }],
-      columnVisibility: {},
-      globalFilter: "",
-      pagination: { pageIndex: 0, pageSize: 100 }
-    },
-    isDefault: false
-  }
 ];
 
-<DataTable
-  mode="query"
-  queryConfig={queryConfig}
-  tableName="treasury"
-  defaultViews={defaultTreasuryViews}
-/>
+<DataTable defaultViews={defaultViews} ... />
 ```
+
+For views with filters, protected views, URL sharing, see [Table Views Guide](./table-views.md).
 
 ---
 
@@ -151,10 +136,8 @@ const defaultReferendaViews: SavedView[] = [
       sorting: [{ id: "id", desc: true }],
       columnFilters: [],
       columnVisibility: {},
-      globalFilter: "",
       pagination: { pageIndex: 0, pageSize: 100 },
     },
-    isDefault: true,
   },
 ];
 
@@ -271,7 +254,6 @@ export default function ReferendaPage() {
         isAuthenticated={isAuthenticated}
         facetedFilters={["status", "track"]}
         columnOverrides={columnOverrides}
-        defaultSorting={[{ id: "id", desc: true }]}
         defaultViews={defaultReferendaViews}
       />
     </div>

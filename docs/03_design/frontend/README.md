@@ -6,6 +6,7 @@ This directory contains detailed API reference documentation for frontend compon
 
 ### DataTable System
 - **[data-table-api.md](./data-table-api.md)** - DataTable component props and configuration
+- **[table-views.md](./table-views.md)** - Table view state management and persistence
 
 ### Dashboard System
 - **[dashboard-api.md](./dashboard-api.md)** - Dashboard component props and configuration
