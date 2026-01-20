@@ -15,4 +15,14 @@ id,name,category,subcategory
 38,Games Bounty,Business Development,Games
 39,BD Bounty,Business Development,Business Development
 40,BD Bounty in Spain & Andorra,Business Development,Business Development
-42,Spanish Bounty,Outreach,
+42,Spanish Bounty,Outreach,Content Creation & Distribution
+43,Meetups Bounty,Outreach,Events/Meetups
+44,Polkadot - Kusama Bridge Security Bounty,Research,Security
+46,AMI Bounty Program,Outreach,Other
+49,Technical Support Bounty,Outreach,Ecosystem Services
+50,Infrastructure Builders Program,Operations,RPCs and Nodes
+52,Polkadot UX Bounty,Research,User Experience
+59,Open Source Developer Grants Program,Development,Software Development
+62,Polkadot Legal Bounty,Business Development,Legal
+63,Polkadot Fast-Grants Bounty,Development,Software Development
+64,OG Rust Bounties,Development,Polkadot Protocol & SDK
