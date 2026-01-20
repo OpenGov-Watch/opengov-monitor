@@ -187,9 +187,14 @@ function CustomSpendingPageContent() {
   const uniqueCategories = [...new Set(categories.map((c) => c.category))].sort();
 
   // Get subcategories for the selected category
+  // Sort: non-null values alphabetically, NULL (Other) at end
   const availableSubcategories = categories
     .filter((c) => c.category === formData.selectedCategory)
-    .sort((a, b) => a.subcategory.localeCompare(b.subcategory));
+    .sort((a, b) => {
+      if (a.subcategory === null) return 1;
+      if (b.subcategory === null) return -1;
+      return a.subcategory.localeCompare(b.subcategory);
+    });
 
   function handleCategoryChange(category: string) {
     const subs = categories.filter((c) => c.category === category);
@@ -419,7 +424,7 @@ function CustomSpendingPageContent() {
                       </SelectItem>
                       {availableSubcategories.map((cat) => (
                         <SelectItem key={cat.id} value={cat.id.toString()}>
-                          {cat.subcategory || "(default)"}
+                          {cat.subcategory === null ? "Other" : cat.subcategory}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -479,9 +484,9 @@ function CustomSpendingPageContent() {
                   {formatNumber(entry.USD_latest)}
                 </TableCell>
                 <TableCell>
-                  {entry.category && entry.subcategory
-                    ? `${entry.category} / ${entry.subcategory}`
-                    : entry.category || "-"}
+                  {entry.category
+                    ? `${entry.category} / ${entry.subcategory === null ? "Other" : entry.subcategory || "-"}`
+                    : "-"}
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-2">

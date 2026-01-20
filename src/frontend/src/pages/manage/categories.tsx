@@ -29,6 +29,7 @@ function CategoriesPageContent() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [formData, setFormData] = useState({ category: "", subcategory: "" });
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCategories();
@@ -54,7 +55,8 @@ function CategoriesPageContent() {
 
   function openEditDialog(cat: Category) {
     setEditingCategory(cat);
-    setFormData({ category: cat.category, subcategory: cat.subcategory });
+    // Show empty string in form for NULL subcategory (Other)
+    setFormData({ category: cat.category, subcategory: cat.subcategory ?? "" });
     setDialogOpen(true);
   }
 
@@ -87,10 +89,19 @@ function CategoriesPageContent() {
     if (!confirm("Are you sure you want to delete this category?")) return;
 
     try {
-      await fetch(`/api/categories/${id}`, { method: "DELETE" });
+      setDeleteError(null);
+      const response = await fetch(`/api/categories/${id}`, { method: "DELETE" });
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        setDeleteError(data.error || "Failed to delete category");
+        return;
+      }
+
       fetchCategories();
     } catch (error) {
       console.error("Failed to delete category:", error);
+      setDeleteError("Failed to delete category");
     }
   }
 
@@ -118,6 +129,9 @@ function CategoriesPageContent() {
           <p className="text-muted-foreground">
             Manage spending categories and subcategories
           </p>
+          {deleteError && (
+            <p className="text-sm text-red-600 mt-2">{deleteError}</p>
+          )}
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -153,9 +167,11 @@ function CategoriesPageContent() {
                   onChange={(e) =>
                     setFormData({ ...formData, subcategory: e.target.value })
                   }
-                  placeholder="e.g., Polkadot Protocol & SDK"
-                  required
+                  placeholder="Leave empty for 'Other'"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Leave empty to create the default "Other" subcategory
+                </p>
               </div>
               <div className="flex justify-end gap-2">
                 <Button
@@ -190,7 +206,13 @@ function CategoriesPageContent() {
                   <TableCell className="font-medium">
                     {idx === 0 ? categoryName : ""}
                   </TableCell>
-                  <TableCell>{cat.subcategory}</TableCell>
+                  <TableCell>
+                    {cat.subcategory === null ? (
+                      <span className="text-muted-foreground italic">Other</span>
+                    ) : (
+                      cat.subcategory
+                    )}
+                  </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       <Button
@@ -204,6 +226,8 @@ function CategoriesPageContent() {
                         variant="ghost"
                         size="icon"
                         onClick={() => handleDelete(cat.id)}
+                        disabled={cat.subcategory === null}
+                        title={cat.subcategory === null ? "Cannot delete the default 'Other' subcategory" : "Delete"}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

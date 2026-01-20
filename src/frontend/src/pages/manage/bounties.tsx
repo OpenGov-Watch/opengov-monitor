@@ -123,9 +123,14 @@ function BountiesPageContent() {
   const uniqueCategories = [...new Set(categories.map((c) => c.category))].sort();
 
   // Get subcategories for the selected category
+  // Sort: non-null values alphabetically, NULL (Other) at end
   const availableSubcategories = categories
     .filter((c) => c.category === formData.selectedCategory)
-    .sort((a, b) => a.subcategory.localeCompare(b.subcategory));
+    .sort((a, b) => {
+      if (a.subcategory === null) return 1;
+      if (b.subcategory === null) return -1;
+      return a.subcategory.localeCompare(b.subcategory);
+    });
 
   function handleCategoryChange(category: string) {
     const subs = categories.filter((c) => c.category === category);
@@ -245,7 +250,7 @@ function BountiesPageContent() {
                       </SelectItem>
                       {availableSubcategories.map((cat) => (
                         <SelectItem key={cat.id} value={cat.id.toString()}>
-                          {cat.subcategory || "(default)"}
+                          {cat.subcategory === null ? "Other" : cat.subcategory}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -307,7 +312,11 @@ function BountiesPageContent() {
                   {formatNumber(bounty.remaining_dot)}
                 </TableCell>
                 <TableCell>{bounty.category || "-"}</TableCell>
-                <TableCell>{bounty.subcategory || "-"}</TableCell>
+                <TableCell>
+                  {bounty.subcategory === null && bounty.category
+                    ? "Other"
+                    : bounty.subcategory || "-"}
+                </TableCell>
                 <TableCell>
                   <Button
                     variant="ghost"

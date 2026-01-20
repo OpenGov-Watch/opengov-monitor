@@ -96,7 +96,7 @@ export function ViewSelector({
           {views.map((view) => (
             <TabsTrigger key={view.name} value={view.name} className="relative group">
               {view.name}
-              {views.length > 1 && (
+              {views.length > 1 && view.deletable !== false && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -145,7 +145,7 @@ export function ViewSelector({
                   {currentViewName === view.name && (
                     <Check className="h-4 w-4" />
                   )}
-                  {views.length > 1 && (
+                  {views.length > 1 && view.deletable !== false && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

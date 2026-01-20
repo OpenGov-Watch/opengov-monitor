@@ -196,13 +196,14 @@ FELLOWSHIP_SALARY_PAYMENTS_SCHEMA = TableSchema(
 )
 
 # Schema for Categories (predefined category/subcategory pairs)
-# NOTE: Table has UNIQUE(category, subcategory) constraint enforced at DB level (added in migration 009)
+# NOTE: Table has UNIQUE(category, COALESCE(subcategory, '')) constraint enforced at DB level (migration 012)
+# NULL subcategory represents "Other" (default subcategory for a category)
 CATEGORIES_SCHEMA = TableSchema(
     name="Categories",
     columns={
         "id": "INTEGER",
         "category": "TEXT NOT NULL",
-        "subcategory": "TEXT NOT NULL",
+        "subcategory": "TEXT",  # NULL = "Other" (default subcategory)
     },
     primary_key="id",
     indexes=[

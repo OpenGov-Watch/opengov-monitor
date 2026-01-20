@@ -20,7 +20,7 @@ export interface ViewState {
 export interface SavedView {
   name: string;
   state: ViewState;
-  isDefault?: boolean;
+  deletable?: boolean;  // default true if not specified
 }
 
 const STORAGE_PREFIX = "opengov-view-";
@@ -82,50 +82,6 @@ export function useViewState(tableName: string, options: UseViewStateOptions = {
     return [];
   }, [tableName]);
 
-  // Initialize with default views if no saved views exist
-  useEffect(() => {
-    const existingViews = getSavedViews();
-    if (existingViews.length === 0 && defaultViews.length > 0) {
-      const storageKey = VIEWS_STORAGE_PREFIX + tableName;
-      localStorage.setItem(storageKey, JSON.stringify(defaultViews));
-    }
-  }, [tableName, defaultViews, getSavedViews]);
-
-  // Load from URL only on initial mount
-  useEffect(() => {
-    if (initialLoadDone.current) return;
-    initialLoadDone.current = true;
-
-    const viewParam = searchParams.get("view");
-    if (viewParam) {
-      const state = decodeViewState(viewParam);
-      if (state) {
-        setSorting(state.sorting);
-        setColumnFilters(state.columnFilters);
-        setColumnVisibility(state.columnVisibility);
-        setPagination(state.pagination);
-        setFilterGroup(state.filterGroup);
-        setGroupBy(state.groupBy);
-        return;
-      }
-    }
-
-    // If no URL view, try to load the first default or saved view
-    const views = getSavedViews();
-    if (views.length === 0 && defaultViews.length > 0) {
-      // Use first default view
-      const firstView = defaultViews[0];
-      applyViewState(firstView.state);
-      setCurrentViewName(firstView.name);
-    } else if (views.length > 0) {
-      // Use first saved view
-      const firstView = views[0];
-      applyViewState(firstView.state);
-      setCurrentViewName(firstView.name);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // Apply a view state to the table
   const applyViewState = useCallback((state: ViewState) => {
     setSorting(state.sorting);
@@ -135,6 +91,37 @@ export function useViewState(tableName: string, options: UseViewStateOptions = {
     setFilterGroup(state.filterGroup);
     setGroupBy(state.groupBy);
   }, []);
+
+  // Initialize on mount: check URL first, then localStorage, then defaults
+  useEffect(() => {
+    if (initialLoadDone.current) return;
+    initialLoadDone.current = true;
+
+    // 1. Check URL param first
+    const viewParam = searchParams.get("view");
+    if (viewParam) {
+      const state = decodeViewState(viewParam);
+      if (state) {
+        applyViewState(state);
+        return;
+      }
+    }
+
+    // 2. Initialize localStorage with defaults if empty
+    let views = getSavedViews();
+    if (views.length === 0 && defaultViews.length > 0) {
+      const storageKey = VIEWS_STORAGE_PREFIX + tableName;
+      localStorage.setItem(storageKey, JSON.stringify(defaultViews));
+      views = defaultViews;
+    }
+
+    // 3. Load first view from localStorage or defaults
+    if (views.length > 0) {
+      const firstView = views[0];
+      applyViewState(firstView.state);
+      setCurrentViewName(firstView.name);
+    }
+  }, [tableName, defaultViews, getSavedViews, applyViewState, searchParams]);
 
   // Get current state
   const getCurrentState = useCallback(
@@ -226,6 +213,12 @@ export function useViewState(tableName: string, options: UseViewStateOptions = {
   // Delete a named view
   const deleteView = useCallback((name: string) => {
     const views = getSavedViews();
+    const viewToDelete = views.find((v) => v.name === name);
+
+    if (viewToDelete?.deletable === false) {
+      return; // Cannot delete non-deletable view
+    }
+
     const updatedViews = views.filter((v) => v.name !== name);
     const storageKey = VIEWS_STORAGE_PREFIX + tableName;
     localStorage.setItem(storageKey, JSON.stringify(updatedViews));

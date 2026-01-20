@@ -140,7 +140,7 @@ describe("PUT /api/Categories/:id", () => {
 });
 
 describe("DELETE /api/Categories/:id", () => {
-  it("deletes existing category", async () => {
+  it("deletes existing category with non-null subcategory", async () => {
     testDb.exec(`
       INSERT INTO "Categories" (id, category, subcategory)
       VALUES (1, 'ToDelete', 'Sub')
@@ -154,6 +154,22 @@ describe("DELETE /api/Categories/:id", () => {
     // Verify deletion
     const result = testDb.prepare('SELECT * FROM "Categories" WHERE id = 1').get();
     expect(result).toBeUndefined();
+  });
+
+  it("prevents deletion of NULL subcategory row (Other)", async () => {
+    testDb.exec(`
+      INSERT INTO "Categories" (id, category, subcategory)
+      VALUES (1, 'Development', NULL)
+    `);
+
+    const response = await request(app).delete("/api/categories/1");
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain("Cannot delete the 'Other' subcategory");
+
+    // Verify NOT deleted
+    const result = testDb.prepare('SELECT * FROM "Categories" WHERE id = 1').get();
+    expect(result).toBeDefined();
   });
 
   it("handles non-existent id gracefully", async () => {
@@ -197,24 +213,42 @@ describe("POST /api/categories/lookup", () => {
     expect(result.subcategory).toBe("NewSub");
   });
 
-  it("handles empty subcategory", async () => {
+  it("handles empty subcategory (converts to NULL for 'Other')", async () => {
     const response = await request(app)
       .post("/api/categories/lookup")
       .send({ category: "Development", subcategory: "" });
 
     expect(response.status).toBe(200);
     expect(response.body.category).toBe("Development");
-    expect(response.body.subcategory).toBe("");
+    // Empty string is converted to NULL (represents "Other")
+    expect(response.body.subcategory).toBeNull();
   });
 
-  it("handles missing subcategory", async () => {
+  it("handles missing subcategory (defaults to NULL for 'Other')", async () => {
     const response = await request(app)
       .post("/api/categories/lookup")
       .send({ category: "Development" });
 
     expect(response.status).toBe(200);
     expect(response.body.category).toBe("Development");
-    expect(response.body.subcategory).toBe("");
+    // Missing subcategory is treated as NULL (represents "Other")
+    expect(response.body.subcategory).toBeNull();
+  });
+
+  it("finds existing NULL subcategory row", async () => {
+    testDb.exec(`
+      INSERT INTO "Categories" (id, category, subcategory)
+      VALUES (1, 'Development', NULL)
+    `);
+
+    const response = await request(app)
+      .post("/api/categories/lookup")
+      .send({ category: "Development", subcategory: "" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.id).toBe(1);
+    expect(response.body.category).toBe("Development");
+    expect(response.body.subcategory).toBeNull();
   });
 
   it("returns 400 when category is missing", async () => {
@@ -321,5 +355,49 @@ describe("Validation", () => {
       expect(response.status).toBe(400);
       expect(response.body.error).toContain("Invalid id format");
     });
+  });
+});
+
+describe("POST /api/categories/import", () => {
+  it("converts 'Other' subcategory to NULL", async () => {
+    const response = await request(app)
+      .post("/api/categories/import")
+      .send([
+        { category: "Development", subcategory: "Other" },
+        { category: "Development", subcategory: "Core" }
+      ]);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+
+    // Verify "Other" was converted to NULL
+    const otherRow = testDb.prepare(
+      'SELECT * FROM "Categories" WHERE category = ? AND subcategory IS NULL'
+    ).get("Development") as { id: number; subcategory: string | null } | undefined;
+    expect(otherRow).toBeDefined();
+    expect(otherRow?.subcategory).toBeNull();
+
+    // Verify regular subcategory was preserved
+    const coreRow = testDb.prepare(
+      'SELECT * FROM "Categories" WHERE category = ? AND subcategory = ?'
+    ).get("Development", "Core") as { subcategory: string } | undefined;
+    expect(coreRow?.subcategory).toBe("Core");
+  });
+
+  it("converts empty string subcategory to NULL", async () => {
+    const response = await request(app)
+      .post("/api/categories/import")
+      .send([
+        { category: "Marketing", subcategory: "" }
+      ]);
+
+    expect(response.status).toBe(200);
+
+    // Verify empty string was converted to NULL
+    const row = testDb.prepare(
+      'SELECT * FROM "Categories" WHERE category = ? AND subcategory IS NULL'
+    ).get("Marketing") as { subcategory: string | null } | undefined;
+    expect(row).toBeDefined();
+    expect(row?.subcategory).toBeNull();
   });
 });

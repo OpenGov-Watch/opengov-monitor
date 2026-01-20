@@ -46,6 +46,7 @@ Quick overview of key implementation patterns. Links to code, doesn't show code.
 
 **API:**
 - [api/architecture.md](03_design/api/architecture.md) - Express API architecture
+- [api/import-system.md](03_design/api/import-system.md) - Import validation architecture
 
 **Frontend:**
 - [frontend/architecture.md](03_design/frontend/architecture.md) - Frontend React architecture
@@ -63,7 +64,8 @@ Quick overview of key implementation patterns. Links to code, doesn't show code.
 
 Step-by-step guides for using features. Code examples included.
 
-- [categories.md](howtos/categories.md) - Managing spending categories, bulk imports, apply defaults
+- [categories.md](howtos/categories.md) - Managing spending categories
+- [importing-data.md](howtos/importing-data.md) - Bulk importing data via CSV
 - [dashboard.md](howtos/dashboard.md) - Creating custom dashboards
 - [data-table.md](howtos/data-table.md) - Creating table pages with DataTable
 - [filters.md](howtos/filters.md) - Using faceted filters, global search, advanced filters

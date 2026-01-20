@@ -16,12 +16,14 @@ interface EditableCategoryCellProps {
   value: string | null;
   categories: Category[];
   onChange: (category: string | null) => void;
+  parentCategory?: string | null;
 }
 
 export function EditableCategoryCell({
   value,
   categories,
   onChange,
+  parentCategory,
 }: EditableCategoryCellProps) {
   const uniqueCategories = [...new Set(categories.map((c) => c.category).filter(c => c && c !== ""))].sort();
 
@@ -31,7 +33,11 @@ export function EditableCategoryCell({
       onValueChange={(val) => onChange(val === "__none__" ? null : val)}
     >
       <SelectTrigger className="h-8 w-[140px] text-left">
-        <SelectValue placeholder="Select..." />
+        {!value && parentCategory ? (
+          <span className="text-muted-foreground truncate">{parentCategory}</span>
+        ) : (
+          <SelectValue placeholder="Select..." />
+        )}
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="__none__">
@@ -52,6 +58,8 @@ interface EditableSubcategoryCellProps {
   category: string | null;
   categories: Category[];
   onChange: (subcategory: string | null) => void;
+  parentCategory?: string | null;
+  parentSubcategory?: string | null;
 }
 
 export function EditableSubcategoryCell({
@@ -59,28 +67,56 @@ export function EditableSubcategoryCell({
   category,
   categories,
   onChange,
+  parentCategory,
+  parentSubcategory,
 }: EditableSubcategoryCellProps) {
+  // Use selected category, or fall back to parent category for subcategory filtering
+  const effectiveCategory = category || parentCategory || null;
+  // Get all subcategories for the effective category, including NULL (Other)
   const availableSubcategories = categories
-    .filter((c) => c.category === category && c.subcategory && c.subcategory !== "")
+    .filter((c) => c.category === effectiveCategory)
     .map((c) => c.subcategory)
-    .sort();
+    // Sort: non-null values alphabetically, NULL (Other) at end
+    .sort((a, b) => {
+      if (a === null) return 1;
+      if (b === null) return -1;
+      return a.localeCompare(b);
+    });
+
+  // Display value: NULL -> "Other"
+  const displayValue = value === null ? "Other" : value;
 
   return (
     <Select
-      value={value && value !== "" ? value : "__none__"}
-      onValueChange={(val) => onChange(val === "__none__" ? null : val)}
-      disabled={!category}
+      value={displayValue && displayValue !== "" ? displayValue : "__none__"}
+      onValueChange={(val) => {
+        if (val === "__none__") {
+          onChange(null);
+        } else if (val === "Other") {
+          // "Other" in UI = NULL in database
+          onChange(null);
+        } else {
+          onChange(val);
+        }
+      }}
+      disabled={!effectiveCategory}
     >
       <SelectTrigger className="h-8 w-[160px] text-left">
-        <SelectValue placeholder={category ? "Select..." : "Select category first"} />
+        {!value && !category && parentSubcategory ? (
+          <span className="text-muted-foreground truncate">
+            {parentSubcategory === null ? "Other" : parentSubcategory}
+          </span>
+        ) : (
+          <SelectValue placeholder={effectiveCategory ? "Select..." : "Select category first"} />
+        )}
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="__none__">
           <span className="text-muted-foreground">None</span>
         </SelectItem>
         {availableSubcategories.map((sub) => (
-          <SelectItem key={sub} value={sub}>
-            {sub}
+          <SelectItem key={sub === null ? "__other__" : sub} value={sub === null ? "Other" : sub}>
+            {sub === null ? "Other" : sub}
           </SelectItem>
         ))}
       </SelectContent>
@@ -177,7 +213,12 @@ export function CategorySelector({
   const availableSubcategories = useMemo(
     () => categories
       .filter((c) => c.category === effectiveCategory)
-      .sort((a, b) => a.subcategory.localeCompare(b.subcategory)),
+      // Sort: non-null values alphabetically, NULL (Other) at end
+      .sort((a, b) => {
+        if (a.subcategory === null) return 1;
+        if (b.subcategory === null) return -1;
+        return a.subcategory.localeCompare(b.subcategory);
+      }),
     [categories, effectiveCategory]
   );
 
@@ -194,12 +235,12 @@ export function CategorySelector({
 
     // If current subcategory exists in new category → keep it
     const subcategoryExists = subs.some((s) => s.subcategory === currentSubcategory);
-    if (subcategoryExists && currentSubcategory) {
+    if (subcategoryExists && currentSubcategory !== undefined) {
       const catId = findCategoryId(cat, currentSubcategory, categories);
       onChange(catId);
     } else {
-      // Default to "Other"
-      const otherCatId = findCategoryId(cat, "Other", categories);
+      // Default to "Other" (NULL subcategory)
+      const otherCatId = findCategoryId(cat, null, categories);
       onChange(otherCatId !== null ? otherCatId : subs[0]?.id || null);
     }
   };
@@ -265,8 +306,8 @@ export function CategorySelector({
         value={categoryId?.toString() || "__none__"}
         onValueChange={(val) => {
           if (val === "__none__") {
-            // Use effectiveCategory (selected or inherited) to find "Other"
-            const otherCatId = findCategoryId(effectiveCategory, "Other", categories);
+            // Use effectiveCategory (selected or inherited) to find "Other" (NULL subcategory)
+            const otherCatId = findCategoryId(effectiveCategory, null, categories);
             onChange(otherCatId !== null ? otherCatId : null);
           } else {
             onChange(parseInt(val));
@@ -278,8 +319,10 @@ export function CategorySelector({
           className={cn("h-8 w-[140px] text-xs", !effectiveCategory && "opacity-50")}
         >
           {/* Show parent subcategory as grayed placeholder when using inherited category */}
-          {!selectedCat && parentSubcategory && !categoryId ? (
-            <span className="text-muted-foreground truncate">{parentSubcategory}</span>
+          {!selectedCat && parentSubcategory !== undefined && !categoryId ? (
+            <span className="text-muted-foreground truncate">
+              {parentSubcategory === null ? "Other" : parentSubcategory}
+            </span>
           ) : (
             <SelectValue placeholder="None" />
           )}
@@ -290,7 +333,7 @@ export function CategorySelector({
           </SelectItem>
           {availableSubcategories.map((cat) => (
             <SelectItem key={cat.id} value={cat.id.toString()}>
-              {cat.subcategory || "(default)"}
+              {cat.subcategory === null ? "Other" : cat.subcategory}
             </SelectItem>
           ))}
         </SelectContent>
@@ -321,14 +364,14 @@ export function ReadOnlyCategorySelector({
   );
   const current = categoryMap.get(categoryId ?? -1);
 
-  if (!current && (parentCategory || parentSubcategory)) {
+  if (!current && (parentCategory || parentSubcategory !== undefined)) {
     return (
       <span className="text-xs text-muted-foreground">
         {parentCategory || ""}
-        {parentSubcategory && (
+        {parentSubcategory !== undefined && (
           <>
             <ChevronRight className="inline h-3 w-3 mx-0.5" />
-            {parentSubcategory}
+            {parentSubcategory === null ? "Other" : parentSubcategory}
           </>
         )}
       </span>
@@ -342,12 +385,8 @@ export function ReadOnlyCategorySelector({
   return (
     <span className="text-xs">
       {current.category}
-      {current.subcategory && (
-        <>
-          <ChevronRight className="inline h-3 w-3 mx-0.5 text-muted-foreground" />
-          {current.subcategory}
-        </>
-      )}
+      <ChevronRight className="inline h-3 w-3 mx-0.5 text-muted-foreground" />
+      {current.subcategory === null ? "Other" : current.subcategory}
     </span>
   );
 }
@@ -375,7 +414,13 @@ export function ReadOnlyHideCheckbox({ value }: ReadOnlyHideCheckboxProps) {
   return <Checkbox checked={value === 1} disabled className="opacity-60" />;
 }
 
+// Helper function to display subcategory: NULL -> "Other"
+export function displaySubcategory(subcategory: string | null): string {
+  return subcategory === null ? "Other" : subcategory;
+}
+
 // Helper function to find category_id for a given category/subcategory combination
+// "Other" subcategory maps to NULL in the database
 export function findCategoryId(
   category: string | null,
   subcategory: string | null,
@@ -383,25 +428,34 @@ export function findCategoryId(
 ): number | null {
   if (!category) return null;
 
-  // If subcategory provided, find exact match
-  if (subcategory) {
+  // "Other" subcategory = NULL subcategory in DB
+  const normalizedSubcategory = subcategory === "Other" ? null : subcategory;
+
+  // If subcategory provided (or "Other"), find exact match
+  if (normalizedSubcategory !== null) {
     const match = categories.find(
-      (c) => c.category === category && c.subcategory === subcategory
+      (c) => c.category === category && c.subcategory === normalizedSubcategory
     );
     return match?.id ?? null;
   }
 
-  // If no subcategory, find first match for this category
-  const match = categories.find((c) => c.category === category);
+  // Find NULL subcategory (Other)
+  const match = categories.find(
+    (c) => c.category === category && c.subcategory === null
+  );
   return match?.id ?? null;
 }
 
 // Read-only display for split category column
 interface ReadOnlyCategoryCellProps {
   value: string | null;
+  parentCategory?: string | null;
 }
 
-export function ReadOnlyCategoryCell({ value }: ReadOnlyCategoryCellProps) {
+export function ReadOnlyCategoryCell({ value, parentCategory }: ReadOnlyCategoryCellProps) {
+  if (!value && parentCategory) {
+    return <span className="text-muted-foreground text-xs">{parentCategory}</span>;
+  }
   if (!value) {
     return <span className="text-muted-foreground text-xs">-</span>;
   }
@@ -411,11 +465,19 @@ export function ReadOnlyCategoryCell({ value }: ReadOnlyCategoryCellProps) {
 // Read-only display for split subcategory column
 interface ReadOnlySubcategoryCellProps {
   value: string | null;
+  parentSubcategory?: string | null;
 }
 
-export function ReadOnlySubcategoryCell({ value }: ReadOnlySubcategoryCellProps) {
-  if (!value) {
+export function ReadOnlySubcategoryCell({ value, parentSubcategory }: ReadOnlySubcategoryCellProps) {
+  // Display "Other" for NULL subcategory
+  const displayValue = value === null ? "Other" : value;
+  const displayParent = parentSubcategory === null ? "Other" : parentSubcategory;
+
+  if (!displayValue && displayParent) {
+    return <span className="text-muted-foreground text-xs">{displayParent}</span>;
+  }
+  if (!displayValue) {
     return <span className="text-muted-foreground text-xs">-</span>;
   }
-  return <span className="text-xs">{value}</span>;
+  return <span className="text-xs">{displayValue}</span>;
 }

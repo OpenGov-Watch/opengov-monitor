@@ -52,13 +52,13 @@ beforeAll(() => {
 beforeEach(() => {
   testDb.exec('DELETE FROM "Bounties"');
   testDb.exec('DELETE FROM "Categories"');
-  // Insert test categories
+  // Insert test categories (NULL subcategory = "Other")
   testDb.exec(`
     INSERT INTO "Categories" (id, category, subcategory)
     VALUES
       (1, 'Development', 'Core'),
       (2, 'Marketing', 'Events'),
-      (3, 'Development', '')
+      (3, 'Development', NULL)
   `);
 });
 

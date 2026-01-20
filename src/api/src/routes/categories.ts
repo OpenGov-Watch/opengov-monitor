@@ -78,7 +78,11 @@ categoriesRouter.delete("/:id", requireAuth, (req, res) => {
       return;
     }
 
-    deleteCategory(id);
+    const result = deleteCategory(id);
+    if (!result.success) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
@@ -87,6 +91,7 @@ categoriesRouter.delete("/:id", requireAuth, (req, res) => {
 
 // POST /categories/import - Bulk import categories
 // Body: Array of { category: string, subcategory: string }
+// Empty string or "Other" subcategory is stored as NULL
 categoriesRouter.post("/import", requireAuth, (req, res) => {
   try {
     const items = req.body;
@@ -114,6 +119,7 @@ categoriesRouter.post("/import", requireAuth, (req, res) => {
     }
 
     // Bulk insert with INSERT OR IGNORE
+    // Empty string or "Other" subcategory is stored as NULL
     const db = getWritableDatabase();
     const stmt = db.prepare(`
       INSERT OR IGNORE INTO Categories (category, subcategory)
@@ -122,7 +128,10 @@ categoriesRouter.post("/import", requireAuth, (req, res) => {
 
     const insertMany = db.transaction((rows: Array<{ category: string, subcategory: string }>) => {
       for (const row of rows) {
-        stmt.run(row.category.trim(), (row.subcategory || "").trim());
+        const subcategory = (row.subcategory || "").trim();
+        // Convert empty string or "Other" to NULL
+        const normalizedSubcategory = subcategory === "" || subcategory === "Other" ? null : subcategory;
+        stmt.run(row.category.trim(), normalizedSubcategory);
       }
     });
 

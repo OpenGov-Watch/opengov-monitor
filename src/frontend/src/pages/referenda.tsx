@@ -10,13 +10,30 @@ import type { Referendum } from "@/lib/db/types";
 const defaultReferendaViews: SavedView[] = [
   {
     name: "All",
+    deletable: false,
     state: {
       sorting: [{ id: "id", desc: true }],
       columnFilters: [],
       columnVisibility: {},
       pagination: { pageIndex: 0, pageSize: 100 },
     },
-    isDefault: true,
+  },
+  {
+    name: "Spends",
+    deletable: false,
+    state: {
+      sorting: [{ id: "id", desc: true }],
+      columnFilters: [],
+      columnVisibility: {},
+      pagination: { pageIndex: 0, pageSize: 100 },
+      filterGroup: {
+        operator: "AND",
+        conditions: [
+          { column: "DOT_proposal_time", operator: ">", value: 0 },
+          { column: "status", operator: "=", value: "Executed" },
+        ],
+      },
+    },
   },
 ];
 
@@ -116,7 +133,6 @@ export default function ReferendaPage() {
         isAuthenticated={isAuthenticated}
         facetedFilters={["status", "track"]}
         columnOverrides={columnOverrides}
-        defaultSorting={[{ id: "id", desc: true }]}
         defaultViews={defaultReferendaViews}
       />
     </div>

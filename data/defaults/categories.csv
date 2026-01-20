@@ -1,4 +1,5 @@
 category,subcategory
+Business Development,
 Business Development,Business Development
 Business Development,DeFi & Fintech Integrations
 Business Development,DevRel
@@ -29,10 +30,12 @@ Development,SDKs
 Development,Smart Contracts
 Development,Software Development
 Development,Wallets
+Economy,
 Economy,DeFi Incentives
 Economy,Loans
 Economy,Market Operations
 Economy,Stablecoins
+Operations,
 Operations,Anti-Scam
 Operations,Data Services & Indexing
 Operations,Ecosystem Services
@@ -40,7 +43,6 @@ Operations,Explorers
 Operations,Governance
 Operations,Infrastructure
 Operations,Legal
-Operations,Other
 Operations,RPCs and Nodes
 Operations,SDKs
 Operations,Software Services
@@ -65,8 +67,8 @@ Outreach,Market Research
 Outreach,NFTs
 Outreach,PR
 Outreach,Ecosystem Services
-Outreach,Other
 Outreach,Social Media & Community Management
+Research,
 Research,Anti-Scam
 Research,Governance
 Research,Infrastructure
@@ -77,6 +79,7 @@ Research,Security
 Research,Smart Contracts
 Research,Software Services
 Research,User Experience
+Talent & Education,
 Talent & Education,Ambassadors & Agents
 Talent & Education,Developer Onboarding
 Talent & Education,Education

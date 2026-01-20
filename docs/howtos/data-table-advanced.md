@@ -290,47 +290,7 @@ const columnOverrides = {
 
 ### Category Inheritance (Child Bounties)
 
-For entities inheriting categories from parents:
-
-```typescript
-const columnOverrides = useMemo(() => ({
-  category_id: {
-    header: "Category",
-    cell: ({ row }: { row: any }) => {
-      const categoryId = row.original.category_id;
-      const parentCategory = row.original.parentCategory;
-      const parentSubcategory = row.original.parentSubcategory;
-
-      if (isAuthenticated) {
-        return (
-          <CategorySelector
-            categoryId={categoryId}
-            categories={categories}
-            onChange={async (newCategoryId) => {
-              await api.childBounties.update(row.original.identifier, {
-                category_id: newCategoryId,
-              });
-            }}
-            parentCategory={parentCategory}
-            parentSubcategory={parentSubcategory}
-          />
-        );
-      }
-
-      return (
-        <ReadOnlyCategorySelector
-          categoryId={categoryId}
-          categories={categories}
-          parentCategory={parentCategory}
-          parentSubcategory={parentSubcategory}
-        />
-      );
-    },
-  },
-}), [isAuthenticated, categories]);
-```
-
-When `category_id` is NULL, displays parent's category as grayed placeholder. See `frontend/src/pages/child-bounties.tsx` for full example.
+For entities inheriting categories from parents, use `editConfig` with `parentCategoryColumn`/`parentSubcategoryColumn`. See [Category Inheritance Guide](./category-inheritance.md).
 
 ---
 

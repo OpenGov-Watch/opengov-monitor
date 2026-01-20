@@ -117,6 +117,48 @@
 
 ---
 
+### US-14: Bulk Data Import
+
+**As an** authenticated admin
+**I want to** bulk import category assignments and flow data via CSV upload or curated defaults
+**So that** I can efficiently maintain data quality without editing rows individually
+
+**Acceptance Criteria:**
+- Import categories first, then entity category assignments (order enforced)
+- Two import methods: CSV upload or "Apply Defaults" from curated files
+- CSV formats support multiple column name variants (case-insensitive, aliases)
+- Pre-validation rejects entire import if any category references don't exist
+- Error messages show first 10 violations with row numbers
+- All-or-nothing transaction semantics (no partial imports)
+- Importable entities: Categories, Referenda, Bounties, Child Bounties, Treasury Netflows, Cross-Chain Flows, Local Flows
+- Empty category fields (`""`, `""`) clear category assignment (sets NULL)
+- Child bounty identifiers normalized (hyphen → underscore)
+- Visual feedback during import (loading state, success/error messages)
+- Import UI available in Sync Settings page (authenticated users only)
+
+---
+
+### US-15: Category Inheritance for Child Bounties
+
+**As an** admin categorizing child bounties
+**I want to** see the parent bounty's category when no override is set
+**So that** I know what category a child bounty inherits before deciding to override it
+
+**Acceptance Criteria:**
+- When child bounty has no category set, show parent's category/subcategory as grayed placeholder
+- User can select a different subcategory based on the inherited category
+- User can select a different category; if current subcategory is invalid for new category, default to "Other"
+- User can select "None" for category to revert to inherited category
+- After selecting a category, selecting "None" reverts to inherited; subcategory stays if valid, else defaults to inherited
+- Changes update UI immediately (optimistic update) without page reload
+- NULL subcategory displays as "Other" in all UI (it's the default subcategory for each category)
+- NULL subcategory rows cannot be deleted (they're required for each category)
+- Entities without parents show "None" option (no category)
+
+**Implementation:** See [Category Inheritance Guide](../howtos/category-inheritance.md)
+
+---
+
 ## Presentation
 
 ### US-2: View Management

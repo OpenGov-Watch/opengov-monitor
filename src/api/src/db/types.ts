@@ -124,7 +124,7 @@ export interface FellowshipSalaryPayment {
 export interface Category {
   id: number;
   category: string;
-  subcategory: string;
+  subcategory: string | null;  // NULL = "Other" (default subcategory)
 }
 
 export interface Bounty {

@@ -127,7 +127,7 @@ export interface FellowshipSalaryPayment {
 export interface Category {
   id: number;
   category: string;
-  subcategory: string;
+  subcategory: string | null;  // NULL = "Other" (default subcategory)
 }
 
 export interface Bounty {
@@ -450,6 +450,9 @@ export interface EditableColumnConfig {
   onUpdate: (id: any, value: any) => void | Promise<void>;
   categories?: Category[];  // For category-selector
   placeholder?: string;     // For text
+  // For child bounties: columns containing parent category data
+  parentCategoryColumn?: string;
+  parentSubcategoryColumn?: string;
 }
 
 export interface DataTableEditConfig {

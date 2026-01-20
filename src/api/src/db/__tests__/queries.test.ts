@@ -142,12 +142,27 @@ describe("Database Queries", () => {
     });
 
     describe("deleteCategory", () => {
-      it("deletes existing category", () => {
-        const created = queries.createCategory("ToDelete", "ToDelete");
-        expect(queries.getCategories()).toHaveLength(1);
+      it("deletes existing category with non-null subcategory", () => {
+        const created = queries.createCategory("ToDelete", "ToDeleteSub");
+        // createCategory also auto-creates NULL subcategory row, so expect 2
+        expect(queries.getCategories()).toHaveLength(2);
 
-        queries.deleteCategory(created.id);
-        expect(queries.getCategories()).toHaveLength(0);
+        const result = queries.deleteCategory(created.id);
+        expect(result.success).toBe(true);
+        // Only NULL subcategory row remains
+        expect(queries.getCategories()).toHaveLength(1);
+      });
+
+      it("prevents deletion of NULL subcategory row", () => {
+        // Creating with non-null subcategory auto-creates NULL subcategory row
+        const created = queries.createCategory("Development", "SDK");
+        const categories = queries.getCategories();
+        const nullSubcatRow = categories.find(c => c.category === "Development" && c.subcategory === null);
+
+        expect(nullSubcatRow).toBeDefined();
+        const result = queries.deleteCategory(nullSubcatRow!.id);
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("Cannot delete");
       });
     });
   });
@@ -647,12 +662,13 @@ describe("Database Queries", () => {
         expect(result.subcategory).toBe("NewSubcategory");
       });
 
-      it("handles empty subcategory", () => {
+      it("handles empty subcategory (converts to NULL for Other)", () => {
         const result = queries.findOrCreateCategory("Marketing", "");
 
         expect(result.id).toBeDefined();
         expect(result.category).toBe("Marketing");
-        expect(result.subcategory).toBe("");
+        // Empty string is converted to NULL (represents "Other")
+        expect(result.subcategory).toBeNull();
       });
     });
   });

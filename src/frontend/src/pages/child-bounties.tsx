@@ -5,10 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { subsquareUrls } from "@/lib/urls";
 import { useAuth } from "@/contexts/auth-context";
 import { SavedView } from "@/hooks/use-view-state";
-import {
-  CategorySelector,
-  ReadOnlyCategorySelector,
-} from "@/components/data-table/editable-cells";
 import type {
   ChildBounty,
   Category,
@@ -37,13 +33,13 @@ function getStatusVariant(
 const defaultChildBountiesViews: SavedView[] = [
   {
     name: "All",
+    deletable: false,
     state: {
       sorting: [{ id: "latest_status_change", desc: true }],
       columnFilters: [],
       columnVisibility: {},
       pagination: { pageIndex: 0, pageSize: 100 },
     },
-    isDefault: true,
   },
 ];
 
@@ -120,6 +116,9 @@ export default function ChildBountiesPage() {
           onUpdate: async (id, val) => {
             await api.childBounties.update(id, { category_id: val });
           },
+          // Tell auto-columns which columns have parent category data
+          parentCategoryColumn: "parentCategory",
+          parentSubcategoryColumn: "parentSubcategory",
         },
         notes: {
           type: "text",
@@ -185,41 +184,9 @@ export default function ChildBountiesPage() {
           return <Badge variant={variant}>{status}</Badge>;
         },
       },
-      category_id: {
-        header: "Category",
-        cell: ({ row }: { row: any }) => {
-          const categoryId = row.original.category_id;
-          const parentCategory = row.original.parentCategory;
-          const parentSubcategory = row.original.parentSubcategory;
-
-          if (isAuthenticated) {
-            return (
-              <CategorySelector
-                categoryId={categoryId}
-                categories={categories}
-                onChange={async (newCategoryId) => {
-                  await api.childBounties.update(row.original.identifier, {
-                    category_id: newCategoryId,
-                  });
-                }}
-                parentCategory={parentCategory}
-                parentSubcategory={parentSubcategory}
-              />
-            );
-          }
-
-          return (
-            <ReadOnlyCategorySelector
-              categoryId={categoryId}
-              categories={categories}
-              parentCategory={parentCategory}
-              parentSubcategory={parentSubcategory}
-            />
-          );
-        },
-      },
+      // category_id is handled by auto-columns with parent inheritance support
     }),
-    [isAuthenticated, categories]
+    []
   );
 
   return (
@@ -237,7 +204,6 @@ export default function ChildBountiesPage() {
         isAuthenticated={isAuthenticated}
         facetedFilters={["status"]}
         columnOverrides={columnOverrides}
-        defaultSorting={[{ id: "latest_status_change", desc: true }]}
         defaultViews={defaultChildBountiesViews}
       />
     </div>

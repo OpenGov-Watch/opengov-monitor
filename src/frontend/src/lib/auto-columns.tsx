@@ -97,6 +97,7 @@ export function generateColumns<TData>(
       if (columnName === 'category') {
         const hasDotNotation = columnName.includes(".");
         const columnId = hasDotNotation ? columnName.replace(/\./g, "_") : columnName;
+        const parentCatCol = categoryEditConfig.parentCategoryColumn;
 
         return {
           id: columnId,
@@ -109,12 +110,14 @@ export function generateColumns<TData>(
           cell: ({ row }) => {
             const value = hasDotNotation ? (row.original as any)[columnName] : row.getValue(columnId);
             const rowId = (row.original as any)[idField];
+            const parentCategory = parentCatCol ? (row.original as any)[parentCatCol] : null;
 
             if (isAuthenticated) {
               return (
                 <EditableCategoryCell
                   value={value as string}
                   categories={categoryEditConfig.categories || []}
+                  parentCategory={parentCategory}
                   onChange={(newCategory) => {
                     // When category changes, clear subcategory (pass null) to find first match for new category
                     const categoryId = findCategoryId(newCategory, null, categoryEditConfig.categories || []);
@@ -123,7 +126,7 @@ export function generateColumns<TData>(
                 />
               );
             } else {
-              return <ReadOnlyCategoryCell value={value as string} />;
+              return <ReadOnlyCategoryCell value={value as string} parentCategory={parentCategory} />;
             }
           },
         } as ColumnDef<TData>;
@@ -133,6 +136,8 @@ export function generateColumns<TData>(
       if (columnName === 'subcategory') {
         const hasDotNotation = columnName.includes(".");
         const columnId = hasDotNotation ? columnName.replace(/\./g, "_") : columnName;
+        const parentCatCol = categoryEditConfig.parentCategoryColumn;
+        const parentSubcatCol = categoryEditConfig.parentSubcategoryColumn;
 
         return {
           id: columnId,
@@ -146,6 +151,8 @@ export function generateColumns<TData>(
             const value = hasDotNotation ? (row.original as any)[columnName] : row.getValue(columnId);
             const rowId = (row.original as any)[idField];
             const category = (row.original as any)['category'];
+            const parentCategory = parentCatCol ? (row.original as any)[parentCatCol] : null;
+            const parentSubcategory = parentSubcatCol ? (row.original as any)[parentSubcatCol] : null;
 
             if (isAuthenticated) {
               return (
@@ -153,14 +160,18 @@ export function generateColumns<TData>(
                   value={value as string}
                   category={category as string}
                   categories={categoryEditConfig.categories || []}
+                  parentCategory={parentCategory}
+                  parentSubcategory={parentSubcategory}
                   onChange={(newSubcategory) => {
-                    const categoryId = findCategoryId(category, newSubcategory, categoryEditConfig.categories || []);
+                    // Use effective category (selected or inherited from parent)
+                    const effectiveCategory = category || parentCategory;
+                    const categoryId = findCategoryId(effectiveCategory, newSubcategory, categoryEditConfig.categories || []);
                     categoryEditConfig.onUpdate(rowId, categoryId);
                   }}
                 />
               );
             } else {
-              return <ReadOnlySubcategoryCell value={value as string} />;
+              return <ReadOnlySubcategoryCell value={value as string} parentSubcategory={parentSubcategory} />;
             }
           },
         } as ColumnDef<TData>;

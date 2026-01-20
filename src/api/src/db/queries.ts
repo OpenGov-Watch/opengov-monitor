@@ -85,11 +85,18 @@ export function getCategories(): Category[] {
     .all() as Category[];
 }
 
-export function findOrCreateCategory(category: string, subcategory: string): Category {
+export function findOrCreateCategory(category: string, subcategory: string | null): Category {
   const db = getWritableDatabase();
-  const existing = db.prepare(`
-    SELECT * FROM "${TABLE_NAMES.categories}" WHERE category = ? AND subcategory = ?
-  `).get(category, subcategory) as Category | undefined;
+  // Treat empty string as NULL (representing "Other")
+  const normalizedSubcategory = subcategory === "" ? null : subcategory;
+
+  const existing = normalizedSubcategory === null
+    ? db.prepare(`
+        SELECT * FROM "${TABLE_NAMES.categories}" WHERE category = ? AND subcategory IS NULL
+      `).get(category) as Category | undefined
+    : db.prepare(`
+        SELECT * FROM "${TABLE_NAMES.categories}" WHERE category = ? AND subcategory = ?
+      `).get(category, normalizedSubcategory) as Category | undefined;
 
   if (existing) {
     return existing;
@@ -97,27 +104,59 @@ export function findOrCreateCategory(category: string, subcategory: string): Cat
 
   const result = db.prepare(`
     INSERT INTO "${TABLE_NAMES.categories}" (category, subcategory) VALUES (?, ?)
-  `).run(category, subcategory);
-  return { id: result.lastInsertRowid as number, category, subcategory };
+  `).run(category, normalizedSubcategory);
+  return { id: result.lastInsertRowid as number, category, subcategory: normalizedSubcategory };
 }
 
-export function createCategory(category: string, subcategory: string): Category {
+export function createCategory(category: string, subcategory: string | null): Category {
   const db = getWritableDatabase();
+  // Treat empty string as NULL (representing "Other")
+  const normalizedSubcategory = subcategory === "" ? null : subcategory;
+
   const result = db
     .prepare(`INSERT INTO "${TABLE_NAMES.categories}" (category, subcategory) VALUES (?, ?)`)
-    .run(category, subcategory);
-  return { id: result.lastInsertRowid as number, category, subcategory };
+    .run(category, normalizedSubcategory);
+
+  // Auto-create NULL subcategory row if it doesn't exist and we're creating a non-NULL subcategory
+  if (normalizedSubcategory !== null) {
+    const nullSubcategoryExists = db.prepare(`
+      SELECT 1 FROM "${TABLE_NAMES.categories}" WHERE category = ? AND subcategory IS NULL
+    `).get(category);
+
+    if (!nullSubcategoryExists) {
+      db.prepare(`INSERT INTO "${TABLE_NAMES.categories}" (category, subcategory) VALUES (?, NULL)`).run(category);
+    }
+  }
+
+  return { id: result.lastInsertRowid as number, category, subcategory: normalizedSubcategory };
 }
 
-export function updateCategory(id: number, category: string, subcategory: string): void {
+export function updateCategory(id: number, category: string, subcategory: string | null): void {
   const db = getWritableDatabase();
+  // Treat empty string as NULL (representing "Other")
+  const normalizedSubcategory = subcategory === "" ? null : subcategory;
   db.prepare(`UPDATE "${TABLE_NAMES.categories}" SET category = ?, subcategory = ? WHERE id = ?`)
-    .run(category, subcategory, id);
+    .run(category, normalizedSubcategory, id);
 }
 
-export function deleteCategory(id: number): void {
+export function getCategoryById(id: number): Category | undefined {
+  const db = getDatabase();
+  return db
+    .prepare(`SELECT * FROM "${TABLE_NAMES.categories}" WHERE id = ?`)
+    .get(id) as Category | undefined;
+}
+
+export function deleteCategory(id: number): { success: boolean; error?: string } {
   const db = getWritableDatabase();
+
+  // Check if this is a NULL subcategory row (cannot be deleted)
+  const category = db.prepare(`SELECT * FROM "${TABLE_NAMES.categories}" WHERE id = ?`).get(id) as Category | undefined;
+  if (category && category.subcategory === null) {
+    return { success: false, error: "Cannot delete the 'Other' subcategory. It is required for each category." };
+  }
+
   db.prepare(`DELETE FROM "${TABLE_NAMES.categories}" WHERE id = ?`).run(id);
+  return { success: true };
 }
 
 // Manual Tables - Bounties (Parent)
@@ -498,6 +537,43 @@ export function updateReferendum(id: number, data: ReferendumUpdate): void {
 
 // Bulk update referenda from CSV import
 
+// Helper function to lookup category by category/subcategory strings
+// Empty string or "Other" subcategory maps to NULL subcategory in database
+function lookupCategoryId(db: ReturnType<typeof getWritableDatabase>, category: string, subcategory: string): number | null {
+  // Normalize: empty string or "Other" becomes NULL
+  const normalizedSubcategory = subcategory === "" || subcategory === "Other" ? null : subcategory;
+
+  const existingCategory = normalizedSubcategory === null
+    ? db.prepare(`
+        SELECT id FROM "${TABLE_NAMES.categories}"
+        WHERE category = ? AND subcategory IS NULL
+      `).get(category) as { id: number } | undefined
+    : db.prepare(`
+        SELECT id FROM "${TABLE_NAMES.categories}"
+        WHERE category = ? AND subcategory = ?
+      `).get(category, normalizedSubcategory) as { id: number } | undefined;
+
+  return existingCategory?.id ?? null;
+}
+
+// Helper function to check if category exists
+function categoryExists(db: ReturnType<typeof getWritableDatabase>, category: string, subcategory: string): boolean {
+  // Normalize: empty string or "Other" becomes NULL
+  const normalizedSubcategory = subcategory === "" || subcategory === "Other" ? null : subcategory;
+
+  const exists = normalizedSubcategory === null
+    ? db.prepare(`
+        SELECT 1 FROM "${TABLE_NAMES.categories}"
+        WHERE category = ? AND subcategory IS NULL
+      `).get(category)
+    : db.prepare(`
+        SELECT 1 FROM "${TABLE_NAMES.categories}"
+        WHERE category = ? AND subcategory = ?
+      `).get(category, normalizedSubcategory);
+
+  return !!exists;
+}
+
 export function bulkUpdateReferenda(items: ReferendumImportItem[]): number {
   const db = getWritableDatabase();
 
@@ -518,12 +594,7 @@ export function bulkUpdateReferenda(items: ReferendumImportItem[]): number {
       }
 
       // Check if this category/subcategory combination exists
-      const exists = db.prepare(`
-        SELECT 1 FROM "${TABLE_NAMES.categories}"
-        WHERE category = ? AND subcategory = ?
-      `).get(category, subcategory);
-
-      if (!exists) {
+      if (!categoryExists(db, category, subcategory)) {
         violations.push({
           row: i + 2, // +2 for header row + 0-index
           id: item.id,
@@ -564,13 +635,7 @@ export function bulkUpdateReferenda(items: ReferendumImportItem[]): number {
         // Option B: Category/subcategory strings provided - lookup only (no auto-create)
         const category = item.category || "";
         const subcategory = item.subcategory || "";
-
-        const existingCategory = db.prepare(`
-          SELECT id FROM "${TABLE_NAMES.categories}"
-          WHERE category = ? AND subcategory = ?
-        `).get(category, subcategory) as { id: number } | undefined;
-
-        categoryId = existingCategory?.id ?? null;
+        categoryId = lookupCategoryId(db, category, subcategory);
       }
 
       const result = stmt.run(
@@ -639,12 +704,7 @@ export function bulkUpdateChildBounties(items: ChildBountyImportItem[]): number 
       const subcategory = item.subcategory || "";
 
       // Check if this category/subcategory combination exists
-      const exists = db.prepare(`
-        SELECT 1 FROM "${TABLE_NAMES.categories}"
-        WHERE category = ? AND subcategory = ?
-      `).get(category, subcategory);
-
-      if (!exists) {
+      if (!categoryExists(db, category, subcategory)) {
         violations.push({
           row: i + 2, // +2 for header row + 0-index
           identifier: item.identifier,
@@ -688,13 +748,7 @@ export function bulkUpdateChildBounties(items: ChildBountyImportItem[]): number 
         // Option B: Category/subcategory strings provided - lookup only (no auto-create)
         const category = item.category || "";
         const subcategory = item.subcategory || "";
-
-        const existingCategory = db.prepare(`
-          SELECT id FROM "${TABLE_NAMES.categories}"
-          WHERE category = ? AND subcategory = ?
-        `).get(category, subcategory) as { id: number } | undefined;
-
-        categoryId = existingCategory?.id ?? null;
+        categoryId = lookupCategoryId(db, category, subcategory);
       }
 
       const result = stmt.run(
@@ -733,12 +787,7 @@ export function bulkUpdateBounties(items: BountyImportItem[]): number {
       }
 
       // Check if this category/subcategory combination exists
-      const exists = db.prepare(`
-        SELECT 1 FROM "${TABLE_NAMES.categories}"
-        WHERE category = ? AND subcategory = ?
-      `).get(category, subcategory);
-
-      if (!exists) {
+      if (!categoryExists(db, category, subcategory)) {
         violations.push({
           row: i + 2, // +2 for header row + 0-index
           id: item.id,
@@ -782,13 +831,7 @@ export function bulkUpdateBounties(items: BountyImportItem[]): number {
         // Option B: Category/subcategory strings provided - lookup only (no auto-create)
         const category = item.category || "";
         const subcategory = item.subcategory || "";
-
-        const existingCategory = db.prepare(`
-          SELECT id FROM "${TABLE_NAMES.categories}"
-          WHERE category = ? AND subcategory = ?
-        `).get(category, subcategory) as { id: number } | undefined;
-
-        categoryId = existingCategory?.id ?? null;
+        categoryId = lookupCategoryId(db, category, subcategory);
       }
 
       // UPSERT: creates bounty if not exists, updates if exists

@@ -437,7 +437,8 @@ describe("Apply Defaults Integration Tests", () => {
 
       expect(categoryResponse.status).toBe(200);
       expect(categoryResponse.body.category).toBe("Development");
-      expect(categoryResponse.body.subcategory).toBe("");
+      // Empty string is converted to NULL (represents "Other")
+      expect(categoryResponse.body.subcategory).toBeNull();
     });
 
     it("should handle hide_in_spends flags", async () => {

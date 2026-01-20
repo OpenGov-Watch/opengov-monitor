@@ -7,23 +7,13 @@ import type { TreasurySpend } from "@/lib/db/types";
 const defaultTreasuryViews: SavedView[] = [
   {
     name: "All",
+    deletable: false,
     state: {
       sorting: [{ id: "id", desc: true }],
       columnFilters: [],
       columnVisibility: {},
       pagination: { pageIndex: 0, pageSize: 100 },
     },
-    isDefault: true,
-  },
-  {
-    name: "Positive DOT Value",
-    state: {
-      sorting: [{ id: "id", desc: true }],
-      columnFilters: [{ id: "DOT_proposal_time", value: "positive" }],
-      columnVisibility: {},
-      pagination: { pageIndex: 0, pageSize: 100 },
-    },
-    isDefault: true,
   },
 ];
 
@@ -66,10 +56,10 @@ export default function TreasuryPage() {
   }), []);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Treasury</h1>
-        <p className="text-muted-foreground">
+    <div className="flex flex-col flex-1 min-h-0 gap-4">
+      <div className="flex-shrink-0">
+        <h1 className="text-2xl font-bold tracking-tight">Treasury</h1>
+        <p className="text-muted-foreground text-sm">
           Browse and filter treasury spend proposals
         </p>
       </div>
@@ -78,7 +68,6 @@ export default function TreasuryPage() {
         tableName="treasury"
         facetedFilters={["status"]}
         columnOverrides={columnOverrides}
-        defaultSorting={[{ id: "id", desc: true }]}
         defaultViews={defaultTreasuryViews}
       />
     </div>

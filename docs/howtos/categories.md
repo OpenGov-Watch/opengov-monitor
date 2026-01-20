@@ -9,18 +9,19 @@ Categories organize spending data with a two-level hierarchy: category → subca
 Development
   ├─ Infrastructure
   ├─ Smart Contracts
-  └─ Other
+  └─ Other (NULL subcategory)
 
 Outreach
   ├─ Events
   ├─ Content Creation
-  └─ Other
+  └─ Other (NULL subcategory)
 ```
 
 **Database Model:**
 - Categories table: `(id, category, subcategory)` with unique constraint on pair
 - Entities reference via `category_id` foreign key
 - NULL `category_id` = no category assigned
+- NULL `subcategory` = "Other" (default subcategory, displayed as "Other" in UI)
 
 ## Managing Categories
 
@@ -39,9 +40,10 @@ Outreach
    ```csv
    category,subcategory
    Development,Infrastructure
-   Development,Other
+   Development,
    Outreach,Events
    ```
+   Note: Empty subcategory or "Other" text both stored as NULL (displayed as "Other")
 2. Upload via Categories sync card
 3. System validates unique constraint before import
 4. Duplicate pairs rejected with error message
@@ -69,55 +71,6 @@ DELETE /api/categories/:id
 POST /api/categories/lookup
 {"category": "Development", "subcategory": "Infrastructure"}
 # Returns: {"id": 1}
-```
-
-## Apply Defaults Workflow
-
-The "Apply Defaults" feature imports pre-curated category assignments from CSV files in `data/defaults/`.
-
-**Process Flow:**
-1. User clicks "Apply Defaults" for an entity type (e.g., Referenda)
-2. Frontend fetches CSV via `GET /api/sync/defaults/referenda-categories.csv`
-3. Frontend parses CSV and resolves category strings to IDs via `POST /api/categories/lookup`
-4. Frontend sends resolved data to `POST /api/referenda/import`
-5. Backend validates all category references exist
-6. If validation passes, transaction updates all rows
-7. If validation fails, entire import rejected with 400 error
-
-**CSV Format (Entity Categories):**
-```csv
-id,category,subcategory,notes,hide_in_spends
-1,Development,Infrastructure,,0
-2,Outreach,Events,Example note,1
-3,,,,0
-```
-
-**Special Case:** Empty category + subcategory (`,,`) = NULL category_id (no category)
-
-## Import Validation Rules
-
-**Pre-Import Validation:**
-
-All bulk imports (`POST /api/{entity}/import`) validate category references **before** database transaction:
-
-1. **Skip validation for empty pairs:**
-   - `category=""` AND `subcategory=""` → Allowed (NULL category_id)
-
-2. **Validate non-empty pairs:**
-   - `category="X"` AND `subcategory="Y"` → Must exist in Categories table
-   - Missing pair → Add to violations list
-
-3. **Reject on violations:**
-   - Any violations → HTTP 400 with detailed error message
-   - Shows first 10 violations with row numbers and values
-   - No database changes made
-
-**Example Error:**
-```
-Import rejected: 3 row(s) reference non-existent categories.
-First 10 violations:
-  Row 165: referendum 352 → category="", subcategory="PBA"
-  Row 200: referendum 400 → category="InvalidCat", subcategory="Infrastructure"
 ```
 
 ## Category Assignment by Entity Type
@@ -178,12 +131,13 @@ Solution: Remove duplicates from CSV or use audit script to identify conflicts
 
 1. **Import order:** Always import Categories before entity categories
 2. **Naming consistency:** Use consistent capitalization (Categories are case-sensitive)
-3. **"Other" subcategories:** Ensure every category has an "Other" subcategory for UI fallbacks
-4. **Empty vs NULL:** Use `""` for both fields to represent "no category", not just one field
-5. **Validation:** Run audit script after editing default CSV files manually
+3. **"Other" subcategories:** Each category automatically has a NULL subcategory (displayed as "Other")
+4. **Cannot delete "Other":** The NULL subcategory row cannot be deleted (it's required for each category)
+5. **Empty vs NULL:** Empty string subcategory converts to NULL (Other). Use `""` for category field to represent "no category"
+6. **Validation:** Run audit script after editing default CSV files manually
 
 ## See Also
 
+- [importing-data.md](importing-data.md) - Bulk imports, CSV formats, Apply Defaults
 - [data-models.md](../02_specification/data-models.md#categories) - Categories table specification
 - [business-rules.md](../01_requirements/business-rules.md) - Spending categorization rules
-- [src/api/src/db/queries.ts](../../src/api/src/db/queries.ts) - Import/validation implementation

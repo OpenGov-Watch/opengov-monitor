@@ -60,16 +60,22 @@ See [QueryConfig Type Reference](#queryconfig-type) below.
 
 ```typescript
 interface DataTableEditConfig {
+  idField?: string;  // Default: "id"
   editableColumns: {
     [columnId: string]: {
       type: "category-selector" | "text" | "checkbox";
       categories?: Category[];
       onUpdate: (id: number, value: any) => Promise<void>;
       placeholder?: string;
+      // For category inheritance (child bounties)
+      parentCategoryColumn?: string;
+      parentSubcategoryColumn?: string;
     };
   };
 }
 ```
+
+**Optimistic Updates**: DataTable wraps `onUpdate` handlers to update local state immediately after the API call succeeds. This provides instant UI feedback without waiting for refetch. See [Category Inheritance](../../howtos/category-inheritance.md) for details.
 
 ### SavedView
 
@@ -77,15 +83,16 @@ interface DataTableEditConfig {
 interface SavedView {
   name: string;
   state: ViewState;
-  isDefault: boolean;
+  deletable?: boolean;  // default true if not specified; set to false for protected views
 }
 
 interface ViewState {
   sorting: SortingState;
   columnFilters: ColumnFiltersState;
   columnVisibility: VisibilityState;
-  globalFilter: string;
   pagination: PaginationState;
+  filterGroup?: FilterGroup;
+  groupBy?: string;
 }
 ```
 
