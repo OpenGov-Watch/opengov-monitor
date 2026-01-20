@@ -498,18 +498,64 @@ describe("POST /api/bounties/import", () => {
     expect(response.body.error).toContain("items must be an array");
   });
 
-  it("returns count 0 when no bounty ids match", async () => {
+  it("creates bounties that don't exist via upsert", async () => {
+    // No bounties seeded - should CREATE them
     const response = await request(app)
       .post("/api/bounties/import")
       .send({
         items: [
-          { id: 999, category: "Development", subcategory: "Core" },
-          { id: 1000, category: "Marketing", subcategory: "Events" },
+          { id: 999, name: "New Bounty", category: "Development", subcategory: "Core" },
+          { id: 1000, name: "Another Bounty", category: "Marketing", subcategory: "Events" },
         ],
       });
 
     expect(response.status).toBe(200);
-    expect(response.body.count).toBe(0);
+    expect(response.body.count).toBe(2);
+
+    // Verify bounties were created
+    const result1 = testDb.prepare('SELECT * FROM "Bounties" WHERE id = 999').get() as {
+      name: string;
+      category_id: number;
+    };
+    expect(result1).toBeDefined();
+    expect(result1.name).toBe("New Bounty");
+    expect(result1.category_id).toBe(1); // Development/Core
+
+    const result2 = testDb.prepare('SELECT * FROM "Bounties" WHERE id = 1000').get() as {
+      name: string;
+      category_id: number;
+    };
+    expect(result2).toBeDefined();
+    expect(result2.name).toBe("Another Bounty");
+    expect(result2.category_id).toBe(2); // Marketing/Events
+  });
+
+  it("updates existing bounties and preserves name if not provided", async () => {
+    // Insert an existing bounty
+    testDb.exec(`
+      INSERT INTO "Bounties" (id, name, category_id, remaining_dot)
+      VALUES (999, 'Original Name', 1, 1000)
+    `);
+
+    // Update without providing name
+    const response = await request(app)
+      .post("/api/bounties/import")
+      .send({
+        items: [
+          { id: 999, category: "Marketing", subcategory: "Events" },
+        ],
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.count).toBe(1);
+
+    // Verify name was preserved but category was updated
+    const result = testDb.prepare('SELECT * FROM "Bounties" WHERE id = 999').get() as {
+      name: string;
+      category_id: number;
+    };
+    expect(result.name).toBe("Original Name"); // Name preserved
+    expect(result.category_id).toBe(2); // Marketing/Events
   });
 
   it("handles empty array", async () => {

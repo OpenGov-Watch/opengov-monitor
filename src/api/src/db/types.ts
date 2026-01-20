@@ -419,6 +419,7 @@ export interface ChildBountyImportItem {
 
 export interface BountyImportItem {
   id: number;
+  name?: string;
   // Option A: Direct category ID (existing)
   category_id?: number | null;
   // Option B: Category strings (new - backend will resolve)

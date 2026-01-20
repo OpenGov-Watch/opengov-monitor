@@ -241,6 +241,7 @@ function SyncSettingsPageContent() {
 
       const items = rawItems.map((item) => ({
         id: item.id,
+        name: item.name,
         category: item.category,
         subcategory: item.subcategory,
       }));
@@ -271,6 +272,7 @@ function SyncSettingsPageContent() {
 
       const items = rawItems.map((item) => ({
         id: item.id,
+        name: item.name,
         category: item.category,
         subcategory: item.subcategory,
       }));

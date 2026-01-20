@@ -16,6 +16,9 @@ import type {
   AllSpending,
   Dashboard,
   DashboardComponent,
+  ReferendumImportItem,
+  ChildBountyImportItem,
+  BountyImportItem,
 } from "./types";
 import { TABLE_NAMES, VIEW_NAMES } from "./types";
 
@@ -757,10 +760,13 @@ export function bulkUpdateBounties(items: BountyImportItem[]): number {
   }
 
   // Proceed with transaction only if validation passed
+  // Use UPSERT to create bounties if they don't exist
   const stmt = db.prepare(`
-    UPDATE "${TABLE_NAMES.bounties}"
-    SET category_id = ?
-    WHERE id = ?
+    INSERT INTO "${TABLE_NAMES.bounties}" (id, name, category_id)
+    VALUES (?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      name = COALESCE(excluded.name, name),
+      category_id = excluded.category_id
   `);
 
   const transaction = db.transaction((items: BountyImportItem[]) => {
@@ -785,7 +791,8 @@ export function bulkUpdateBounties(items: BountyImportItem[]): number {
         categoryId = existingCategory?.id ?? null;
       }
 
-      const result = stmt.run(categoryId, item.id);
+      // UPSERT: creates bounty if not exists, updates if exists
+      const result = stmt.run(item.id, item.name || null, categoryId);
       if (result.changes > 0) count++;
     }
     return count;

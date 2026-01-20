@@ -35,6 +35,7 @@ import { syncRouter } from "../sync.js";
 import { categoriesRouter } from "../categories.js";
 import { referendaRouter } from "../referenda.js";
 import { childBountiesRouter } from "../child-bounties.js";
+import { bountiesRouter } from "../bounties.js";
 
 // Mock database to use test database
 vi.mock("../../db/index.js", () => ({
@@ -55,6 +56,7 @@ function createApp(): express.Express {
   app.use("/api/categories", categoriesRouter);
   app.use("/api/referenda", referendaRouter);
   app.use("/api/child-bounties", childBountiesRouter);
+  app.use("/api/bounties", bountiesRouter);
   return app;
 }
 
@@ -75,7 +77,8 @@ const SCHEMA_SQL = `
   );
   CREATE TABLE IF NOT EXISTS "Bounties" (
     "id" INTEGER PRIMARY KEY,
-    "name" TEXT
+    "name" TEXT,
+    "category_id" INTEGER
   );
   CREATE TABLE IF NOT EXISTS "Child Bounties" (
     "identifier" TEXT PRIMARY KEY,
@@ -751,6 +754,133 @@ describe("Apply Defaults Integration Tests", () => {
       const response = await request(app).get(
         "/api/sync/defaults/child-bounties"
       );
+
+      expect(response.status).toBe(404);
+      expect(response.body.error).toBe("Default file not found");
+    });
+  });
+
+  describe("Bounties Apply Defaults Workflow", () => {
+    const mockBountiesCSV = `id,name,category,subcategory
+10,Test Bounty,Development,Core
+11,Another Bounty,Outreach,Content`;
+
+    it("should create bounties and assign categories via upsert", async () => {
+      // Start with no bounties (cleared in beforeEach)
+
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readFileSync).mockReturnValue(mockBountiesCSV);
+
+      // Fetch CSV via sync endpoint
+      const syncResponse = await request(app).get("/api/sync/defaults/bounties");
+      expect(syncResponse.status).toBe(200);
+      expect(syncResponse.body.content).toBe(mockBountiesCSV);
+
+      // Parse CSV and prepare items (simulating frontend)
+      const items = [
+        { id: 10, name: "Test Bounty", category: "Development", subcategory: "Core" },
+        { id: 11, name: "Another Bounty", category: "Outreach", subcategory: "Content" },
+      ];
+
+      // Import via bounties endpoint
+      const importResponse = await request(app)
+        .post("/api/bounties/import")
+        .send({ items });
+
+      expect(importResponse.status).toBe(200);
+      expect(importResponse.body.success).toBe(true);
+      expect(importResponse.body.count).toBe(2);
+
+      // Verify bounties were created
+      const bounty10 = testDb.prepare('SELECT * FROM "Bounties" WHERE id = 10').get() as {
+        id: number;
+        name: string;
+        category_id: number;
+      };
+      expect(bounty10).toBeDefined();
+      expect(bounty10.name).toBe("Test Bounty");
+      expect(bounty10.category_id).toBe(1); // Development/Core
+
+      const bounty11 = testDb.prepare('SELECT * FROM "Bounties" WHERE id = 11').get() as {
+        id: number;
+        name: string;
+        category_id: number;
+      };
+      expect(bounty11).toBeDefined();
+      expect(bounty11.name).toBe("Another Bounty");
+      expect(bounty11.category_id).toBe(2); // Outreach/Content
+    });
+
+    it("should update existing bounties while preserving name when not provided", async () => {
+      // Seed an existing bounty
+      testDb.exec(`
+        INSERT INTO "Bounties" (id, name, category_id)
+        VALUES (10, 'Original Name', NULL)
+      `);
+
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readFileSync).mockReturnValue(mockBountiesCSV);
+
+      // Import with name - should update
+      const importResponse = await request(app)
+        .post("/api/bounties/import")
+        .send({
+          items: [
+            { id: 10, name: "Updated Name", category: "Development", subcategory: "Core" },
+          ],
+        });
+
+      expect(importResponse.status).toBe(200);
+      expect(importResponse.body.count).toBe(1);
+
+      // Verify bounty was updated
+      const bounty = testDb.prepare('SELECT * FROM "Bounties" WHERE id = 10').get() as {
+        name: string;
+        category_id: number;
+      };
+      expect(bounty.name).toBe("Updated Name");
+      expect(bounty.category_id).toBe(1);
+    });
+
+    it("should reject import when category doesn't exist", async () => {
+      const items = [
+        { id: 10, name: "Test", category: "Nonexistent", subcategory: "Cat" },
+      ];
+
+      const response = await request(app)
+        .post("/api/bounties/import")
+        .send({ items });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("Import rejected");
+      expect(response.body.error).toContain("non-existent categories");
+    });
+
+    it("should handle empty categories (sets to null)", async () => {
+      const items = [
+        { id: 10, name: "Test Bounty", category: null, subcategory: null },
+      ];
+
+      const response = await request(app)
+        .post("/api/bounties/import")
+        .send({ items });
+
+      expect(response.status).toBe(200);
+      expect(response.body.count).toBe(1);
+
+      // Verify bounty was created with null category
+      const bounty = testDb.prepare('SELECT * FROM "Bounties" WHERE id = 10').get() as {
+        name: string;
+        category_id: number | null;
+      };
+      expect(bounty.name).toBe("Test Bounty");
+      expect(bounty.category_id).toBeNull();
+    });
+
+    it("should return 404 when default file doesn't exist", async () => {
+      vi.mocked(existsSync).mockReturnValue(false);
+
+      const response = await request(app).get("/api/sync/defaults/bounties");
 
       expect(response.status).toBe(404);
       expect(response.body.error).toBe("Default file not found");
