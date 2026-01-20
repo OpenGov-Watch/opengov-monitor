@@ -68,7 +68,9 @@ export function generateColumns<TData>(
     const renderConfig: ColumnRenderConfig = getColumnConfig(tableName, sourceColumn);
 
     // Handle category system columns when auto-detected
-    if (hasCategorySystem && editConfig?.editableColumns.category_id) {
+    // Skip if page provides a custom columnOverride for category_id
+    const hasCustomCategoryOverride = columnOverrides['category_id']?.cell !== undefined;
+    if (hasCategorySystem && editConfig?.editableColumns.category_id && !hasCustomCategoryOverride) {
       const categoryEditConfig = editConfig.editableColumns.category_id;
 
       // Hide category_id column

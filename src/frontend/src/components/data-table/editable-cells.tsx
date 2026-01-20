@@ -172,11 +172,13 @@ export function CategorySelector({
     () => [...new Set(categories.map((c) => c.category))].sort(),
     [categories]
   );
+  // Use selected category, or fall back to parent category for subcategory filtering
+  const effectiveCategory = selectedCat || parentCategory || null;
   const availableSubcategories = useMemo(
     () => categories
-      .filter((c) => c.category === selectedCat)
+      .filter((c) => c.category === effectiveCategory)
       .sort((a, b) => a.subcategory.localeCompare(b.subcategory)),
-    [categories, selectedCat]
+    [categories, effectiveCategory]
   );
 
   const handleCategoryChange = (cat: string | null) => {
@@ -236,15 +238,12 @@ export function CategorySelector({
         }
       >
         <SelectTrigger className="h-8 w-[120px] text-xs">
-          <SelectValue
-            placeholder={
-              parentCategory ? (
-                <span className="text-muted-foreground">{parentCategory}</span>
-              ) : (
-                "Category"
-              )
-            }
-          />
+          {/* Show parent category as grayed placeholder when None selected */}
+          {!selectedCat && parentCategory ? (
+            <span className="text-muted-foreground truncate">{parentCategory}</span>
+          ) : (
+            <SelectValue placeholder="None" />
+          )}
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="__none__">
@@ -266,26 +265,24 @@ export function CategorySelector({
         value={categoryId?.toString() || "__none__"}
         onValueChange={(val) => {
           if (val === "__none__") {
-            const otherCatId = findCategoryId(selectedCat, "Other", categories);
+            // Use effectiveCategory (selected or inherited) to find "Other"
+            const otherCatId = findCategoryId(effectiveCategory, "Other", categories);
             onChange(otherCatId !== null ? otherCatId : null);
           } else {
             onChange(parseInt(val));
           }
         }}
-        disabled={!selectedCat}
+        disabled={!effectiveCategory}
       >
         <SelectTrigger
-          className={cn("h-8 w-[140px] text-xs", !selectedCat && "opacity-50")}
+          className={cn("h-8 w-[140px] text-xs", !effectiveCategory && "opacity-50")}
         >
-          <SelectValue
-            placeholder={
-              parentSubcategory ? (
-                <span className="text-muted-foreground">{parentSubcategory}</span>
-              ) : (
-                "Subcategory"
-              )
-            }
-          />
+          {/* Show parent subcategory as grayed placeholder when using inherited category */}
+          {!selectedCat && parentSubcategory && !categoryId ? (
+            <span className="text-muted-foreground truncate">{parentSubcategory}</span>
+          ) : (
+            <SelectValue placeholder="None" />
+          )}
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="__none__">
