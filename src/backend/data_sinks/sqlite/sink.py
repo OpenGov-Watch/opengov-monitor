@@ -106,37 +106,6 @@ class SQLiteSink(DataSink):
                 f"Run migrations first: python migrations/migration_runner.py --db <path>"
             )
 
-    def _ensure_manual_tables(self) -> None:
-        """Create manual tables that are managed by the frontend.
-
-        These tables are not populated by the backend but need to exist
-        for the frontend to function properly.
-        """
-        manual_tables = [
-            "Categories",
-            "Bounties",
-            "Subtreasury",
-            "Treasury Netflows",
-            "Dashboards",
-            "Dashboard Components",
-            "Users",
-            "DataErrors",
-        ]
-
-        for table_name in manual_tables:
-            schema = get_schema_for_table(table_name)
-            if schema:
-                create_sql = generate_create_table_sql(schema)
-                self._connection.execute(create_sql)
-                # Migrate schema (add any missing columns)
-                self._migrate_table_schema(schema)
-                # Create indexes
-                for index_sql in generate_create_indexes_sql(schema):
-                    self._connection.execute(index_sql)
-
-        self._connection.commit()
-        self._logger.debug("Manual tables created/verified")
-
     def _migrate_table_schema(self, schema: TableSchema) -> None:
         """Add missing columns to existing table.
 
