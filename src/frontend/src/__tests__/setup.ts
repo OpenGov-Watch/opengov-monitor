@@ -27,3 +27,11 @@ window.ResizeObserver = ResizeObserverMock;
 // Mock URL.createObjectURL and revokeObjectURL
 URL.createObjectURL = () => "mock-url";
 URL.revokeObjectURL = () => {};
+
+// Mock pointer capture APIs for Radix UI components
+Element.prototype.hasPointerCapture = () => false;
+Element.prototype.setPointerCapture = () => {};
+Element.prototype.releasePointerCapture = () => {};
+
+// Mock scrollIntoView
+Element.prototype.scrollIntoView = () => {};
