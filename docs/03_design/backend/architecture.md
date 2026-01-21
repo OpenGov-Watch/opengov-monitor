@@ -51,6 +51,26 @@ run_sqlite.py
 └── resolve_identities()  # StatescanId → update address names
 ```
 
+## Proposal Detail Fetching
+
+List endpoints return basic proposal info. For certain call types, individual detail fetches are required to inspect nested proposal data:
+
+- `utility.batch`, `utility.batchAll`, `utility.dispatchAs` - batch calls containing multiple actions
+- `treasury.spend` - treasury spends with asset metadata
+- `xcmPallet.send` - cross-chain messages with embedded calls
+
+See `needs_detail_call_indices` in `data_providers/subsquare.py:138` for the complete list.
+
+## Configuration
+
+`config.yaml` controls fetch behavior:
+
+| Parameter | Description |
+|-----------|-------------|
+| `fetch_limits.incremental` | Record count per endpoint when table has data |
+| `fetch_limits.backfill` | Record count when table is empty or `--backfill` flag. `0` = all, `-1` = skip |
+| `block_time_projection` | Reference block + timestamp + block time (6s). Used to estimate future block times for treasury spend deadlines |
+
 ## Storage Layer
 
 **SQLiteSink** (`data_sinks/sqlite/sink.py`): Upserts data, handles schema creation, manages transactions.
@@ -77,3 +97,4 @@ src/backend/
 ## Related Docs
 
 - [Data Models](../../02_specification/data-models.md) - [Migration System](migration-system-design.md) - [Business Rules](../../01_requirements/business-rules.md) - [Error Logging](../error-logging.md)
+- **Subsquare API**: Full endpoint documentation in `data_providers/subsquare.py` module docstring
