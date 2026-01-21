@@ -9,6 +9,7 @@ Agent-specific instructions for working on this codebase. For project overview, 
 - Don't use `taskkill`, only your own task kill tool.
 - For frontend changes, use the `react-best-practices` skill
 - don't start a server. the user will do that. by default, assume out localhost:3000
+- don't push without the user instructing you via prompt or command
 
 ## When planning changes
 - Planning Phase

@@ -10,6 +10,7 @@ import { generateColumns } from "../auto-columns";
 // Mock the column-renderer module
 vi.mock("../column-renderer", () => ({
   getColumnConfig: () => ({ render: "text" }),
+  getColumnDisplayName: (_tableName: string, columnName: string) => columnName,
   getBadgeVariant: () => "default",
   formatValue: (value: any) => String(value),
 }));

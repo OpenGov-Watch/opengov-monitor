@@ -4,6 +4,7 @@ import { DataTableFacetedFilter } from "@/components/data-table/faceted-filter";
 import { DataTableEditConfig, FilterGroup } from "@/lib/db/types";
 import {
   getColumnConfig,
+  getColumnDisplayName,
   getBadgeVariant,
   formatValue,
   type ColumnRenderConfig
@@ -110,14 +111,14 @@ export function generateColumns<TData>(
               {isFacetedFilter && (
                 <DataTableFacetedFilter
                   column={column}
-                  title={formatColumnName(columnName)}
+                  title={getColumnDisplayName(tableName, columnName)}
                   filterGroup={filterGroup}
                   onFilterGroupChange={onFilterGroupChange}
                   columnName={columnName}
                 />
               )}
               {!isFacetedFilter && (
-                <DataTableColumnHeader column={column} title={formatColumnName(columnName)} />
+                <DataTableColumnHeader column={column} title={getColumnDisplayName(tableName, columnName)} />
               )}
               {isFacetedFilter && column.getCanSort() && (
                 <DataTableColumnHeader column={column} title="" />
@@ -171,14 +172,14 @@ export function generateColumns<TData>(
               {isFacetedFilter && (
                 <DataTableFacetedFilter
                   column={column}
-                  title={formatColumnName(columnName)}
+                  title={getColumnDisplayName(tableName, columnName)}
                   filterGroup={filterGroup}
                   onFilterGroupChange={onFilterGroupChange}
                   columnName={columnName}
                 />
               )}
               {!isFacetedFilter && (
-                <DataTableColumnHeader column={column} title={formatColumnName(columnName)} />
+                <DataTableColumnHeader column={column} title={getColumnDisplayName(tableName, columnName)} />
               )}
               {isFacetedFilter && column.getCanSort() && (
                 <DataTableColumnHeader column={column} title="" />
@@ -235,7 +236,7 @@ export function generateColumns<TData>(
     // Check for filterColumn in columnOverrides (used for faceted filtering)
     const override = columnOverrides[columnName] as any;
     const filterColumnName = override?.filterColumn || columnName;
-    const headerTitle = typeof override?.header === 'string' ? override.header : formatColumnName(columnName);
+    const headerTitle = typeof override?.header === 'string' ? override.header : getColumnDisplayName(tableName, columnName);
 
     // Base column definition
     const columnDef: ColumnDef<TData> = {
@@ -255,7 +256,7 @@ export function generateColumns<TData>(
             />
           )}
           {!isFacetedFilter && (
-            <DataTableColumnHeader column={column} title={formatColumnName(columnName)} />
+            <DataTableColumnHeader column={column} title={getColumnDisplayName(tableName, columnName)} />
           )}
           {isFacetedFilter && column.getCanSort() && (
             <DataTableColumnHeader column={column} title="" />
@@ -341,16 +342,6 @@ export function generateColumns<TData>(
   });
 }
 
-function formatColumnName(name: string): string {
-  return name
-    .replace(/_/g, " ")
-    .replace(/\./g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase())
-    .replace(/\bDot\b/gi, "DOT")
-    .replace(/\bUsd\b/gi, "USD")
-    .replace(/\bUsdc\b/gi, "USDC")
-    .replace(/\bUsdt\b/gi, "USDT");
-}
 
 function renderCellValue(value: any, config: ColumnRenderConfig, row: any, dashboardMode: boolean = false) {
   // Helper to get text content for title attribute
