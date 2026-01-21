@@ -327,15 +327,19 @@ function ExpressionColumnContent({
             />
           </div>
         ) : (
-          <div
-            className="cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5"
-            onClick={handleExpressionClick}
-            title="Click to edit expression"
-          >
-            <div className="text-sm font-medium truncate">
+          <div className="px-1 py-0.5">
+            <div
+              className="cursor-pointer hover:bg-muted/50 rounded text-sm font-medium truncate"
+              onClick={handleAliasClick}
+              title="Click to edit alias"
+            >
               {column.alias || "unnamed"}
             </div>
-            <div className="text-xs text-muted-foreground truncate">
+            <div
+              className="cursor-pointer hover:bg-muted/50 rounded text-xs text-muted-foreground truncate"
+              onClick={handleExpressionClick}
+              title="Click to edit expression"
+            >
               {displayExpression}
             </div>
           </div>
