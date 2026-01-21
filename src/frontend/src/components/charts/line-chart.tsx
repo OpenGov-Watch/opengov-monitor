@@ -127,8 +127,8 @@ export const DashboardLineChart = memo(
       >
         <RechartsLineChart data={data}>
           {showGrid && <CartesianGrid strokeDasharray="3 3" />}
-          <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-          <YAxis tick={{ fontSize: 12 }} tickFormatter={yAxisFormatter} />
+          <XAxis dataKey="name" tick={{ fontSize: 14 }} />
+          <YAxis tick={{ fontSize: 14 }} tickFormatter={yAxisFormatter} />
           {showTooltip && (
             <Tooltip
               content={<CustomTooltip tableName={tableName} columnMapping={columnMapping} />}

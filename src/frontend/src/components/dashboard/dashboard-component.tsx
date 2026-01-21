@@ -254,6 +254,7 @@ export const DashboardComponent = memo(
             colorByRow={barChartData.colorByRow}
             legendPosition="right"
             isAnimationActive={false}
+            valueColumnForConfig={barChartData.valueColumn}
           />
         );
 
@@ -408,6 +409,7 @@ export const DashboardComponent = memo(
               tableName={tableName}
               columnMapping={columnMapping}
               colorByRow={barChartData.colorByRow}
+              valueColumnForConfig={barChartData.valueColumn}
             />
           </Suspense>
         );

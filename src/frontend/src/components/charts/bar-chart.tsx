@@ -45,6 +45,7 @@ interface DashboardBarChartProps {
   colorByRow?: boolean; // When true, color each bar by its row index instead of bar series index
   legendPosition?: "bottom" | "right";
   isAnimationActive?: boolean; // Set to false for export to disable animations
+  valueColumnForConfig?: string; // Original value column name for Y-axis config lookup (used when data is pivoted)
 }
 
 // Memoized custom tooltip component with formatted values
@@ -54,12 +55,14 @@ const CustomTooltip = memo(function CustomTooltip({
   label,
   tableName,
   columnMapping,
+  valueColumnForConfig,
 }: {
   active?: boolean;
   payload?: Array<{ name: string; value: number; dataKey: string; color: string }>;
   label?: string;
   tableName: string;
   columnMapping?: Record<string, string>;
+  valueColumnForConfig?: string;
 }) {
   if (!active || !payload || !payload.length) return null;
 
@@ -67,7 +70,10 @@ const CustomTooltip = memo(function CustomTooltip({
     <div className="bg-background border rounded-lg shadow-lg p-3">
       <p className="font-medium text-sm mb-2">{label}</p>
       {payload.map((entry, index) => {
-        const sourceColumn = columnMapping?.[entry.dataKey] ?? entry.dataKey;
+        // For pivoted data, dataKey is a category name (e.g., "Outreach") not in columnMapping
+        // Use valueColumnForConfig as fallback to get correct formatting
+        const mappedColumn = columnMapping?.[entry.dataKey];
+        const sourceColumn = mappedColumn ?? (valueColumnForConfig ? (columnMapping?.[valueColumnForConfig] ?? valueColumnForConfig) : entry.dataKey);
         const config = getColumnConfig(tableName, sourceColumn);
         const formatted = formatValue(entry.value, config);
         return (
@@ -99,11 +105,13 @@ export const DashboardBarChart = memo(
     colorByRow = false,
     legendPosition = "bottom",
     isAnimationActive = true,
+    valueColumnForConfig,
   }: DashboardBarChartProps) {
-    // Get config for first value column to determine Y-axis formatting
-    const firstValueColumn = bars[0]?.dataKey;
-    const sourceColumn = firstValueColumn
-      ? (columnMapping?.[firstValueColumn] ?? firstValueColumn)
+    // Get config for Y-axis formatting
+    // Use valueColumnForConfig if provided (for pivoted data), otherwise fall back to first bar's dataKey
+    const configColumn = valueColumnForConfig ?? bars[0]?.dataKey;
+    const sourceColumn = configColumn
+      ? (columnMapping?.[configColumn] ?? configColumn)
       : null;
     const yAxisConfig = sourceColumn
       ? getColumnConfig(tableName, sourceColumn)
@@ -121,11 +129,11 @@ export const DashboardBarChart = memo(
       >
         <RechartsBarChart data={data}>
           {showGrid && <CartesianGrid strokeDasharray="3 3" />}
-          <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-          <YAxis tick={{ fontSize: 12 }} tickFormatter={yAxisFormatter} />
+          <XAxis dataKey="name" tick={{ fontSize: 14 }} />
+          <YAxis tick={{ fontSize: 14 }} tickFormatter={yAxisFormatter} />
           {showTooltip && (
             <Tooltip
-              content={<CustomTooltip tableName={tableName} columnMapping={columnMapping} />}
+              content={<CustomTooltip tableName={tableName} columnMapping={columnMapping} valueColumnForConfig={valueColumnForConfig} />}
             />
           )}
           {showLegend && (
@@ -198,7 +206,8 @@ export const DashboardBarChart = memo(
       prevProps.columnMapping === nextProps.columnMapping &&
       prevProps.colorByRow === nextProps.colorByRow &&
       prevProps.legendPosition === nextProps.legendPosition &&
-      prevProps.isAnimationActive === nextProps.isAnimationActive
+      prevProps.isAnimationActive === nextProps.isAnimationActive &&
+      prevProps.valueColumnForConfig === nextProps.valueColumnForConfig
     );
   }
 );
@@ -208,7 +217,7 @@ export function transformToBarData(
   labelColumn: string,
   valueColumns: string[],
   tableName?: string
-): { data: BarChartData[]; bars: { dataKey: string; name: string; color?: string }[]; colorByRow?: boolean } {
+): { data: BarChartData[]; bars: { dataKey: string; name: string; color?: string }[]; colorByRow?: boolean; valueColumn?: string } {
   if (data.length === 0) {
     return { data: [], bars: [] };
   }
@@ -228,7 +237,8 @@ export function transformToBarData(
 
   // If we have a categorical column and at least one numeric column, pivot the data
   if (categoricalCol && numericCols.length > 0) {
-    return pivotBarData(data, labelColumn, numericCols[0], categoricalCol);
+    const pivoted = pivotBarData(data, labelColumn, numericCols[0], categoricalCol);
+    return { ...pivoted, valueColumn: numericCols[0] };
   }
 
   // Standard transformation: each valueColumn becomes a bar series
@@ -251,7 +261,7 @@ export function transformToBarData(
   // This ensures consistent colors with pie charts showing the same data
   const colorByRow = valueColumns.length === 1;
 
-  return { data: barData, bars, colorByRow };
+  return { data: barData, bars, colorByRow, valueColumn: valueColumns[0] };
 }
 
 /**
