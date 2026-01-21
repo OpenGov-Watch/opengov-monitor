@@ -29,11 +29,13 @@ Use this guide for complex filtering needs in dashboards.
 
 **Filter types:**
 - **Faceted Filters**: Multi-select dropdowns on DataTable columns (< 100 distinct values)
+- **Date Filters**: Date picker with comparison operators on date columns (auto-detected via column-config.yaml)
 - **Global Search**: Text search across all visible DataTable columns
 - **Advanced Filters**: QueryBuilder with AND/OR logic for dashboards
 
 **When to use:**
 - Faceted: Quick filtering on categorical columns
+- Date: Filtering by date ranges (supports multiple conditions like `>= start AND <= end`)
 - Global Search: Quick exploration, finding specific text
 - Advanced: Complex logic, saved queries, numeric ranges
 

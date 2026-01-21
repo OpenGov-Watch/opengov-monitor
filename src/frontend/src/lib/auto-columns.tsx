@@ -1,6 +1,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { DataTableFacetedFilter } from "@/components/data-table/faceted-filter";
+import { DataTableDateFilter } from "@/components/data-table/date-filter";
 import { DataTableEditConfig, FilterGroup } from "@/lib/db/types";
 import {
   getColumnConfig,
@@ -227,6 +228,9 @@ export function generateColumns<TData>(
     // Check if this column should have a faceted filter
     const isFacetedFilter = facetedFilters?.includes(columnName) || false;
 
+    // Check if this column is a date column (auto-detected from column-config.yaml)
+    const isDateColumn = renderConfig.render === 'date';
+
     // Handle dot-notation columns (e.g., "tally.ayes")
     // TanStack Table doesn't support dots in accessorKey, so use accessorFn instead
     const hasDotNotation = columnName.includes(".");
@@ -254,10 +258,19 @@ export function generateColumns<TData>(
               columnName={filterColumnName}
             />
           )}
-          {!isFacetedFilter && (
+          {!isFacetedFilter && isDateColumn && (
+            <DataTableDateFilter
+              column={column}
+              title={headerTitle}
+              filterGroup={filterGroup}
+              onFilterGroupChange={onFilterGroupChange}
+              columnName={filterColumnName}
+            />
+          )}
+          {!isFacetedFilter && !isDateColumn && (
             <DataTableColumnHeader column={column} title={formatColumnName(columnName)} />
           )}
-          {isFacetedFilter && column.getCanSort() && (
+          {(isFacetedFilter || isDateColumn) && column.getCanSort() && (
             <DataTableColumnHeader column={column} title="" />
           )}
         </div>

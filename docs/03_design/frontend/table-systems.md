@@ -90,9 +90,15 @@ See [Column Formatting Reference](./column-formatting.md) for detailed patterns,
 
 ## Filtering
 
-**Three filter types**: Faceted filters (multi-select dropdowns), Advanced filter composer (AND/OR logic), Global search (across all columns).
+**Four filter types**:
+- **Faceted filters**: Multi-select dropdowns for categorical columns
+- **Date filters**: Date picker with comparison operators (=, !=, >, <, >=, <=) for date columns
+- **Advanced filter composer**: AND/OR logic builder
+- **Global search**: Text search across all columns
 
-**Unified state**: Both faceted and advanced filters share `filterGroup` state. All filtering is server-side via API queries.
+**Unified state**: All filter types share `filterGroup` state. All filtering is server-side via API queries.
+
+**Auto-detection**: Date columns (detected via `render: date` in column-config.yaml) automatically get date filter headers instead of faceted filters. Supports multiple conditions for date ranges (e.g., `>= 2024-01-01 AND <= 2024-12-31`).
 
 **filterColumn mapping**: Display columns can use a different column for filtering via `filterColumn` in columnOverrides. Example: `parentBountyId` displays "Parent" but filters by `parentBountyName` (shows bounty names instead of IDs in dropdowns).
 
@@ -182,7 +188,8 @@ frontend/src/components/
 │   ├── use-view-state.ts (state management)
 │   ├── toolbar.tsx (search, export, filters)
 │   ├── column-header.tsx (sort UI)
-│   ├── faceted-filter.tsx (filter UI)
+│   ├── faceted-filter.tsx (categorical filter UI)
+│   ├── date-filter.tsx (date filter with comparison operators)
 │   ├── column-visibility.tsx (visibility toggle)
 │   ├── view-selector.tsx (saved views UI)
 │   ├── pagination.tsx (page controls)

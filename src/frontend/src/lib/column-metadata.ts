@@ -1,10 +1,13 @@
+import { getColumnConfig } from "@/lib/column-renderer";
+
 /**
  * Column type definitions for filtering behavior
  */
 export type ColumnType = 'categorical' | 'numeric' | 'text' | 'date';
 
 /**
- * Determine the type of a column based on its name
+ * Determine the type of a column based on its name (legacy - uses heuristics only).
+ * Prefer getColumnTypeWithConfig for proper date detection from column-config.yaml.
  */
 export function getColumnType(columnName: string): ColumnType {
   // Categorical columns - finite value sets
@@ -44,6 +47,30 @@ export function getColumnType(columnName: string): ColumnType {
 
   // Default to text for all other columns
   return 'text';
+}
+
+/**
+ * Determine the type of a column using column-config.yaml first, then fallback to heuristics.
+ * This properly detects date columns like `latest_status_change` and `validFrom` that have
+ * `render: date` in the config but don't match the heuristic patterns.
+ */
+export function getColumnTypeWithConfig(tableName: string, columnName: string): ColumnType {
+  // Categorical columns - finite value sets (always check first)
+  if (isCategoricalColumn(columnName)) {
+    return 'categorical';
+  }
+
+  // Check column-config.yaml for explicit render type
+  const config = getColumnConfig(tableName, columnName);
+  if (config.render === 'date') {
+    return 'date';
+  }
+  if (config.render === 'currency' || config.render === 'number') {
+    return 'numeric';
+  }
+
+  // Fallback to heuristic-based detection for columns not in config
+  return getColumnType(columnName);
 }
 
 /**

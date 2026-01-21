@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FilterCondition, FilterGroup, FacetValue, FacetQueryResponse, QueryConfig } from "@/lib/db/types";
 import { FilterMultiselect } from "./filter-multiselect";
-import { isCategoricalColumn, getColumnType, getOperatorsForColumnType } from "@/lib/column-metadata";
+import { isCategoricalColumn, getColumnTypeWithConfig, getOperatorsForColumnType } from "@/lib/column-metadata";
 import { buildFacetQueryConfig } from "@/lib/query-config-utils";
 
 interface FilterGroupBuilderProps {
@@ -56,6 +56,7 @@ const FilterConditionRow = React.memo(function FilterConditionRow({
   removeItem,
   facetsData,
   filterColumnMap,
+  sourceTable,
 }: {
   item: FilterCondition;
   index: number;
@@ -64,6 +65,7 @@ const FilterConditionRow = React.memo(function FilterConditionRow({
   removeItem: (index: number) => void;
   facetsData?: Record<string, FacetValue[]>;
   filterColumnMap?: Map<string, string>;
+  sourceTable: string;
 }) {
   // Resolve to filter column if mapped (e.g., parentBountyId → parentBountyName)
   const effectiveColumn = filterColumnMap?.get(item.column) || item.column;
@@ -71,8 +73,8 @@ const FilterConditionRow = React.memo(function FilterConditionRow({
   const isIN = item.operator === 'IN' || item.operator === 'NOT IN';
   const isNullCheck = item.operator === 'IS NULL' || item.operator === 'IS NOT NULL';
 
-  // Get column type using effective column and filter available operators
-  const columnType = getColumnType(effectiveColumn);
+  // Get column type using column-config.yaml for proper date detection
+  const columnType = getColumnTypeWithConfig(sourceTable, effectiveColumn);
   const availableOperators = React.useMemo(() => {
     const allowedOps = getOperatorsForColumnType(columnType);
     return OPERATORS.filter(op => allowedOps.includes(op.value));
@@ -87,7 +89,7 @@ const FilterConditionRow = React.memo(function FilterConditionRow({
           // When column changes, reset operator to first available for new column type
           // Use filterColumn if mapped for determining column type
           const newEffectiveColumn = filterColumnMap?.get(value) || value;
-          const newColumnType = getColumnType(newEffectiveColumn);
+          const newColumnType = getColumnTypeWithConfig(sourceTable, newEffectiveColumn);
           const newAvailableOps = getOperatorsForColumnType(newColumnType);
           const currentOpAllowed = newAvailableOps.includes(item.operator);
 
@@ -204,7 +206,8 @@ const FilterConditionRow = React.memo(function FilterConditionRow({
     prevProps.removeItem === nextProps.removeItem &&
     JSON.stringify(prevProps.availableColumns) === JSON.stringify(nextProps.availableColumns) &&
     JSON.stringify(prevProps.facetsData) === JSON.stringify(nextProps.facetsData) &&
-    prevProps.filterColumnMap === nextProps.filterColumnMap
+    prevProps.filterColumnMap === nextProps.filterColumnMap &&
+    prevProps.sourceTable === nextProps.sourceTable
   );
 });
 
@@ -446,6 +449,7 @@ export const FilterGroupBuilder = React.memo(function FilterGroupBuilder({
                 removeItem={removeItem}
                 facetsData={facetsData}
                 filterColumnMap={filterColumnMap}
+                sourceTable={sourceTable}
               />
             )}
           </div>
