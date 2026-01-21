@@ -1,15 +1,17 @@
 import html2canvas from "html2canvas";
+import { createRoot } from "react-dom/client";
+import type { ReactNode } from "react";
 
 /**
- * Export a chart element as PNG image with title and legend
- * @param element - The DOM element containing the chart
+ * Export a chart as PNG image with title and legend on right side
+ * @param renderChart - A callback that renders the chart component with legendPosition="right"
  * @param title - The title to render at the top
  * @param filename - The name for the downloaded file
  * @param width - Target width in pixels (default 1200)
  * @param height - Target height in pixels (default 800)
  */
 export async function exportChartAsPNG(
-  element: HTMLElement,
+  renderChart: () => ReactNode,
   title: string,
   filename: string,
   width = 1200,
@@ -38,19 +40,23 @@ export async function exportChartAsPNG(
     titleElement.style.color = "#000000";
     titleElement.style.textAlign = "center";
 
-    // Clone the chart element
-    const chartClone = element.cloneNode(true) as HTMLElement;
-    chartClone.style.flex = "1";
-    chartClone.style.minHeight = "0";
-    chartClone.style.display = "flex";
-    chartClone.style.flexDirection = "column";
+    // Create chart wrapper
+    const chartWrapper = document.createElement("div");
+    chartWrapper.style.flex = "1";
+    chartWrapper.style.minHeight = "0";
+    chartWrapper.style.display = "flex";
+    chartWrapper.style.flexDirection = "column";
 
     // Append elements to container
     exportContainer.appendChild(titleElement);
-    exportContainer.appendChild(chartClone);
+    exportContainer.appendChild(chartWrapper);
     document.body.appendChild(exportContainer);
 
-    // Wait for any pending renders
+    // Render chart using React
+    const root = createRoot(chartWrapper);
+    root.render(renderChart());
+
+    // Wait for render to complete
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Capture the container
@@ -63,6 +69,7 @@ export async function exportChartAsPNG(
     });
 
     // Clean up
+    root.unmount();
     document.body.removeChild(exportContainer);
 
     // Download the image
@@ -84,14 +91,14 @@ export async function exportChartAsPNG(
 }
 
 /**
- * Copy a chart element as PNG image to clipboard with title and legend
- * @param element - The DOM element containing the chart
+ * Copy a chart as PNG image to clipboard with title and legend on right side
+ * @param renderChart - A callback that renders the chart component with legendPosition="right"
  * @param title - The title to render at the top
  * @param width - Target width in pixels (default 1200)
  * @param height - Target height in pixels (default 800)
  */
 export async function copyChartToClipboard(
-  element: HTMLElement,
+  renderChart: () => ReactNode,
   title: string,
   width = 1200,
   height = 800
@@ -119,19 +126,23 @@ export async function copyChartToClipboard(
     titleElement.style.color = "#000000";
     titleElement.style.textAlign = "center";
 
-    // Clone the chart element
-    const chartClone = element.cloneNode(true) as HTMLElement;
-    chartClone.style.flex = "1";
-    chartClone.style.minHeight = "0";
-    chartClone.style.display = "flex";
-    chartClone.style.flexDirection = "column";
+    // Create chart wrapper
+    const chartWrapper = document.createElement("div");
+    chartWrapper.style.flex = "1";
+    chartWrapper.style.minHeight = "0";
+    chartWrapper.style.display = "flex";
+    chartWrapper.style.flexDirection = "column";
 
     // Append elements to container
     exportContainer.appendChild(titleElement);
-    exportContainer.appendChild(chartClone);
+    exportContainer.appendChild(chartWrapper);
     document.body.appendChild(exportContainer);
 
-    // Wait for any pending renders
+    // Render chart using React
+    const root = createRoot(chartWrapper);
+    root.render(renderChart());
+
+    // Wait for render to complete
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Capture the container
@@ -144,6 +155,7 @@ export async function copyChartToClipboard(
     });
 
     // Clean up
+    root.unmount();
     document.body.removeChild(exportContainer);
 
     // Copy to clipboard

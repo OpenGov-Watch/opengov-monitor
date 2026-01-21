@@ -28,6 +28,8 @@ interface DashboardPieChartProps {
   tableName?: string;
   valueColumn?: string;
   columnMapping?: Record<string, string>;
+  legendPosition?: "bottom" | "right";
+  isAnimationActive?: boolean; // Set to false for export to disable animations
 }
 
 const DEFAULT_COLORS = [
@@ -88,6 +90,8 @@ export const DashboardPieChart = memo(
     tableName = "",
     valueColumn = "value",
     columnMapping,
+    legendPosition = "bottom",
+    isAnimationActive = true,
   }: DashboardPieChartProps) {
     // Pre-compute total for tooltip percentage calculation
     const total = useMemo(
@@ -114,6 +118,7 @@ export const DashboardPieChart = memo(
             label={({ name, percent }) =>
               `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
             }
+            isAnimationActive={isAnimationActive}
           >
             {data.map((_, index) => (
               <Cell
@@ -129,10 +134,10 @@ export const DashboardPieChart = memo(
           )}
           {showLegend && (
             <Legend
-              layout="vertical"
-              align="right"
-              verticalAlign="middle"
-              wrapperStyle={{ paddingLeft: "20px" }}
+              layout={legendPosition === "right" ? "vertical" : "horizontal"}
+              align={legendPosition === "right" ? "right" : "center"}
+              verticalAlign={legendPosition === "right" ? "middle" : "bottom"}
+              wrapperStyle={legendPosition === "right" ? { paddingLeft: "20px" } : { paddingTop: "10px" }}
             />
           )}
         </RechartsPieChart>
@@ -148,7 +153,9 @@ export const DashboardPieChart = memo(
       prevProps.showTooltip === nextProps.showTooltip &&
       prevProps.tableName === nextProps.tableName &&
       prevProps.valueColumn === nextProps.valueColumn &&
-      prevProps.columnMapping === nextProps.columnMapping
+      prevProps.columnMapping === nextProps.columnMapping &&
+      prevProps.legendPosition === nextProps.legendPosition &&
+      prevProps.isAnimationActive === nextProps.isAnimationActive
     );
   }
 );
