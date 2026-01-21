@@ -94,6 +94,8 @@ See [Column Formatting Reference](./column-formatting.md) for detailed patterns,
 
 **Unified state**: Both faceted and advanced filters share `filterGroup` state. All filtering is server-side via API queries.
 
+**filterColumn mapping**: Display columns can use a different column for filtering via `filterColumn` in columnOverrides. Example: `parentBountyId` displays "Parent" but filters by `parentBountyName` (shows bounty names instead of IDs in dropdowns).
+
 See [Filters Howto](../../howtos/filters.md) for usage patterns and filter strategies.
 
 ## Sorting

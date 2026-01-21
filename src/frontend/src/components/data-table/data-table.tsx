@@ -159,6 +159,20 @@ export function DataTable<TData>({
     return mapping;
   }, [baseQueryConfig]);
 
+  // Build mapping from display columns to filter columns (from columnOverrides)
+  // This allows Advanced Filters to show "Parent" but filter by "parentBountyName"
+  const filterColumnMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (columnOverrides) {
+      for (const [colId, override] of Object.entries(columnOverrides)) {
+        if ((override as any).filterColumn) {
+          map.set(colId, (override as any).filterColumn);
+        }
+      }
+    }
+    return map;
+  }, [columnOverrides]);
+
   // BUILD COMPLETE QUERY CONFIG
   // Merge base config with dynamic sorting/filtering/pagination state
   const queryConfig = useMemo<QueryConfig>(() => {
@@ -209,10 +223,27 @@ export function DataTable<TData>({
 
         // Create facet fetch promise if facetedFilters are defined
         let facetPromise: Promise<Response> | null = null;
+        // Build mapping from display columns to filter columns using columnOverrides
+        const filterColumnMap = new Map<string, string>();
+        if (columnOverrides && facetedFilters) {
+          for (const colId of facetedFilters) {
+            const override = columnOverrides[colId] as any;
+            if (override?.filterColumn) {
+              filterColumnMap.set(colId, override.filterColumn);
+            }
+          }
+        }
         if (facetedFilters && facetedFilters.length > 0) {
+          // Resolve filter columns - use filterColumn from override if specified
+          // Then resolve aliases to actual column references using columnIdToRef
+          const resolvedFacetColumns = facetedFilters.map(col => {
+            const filterCol = filterColumnMap.get(col) || col;
+            // Resolve alias to actual column reference (e.g., parentBountyName -> b.name)
+            return columnIdToRef[filterCol] || filterCol;
+          });
           const facetConfig: FacetQueryConfig = {
             sourceTable: baseQueryConfig.sourceTable,
-            columns: facetedFilters,
+            columns: resolvedFacetColumns,
             joins: baseQueryConfig.joins,
             filters: queryConfig.filters, // Use filters from queryConfig (already computed)
           };
@@ -243,10 +274,23 @@ export function DataTable<TData>({
         // Process facet response
         if (facetResponse && facetResponse.ok) {
           const facetResult: FacetQueryResponse = await facetResponse.json();
+          // Build reverse mapping: columnRef -> displayColumn
+          // Need to map from actual column ref (e.g., b.name) back to display column (e.g., parentBountyId)
+          const refToDisplay = new Map<string, string>();
+          if (facetedFilters) {
+            for (const col of facetedFilters) {
+              const filterCol = filterColumnMap.get(col) || col;
+              const colRef = columnIdToRef[filterCol] || filterCol;
+              refToDisplay.set(colRef, col);
+            }
+          }
           // Convert facet arrays to Map format expected by TanStack Table
+          // Map keys back to display column names
           const facetMaps: Record<string, Map<any, number>> = {};
           for (const [column, values] of Object.entries(facetResult.facets)) {
-            facetMaps[column] = new Map(
+            // Use display column name if this was a remapped filter column
+            const displayCol = refToDisplay.get(column) || column;
+            facetMaps[displayCol] = new Map(
               values.map(v => [v.value, v.count])
             );
           }
@@ -474,6 +518,7 @@ export function DataTable<TData>({
         onFilterGroupChange={setFilterGroup}
         joins={baseQueryConfig.joins}
         columnIdToRef={columnIdToRef}
+        filterColumnMap={filterColumnMap}
         queryConfigColumns={baseQueryConfig.columns?.map(col => ({
           id: getColumnKey(col),
           name: col.alias || col.column,

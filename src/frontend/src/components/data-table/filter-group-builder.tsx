@@ -26,6 +26,7 @@ interface FilterGroupBuilderProps {
   sourceTable: string;  // Required for fetching facets
   joins?: QueryConfig["joins"];  // JOIN configuration for accessing joined tables
   columnIdToRef?: Record<string, string>;  // Mapping from column IDs to original DB references
+  filterColumnMap?: Map<string, string>;  // Map display column → filter column (e.g., parentBountyId → parentBountyName)
 }
 
 const OPERATORS = [
@@ -54,6 +55,7 @@ const FilterConditionRow = React.memo(function FilterConditionRow({
   updateCondition,
   removeItem,
   facetsData,
+  filterColumnMap,
 }: {
   item: FilterCondition;
   index: number;
@@ -61,13 +63,16 @@ const FilterConditionRow = React.memo(function FilterConditionRow({
   updateCondition: (index: number, updates: Partial<FilterCondition>) => void;
   removeItem: (index: number) => void;
   facetsData?: Record<string, FacetValue[]>;
+  filterColumnMap?: Map<string, string>;
 }) {
-  const isCategorical = isCategoricalColumn(item.column);
+  // Resolve to filter column if mapped (e.g., parentBountyId → parentBountyName)
+  const effectiveColumn = filterColumnMap?.get(item.column) || item.column;
+  const isCategorical = isCategoricalColumn(effectiveColumn);
   const isIN = item.operator === 'IN' || item.operator === 'NOT IN';
   const isNullCheck = item.operator === 'IS NULL' || item.operator === 'IS NOT NULL';
 
-  // Get column type and filter available operators
-  const columnType = getColumnType(item.column);
+  // Get column type using effective column and filter available operators
+  const columnType = getColumnType(effectiveColumn);
   const availableOperators = React.useMemo(() => {
     const allowedOps = getOperatorsForColumnType(columnType);
     return OPERATORS.filter(op => allowedOps.includes(op.value));
@@ -80,7 +85,9 @@ const FilterConditionRow = React.memo(function FilterConditionRow({
         value={item.column}
         onValueChange={(value) => {
           // When column changes, reset operator to first available for new column type
-          const newColumnType = getColumnType(value);
+          // Use filterColumn if mapped for determining column type
+          const newEffectiveColumn = filterColumnMap?.get(value) || value;
+          const newColumnType = getColumnType(newEffectiveColumn);
           const newAvailableOps = getOperatorsForColumnType(newColumnType);
           const currentOpAllowed = newAvailableOps.includes(item.operator);
 
@@ -196,7 +203,8 @@ const FilterConditionRow = React.memo(function FilterConditionRow({
     prevProps.updateCondition === nextProps.updateCondition &&
     prevProps.removeItem === nextProps.removeItem &&
     JSON.stringify(prevProps.availableColumns) === JSON.stringify(nextProps.availableColumns) &&
-    JSON.stringify(prevProps.facetsData) === JSON.stringify(nextProps.facetsData)
+    JSON.stringify(prevProps.facetsData) === JSON.stringify(nextProps.facetsData) &&
+    prevProps.filterColumnMap === nextProps.filterColumnMap
   );
 });
 
@@ -208,15 +216,21 @@ export const FilterGroupBuilder = React.memo(function FilterGroupBuilder({
   sourceTable,
   joins,
   columnIdToRef,
+  filterColumnMap,
 }: FilterGroupBuilderProps) {
   // Extract all categorical columns from the filter group (recursively)
+  // Uses filterColumnMap to check effective column type (e.g., parentBountyId → parentBountyName)
   const categoricalColumnsInGroup = React.useMemo(() => {
     const columns = new Set<string>();
 
     function extractColumns(g: FilterGroup) {
       g.conditions.forEach(condition => {
-        if ('column' in condition && isCategoricalColumn(condition.column)) {
-          columns.add(condition.column);
+        if ('column' in condition) {
+          // Check categorical using effective column (after filterColumnMap mapping)
+          const effectiveCol = filterColumnMap?.get(condition.column) || condition.column;
+          if (isCategoricalColumn(effectiveCol)) {
+            columns.add(condition.column);  // Store display column for facet lookup
+          }
         } else if ('conditions' in condition) {
           extractColumns(condition);
         }
@@ -225,7 +239,7 @@ export const FilterGroupBuilder = React.memo(function FilterGroupBuilder({
 
     extractColumns(group);
     return Array.from(columns);
-  }, [group]);
+  }, [group, filterColumnMap]);
 
   // State for facets data
   const [facetsData, setFacetsData] = React.useState<Record<string, FacetValue[]>>({});
@@ -239,10 +253,16 @@ export const FilterGroupBuilder = React.memo(function FilterGroupBuilder({
 
     const controller = new AbortController();
 
+    // Map display columns to filter columns (e.g., parentBountyId → parentBountyName)
+    // These are the columns we actually fetch facets for
+    const filterColumns = categoricalColumnsInGroup.map(col =>
+      filterColumnMap?.get(col) || col
+    );
+
     // Build facet config with proper alias resolution for joined columns
     const facetConfig = buildFacetQueryConfig({
       sourceTable,
-      columns: categoricalColumnsInGroup,
+      columns: filterColumns,
       joins,
       filters: group, // Use current filter group for accurate counts
       columnIdToRef,
@@ -263,29 +283,30 @@ export const FilterGroupBuilder = React.memo(function FilterGroupBuilder({
         }
         const result: FacetQueryResponse = await response.json();
 
-        // Map facet keys back from resolved columns to aliases
-        // e.g., "c.category" → "category" so UI can look up by alias
+        // Map facet keys back from resolved columns to display columns
+        // e.g., "b.name" → "parentBountyId" (the column shown in UI)
         // Also filter out null values (use IS NULL operator instead)
         const filterNulls = (values: FacetValue[]) =>
           values.filter(v => v.value !== null);
 
-        if (columnIdToRef) {
-          const refToAlias = Object.fromEntries(
-            Object.entries(columnIdToRef).map(([alias, ref]) => [ref, alias])
-          );
-          const mappedFacets: Record<string, FacetValue[]> = {};
-          for (const [key, values] of Object.entries(result.facets)) {
-            const alias = refToAlias[key] || key;
-            mappedFacets[alias] = filterNulls(values);
-          }
-          setFacetsData(mappedFacets);
-        } else {
-          const filteredFacets: Record<string, FacetValue[]> = {};
-          for (const [key, values] of Object.entries(result.facets)) {
-            filteredFacets[key] = filterNulls(values);
-          }
-          setFacetsData(filteredFacets);
+        // Build reverse mappings: DB ref → filterColumn → displayColumn
+        const refToFilterCol = columnIdToRef
+          ? Object.fromEntries(Object.entries(columnIdToRef).map(([alias, ref]) => [ref, alias]))
+          : {};
+        const filterToDisplay = filterColumnMap
+          ? Object.fromEntries(Array.from(filterColumnMap.entries()).map(([display, filter]) => [filter, display]))
+          : {};
+
+        const mappedFacets: Record<string, FacetValue[]> = {};
+        for (const [key, values] of Object.entries(result.facets)) {
+          // key is a DB ref like "b.name" or alias like "category"
+          // First resolve to filterColumn (alias)
+          const filterCol = refToFilterCol[key] || key;
+          // Then resolve to display column if mapped
+          const displayCol = filterToDisplay[filterCol] || filterCol;
+          mappedFacets[displayCol] = filterNulls(values);
         }
+        setFacetsData(mappedFacets);
       })
       .catch((err) => {
         if (err.name !== 'AbortError') {
@@ -297,7 +318,7 @@ export const FilterGroupBuilder = React.memo(function FilterGroupBuilder({
     return () => {
       controller.abort();
     };
-  }, [categoricalColumnsInGroup, sourceTable, group, joins, columnIdToRef]);
+  }, [categoricalColumnsInGroup, sourceTable, group, joins, columnIdToRef, filterColumnMap]);
 
   // Wrap all handlers in useCallback to prevent child re-renders
   const addCondition = React.useCallback(() => {
@@ -402,6 +423,7 @@ export const FilterGroupBuilder = React.memo(function FilterGroupBuilder({
                   sourceTable={sourceTable}
                   joins={joins}
                   columnIdToRef={columnIdToRef}
+                  filterColumnMap={filterColumnMap}
                 />
                 <Button
                   type="button"
@@ -423,6 +445,7 @@ export const FilterGroupBuilder = React.memo(function FilterGroupBuilder({
                 updateCondition={updateCondition}
                 removeItem={removeItem}
                 facetsData={facetsData}
+                filterColumnMap={filterColumnMap}
               />
             )}
           </div>
@@ -471,6 +494,7 @@ export const FilterGroupBuilder = React.memo(function FilterGroupBuilder({
     JSON.stringify(prevProps.group) === JSON.stringify(nextProps.group) &&
     JSON.stringify(prevProps.availableColumns) === JSON.stringify(nextProps.availableColumns) &&
     JSON.stringify(prevProps.joins) === JSON.stringify(nextProps.joins) &&
-    JSON.stringify(prevProps.columnIdToRef) === JSON.stringify(nextProps.columnIdToRef)
+    JSON.stringify(prevProps.columnIdToRef) === JSON.stringify(nextProps.columnIdToRef) &&
+    prevProps.filterColumnMap === nextProps.filterColumnMap
   );
 });

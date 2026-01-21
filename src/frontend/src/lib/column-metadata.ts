@@ -58,6 +58,7 @@ export function isCategoricalColumn(columnName: string): boolean {
     'type',
     'category',
     'subcategory',
+    'parentBountyName',  // parent bounty name for child bounties
   ];
 
   return categoricalColumns.includes(columnName);

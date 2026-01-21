@@ -18,6 +18,26 @@ Multi-select dropdown filters that show all unique values with counts for a spec
 />
 ```
 
+### Filter by Related Column (filterColumn)
+
+Display one column but filter by another using `filterColumn` in columnOverrides:
+
+```typescript
+const columnOverrides = {
+  parentBountyId: {
+    header: "Parent",
+    filterColumn: "parentBountyName",  // Filter by name instead of ID
+  },
+};
+
+<DataTable
+  facetedFilters={["parentBountyId"]}  // Shows bounty names in dropdown
+  columnOverrides={columnOverrides}
+/>
+```
+
+See [DataTable Advanced](./data-table-advanced.md#filtercolumn---display-vs-filter-column-mapping) for full example.
+
 ### Using Faceted Filters
 
 1. Click column header with dropdown icon

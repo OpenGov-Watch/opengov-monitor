@@ -269,6 +269,46 @@ export default function ReferendaPage() {
 
 Columns with dots (e.g., `tally.ayes`) are automatically handled - no special configuration needed.
 
+### filterColumn - Display vs Filter Column Mapping
+
+Use `filterColumn` in columnOverrides when you want to display one column but filter by another. Common use case: show human-readable names but filter by the underlying data.
+
+```typescript
+const columnOverrides = {
+  parentBountyId: {
+    header: "Parent",
+    filterColumn: "parentBountyName",  // Filter by name, not ID
+    cell: ({ row }: { row: any }) => {
+      // Display the bounty name (more readable than ID)
+      return <span>{row.original.parentBountyName || `#${row.original.parentBountyId}`}</span>;
+    },
+  },
+};
+
+// Include both columns in queryConfig
+const queryConfig = {
+  sourceTable: "Child Bounties",
+  columns: [
+    { column: "parentBountyId" },
+    { column: "b.name", alias: "parentBountyName" },  // Joined column
+  ],
+  joins: [{
+    type: "LEFT",
+    table: "Bounties",
+    alias: "b",
+    on: { left: "Child Bounties.parentBountyId", right: "b.id" }
+  }],
+};
+
+// Add to facetedFilters - dropdown will show bounty names, not IDs
+<DataTable
+  facetedFilters={["status", "parentBountyId"]}
+  columnOverrides={columnOverrides}
+/>
+```
+
+**Result**: "Parent" column shows bounty names. Faceted filter dropdown shows bounty names with counts. Advanced Filters treat it as categorical (IN/NOT IN operators).
+
 ### Virtual Combined Columns
 
 Combine multiple columns into one display:

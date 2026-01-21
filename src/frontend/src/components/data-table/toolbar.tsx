@@ -48,6 +48,7 @@ function AdvancedFiltersDialogContent({
   sourceTable,
   joins,
   columnIdToRef,
+  filterColumnMap,
 }: {
   filterGroup?: FilterGroup;
   availableColumns: { id: string; name: string }[];
@@ -55,6 +56,7 @@ function AdvancedFiltersDialogContent({
   sourceTable: string;
   joins?: QueryConfig["joins"];
   columnIdToRef?: Record<string, string>;
+  filterColumnMap?: Map<string, string>;  // Map display column → filter column
 }) {
   // Local state - changes don't trigger queries until Apply is clicked
   const [localGroup, setLocalGroup] = React.useState<FilterGroup>(
@@ -106,6 +108,7 @@ function AdvancedFiltersDialogContent({
         sourceTable={sourceTable}
         joins={joins}
         columnIdToRef={columnIdToRef}
+        filterColumnMap={filterColumnMap}
       />
       <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
         <Button
@@ -149,6 +152,7 @@ interface DataTableToolbarProps<TData> {
   onFilterGroupChange?: (group: FilterGroup | undefined) => void;
   joins?: QueryConfig["joins"];  // JOIN configuration for advanced filters
   columnIdToRef?: Record<string, string>;  // Mapping from column IDs to DB references
+  filterColumnMap?: Map<string, string>;  // Map display column → filter column for advanced filters
   queryConfigColumns?: { id: string; name: string }[];  // Fallback columns when table empty
 }
 
@@ -171,6 +175,7 @@ export function DataTableToolbar<TData>({
   onFilterGroupChange,
   joins,
   columnIdToRef,
+  filterColumnMap,
   queryConfigColumns,
 }: DataTableToolbarProps<TData>) {
   const isFiltered = table.getState().columnFilters.length > 0;
@@ -294,6 +299,7 @@ export function DataTableToolbar<TData>({
                     sourceTable={sourceTable}
                     joins={joins}
                     columnIdToRef={columnIdToRef}
+                    filterColumnMap={filterColumnMap}
                   />
                 </DialogContent>
               </Dialog>

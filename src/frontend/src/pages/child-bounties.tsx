@@ -154,6 +154,7 @@ export default function ChildBountiesPage() {
       },
       parentBountyId: {
         header: "Parent",
+        filterColumn: "parentBountyName",  // Use name column for faceted filtering
         cell: ({ row }: { row: any }) => {
           const name = row.original.parentBountyName;
           const id = row.original.parentBountyId;
@@ -227,7 +228,7 @@ export default function ChildBountiesPage() {
         tableName="child-bounties"
         editConfig={editConfig}
         isAuthenticated={isAuthenticated}
-        facetedFilters={["status"]}
+        facetedFilters={["status", "parentBountyId", "category", "subcategory"]}
         columnOverrides={columnOverrides}
         defaultViews={defaultChildBountiesViews}
       />

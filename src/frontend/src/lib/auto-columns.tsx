@@ -98,6 +98,7 @@ export function generateColumns<TData>(
         const hasDotNotation = columnName.includes(".");
         const columnId = hasDotNotation ? columnName.replace(/\./g, "_") : columnName;
         const parentCatCol = categoryEditConfig?.parentCategoryColumn;
+        const isFacetedFilter = facetedFilters?.includes(columnName) || false;
 
         return {
           id: columnId,
@@ -105,8 +106,28 @@ export function generateColumns<TData>(
             ? { accessorFn: (row: any) => row[columnName] }
             : { accessorKey: columnName }),
           header: ({ column }) => (
-            <DataTableColumnHeader column={column} title={formatColumnName(columnName)} />
+            <div className="flex items-center space-x-2">
+              {isFacetedFilter && (
+                <DataTableFacetedFilter
+                  column={column}
+                  title={formatColumnName(columnName)}
+                  filterGroup={filterGroup}
+                  onFilterGroupChange={onFilterGroupChange}
+                  columnName={columnName}
+                />
+              )}
+              {!isFacetedFilter && (
+                <DataTableColumnHeader column={column} title={formatColumnName(columnName)} />
+              )}
+              {isFacetedFilter && column.getCanSort() && (
+                <DataTableColumnHeader column={column} title="" />
+              )}
+            </div>
           ),
+          ...(isFacetedFilter && {
+            filterFn: (row: any, id: string, value: string[]) => value.includes(row.getValue(id)),
+            enableSorting: false,
+          }),
           cell: ({ row }) => {
             const value = hasDotNotation ? (row.original as any)[columnName] : row.getValue(columnId);
             const rowId = (row.original as any)[idField];
@@ -138,6 +159,7 @@ export function generateColumns<TData>(
         const columnId = hasDotNotation ? columnName.replace(/\./g, "_") : columnName;
         const parentCatCol = categoryEditConfig?.parentCategoryColumn;
         const parentSubcatCol = categoryEditConfig?.parentSubcategoryColumn;
+        const isFacetedFilter = facetedFilters?.includes(columnName) || false;
 
         return {
           id: columnId,
@@ -145,8 +167,28 @@ export function generateColumns<TData>(
             ? { accessorFn: (row: any) => row[columnName] }
             : { accessorKey: columnName }),
           header: ({ column }) => (
-            <DataTableColumnHeader column={column} title={formatColumnName(columnName)} />
+            <div className="flex items-center space-x-2">
+              {isFacetedFilter && (
+                <DataTableFacetedFilter
+                  column={column}
+                  title={formatColumnName(columnName)}
+                  filterGroup={filterGroup}
+                  onFilterGroupChange={onFilterGroupChange}
+                  columnName={columnName}
+                />
+              )}
+              {!isFacetedFilter && (
+                <DataTableColumnHeader column={column} title={formatColumnName(columnName)} />
+              )}
+              {isFacetedFilter && column.getCanSort() && (
+                <DataTableColumnHeader column={column} title="" />
+              )}
+            </div>
           ),
+          ...(isFacetedFilter && {
+            filterFn: (row: any, id: string, value: string[]) => value.includes(row.getValue(id)),
+            enableSorting: false,
+          }),
           cell: ({ row }) => {
             const value = hasDotNotation ? (row.original as any)[columnName] : row.getValue(columnId);
             const rowId = (row.original as any)[idField];
@@ -190,6 +232,11 @@ export function generateColumns<TData>(
     const hasDotNotation = columnName.includes(".");
     const columnId = hasDotNotation ? columnName.replace(/\./g, "_") : columnName;
 
+    // Check for filterColumn in columnOverrides (used for faceted filtering)
+    const override = columnOverrides[columnName] as any;
+    const filterColumnName = override?.filterColumn || columnName;
+    const headerTitle = typeof override?.header === 'string' ? override.header : formatColumnName(columnName);
+
     // Base column definition
     const columnDef: ColumnDef<TData> = {
       id: columnId,
@@ -201,10 +248,10 @@ export function generateColumns<TData>(
           {isFacetedFilter && (
             <DataTableFacetedFilter
               column={column}
-              title={formatColumnName(columnName)}
+              title={headerTitle}
               filterGroup={filterGroup}
               onFilterGroupChange={onFilterGroupChange}
-              columnName={columnName}
+              columnName={filterColumnName}
             />
           )}
           {!isFacetedFilter && (
@@ -280,7 +327,14 @@ export function generateColumns<TData>(
 
     // Apply column overrides
     if (columnOverrides[columnName]) {
-      Object.assign(columnDef, columnOverrides[columnName]);
+      const overridesCopy = { ...columnOverrides[columnName] };
+      // If this is a faceted filter column, don't override the header function
+      // (we already handled filterColumn and header title above)
+      if (isFacetedFilter && ('header' in overridesCopy || 'filterColumn' in overridesCopy)) {
+        delete (overridesCopy as any).header;
+        delete (overridesCopy as any).filterColumn;
+      }
+      Object.assign(columnDef, overridesCopy);
     }
 
     return columnDef;
