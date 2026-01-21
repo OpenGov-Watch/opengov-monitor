@@ -30,17 +30,17 @@ interface FilterGroupBuilderProps {
 }
 
 const OPERATORS = [
-  { value: "=", label: "equals" },
-  { value: "!=", label: "not equals" },
-  { value: ">", label: "greater than" },
-  { value: "<", label: "less than" },
-  { value: ">=", label: "greater than or equal" },
-  { value: "<=", label: "less than or equal" },
-  { value: "LIKE", label: "contains" },
-  { value: "IN", label: "in list" },
-  { value: "NOT IN", label: "not in list" },
-  { value: "IS NULL", label: "is null" },
-  { value: "IS NOT NULL", label: "is not null" },
+  { value: "=", label: "==" },
+  { value: "!=", label: "!=" },
+  { value: ">", label: ">" },
+  { value: "<", label: "<" },
+  { value: ">=", label: ">=" },
+  { value: "<=", label: "<=" },
+  { value: "LIKE", label: "LIKE" },
+  { value: "IN", label: "IN" },
+  { value: "NOT IN", label: "NOT IN" },
+  { value: "IS NULL", label: "IS NULL" },
+  { value: "IS NOT NULL", label: "IS NOT NULL" },
 ] as const;
 
 function isFilterGroup(item: FilterCondition | FilterGroup): item is FilterGroup {
