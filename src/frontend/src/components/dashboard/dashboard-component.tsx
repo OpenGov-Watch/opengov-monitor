@@ -220,7 +220,7 @@ export const DashboardComponent = memo(
     setIsExporting(true);
     try {
       const filename = `${component.name.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.png`;
-      await exportChartAsPNG(chartContentRef.current, filename);
+      await exportChartAsPNG(chartContentRef.current, component.name, filename);
     } catch (error) {
       console.error("Failed to download chart:", error);
       alert("Failed to download chart. Please try again.");
@@ -233,7 +233,7 @@ export const DashboardComponent = memo(
     if (!chartContentRef.current) return;
     setIsExporting(true);
     try {
-      await copyChartToClipboard(chartContentRef.current);
+      await copyChartToClipboard(chartContentRef.current, component.name);
     } catch (error) {
       console.error("Failed to copy chart:", error);
       alert("Failed to copy chart to clipboard. Please try again.");

@@ -130,7 +130,14 @@ export const DashboardLineChart = memo(
               content={<CustomTooltip tableName={tableName} columnMapping={columnMapping} />}
             />
           )}
-          {showLegend && <Legend />}
+          {showLegend && (
+            <Legend
+              layout="vertical"
+              align="right"
+              verticalAlign="middle"
+              wrapperStyle={{ paddingLeft: "20px" }}
+            />
+          )}
           {lines.map((line, index) => (
             <Line
               key={line.dataKey}

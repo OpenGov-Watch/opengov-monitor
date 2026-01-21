@@ -127,7 +127,14 @@ export const DashboardPieChart = memo(
               content={<CustomTooltip tableName={tableName} valueColumn={valueColumn} columnMapping={columnMapping} total={total} />}
             />
           )}
-          {showLegend && <Legend />}
+          {showLegend && (
+            <Legend
+              layout="vertical"
+              align="right"
+              verticalAlign="middle"
+              wrapperStyle={{ paddingLeft: "20px" }}
+            />
+          )}
         </RechartsPieChart>
       </ResponsiveContainer>
     );

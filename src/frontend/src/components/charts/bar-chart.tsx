@@ -133,7 +133,14 @@ export const DashboardBarChart = memo(
               content={<CustomTooltip tableName={tableName} columnMapping={columnMapping} />}
             />
           )}
-          {showLegend && <Legend />}
+          {showLegend && (
+            <Legend
+              layout="vertical"
+              align="right"
+              verticalAlign="middle"
+              wrapperStyle={{ paddingLeft: "20px" }}
+            />
+          )}
           {bars.map((bar, index) => {
             // If colorByRow is enabled and we have a single bar series,
             // assign colors to each data point based on row index

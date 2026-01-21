@@ -1,57 +1,72 @@
 import html2canvas from "html2canvas";
 
 /**
- * Export a chart element as PNG image
- * @param element - The DOM element to export
+ * Export a chart element as PNG image with title and legend
+ * @param element - The DOM element containing the chart
+ * @param title - The title to render at the top
  * @param filename - The name for the downloaded file
  * @param width - Target width in pixels (default 1200)
  * @param height - Target height in pixels (default 800)
  */
 export async function exportChartAsPNG(
   element: HTMLElement,
+  title: string,
   filename: string,
   width = 1200,
   height = 800
 ): Promise<void> {
   try {
-    // Calculate scale to achieve target dimensions while maintaining aspect ratio
-    const rect = element.getBoundingClientRect();
-    const scaleX = width / rect.width;
-    const scaleY = height / rect.height;
-    const scale = Math.min(scaleX, scaleY);
+    // Create a temporary container for the export with title and chart
+    const exportContainer = document.createElement("div");
+    exportContainer.style.position = "fixed";
+    exportContainer.style.left = "-9999px";
+    exportContainer.style.top = "0";
+    exportContainer.style.width = `${width}px`;
+    exportContainer.style.height = `${height}px`;
+    exportContainer.style.backgroundColor = "#ffffff";
+    exportContainer.style.display = "flex";
+    exportContainer.style.flexDirection = "column";
+    exportContainer.style.padding = "24px";
+    exportContainer.style.boxSizing = "border-box";
 
-    const canvas = await html2canvas(element, {
+    // Create title element
+    const titleElement = document.createElement("div");
+    titleElement.textContent = title;
+    titleElement.style.fontSize = "24px";
+    titleElement.style.fontWeight = "600";
+    titleElement.style.marginBottom = "16px";
+    titleElement.style.color = "#000000";
+    titleElement.style.textAlign = "center";
+
+    // Clone the chart element
+    const chartClone = element.cloneNode(true) as HTMLElement;
+    chartClone.style.flex = "1";
+    chartClone.style.minHeight = "0";
+    chartClone.style.display = "flex";
+    chartClone.style.flexDirection = "column";
+
+    // Append elements to container
+    exportContainer.appendChild(titleElement);
+    exportContainer.appendChild(chartClone);
+    document.body.appendChild(exportContainer);
+
+    // Wait for any pending renders
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Capture the container
+    const canvas = await html2canvas(exportContainer, {
       backgroundColor: "#ffffff",
-      scale: scale,
-      width: rect.width,
-      height: rect.height,
+      width: width,
+      height: height,
+      scale: 1,
       logging: false,
     });
 
-    // Create a new canvas with exact dimensions
-    const finalCanvas = document.createElement("canvas");
-    finalCanvas.width = width;
-    finalCanvas.height = height;
-    const ctx = finalCanvas.getContext("2d");
-
-    if (!ctx) {
-      throw new Error("Could not get canvas context");
-    }
-
-    // Fill background
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, width, height);
-
-    // Center the chart in the target dimensions
-    const scaledWidth = rect.width * scale;
-    const scaledHeight = rect.height * scale;
-    const x = (width - scaledWidth) / 2;
-    const y = (height - scaledHeight) / 2;
-
-    ctx.drawImage(canvas, x, y, scaledWidth, scaledHeight);
+    // Clean up
+    document.body.removeChild(exportContainer);
 
     // Download the image
-    finalCanvas.toBlob((blob) => {
+    canvas.toBlob((blob) => {
       if (!blob) {
         throw new Error("Failed to create image blob");
       }
@@ -69,55 +84,70 @@ export async function exportChartAsPNG(
 }
 
 /**
- * Copy a chart element as PNG image to clipboard
- * @param element - The DOM element to copy
+ * Copy a chart element as PNG image to clipboard with title and legend
+ * @param element - The DOM element containing the chart
+ * @param title - The title to render at the top
  * @param width - Target width in pixels (default 1200)
  * @param height - Target height in pixels (default 800)
  */
 export async function copyChartToClipboard(
   element: HTMLElement,
+  title: string,
   width = 1200,
   height = 800
 ): Promise<void> {
   try {
-    // Calculate scale to achieve target dimensions while maintaining aspect ratio
-    const rect = element.getBoundingClientRect();
-    const scaleX = width / rect.width;
-    const scaleY = height / rect.height;
-    const scale = Math.min(scaleX, scaleY);
+    // Create a temporary container for the export with title and chart
+    const exportContainer = document.createElement("div");
+    exportContainer.style.position = "fixed";
+    exportContainer.style.left = "-9999px";
+    exportContainer.style.top = "0";
+    exportContainer.style.width = `${width}px`;
+    exportContainer.style.height = `${height}px`;
+    exportContainer.style.backgroundColor = "#ffffff";
+    exportContainer.style.display = "flex";
+    exportContainer.style.flexDirection = "column";
+    exportContainer.style.padding = "24px";
+    exportContainer.style.boxSizing = "border-box";
 
-    const canvas = await html2canvas(element, {
+    // Create title element
+    const titleElement = document.createElement("div");
+    titleElement.textContent = title;
+    titleElement.style.fontSize = "24px";
+    titleElement.style.fontWeight = "600";
+    titleElement.style.marginBottom = "16px";
+    titleElement.style.color = "#000000";
+    titleElement.style.textAlign = "center";
+
+    // Clone the chart element
+    const chartClone = element.cloneNode(true) as HTMLElement;
+    chartClone.style.flex = "1";
+    chartClone.style.minHeight = "0";
+    chartClone.style.display = "flex";
+    chartClone.style.flexDirection = "column";
+
+    // Append elements to container
+    exportContainer.appendChild(titleElement);
+    exportContainer.appendChild(chartClone);
+    document.body.appendChild(exportContainer);
+
+    // Wait for any pending renders
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Capture the container
+    const canvas = await html2canvas(exportContainer, {
       backgroundColor: "#ffffff",
-      scale: scale,
-      width: rect.width,
-      height: rect.height,
+      width: width,
+      height: height,
+      scale: 1,
       logging: false,
     });
 
-    // Create a new canvas with exact dimensions
-    const finalCanvas = document.createElement("canvas");
-    finalCanvas.width = width;
-    finalCanvas.height = height;
-    const ctx = finalCanvas.getContext("2d");
-
-    if (!ctx) {
-      throw new Error("Could not get canvas context");
-    }
-
-    // Fill background
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, width, height);
-
-    // Center the chart in the target dimensions
-    const scaledWidth = rect.width * scale;
-    const scaledHeight = rect.height * scale;
-    const x = (width - scaledWidth) / 2;
-    const y = (height - scaledHeight) / 2;
-
-    ctx.drawImage(canvas, x, y, scaledWidth, scaledHeight);
+    // Clean up
+    document.body.removeChild(exportContainer);
 
     // Copy to clipboard
-    finalCanvas.toBlob(async (blob) => {
+    canvas.toBlob(async (blob) => {
       if (!blob) {
         throw new Error("Failed to create image blob");
       }
