@@ -32,6 +32,7 @@ INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUE
 INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (17, 'rename_salary_payment_columns', 'e3109684b3eb5ef1089a99f0b850a30a0ccfcbb46ee41d41439a0f134f75b262', 0);
 INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (18, 'add_salary_payment_dot_column', '55920a140c49c0216cdff7930aa5d467a50076e904e7f305050e99c4db32133d', 0);
 INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (19, 'fellowship_salary_view_from_payments', '94a27a81f2900ad0e9d29d0ad3a0e99ed9b3dfd610a6d54671fd60d5f8dec69c', 0);
+INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (20, 'fix_fellowship_salary_usd_latest', 'a4f3f7ab169f9f0f03bf0e820ba126ac9ff2f6983eda9a1ed3a45188eaa86fee', 0);
 
 -- Tables
 -- Table: Bounties
@@ -207,7 +208,6 @@ SELECT
     strftime('%Y', spending.latest_status_change) || '-Q' ||
         ((CAST(strftime('%m', spending.latest_status_change) AS INTEGER) + 2) / 3) AS year_quarter
 FROM (
-    -- Direct Spend: Referenda with DOT value but NO Treasury link
     SELECT
         'Direct Spend' AS type,
         'ref-' || r.id AS id,
@@ -227,10 +227,7 @@ FROM (
       AND r.DOT_latest > 0
       AND r.status = 'Executed'
       AND (r.hide_in_spends IS NULL OR r.hide_in_spends = 0)
-
     UNION ALL
-
-    -- Claim: Treasury spends (paid)
     SELECT
         'Claim' AS type,
         'treasury-' || t.id AS id,
@@ -247,10 +244,7 @@ FROM (
     LEFT JOIN Referenda r ON t.referendumIndex = r.id
     LEFT JOIN Categories cat ON r.category_id = cat.id
     WHERE t.status IN ('Paid', 'Processed')
-
     UNION ALL
-
-    -- Bounty (Child): Child bounties that have been claimed
     SELECT
         'Bounty' AS type,
         'cb-' || cb.identifier AS id,
@@ -269,10 +263,7 @@ FROM (
     LEFT JOIN Categories b_cat ON b.category_id = b_cat.id
     WHERE cb.status = 'Claimed'
       AND (cb.hide_in_spends IS NULL OR cb.hide_in_spends = 0)
-
     UNION ALL
-
-    -- Subtreasury: Manually managed spending entries
     SELECT
         'Subtreasury' AS type,
         'sub-' || s.id AS id,
@@ -287,29 +278,22 @@ FROM (
         s.USDT_component
     FROM Subtreasury s
     LEFT JOIN Categories c ON s.category_id = c.id
-
     UNION ALL
-
-    -- Fellowship Salary: Aggregated from individual payments
-    -- Shows both DOT and USDC components from actual payment records
     SELECT
         'Fellowship Salary' AS type,
         'fs-' || p.cycle AS id,
         MAX(p.block_time) AS latest_status_change,
         SUM(p.amount_dot) AS DOT_latest,
-        NULL AS USD_latest,
+        SUM(p.amount_usdc) AS USD_latest,
         'Development' AS category,
         'Polkadot Protocol & SDK' AS subcategory,
         'Fellowship Salary Cycle ' || p.cycle AS title,
-        SUM(p.amount_dot) AS DOT_component,
+        NULL AS DOT_component,
         SUM(p.amount_usdc) AS USDC_component,
         NULL AS USDT_component
     FROM "Fellowship Salary Payments" p
     GROUP BY p.cycle
-
     UNION ALL
-
-    -- Fellowship Grants: Fellowship treasury spends (from collectives API)
     SELECT
         'Fellowship Grants' AS type,
         'fg-' || f.id AS id,
@@ -324,10 +308,7 @@ FROM (
         NULL AS USDT_component
     FROM Fellowship f
     WHERE f.status IN ('Paid', 'Approved')
-
     UNION ALL
-
-    -- Custom Spending: User-managed entries
     SELECT
         cs.type AS type,
         'custom-' || cs.id AS id,
