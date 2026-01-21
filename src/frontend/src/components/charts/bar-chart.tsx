@@ -46,6 +46,7 @@ interface DashboardBarChartProps {
   legendPosition?: "bottom" | "right";
   isAnimationActive?: boolean; // Set to false for export to disable animations
   valueColumnForConfig?: string; // Original value column name for Y-axis config lookup (used when data is pivoted)
+  exportMode?: boolean; // When true, renders legend 50% larger for download/copy
 }
 
 // Memoized custom tooltip component with formatted values
@@ -106,6 +107,7 @@ export const DashboardBarChart = memo(
     legendPosition = "bottom",
     isAnimationActive = true,
     valueColumnForConfig,
+    exportMode = false,
   }: DashboardBarChartProps) {
     // Get config for Y-axis formatting
     // Use valueColumnForConfig if provided (for pivoted data), otherwise fall back to first bar's dataKey
@@ -127,10 +129,10 @@ export const DashboardBarChart = memo(
         minHeight={200}
         initialDimension={{ width: 400, height: 200 }}
       >
-        <RechartsBarChart data={data}>
+        <RechartsBarChart data={data} margin={{ top: 20, right: 5, left: 0, bottom: 5 }}>
           {showGrid && <CartesianGrid strokeDasharray="3 3" />}
-          <XAxis dataKey="name" tick={{ fontSize: 14 }} />
-          <YAxis tick={{ fontSize: 14 }} tickFormatter={yAxisFormatter} />
+          <XAxis dataKey="name" tick={{ fontSize: exportMode ? 16 : 14 }} />
+          <YAxis tick={{ fontSize: exportMode ? 16 : 14 }} tickFormatter={yAxisFormatter} />
           {showTooltip && (
             <Tooltip
               content={<CustomTooltip tableName={tableName} columnMapping={columnMapping} valueColumnForConfig={valueColumnForConfig} />}
@@ -143,11 +145,11 @@ export const DashboardBarChart = memo(
               verticalAlign={legendPosition === "right" ? "middle" : "bottom"}
               wrapperStyle={legendPosition === "right" ? { paddingLeft: "20px" } : { paddingTop: "10px" }}
               content={() => (
-                <ul className={`flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm ${legendPosition === "right" ? "flex-col" : ""}`}>
+                <ul className={`flex flex-wrap justify-center ${exportMode ? "gap-x-6 gap-y-2 text-lg" : "gap-x-4 gap-y-1 text-sm"} ${legendPosition === "right" ? "flex-col" : ""}`}>
                   {bars.map((bar, index) => (
-                    <li key={bar.dataKey} className="flex items-center gap-1.5">
+                    <li key={bar.dataKey} className={`flex items-center ${exportMode ? "gap-2" : "gap-1.5"}`}>
                       <span
-                        className="inline-block w-3 h-3 rounded-sm"
+                        className={`inline-block rounded-sm ${exportMode ? "w-5 h-5" : "w-3 h-3"}`}
                         style={{ backgroundColor: bar.color || colors[index % colors.length] }}
                       />
                       <span className="text-muted-foreground">{bar.name || bar.dataKey}</span>
@@ -207,7 +209,8 @@ export const DashboardBarChart = memo(
       prevProps.colorByRow === nextProps.colorByRow &&
       prevProps.legendPosition === nextProps.legendPosition &&
       prevProps.isAnimationActive === nextProps.isAnimationActive &&
-      prevProps.valueColumnForConfig === nextProps.valueColumnForConfig
+      prevProps.valueColumnForConfig === nextProps.valueColumnForConfig &&
+      prevProps.exportMode === nextProps.exportMode
     );
   }
 );

@@ -236,6 +236,7 @@ export const DashboardComponent = memo(
             columnMapping={columnMapping}
             legendPosition="right"
             isAnimationActive={false}
+            exportMode={true}
           />
         );
 
@@ -255,6 +256,7 @@ export const DashboardComponent = memo(
             legendPosition="right"
             isAnimationActive={false}
             valueColumnForConfig={barChartData.valueColumn}
+            exportMode={true}
           />
         );
 
@@ -269,6 +271,7 @@ export const DashboardComponent = memo(
             columnMapping={columnMapping}
             legendPosition="right"
             isAnimationActive={false}
+            exportMode={true}
           />
         );
 

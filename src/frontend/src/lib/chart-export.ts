@@ -34,7 +34,7 @@ export async function exportChartAsPNG(
     // Create title element
     const titleElement = document.createElement("div");
     titleElement.textContent = title;
-    titleElement.style.fontSize = "24px";
+    titleElement.style.fontSize = "29px";
     titleElement.style.fontWeight = "600";
     titleElement.style.marginBottom = "16px";
     titleElement.style.color = "#000000";
@@ -120,7 +120,7 @@ export async function copyChartToClipboard(
     // Create title element
     const titleElement = document.createElement("div");
     titleElement.textContent = title;
-    titleElement.style.fontSize = "24px";
+    titleElement.style.fontSize = "29px";
     titleElement.style.fontWeight = "600";
     titleElement.style.marginBottom = "16px";
     titleElement.style.color = "#000000";

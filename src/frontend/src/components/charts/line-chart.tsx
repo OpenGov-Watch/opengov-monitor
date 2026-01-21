@@ -39,6 +39,7 @@ interface DashboardLineChartProps {
   columnMapping?: Record<string, string>;
   legendPosition?: "bottom" | "right";
   isAnimationActive?: boolean; // Set to false for export to disable animations
+  exportMode?: boolean; // When true, renders legend 50% larger for download/copy
 }
 
 const DEFAULT_COLORS = [
@@ -105,6 +106,7 @@ export const DashboardLineChart = memo(
     columnMapping,
     legendPosition = "bottom",
     isAnimationActive = true,
+    exportMode = false,
   }: DashboardLineChartProps) {
     // Get config for first value column to determine Y-axis formatting
     const firstValueColumn = lines[0]?.dataKey;
@@ -125,10 +127,10 @@ export const DashboardLineChart = memo(
         minHeight={200}
         initialDimension={{ width: 400, height: 200 }}
       >
-        <RechartsLineChart data={data}>
+        <RechartsLineChart data={data} margin={{ top: 20, right: 5, left: 0, bottom: 5 }}>
           {showGrid && <CartesianGrid strokeDasharray="3 3" />}
-          <XAxis dataKey="name" tick={{ fontSize: 14 }} />
-          <YAxis tick={{ fontSize: 14 }} tickFormatter={yAxisFormatter} />
+          <XAxis dataKey="name" tick={{ fontSize: exportMode ? 16 : 14 }} />
+          <YAxis tick={{ fontSize: exportMode ? 16 : 14 }} tickFormatter={yAxisFormatter} />
           {showTooltip && (
             <Tooltip
               content={<CustomTooltip tableName={tableName} columnMapping={columnMapping} />}
@@ -140,6 +142,19 @@ export const DashboardLineChart = memo(
               align={legendPosition === "right" ? "right" : "center"}
               verticalAlign={legendPosition === "right" ? "middle" : "bottom"}
               wrapperStyle={legendPosition === "right" ? { paddingLeft: "20px" } : { paddingTop: "10px" }}
+              content={() => (
+                <ul className={`flex flex-wrap justify-center ${exportMode ? "gap-x-6 gap-y-2 text-lg" : "gap-x-4 gap-y-1 text-sm"} ${legendPosition === "right" ? "flex-col" : ""}`}>
+                  {lines.map((line, index) => (
+                    <li key={line.dataKey} className={`flex items-center ${exportMode ? "gap-2" : "gap-1.5"}`}>
+                      <span
+                        className={`inline-block rounded-sm ${exportMode ? "w-5 h-5" : "w-3 h-3"}`}
+                        style={{ backgroundColor: line.color || colors[index % colors.length] }}
+                      />
+                      <span className="text-muted-foreground">{line.name || line.dataKey}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             />
           )}
           {lines.map((line, index) => (
@@ -171,7 +186,8 @@ export const DashboardLineChart = memo(
       prevProps.tableName === nextProps.tableName &&
       prevProps.columnMapping === nextProps.columnMapping &&
       prevProps.legendPosition === nextProps.legendPosition &&
-      prevProps.isAnimationActive === nextProps.isAnimationActive
+      prevProps.isAnimationActive === nextProps.isAnimationActive &&
+      prevProps.exportMode === nextProps.exportMode
     );
   }
 );
