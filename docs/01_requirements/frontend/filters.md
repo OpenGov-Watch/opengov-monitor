@@ -60,7 +60,7 @@ Must identify column types and restrict operators:
 **Operator Availability**:
 - **Categorical**: `IN`, `NOT IN`, `IS NULL`, `IS NOT NULL`
 - **Numeric**: `=`, `!=`, `>`, `<`, `>=`, `<=`, `IS NULL`, `IS NOT NULL`
-- **Text**: `=`, `!=`, `LIKE`, `IS NULL`, `IS NOT NULL`
+- **Text**: `=`, `!=`, `>`, `<`, `>=`, `<=`, `LIKE`, `IS NULL`, `IS NOT NULL`
 - **Date**: `=`, `!=`, `>`, `<`, `>=`, `<=`, `IS NULL`, `IS NOT NULL`
 
 ### UI Requirements

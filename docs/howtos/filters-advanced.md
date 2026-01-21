@@ -21,6 +21,7 @@ Complex filter builder with AND/OR logic for custom queries in dashboards.
 
 **Text** (`title`, `description`, `notes`):
 - `=`, `!=` - Exact match
+- `>`, `<`, `>=`, `<=` - Lexicographic comparisons
 - `LIKE` - Pattern match (use `%` wildcards)
 - `IS NULL` / `IS NOT NULL`
 

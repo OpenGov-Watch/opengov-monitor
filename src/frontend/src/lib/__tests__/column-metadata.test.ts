@@ -194,10 +194,13 @@ describe("Column Metadata", () => {
       const ops = getOperatorsForColumnType("text");
       expect(ops).toContain("=");
       expect(ops).toContain("!=");
+      expect(ops).toContain(">");
+      expect(ops).toContain("<");
+      expect(ops).toContain(">=");
+      expect(ops).toContain("<=");
       expect(ops).toContain("LIKE");
       expect(ops).toContain("IS NULL");
       expect(ops).toContain("IS NOT NULL");
-      expect(ops).not.toContain(">");
       expect(ops).not.toContain("IN");
     });
 

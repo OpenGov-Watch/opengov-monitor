@@ -74,7 +74,7 @@ export function getOperatorsForColumnType(columnType: ColumnType): string[] {
     case 'numeric':
       return ['=', '!=', '>', '<', '>=', '<=', 'IS NULL', 'IS NOT NULL'];
     case 'text':
-      return ['=', '!=', 'LIKE', 'IS NULL', 'IS NOT NULL'];
+      return ['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'IS NULL', 'IS NOT NULL'];
     case 'date':
       return ['=', '!=', '>', '<', '>=', '<=', 'IS NULL', 'IS NOT NULL'];
     default:
