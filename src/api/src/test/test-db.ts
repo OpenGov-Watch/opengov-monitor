@@ -111,6 +111,21 @@ const SCHEMA_SQL = `
     "rank" INTEGER
   );
 
+  CREATE TABLE IF NOT EXISTS "${TABLE_NAMES.fellowshipSalaryPayments}" (
+    "payment_id" INTEGER PRIMARY KEY,
+    "cycle" INTEGER,
+    "who" TEXT,
+    "who_name" TEXT,
+    "beneficiary" TEXT,
+    "beneficiary_name" TEXT,
+    "amount_usdc" REAL,
+    "salary_usdc" REAL,
+    "rank" INTEGER,
+    "is_active" INTEGER,
+    "block_height" INTEGER,
+    "block_time" TEXT
+  );
+
   CREATE TABLE IF NOT EXISTS "${TABLE_NAMES.categories}" (
     "id" INTEGER PRIMARY KEY,
     "category" TEXT,

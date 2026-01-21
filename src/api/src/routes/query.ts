@@ -12,6 +12,7 @@ const ALLOWED_SOURCES = new Set([
   "Fellowship",
   "Fellowship Salary Cycles",
   "Fellowship Salary Claimants",
+  "Fellowship Salary Payments",
   "categories",
   "Categories",  // For JOINs
   "bounties",
@@ -32,6 +33,7 @@ const ALLOWED_TABLES = [
   "Fellowship",
   "Fellowship Salary Cycles",
   "Fellowship Salary Claimants",
+  "Fellowship Salary Payments",
   "categories",
   "bounties",
   "subtreasury",

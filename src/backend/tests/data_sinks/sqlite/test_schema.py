@@ -318,7 +318,7 @@ class TestSchemaContentValidation:
         assert schema.primary_key == "payment_id"
         assert schema.columns["payment_id"] == "INTEGER"
         assert "cycle" in schema.columns
-        assert "amount_dot" in schema.columns
+        assert "amount_usdc" in schema.columns  # Fellowship salaries are paid in USDC
 
     def test_dashboard_components_schema(self):
         """Verify Dashboard Components has JSON blob columns."""

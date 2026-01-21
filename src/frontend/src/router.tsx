@@ -13,6 +13,7 @@ const ChildBountiesPage = lazy(() => import("@/pages/child-bounties"));
 const FellowshipPage = lazy(() => import("@/pages/fellowship"));
 const SalaryCyclesPage = lazy(() => import("@/pages/fellowship-salary-cycles"));
 const SalaryClaimantsPage = lazy(() => import("@/pages/fellowship-salary-claimants"));
+const SalaryPaymentsPage = lazy(() => import("@/pages/fellowship-salary-payments"));
 const SpendingPage = lazy(() => import("@/pages/spending"));
 const OutstandingClaimsPage = lazy(() => import("@/pages/outstanding-claims"));
 const ExpiredClaimsPage = lazy(() => import("@/pages/expired-claims"));
@@ -67,6 +68,7 @@ export const router = createBrowserRouter([
       { path: "fellowship", element: withSuspense(FellowshipPage), errorElement: childErrorElement },
       { path: "fellowship-salary-cycles", element: withSuspense(SalaryCyclesPage), errorElement: childErrorElement },
       { path: "fellowship-salary-claimants", element: withSuspense(SalaryClaimantsPage), errorElement: childErrorElement },
+      { path: "fellowship-salary-payments", element: withSuspense(SalaryPaymentsPage), errorElement: childErrorElement },
       { path: "spending", element: withSuspense(SpendingPage), errorElement: childErrorElement },
       { path: "outstanding-claims", element: withSuspense(OutstandingClaimsPage), errorElement: childErrorElement },
       { path: "expired-claims", element: withSuspense(ExpiredClaimsPage), errorElement: childErrorElement },

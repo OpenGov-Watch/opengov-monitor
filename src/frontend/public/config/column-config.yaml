@@ -412,3 +412,19 @@ patterns:
       render: currency
       currency: USDC
       decimals: 0
+
+  - match: exact
+    pattern: "amount_usdc"
+    caseInsensitive: true
+    config:
+      render: currency
+      currency: USDC
+      decimals: 0
+
+  - match: exact
+    pattern: "salary_usdc"
+    caseInsensitive: true
+    config:
+      render: currency
+      currency: USDC
+      decimals: 0

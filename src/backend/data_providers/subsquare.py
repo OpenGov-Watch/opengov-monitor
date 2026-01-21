@@ -998,12 +998,12 @@ class SubsquareProvider(DataProvider):
         """Transform raw payment data."""
         df = df.copy()
 
-        # Denominate amounts
-        df['amount_dot'] = df['amount_raw'].apply(
-            lambda x: self.network_info.apply_denomination(x, self.network_info.native_asset)
+        # Denominate amounts (fellowship salaries are paid in USDC, not DOT)
+        df['amount_usdc'] = df['amount_raw'].apply(
+            lambda x: self.network_info.apply_denomination(x, AssetKind.USDC)
         )
-        df['salary_dot'] = df['salary_raw'].apply(
-            lambda x: self.network_info.apply_denomination(x, self.network_info.native_asset)
+        df['salary_usdc'] = df['salary_raw'].apply(
+            lambda x: self.network_info.apply_denomination(x, AssetKind.USDC)
         )
 
         # Convert time (MILLISECONDS for feeds endpoint - not seconds like other endpoints!)
@@ -1016,7 +1016,7 @@ class SubsquareProvider(DataProvider):
 
         df.set_index('payment_id', inplace=True)
         return df[['cycle', 'who', 'who_name', 'beneficiary', 'beneficiary_name',
-                   'amount_dot', 'salary_dot', 'rank', 'is_active',
+                   'amount_usdc', 'salary_usdc', 'rank', 'is_active',
                    'block_height', 'block_time']]
 
     def fetch_fellowship_members(self):

@@ -77,7 +77,9 @@ Note: Fellowship salary amounts paid in USDC with 6 decimal places (÷ 10^6)
 
 Primary key: `payment_id` (auto-increment)
 
-Core fields: `cycle`, `who`, `who_name`, `beneficiary`, `beneficiary_name`, `amount_dot`, `salary_dot`, `rank`, `is_active`, `block_height`, `block_time`
+Core fields: `cycle`, `who`, `who_name`, `beneficiary`, `beneficiary_name`, `amount_usdc`, `salary_usdc`, `rank`, `is_active`, `block_height`, `block_time`
+
+Note: Fellowship salary amounts are paid in USDC with 6 decimal places
 
 ---
 

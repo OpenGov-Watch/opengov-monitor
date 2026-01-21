@@ -14,6 +14,7 @@ import Gift from "lucide-react/dist/esm/icons/gift";
 import Users from "lucide-react/dist/esm/icons/users";
 import Calendar from "lucide-react/dist/esm/icons/calendar";
 import UserCheck from "lucide-react/dist/esm/icons/user-check";
+import CreditCard from "lucide-react/dist/esm/icons/credit-card";
 import Clock from "lucide-react/dist/esm/icons/clock";
 import TimerOff from "lucide-react/dist/esm/icons/timer-off";
 import PieChart from "lucide-react/dist/esm/icons/pie-chart";
@@ -71,6 +72,7 @@ const staticNavigation: NavSection[] = [
       { name: "Fellowship", href: "/fellowship", icon: Users },
       { name: "Salary Cycles", href: "/fellowship-salary-cycles", icon: Calendar },
       { name: "Salary Claimants", href: "/fellowship-salary-claimants", icon: UserCheck },
+      { name: "Salary Payments", href: "/fellowship-salary-payments", icon: CreditCard },
     ],
   },
   {

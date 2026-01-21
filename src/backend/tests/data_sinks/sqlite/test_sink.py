@@ -209,14 +209,14 @@ class TestViewLogic:
 
         This test catches issues like missing column references or broken JOINs
         in the view definition. The view JOINs multiple tables (Referenda,
-        Treasury, Child Bounties, Bounties, Categories, Subtreasury, Fellowship)
-        and errors in JOIN conditions will cause query failures.
+        Treasury, Child Bounties, Bounties, Categories, Subtreasury, Fellowship,
+        Custom Spending) and errors in JOIN conditions will cause query failures.
         """
         from data_sinks.sqlite.schema import (
             REFERENDA_SCHEMA, TREASURY_SCHEMA, CHILD_BOUNTIES_SCHEMA,
             FELLOWSHIP_SCHEMA, FELLOWSHIP_SALARY_CYCLES_SCHEMA,
             CATEGORIES_SCHEMA, BOUNTIES_SCHEMA, SUBTREASURY_SCHEMA,
-            FELLOWSHIP_SUBTREASURY_SCHEMA,
+            FELLOWSHIP_SUBTREASURY_SCHEMA, CUSTOM_SPENDING_SCHEMA,
             generate_create_table_sql,
         )
 
@@ -224,7 +224,7 @@ class TestViewLogic:
         for schema in [REFERENDA_SCHEMA, TREASURY_SCHEMA, CHILD_BOUNTIES_SCHEMA,
                        FELLOWSHIP_SCHEMA, FELLOWSHIP_SALARY_CYCLES_SCHEMA,
                        CATEGORIES_SCHEMA, BOUNTIES_SCHEMA, SUBTREASURY_SCHEMA,
-                       FELLOWSHIP_SUBTREASURY_SCHEMA]:
+                       FELLOWSHIP_SUBTREASURY_SCHEMA, CUSTOM_SPENDING_SCHEMA]:
             sqlite_sink.connection.execute(generate_create_table_sql(schema))
         sqlite_sink.connection.commit()
 
@@ -241,7 +241,7 @@ class TestViewLogic:
             REFERENDA_SCHEMA, TREASURY_SCHEMA, CHILD_BOUNTIES_SCHEMA,
             FELLOWSHIP_SCHEMA, FELLOWSHIP_SALARY_CYCLES_SCHEMA,
             CATEGORIES_SCHEMA, BOUNTIES_SCHEMA, SUBTREASURY_SCHEMA,
-            FELLOWSHIP_SUBTREASURY_SCHEMA,
+            FELLOWSHIP_SUBTREASURY_SCHEMA, CUSTOM_SPENDING_SCHEMA,
             generate_create_table_sql,
         )
 
@@ -249,7 +249,7 @@ class TestViewLogic:
         for schema in [REFERENDA_SCHEMA, TREASURY_SCHEMA, CHILD_BOUNTIES_SCHEMA,
                        FELLOWSHIP_SCHEMA, FELLOWSHIP_SALARY_CYCLES_SCHEMA,
                        CATEGORIES_SCHEMA, BOUNTIES_SCHEMA, SUBTREASURY_SCHEMA,
-                       FELLOWSHIP_SUBTREASURY_SCHEMA]:
+                       FELLOWSHIP_SUBTREASURY_SCHEMA, CUSTOM_SPENDING_SCHEMA]:
             sqlite_sink.connection.execute(generate_create_table_sql(schema))
         sqlite_sink.connection.commit()
 
@@ -277,7 +277,7 @@ class TestViewLogic:
             REFERENDA_SCHEMA, TREASURY_SCHEMA, CHILD_BOUNTIES_SCHEMA,
             FELLOWSHIP_SCHEMA, FELLOWSHIP_SALARY_CYCLES_SCHEMA,
             CATEGORIES_SCHEMA, BOUNTIES_SCHEMA, SUBTREASURY_SCHEMA,
-            FELLOWSHIP_SUBTREASURY_SCHEMA,
+            FELLOWSHIP_SUBTREASURY_SCHEMA, CUSTOM_SPENDING_SCHEMA,
             generate_create_table_sql,
         )
 
@@ -285,7 +285,7 @@ class TestViewLogic:
         for schema in [REFERENDA_SCHEMA, TREASURY_SCHEMA, CHILD_BOUNTIES_SCHEMA,
                        FELLOWSHIP_SCHEMA, FELLOWSHIP_SALARY_CYCLES_SCHEMA,
                        CATEGORIES_SCHEMA, BOUNTIES_SCHEMA, SUBTREASURY_SCHEMA,
-                       FELLOWSHIP_SUBTREASURY_SCHEMA]:
+                       FELLOWSHIP_SUBTREASURY_SCHEMA, CUSTOM_SPENDING_SCHEMA]:
             sqlite_sink.connection.execute(generate_create_table_sql(schema))
 
         # Add a category
@@ -312,13 +312,15 @@ class TestViewLogic:
             REFERENDA_SCHEMA, CHILD_BOUNTIES_SCHEMA, BOUNTIES_SCHEMA,
             CATEGORIES_SCHEMA, TREASURY_SCHEMA, FELLOWSHIP_SCHEMA,
             FELLOWSHIP_SALARY_CYCLES_SCHEMA, SUBTREASURY_SCHEMA,
+            CUSTOM_SPENDING_SCHEMA,
             generate_create_table_sql,
         )
 
         # Create all tables referenced by the all_spending view
         for schema in [REFERENDA_SCHEMA, CHILD_BOUNTIES_SCHEMA, BOUNTIES_SCHEMA,
                        CATEGORIES_SCHEMA, TREASURY_SCHEMA, FELLOWSHIP_SCHEMA,
-                       FELLOWSHIP_SALARY_CYCLES_SCHEMA, SUBTREASURY_SCHEMA]:
+                       FELLOWSHIP_SALARY_CYCLES_SCHEMA, SUBTREASURY_SCHEMA,
+                       CUSTOM_SPENDING_SCHEMA]:
             sqlite_sink.connection.execute(generate_create_table_sql(schema))
         sqlite_sink.connection.commit()
 
@@ -359,6 +361,123 @@ class TestViewLogic:
         assert 'ref-2' not in result_ids, "Hidden referendum should not appear"
         assert 'cb-100-1' in result_ids, "Visible child bounty should appear"
         assert 'cb-100-2' not in result_ids, "Hidden child bounty should not appear"
+
+    def test_all_spending_view_includes_all_source_tables(self, sqlite_sink):
+        """Verify all_spending view includes all 7 spending types.
+
+        This test ensures that all source tables are included in the UNION
+        and catches regressions like migration 014 that accidentally omitted
+        Custom Spending.
+
+        Expected types:
+        - Direct Spend (Referenda with no Treasury link)
+        - Claim (Treasury paid/processed)
+        - Bounty (Child Bounties claimed)
+        - Subtreasury
+        - Fellowship Salary (completed cycles)
+        - Fellowship Grants (paid/approved)
+        - Custom Spending (user-managed, type from cs.type column)
+        """
+        from data_sinks.sqlite.schema import (
+            REFERENDA_SCHEMA, TREASURY_SCHEMA, CHILD_BOUNTIES_SCHEMA,
+            FELLOWSHIP_SCHEMA, FELLOWSHIP_SALARY_CYCLES_SCHEMA,
+            CATEGORIES_SCHEMA, BOUNTIES_SCHEMA, SUBTREASURY_SCHEMA,
+            CUSTOM_SPENDING_SCHEMA,
+            generate_create_table_sql,
+        )
+
+        # Create all tables referenced by the all_spending view
+        for schema in [REFERENDA_SCHEMA, TREASURY_SCHEMA, CHILD_BOUNTIES_SCHEMA,
+                       FELLOWSHIP_SCHEMA, FELLOWSHIP_SALARY_CYCLES_SCHEMA,
+                       CATEGORIES_SCHEMA, BOUNTIES_SCHEMA, SUBTREASURY_SCHEMA,
+                       CUSTOM_SPENDING_SCHEMA]:
+            sqlite_sink.connection.execute(generate_create_table_sql(schema))
+        sqlite_sink.connection.commit()
+
+        # Insert test data into each source table with valid filters
+        # All dates >= 2023-07-01 to pass the WHERE clause
+        # Use full datetime format (YYYY-MM-DD HH:MM:SS) for SQLite compatibility
+
+        # Direct Spend: Referenda with DOT value, Executed, no Treasury link
+        sqlite_sink.connection.execute('''
+            INSERT INTO Referenda (id, title, status, DOT_latest, latest_status_change, hide_in_spends)
+            VALUES (1, 'Direct Spend Test', 'Executed', 1000, '2024-01-01 00:00:00', 0)
+        ''')
+
+        # Claim: Treasury with Paid status
+        sqlite_sink.connection.execute('''
+            INSERT INTO Treasury (id, referendumIndex, description, status, DOT_latest, latest_status_change)
+            VALUES (1, 999, 'Treasury Claim Test', 'Paid', 2000, '2024-01-02 00:00:00')
+        ''')
+
+        # Bounty: Child bounty with Claimed status
+        sqlite_sink.connection.execute('''
+            INSERT INTO Bounties (id, name, remaining_dot) VALUES (1, 'Parent Bounty', 0)
+        ''')
+        sqlite_sink.connection.execute('''
+            INSERT INTO "Child Bounties" (identifier, parentBountyId, description, status, DOT, latest_status_change, hide_in_spends)
+            VALUES ('1-1', 1, 'Child Bounty Test', 'Claimed', 500, '2024-01-03 00:00:00', 0)
+        ''')
+
+        # Subtreasury
+        sqlite_sink.connection.execute('''
+            INSERT INTO Subtreasury (id, title, DOT_latest, latest_status_change)
+            VALUES (1, 'Subtreasury Test', 3000, '2024-01-04 00:00:00')
+        ''')
+
+        # Fellowship Salary: Completed cycle (end_time not null)
+        sqlite_sink.connection.execute('''
+            INSERT INTO "Fellowship Salary Cycles" (cycle, end_time, registered_paid_amount_usdc)
+            VALUES (1, '2024-01-05 00:00:00', 4000)
+        ''')
+
+        # Fellowship Grants: Paid status
+        sqlite_sink.connection.execute('''
+            INSERT INTO Fellowship (id, description, status, DOT, latest_status_change)
+            VALUES (1, 'Fellowship Grant Test', 'Paid', 5000, '2024-01-06 00:00:00')
+        ''')
+
+        # Custom Spending: User-managed entry
+        sqlite_sink.connection.execute('''
+            INSERT INTO "Custom Spending" (id, type, title, DOT_latest, latest_status_change)
+            VALUES (1, 'HydraDX Spending', 'Custom Spend Test', 6000, '2024-01-07 00:00:00')
+        ''')
+
+        sqlite_sink.connection.commit()
+
+        # Query all_spending view and get all types
+        cursor = sqlite_sink.connection.execute(
+            "SELECT DISTINCT type FROM all_spending ORDER BY type"
+        )
+        types = [row[0] for row in cursor.fetchall()]
+
+        # Assert all 7 spending types are present
+        expected_types = [
+            'Bounty',
+            'Claim',
+            'Direct Spend',
+            'Fellowship Grants',
+            'Fellowship Salary',
+            'HydraDX Spending',  # Custom Spending uses cs.type, which we set to 'HydraDX Spending'
+            'Subtreasury',
+        ]
+        assert sorted(types) == sorted(expected_types), (
+            f"Expected all 7 spending types but got {types}. "
+            f"Missing: {set(expected_types) - set(types)}"
+        )
+
+        # Verify each row has essential columns populated
+        cursor = sqlite_sink.connection.execute(
+            "SELECT type, id, DOT_latest, latest_status_change, title FROM all_spending ORDER BY type"
+        )
+        rows = cursor.fetchall()
+
+        for row in rows:
+            spend_type, spend_id, dot_latest, latest_change, title = row
+            assert spend_id is not None, f"id should be populated for {spend_type}"
+            assert dot_latest is not None, f"DOT_latest should be populated for {spend_type}"
+            assert latest_change is not None, f"latest_status_change should be populated for {spend_type}"
+            assert title is not None, f"title should be populated for {spend_type}"
 
 
 # =============================================================================
