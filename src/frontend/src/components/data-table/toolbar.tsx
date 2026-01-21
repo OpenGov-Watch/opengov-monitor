@@ -154,6 +154,8 @@ interface DataTableToolbarProps<TData> {
   columnIdToRef?: Record<string, string>;  // Mapping from column IDs to DB references
   filterColumnMap?: Map<string, string>;  // Map display column → filter column for advanced filters
   queryConfigColumns?: { id: string; name: string }[];  // Fallback columns when table empty
+  onExportCSV?: (handler: () => void) => void;  // Callback to receive export handler for dashboard integration
+  onExportJSON?: (handler: () => void) => void;  // Callback to receive export handler for dashboard integration
 }
 
 export function DataTableToolbar<TData>({
@@ -177,6 +179,8 @@ export function DataTableToolbar<TData>({
   columnIdToRef,
   filterColumnMap,
   queryConfigColumns,
+  onExportCSV: externalExportCSV,
+  onExportJSON: externalExportJSON,
 }: DataTableToolbarProps<TData>) {
   const isFiltered = table.getState().columnFilters.length > 0;
 
@@ -209,17 +213,30 @@ export function DataTableToolbar<TData>({
     }
   };
 
-  const handleExportCSV = () => {
+  const handleExportCSV = React.useCallback(() => {
     const data = table
       .getFilteredRowModel()
       .rows.map((row) => row.original as Record<string, unknown>);
     exportToCSV(data, tableName);
-  };
+  }, [table, tableName]);
 
-  const handleExportJSON = () => {
+  const handleExportJSON = React.useCallback(() => {
     const data = table.getFilteredRowModel().rows.map((row) => row.original);
     exportToJSON(data, tableName);
-  };
+  }, [table, tableName]);
+
+  // Expose export handlers to parent component (for dashboard integration)
+  React.useEffect(() => {
+    if (externalExportCSV) {
+      externalExportCSV(handleExportCSV);
+    }
+  }, [handleExportCSV, externalExportCSV]);
+
+  React.useEffect(() => {
+    if (externalExportJSON) {
+      externalExportJSON(handleExportJSON);
+    }
+  }, [handleExportJSON, externalExportJSON]);
 
   // Memoize available columns to prevent recreation on every render
   // This prevents 50-100ms blocking when interacting with filters/dialogs

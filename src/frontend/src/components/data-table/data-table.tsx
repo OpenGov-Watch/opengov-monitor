@@ -71,6 +71,10 @@ interface DataTableProps<TData> {
   // Controlled toolbar collapse state (for dashboard integration)
   toolbarCollapsed?: boolean;
   onToolbarCollapseChange?: (collapsed: boolean) => void;
+
+  // Export handler callbacks for external download buttons (dashboard integration)
+  onExportCSV?: (handler: () => void) => void;
+  onExportJSON?: (handler: () => void) => void;
 }
 
 export function DataTable<TData>({
@@ -94,6 +98,8 @@ export function DataTable<TData>({
   initialToolbarCollapsed: initialToolbarCollapsedProp,
   toolbarCollapsed,
   onToolbarCollapseChange,
+  onExportCSV,
+  onExportJSON,
 }: DataTableProps<TData>) {
   // Apply defaults based on dashboardMode
   const hideViewSelector = hideViewSelectorProp ?? dashboardMode;
@@ -523,6 +529,8 @@ export function DataTable<TData>({
           id: getColumnKey(col),
           name: col.alias || col.column,
         }))}
+        onExportCSV={onExportCSV}
+        onExportJSON={onExportJSON}
       />
 
       {viewMode === "card" ? (
