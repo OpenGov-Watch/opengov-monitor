@@ -268,17 +268,13 @@
 - Save query configuration to dashboard components
 
 **Current Support:**
-- ✅ Column selection, aliases, expression columns
+- ✅ Column selection with click-to-edit aliases
+- ✅ Expression columns as first-class citizens (reorderable, usable in filters/group by/order by)
 - ✅ Filters with all comparison operators
 - ✅ Aggregations (COUNT, SUM, AVG, MIN, MAX)
-- ✅ GROUP BY and ORDER BY
+- ✅ GROUP BY and ORDER BY (includes expression column aliases)
 - ✅ Row limit controls
-- ❌ JOIN support (backend ready, UI missing)
-
-**Current Limitations:**
-- Cannot join multiple tables in UI
-- JOINs must be hardcoded in component definitions
-- Cannot access columns from related tables visually
+- ✅ JOIN support with auto-detection
 
 ---
 

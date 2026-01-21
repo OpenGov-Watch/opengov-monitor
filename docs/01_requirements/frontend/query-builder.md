@@ -34,13 +34,14 @@ Must follow logical workflow order:
 3. **Column Selection**
    - Must pick columns from source and joined tables
    - Must group columns by table name
-   - Must support column aliases
-   - Must support expression columns for computed values
+   - Must support editable column aliases (click-to-edit)
+   - Must support expression columns as first-class citizens (reorderable with regular columns)
 
-4. **Expression Columns** (optional)
-   - Must define computed columns using SQL expressions
-   - Must support SQL expression columns including aggregates
-   - Must work with GROUP BY for aggregations
+4. **Unified Column Management**
+   - Must treat expression columns and regular columns as one unified list
+   - Must allow drag-and-drop reordering of mixed column types
+   - Must preserve column order in SQL SELECT clause
+   - Expression columns must be usable in filters, GROUP BY, and ORDER BY
 
 5. **Filters** (optional)
    - Must build WHERE clause conditions
@@ -80,13 +81,15 @@ Must specify for each join:
 
 ### Standard Columns
 - Must support fully qualified names (table.column) or simple names
-- Must allow optional aliases for display customization
+- Must allow click-to-edit aliases (shows alias + grayed column reference)
 - Must show columns grouped by source table and joined tables
+- Must support aggregate functions (COUNT, SUM, AVG, MIN, MAX)
 
-### Expression Columns
+### Expression Columns (First-Class)
 - Must accept SQL expressions (calculations, aggregates)
 - Must require alias for all expressions
-- Must validate expression syntax
+- Must be reorderable with regular columns via drag-and-drop
+- Must be available in filters, GROUP BY, and ORDER BY dropdowns
 
 ## Filter System Requirements
 

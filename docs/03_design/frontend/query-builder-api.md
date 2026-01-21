@@ -54,6 +54,21 @@ const FILTER_OPERATORS = [
 type JoinType = "LEFT" | "INNER" | "RIGHT";
 ```
 
+## Unified Column Model
+
+The QueryBuilder uses a unified column model internally to allow drag-and-drop reordering of both regular columns and expression columns together.
+
+```typescript
+type UnifiedColumn =
+  | { type: "regular"; column: string; alias?: string; aggregateFunction?: AggregateFunction }
+  | { type: "expression"; expression: string; alias: string };
+```
+
+Conversion utilities in `unified-column-utils.ts`:
+- `toUnifiedColumns()` - Converts API format to unified state
+- `fromUnifiedColumns()` - Converts unified state back to API format
+- `getColumnId()` - Generates unique IDs with prefixes (`col:` or `expr:`)
+
 ## Usage Example
 
 ```typescript
@@ -96,8 +111,10 @@ The QueryBuilder automatically detects JOIN conditions based on these patterns:
 ## Component Files
 
 - `src/frontend/src/components/query-builder/query-builder.tsx` - Main component
-- `src/frontend/src/components/query-builder/sortable-column.tsx` - Drag-drop columns
+- `src/frontend/src/components/query-builder/sortable-column-item.tsx` - Unified sortable column (regular + expression)
+- `src/frontend/src/components/query-builder/sortable-column.tsx` - Legacy drag-drop wrapper
 - `src/frontend/src/components/query-builder/types.ts` - Type definitions
+- `src/frontend/src/lib/unified-column-utils.ts` - Conversion utilities for unified column state
 
 ## See Also
 
