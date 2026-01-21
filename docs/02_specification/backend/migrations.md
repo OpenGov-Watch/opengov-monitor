@@ -15,10 +15,10 @@ Versioned database schema changes tracked in git, executed automatically in Dock
 
 ```
 backend/migrations/
-├── versions/              # Numbered migration files
-│   ├── 001_initial.sql
-│   └── 002_add_field.sql
+├── versions/              # Numbered migration files (001-019)
+├── baseline_schema.sql    # Generated schema for fresh databases
 ├── migration_runner.py    # Discovers, validates, executes migrations
+├── generate_baseline.py   # Dumps schema from migrated DB to baseline file
 ├── create_migration.py    # Generates new migration files
 ├── baseline.py            # Marks migrations as applied without execution
 └── README.md              # User guide
@@ -30,6 +30,29 @@ Database:
     ├── applied_at (TIMESTAMP)
     ├── checksum (TEXT)      # SHA256 of file contents
     └── execution_time_ms (INTEGER)
+```
+
+## Dual-Path Database Setup
+
+Two paths to the same schema state:
+
+```
+Existing/Production DBs:
+  migrations/versions/001-019 → Applied sequentially → Current state
+
+Fresh DBs:
+  migrations/baseline_schema.sql → Applied once → Current state
+```
+
+**Why:** Historical migrations (001-019) expect old schema (url columns, old column names). Fresh databases need the baseline path.
+
+**Usage:**
+```bash
+# Fresh database (baseline path)
+python migration_runner.py --db new.db --baseline
+
+# Existing database (migration path)
+python migration_runner.py --db existing.db
 ```
 
 ## Migration Tracking
@@ -149,7 +172,8 @@ This inserts records into `schema_migrations` with:
 2. Write migration SQL/Python
 3. Update `backend/data_sinks/sqlite/schema.py` (must stay in sync with final migration state)
 4. Test locally: `pnpm migrate`
-5. Commit both migration and schema files
+5. Regenerate baseline: `python migrations/generate_baseline.py --db ../../data/local/polkadot.db --output migrations/baseline_schema.sql`
+6. Commit migration file, schema.py, and updated baseline_schema.sql
 
 ## Security
 

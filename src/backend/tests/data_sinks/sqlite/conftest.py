@@ -2,6 +2,7 @@
 Fixtures for SQLite data sink tests.
 
 Uses temporary SQLite databases with migrations applied for isolated tests.
+Supports both migrated (via setup_test_database) and baseline (via baseline_schema.sql) paths.
 """
 
 import pytest
@@ -9,6 +10,7 @@ import pandas as pd
 import numpy as np
 import sqlite3
 from datetime import datetime, timedelta
+from pathlib import Path
 from data_sinks.sqlite.sink import SQLiteSink
 from data_sinks.sqlite.schema import (
     REFERENDA_SCHEMA,
@@ -231,9 +233,69 @@ def setup_test_database(db_path: str) -> None:
         conn.close()
 
 
+def setup_baseline_database(db_path: str) -> None:
+    """Set up a test database from the baseline schema.
+
+    This simulates a fresh database setup using the baseline_schema.sql file,
+    which represents the current state of the schema after all migrations.
+    """
+    # Find the baseline schema file relative to this test file
+    baseline_path = Path(__file__).parent.parent.parent.parent / 'migrations' / 'baseline_schema.sql'
+
+    if not baseline_path.exists():
+        raise FileNotFoundError(
+            f"baseline_schema.sql not found at {baseline_path}. "
+            "Generate it with: python migrations/generate_baseline.py"
+        )
+
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.executescript(baseline_path.read_text(encoding='utf-8'))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 @pytest.fixture
 def migrated_db(tmp_path):
-    """Create a temporary database with all tables and views set up."""
+    """Database set up via simulated migrations (like production upgrade path).
+
+    Uses setup_test_database which creates tables from SCHEMA_REGISTRY
+    and adds all required views programmatically.
+    """
+    db_path = tmp_path / "migrated.db"
+    setup_test_database(str(db_path))
+    return str(db_path)
+
+
+@pytest.fixture
+def baseline_db(tmp_path):
+    """Database set up from baseline schema (fresh install path).
+
+    Uses baseline_schema.sql which is generated from a fully-migrated database.
+    This represents the schema state a fresh install would get.
+    """
+    db_path = tmp_path / "baseline.db"
+    setup_baseline_database(str(db_path))
+    return str(db_path)
+
+
+@pytest.fixture(params=['migrated', 'baseline'])
+def any_db(request, migrated_db, baseline_db):
+    """Parametrized fixture to test against both DB setup methods.
+
+    Use this fixture for tests that should pass regardless of how the
+    database was initialized (migration path vs baseline path).
+    """
+    if request.param == 'migrated':
+        return migrated_db
+    return baseline_db
+
+
+# Legacy alias for compatibility
+@pytest.fixture
+def test_db(tmp_path):
+    """Legacy alias - use migrated_db or any_db instead."""
     db_path = tmp_path / "test.db"
     setup_test_database(str(db_path))
     return str(db_path)
@@ -246,13 +308,6 @@ def sqlite_sink(migrated_db):
     sink.connect()
     yield sink
     sink.close()
-
-
-@pytest.fixture
-def unmigrated_sink(tmp_path):
-    """SQLiteSink with empty database (no migrations)."""
-    db_path = tmp_path / "empty.db"
-    return SQLiteSink(db_path=str(db_path))
 
 
 @pytest.fixture

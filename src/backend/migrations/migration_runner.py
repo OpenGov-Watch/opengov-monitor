@@ -147,7 +147,7 @@ def validate_migrations(
         logger.info("No migrations found")
         return []
 
-    # Check for gaps
+    # Check for gaps (versions must be consecutive starting from 1)
     versions = [m[0] for m in migrations]
     expected = list(range(1, len(versions) + 1))
     if versions != expected:
@@ -298,6 +298,31 @@ def run_migration(
         sys.exit(1)
 
 
+def apply_baseline(db_path: str, logger: logging.Logger):
+    """Apply baseline schema for fresh database setup.
+
+    This initializes a new database with the current schema state
+    without needing to run historical migrations.
+    """
+    baseline_path = Path(__file__).parent / 'baseline_schema.sql'
+    if not baseline_path.exists():
+        logger.error("baseline_schema.sql not found. Generate it first with generate_baseline.py")
+        sys.exit(1)
+
+    logger.info(f"Applying baseline schema to {db_path}")
+
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.executescript(baseline_path.read_text(encoding='utf-8'))
+        conn.commit()
+        logger.info("Baseline schema applied successfully")
+    except Exception as e:
+        logger.error(f"Failed to apply baseline schema: {e}", exc_info=True)
+        sys.exit(1)
+    finally:
+        conn.close()
+
+
 def main():
     parser = argparse.ArgumentParser(description='Run database migrations')
     parser.add_argument(
@@ -310,9 +335,19 @@ def main():
         default=None,
         help='Path to migrations directory (default: same dir as script)'
     )
+    parser.add_argument(
+        '--baseline',
+        action='store_true',
+        help='Initialize fresh DB from baseline schema instead of running migrations'
+    )
     args = parser.parse_args()
 
     logger = setup_logging()
+
+    # Handle baseline mode for fresh databases
+    if args.baseline:
+        apply_baseline(args.db, logger)
+        return
 
     # Determine migrations directory
     if args.migrations_dir:

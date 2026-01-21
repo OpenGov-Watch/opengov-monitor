@@ -27,12 +27,22 @@ pnpm migrate:create --name migrate_legacy_data --type py
 migrations/
 ├── README.md              # This file
 ├── migration_runner.py    # Main migration orchestrator
+├── generate_baseline.py   # Dumps schema from migrated DB
+├── baseline_schema.sql    # Generated schema for fresh DBs
 ├── create_migration.py    # Helper to create new migrations
-└── versions/              # Migration files (numbered)
-    ├── 001_initial_schema.sql
-    ├── 002_add_categories.sql
-    └── 003_remove_old_field.py
+└── versions/              # Migration files (numbered 001-019)
 ```
+
+## Fresh vs Existing Databases
+
+Two paths to the same schema:
+
+| Database Type | Command | Description |
+|---------------|---------|-------------|
+| Fresh install | `python migration_runner.py --db new.db --baseline` | Uses baseline_schema.sql |
+| Existing/Production | `python migration_runner.py --db existing.db` | Runs migrations sequentially |
+
+Historical migrations (001-019) expect old schema structures. Fresh databases must use the baseline path.
 
 ## Migration Files
 
@@ -110,50 +120,38 @@ sqlite3 data/local/polkadot.db ".schema"
 pnpm dev
 ```
 
-### 5. Commit
+### 5. Regenerate Baseline
+
+After applying migrations to your local database, regenerate the baseline:
+
+```bash
+python migrations/generate_baseline.py --db ../../data/local/polkadot.db --output migrations/baseline_schema.sql
+```
+
+### 6. Commit
 
 ```bash
 git add backend/migrations/versions/004_*.sql
 git add backend/data_sinks/sqlite/schema.py
+git add backend/migrations/baseline_schema.sql
 git commit -m "feat: add priority field"
 ```
 
-### 6. Deploy
+### 7. Deploy
 
 Push to GitHub. Docker container automatically runs migrations on startup.
 
-## Existing Databases
+## Existing Production Databases
 
-If deploying to an **existing production database** with tables, establish a baseline first.
-
-### Option 1: Create Initial Snapshot Migration (Recommended)
-
-1. Create snapshot migration reflecting current schema
-2. Export current schema to migration file
-3. On production, baseline the database: `pnpm migrate:baseline --version 1`
-4. Future migrations (002, 003...) apply normally
-
-### Option 2: Baseline Without Initial Migration
+For **existing production databases** that already have the schema, mark migrations as applied without executing:
 
 ```bash
-# On production database
-pnpm migrate:baseline --version 0
+pnpm migrate:baseline --version 19
 ```
 
-Then create your first real migration as version 001.
+This records all migrations (1-19) as applied without running them. Future migrations (020+) will apply normally.
 
-### Baseline Command
-
-```bash
-pnpm migrate:baseline --version N
-```
-
-Marks all migrations up to version N as "already applied" without running them.
-
-**Use when:**
-- Deploying migrations to existing production database
-- Recovering from migration issues
-- Setting up environment with pre-existing schema
+**Note:** This is different from `--baseline` flag which initializes a fresh empty database from baseline_schema.sql.
 
 ## Windows Users
 
