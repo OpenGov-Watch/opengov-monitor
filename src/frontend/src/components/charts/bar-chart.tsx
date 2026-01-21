@@ -249,16 +249,18 @@ function pivotBarData(
   valueColumn: string,
   seriesColumn: string
 ): { data: BarChartData[]; bars: { dataKey: string; name: string }[] } {
-  // Get unique series values (categories) in order of appearance
-  const seriesValues: string[] = [];
+  // Get unique series values (categories) and sort them alphabetically for consistent colors
   const seenSeries = new Set<string>();
   for (const row of data) {
     const series = String(row[seriesColumn] ?? "Unknown");
-    if (!seenSeries.has(series)) {
-      seenSeries.add(series);
-      seriesValues.push(series);
-    }
+    seenSeries.add(series);
   }
+  // Sort alphabetically, with "Unknown" always last for consistency
+  const seriesValues = Array.from(seenSeries).sort((a, b) => {
+    if (a === "Unknown") return 1;
+    if (b === "Unknown") return -1;
+    return a.localeCompare(b);
+  });
 
   // Group data by label (e.g., quarter)
   const grouped = new Map<string, BarChartData>();

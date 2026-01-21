@@ -151,8 +151,16 @@ export function transformToPieData(
   labelColumn: string,
   valueColumn: string
 ): PieChartData[] {
-  return data.map((row) => ({
-    name: String(row[labelColumn] ?? "Unknown"),
-    value: Number(row[valueColumn]) || 0,
-  }));
+  // Transform and sort alphabetically for consistent colors with bar charts
+  // "Unknown" is always sorted last for consistency
+  return data
+    .map((row) => ({
+      name: String(row[labelColumn] ?? "Unknown"),
+      value: Number(row[valueColumn]) || 0,
+    }))
+    .sort((a, b) => {
+      if (a.name === "Unknown") return 1;
+      if (b.name === "Unknown") return -1;
+      return a.name.localeCompare(b.name);
+    });
 }
