@@ -12,6 +12,13 @@ import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
 import Download from "lucide-react/dist/esm/icons/download";
 import { exportChartAsPNG, copyChartToClipboard } from "@/lib/chart-export";
+import FileDown from "lucide-react/dist/esm/icons/file-down";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Import transform functions directly to avoid bundling chart components
 import { transformToPieData } from "@/components/charts/pie-chart";
@@ -53,6 +60,10 @@ export const DashboardComponent = memo(
   const [, setConfigLoaded] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const chartContentRef = useRef<HTMLDivElement>(null);
+
+  // Table export handlers (set by DataTable component)
+  const tableExportCSVRef = useRef<(() => void) | null>(null);
+  const tableExportJSONRef = useRef<(() => void) | null>(null);
 
   // Memoize parsed configs to prevent refetch loops
   // Use component.id + string value to ensure stability across parent re-renders
@@ -231,6 +242,14 @@ export const DashboardComponent = memo(
     }
   }
 
+  function handleTableExport(format: "csv" | "json") {
+    if (format === "csv" && tableExportCSVRef.current) {
+      tableExportCSVRef.current();
+    } else if (format === "json" && tableExportJSONRef.current) {
+      tableExportJSONRef.current();
+    }
+  }
+
   function renderChart() {
     if (loading) {
       return (
@@ -285,6 +304,8 @@ export const DashboardComponent = memo(
             compactMode={true}
             toolbarCollapsed={isToolbarCollapsed}
             onToolbarCollapseChange={setIsToolbarCollapsed}
+            onExportCSV={(handler) => { tableExportCSVRef.current = handler; }}
+            onExportJSON={(handler) => { tableExportJSONRef.current = handler; }}
           />
         );
 
@@ -358,19 +379,43 @@ export const DashboardComponent = memo(
         <h3 className="font-medium text-sm truncate">{component.name}</h3>
         <div className="flex items-center gap-1">
           {component.type === "table" && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={toggleToolbarCollapse}
-              title={isToolbarCollapsed ? "Expand toolbar" : "Collapse toolbar"}
-            >
-              {isToolbarCollapsed ? (
-                <ChevronDown className="h-3.5 w-3.5" />
-              ) : (
-                <ChevronUp className="h-3.5 w-3.5" />
-              )}
-            </Button>
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    title="Download table data"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleTableExport("csv")}>
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Download as CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleTableExport("json")}>
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Download as JSON
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={toggleToolbarCollapse}
+                title={isToolbarCollapsed ? "Expand toolbar" : "Collapse toolbar"}
+              >
+                {isToolbarCollapsed ? (
+                  <ChevronDown className="h-3.5 w-3.5" />
+                ) : (
+                  <ChevronUp className="h-3.5 w-3.5" />
+                )}
+              </Button>
+            </>
           )}
           {component.type !== "text" && component.type !== "table" && (
             <Button
