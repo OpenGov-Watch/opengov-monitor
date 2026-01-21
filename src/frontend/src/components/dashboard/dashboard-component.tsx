@@ -341,8 +341,10 @@ export const DashboardComponent = memo(
               stacked={component.type === "bar_stacked"}
               showLegend={chartConfig.showLegend ?? true}
               showTooltip={chartConfig.showTooltip ?? true}
+              colors={chartConfig.colors}
               tableName={tableName}
               columnMapping={columnMapping}
+              colorByRow={barChartData.colorByRow}
             />
           </Suspense>
         );

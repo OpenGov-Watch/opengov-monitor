@@ -4,6 +4,7 @@ import { memo } from "react";
 import {
   BarChart as RechartsBarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -37,6 +38,7 @@ interface DashboardBarChartProps {
   showGrid?: boolean;
   tableName?: string;
   columnMapping?: Record<string, string>;
+  colorByRow?: boolean; // When true, color each bar by its row index instead of bar series index
 }
 
 const DEFAULT_COLORS = [
@@ -101,6 +103,7 @@ export const DashboardBarChart = memo(
     showGrid = true,
     tableName = "",
     columnMapping,
+    colorByRow = false,
   }: DashboardBarChartProps) {
     // Get config for first value column to determine Y-axis formatting
     const firstValueColumn = bars[0]?.dataKey;
@@ -131,15 +134,35 @@ export const DashboardBarChart = memo(
             />
           )}
           {showLegend && <Legend />}
-          {bars.map((bar, index) => (
-            <Bar
-              key={bar.dataKey}
-              dataKey={bar.dataKey}
-              name={bar.name || bar.dataKey}
-              fill={bar.color || colors[index % colors.length]}
-              stackId={stacked ? "stack" : undefined}
-            />
-          ))}
+          {bars.map((bar, index) => {
+            // If colorByRow is enabled and we have a single bar series,
+            // assign colors to each data point based on row index
+            if (colorByRow && bars.length === 1) {
+              return (
+                <Bar
+                  key={bar.dataKey}
+                  dataKey={bar.dataKey}
+                  name={bar.name || bar.dataKey}
+                  stackId={stacked ? "stack" : undefined}
+                >
+                  {data.map((_, dataIndex) => (
+                    <Cell key={`cell-${dataIndex}`} fill={colors[dataIndex % colors.length]} />
+                  ))}
+                </Bar>
+              );
+            }
+
+            // Default behavior: color by bar series
+            return (
+              <Bar
+                key={bar.dataKey}
+                dataKey={bar.dataKey}
+                name={bar.name || bar.dataKey}
+                fill={bar.color || colors[index % colors.length]}
+                stackId={stacked ? "stack" : undefined}
+              />
+            );
+          })}
         </RechartsBarChart>
       </ResponsiveContainer>
     );
@@ -155,7 +178,8 @@ export const DashboardBarChart = memo(
       prevProps.showTooltip === nextProps.showTooltip &&
       prevProps.showGrid === nextProps.showGrid &&
       prevProps.tableName === nextProps.tableName &&
-      prevProps.columnMapping === nextProps.columnMapping
+      prevProps.columnMapping === nextProps.columnMapping &&
+      prevProps.colorByRow === nextProps.colorByRow
     );
   }
 );
@@ -165,7 +189,7 @@ export function transformToBarData(
   labelColumn: string,
   valueColumns: string[],
   tableName?: string
-): { data: BarChartData[]; bars: { dataKey: string; name: string }[] } {
+): { data: BarChartData[]; bars: { dataKey: string; name: string }[]; colorByRow?: boolean } {
   if (data.length === 0) {
     return { data: [], bars: [] };
   }
@@ -204,7 +228,11 @@ export function transformToBarData(
     name: tableName ? getColumnDisplayName(tableName, col) : col,
   }));
 
-  return { data: barData, bars };
+  // Enable colorByRow when we have a single value column (simple bar chart)
+  // This ensures consistent colors with pie charts showing the same data
+  const colorByRow = valueColumns.length === 1;
+
+  return { data: barData, bars, colorByRow };
 }
 
 /**
