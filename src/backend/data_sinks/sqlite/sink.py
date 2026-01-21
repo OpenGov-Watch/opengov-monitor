@@ -216,17 +216,18 @@ class SQLiteSink(DataSink):
                 UNION ALL
 
                 -- Fellowship Salary: From salary cycles (completed cycles only)
+                -- Note: Fellowship salaries are paid in USDC, not DOT
                 SELECT
                     'Fellowship Salary' AS type,
                     'fs-' || c.cycle AS id,
                     c.end_time AS latest_status_change,
-                    c.registered_paid_amount_usdc AS DOT_latest,
+                    NULL AS DOT_latest,
                     NULL AS USD_latest,
                     'Development' AS category,
                     'Polkadot Protocol & SDK' AS subcategory,
                     'Fellowship Salary Cycle ' || c.cycle AS title,
-                    c.registered_paid_amount_usdc AS DOT_component,
-                    NULL AS USDC_component,
+                    NULL AS DOT_component,
+                    c.registered_paid_amount_usdc AS USDC_component,
                     NULL AS USDT_component
                 FROM "Fellowship Salary Cycles" c
                 WHERE c.end_time IS NOT NULL
@@ -248,6 +249,24 @@ class SQLiteSink(DataSink):
                     NULL AS USDT_component
                 FROM Fellowship f
                 WHERE f.status IN ('Paid', 'Approved')
+
+                UNION ALL
+
+                -- Custom Spending: User-managed entries
+                SELECT
+                    cs.type AS type,
+                    'custom-' || cs.id AS id,
+                    cs.latest_status_change,
+                    cs.DOT_latest,
+                    cs.USD_latest,
+                    c.category,
+                    c.subcategory,
+                    cs.title,
+                    cs.DOT_component,
+                    cs.USDC_component,
+                    cs.USDT_component
+                FROM "Custom Spending" cs
+                LEFT JOIN Categories c ON cs.category_id = c.id
             ) AS spending
             WHERE spending.latest_status_change >= '2023-07-01'
         ''')
