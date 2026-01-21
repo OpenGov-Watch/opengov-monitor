@@ -37,6 +37,8 @@ interface DashboardLineChartProps {
   showDots?: boolean;
   tableName?: string;
   columnMapping?: Record<string, string>;
+  legendPosition?: "bottom" | "right";
+  isAnimationActive?: boolean; // Set to false for export to disable animations
 }
 
 const DEFAULT_COLORS = [
@@ -101,6 +103,8 @@ export const DashboardLineChart = memo(
     showDots = true,
     tableName = "",
     columnMapping,
+    legendPosition = "bottom",
+    isAnimationActive = true,
   }: DashboardLineChartProps) {
     // Get config for first value column to determine Y-axis formatting
     const firstValueColumn = lines[0]?.dataKey;
@@ -130,7 +134,14 @@ export const DashboardLineChart = memo(
               content={<CustomTooltip tableName={tableName} columnMapping={columnMapping} />}
             />
           )}
-          {showLegend && <Legend />}
+          {showLegend && (
+            <Legend
+              layout={legendPosition === "right" ? "vertical" : "horizontal"}
+              align={legendPosition === "right" ? "right" : "center"}
+              verticalAlign={legendPosition === "right" ? "middle" : "bottom"}
+              wrapperStyle={legendPosition === "right" ? { paddingLeft: "20px" } : { paddingTop: "10px" }}
+            />
+          )}
           {lines.map((line, index) => (
             <Line
               key={line.dataKey}
@@ -140,6 +151,7 @@ export const DashboardLineChart = memo(
               stroke={line.color || colors[index % colors.length]}
               dot={showDots}
               activeDot={{ r: 8 }}
+              isAnimationActive={isAnimationActive}
             />
           ))}
         </RechartsLineChart>
@@ -157,7 +169,9 @@ export const DashboardLineChart = memo(
       prevProps.showGrid === nextProps.showGrid &&
       prevProps.showDots === nextProps.showDots &&
       prevProps.tableName === nextProps.tableName &&
-      prevProps.columnMapping === nextProps.columnMapping
+      prevProps.columnMapping === nextProps.columnMapping &&
+      prevProps.legendPosition === nextProps.legendPosition &&
+      prevProps.isAnimationActive === nextProps.isAnimationActive
     );
   }
 );

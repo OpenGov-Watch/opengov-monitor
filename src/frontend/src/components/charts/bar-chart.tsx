@@ -39,6 +39,8 @@ interface DashboardBarChartProps {
   tableName?: string;
   columnMapping?: Record<string, string>;
   colorByRow?: boolean; // When true, color each bar by its row index instead of bar series index
+  legendPosition?: "bottom" | "right";
+  isAnimationActive?: boolean; // Set to false for export to disable animations
 }
 
 const DEFAULT_COLORS = [
@@ -104,6 +106,8 @@ export const DashboardBarChart = memo(
     tableName = "",
     columnMapping,
     colorByRow = false,
+    legendPosition = "bottom",
+    isAnimationActive = true,
   }: DashboardBarChartProps) {
     // Get config for first value column to determine Y-axis formatting
     const firstValueColumn = bars[0]?.dataKey;
@@ -133,7 +137,14 @@ export const DashboardBarChart = memo(
               content={<CustomTooltip tableName={tableName} columnMapping={columnMapping} />}
             />
           )}
-          {showLegend && <Legend />}
+          {showLegend && (
+            <Legend
+              layout={legendPosition === "right" ? "vertical" : "horizontal"}
+              align={legendPosition === "right" ? "right" : "center"}
+              verticalAlign={legendPosition === "right" ? "middle" : "bottom"}
+              wrapperStyle={legendPosition === "right" ? { paddingLeft: "20px" } : { paddingTop: "10px" }}
+            />
+          )}
           {bars.map((bar, index) => {
             // If colorByRow is enabled and we have a single bar series,
             // assign colors to each data point based on row index
@@ -144,6 +155,7 @@ export const DashboardBarChart = memo(
                   dataKey={bar.dataKey}
                   name={bar.name || bar.dataKey}
                   stackId={stacked ? "stack" : undefined}
+                  isAnimationActive={isAnimationActive}
                 >
                   {data.map((_, dataIndex) => (
                     <Cell key={`cell-${dataIndex}`} fill={colors[dataIndex % colors.length]} />
@@ -160,6 +172,7 @@ export const DashboardBarChart = memo(
                 name={bar.name || bar.dataKey}
                 fill={bar.color || colors[index % colors.length]}
                 stackId={stacked ? "stack" : undefined}
+                isAnimationActive={isAnimationActive}
               />
             );
           })}
@@ -179,7 +192,9 @@ export const DashboardBarChart = memo(
       prevProps.showGrid === nextProps.showGrid &&
       prevProps.tableName === nextProps.tableName &&
       prevProps.columnMapping === nextProps.columnMapping &&
-      prevProps.colorByRow === nextProps.colorByRow
+      prevProps.colorByRow === nextProps.colorByRow &&
+      prevProps.legendPosition === nextProps.legendPosition &&
+      prevProps.isAnimationActive === nextProps.isAnimationActive
     );
   }
 );

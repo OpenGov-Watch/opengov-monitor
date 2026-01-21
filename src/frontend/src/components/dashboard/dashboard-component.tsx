@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, lazy, Suspense, memo, useRef } from "react";
+import React, { useState, useEffect, useMemo, lazy, Suspense, memo, useRef } from "react";
 import Markdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import Pencil from "lucide-react/dist/esm/icons/pencil";
@@ -29,6 +29,11 @@ import { transformToLineData } from "@/components/charts/line-chart";
 const DashboardPieChart = lazy(() => import("@/components/charts/pie-chart").then(m => ({ default: m.DashboardPieChart })));
 const DashboardBarChart = lazy(() => import("@/components/charts/bar-chart").then(m => ({ default: m.DashboardBarChart })));
 const DashboardLineChart = lazy(() => import("@/components/charts/line-chart").then(m => ({ default: m.DashboardLineChart })));
+
+// Direct imports for export rendering (non-lazy for synchronous use)
+import { DashboardPieChart as PieChartExport } from "@/components/charts/pie-chart";
+import { DashboardBarChart as BarChartExport } from "@/components/charts/bar-chart";
+import { DashboardLineChart as LineChartExport } from "@/components/charts/line-chart";
 import { DataTable } from "@/components/data-table/data-table";
 import { loadColumnConfig } from "@/lib/column-renderer";
 import { getColumnKey } from "@/lib/query-config-utils";
@@ -215,12 +220,69 @@ export const DashboardComponent = memo(
   // Check if component is a chart type (for export buttons)
   const isChartType = ["pie", "bar_stacked", "bar_grouped", "line"].includes(component.type);
 
+  // Create a render function for exporting charts with legend on right
+  function getExportChartRenderer(): (() => React.ReactNode) | null {
+    switch (component.type) {
+      case "pie":
+        if (!labelColumn || !valueColumn) return null;
+        return () => (
+          <PieChartExport
+            data={pieChartData}
+            showLegend={chartConfig.showLegend ?? true}
+            showTooltip={false}
+            colors={chartConfig.colors}
+            tableName={tableName}
+            valueColumn={valueColumn}
+            columnMapping={columnMapping}
+            legendPosition="right"
+            isAnimationActive={false}
+          />
+        );
+
+      case "bar_stacked":
+      case "bar_grouped":
+        return () => (
+          <BarChartExport
+            data={barChartData.data}
+            bars={barChartData.bars}
+            stacked={component.type === "bar_stacked"}
+            showLegend={chartConfig.showLegend ?? true}
+            showTooltip={false}
+            colors={chartConfig.colors}
+            tableName={tableName}
+            columnMapping={columnMapping}
+            colorByRow={barChartData.colorByRow}
+            legendPosition="right"
+            isAnimationActive={false}
+          />
+        );
+
+      case "line":
+        return () => (
+          <LineChartExport
+            data={lineChartData.data}
+            lines={lineChartData.lines}
+            showLegend={chartConfig.showLegend ?? true}
+            showTooltip={false}
+            tableName={tableName}
+            columnMapping={columnMapping}
+            legendPosition="right"
+            isAnimationActive={false}
+          />
+        );
+
+      default:
+        return null;
+    }
+  }
+
   async function handleDownloadChart() {
-    if (!chartContentRef.current) return;
+    const renderChart = getExportChartRenderer();
+    if (!renderChart) return;
     setIsExporting(true);
     try {
       const filename = `${component.name.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.png`;
-      await exportChartAsPNG(chartContentRef.current, filename);
+      await exportChartAsPNG(renderChart, component.name, filename);
     } catch (error) {
       console.error("Failed to download chart:", error);
       alert("Failed to download chart. Please try again.");
@@ -230,10 +292,11 @@ export const DashboardComponent = memo(
   }
 
   async function handleCopyChart() {
-    if (!chartContentRef.current) return;
+    const renderChart = getExportChartRenderer();
+    if (!renderChart) return;
     setIsExporting(true);
     try {
-      await copyChartToClipboard(chartContentRef.current);
+      await copyChartToClipboard(renderChart, component.name);
     } catch (error) {
       console.error("Failed to copy chart:", error);
       alert("Failed to copy chart to clipboard. Please try again.");
