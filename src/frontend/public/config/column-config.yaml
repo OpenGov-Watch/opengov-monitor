@@ -428,3 +428,11 @@ patterns:
       render: currency
       currency: USDC
       decimals: 0
+
+  - match: exact
+    pattern: "amount_dot"
+    caseInsensitive: true
+    config:
+      render: currency
+      currency: DOT
+      decimals: 2

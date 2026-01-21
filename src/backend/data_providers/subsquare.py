@@ -1010,13 +1010,22 @@ class SubsquareProvider(DataProvider):
         df['block_time'] = pd.to_datetime(df['block_time_ms'], unit='ms', utc=True)
         df['is_active'] = df['is_active'].astype(int)
 
+        # Calculate DOT equivalent using historic price at block_time
+        # USDC -> DOT: amount / DOT_price_in_USD
+        df['amount_dot'] = df.apply(
+            lambda row: self.price_service.convert_asset_value(
+                AssetKind.USDC, row['amount_usdc'], AssetKind.DOT, row['block_time']
+            ) if pd.notna(row['amount_usdc']) else None,
+            axis=1
+        )
+
         # Initialize name columns (will be populated by run_sqlite.py after batch resolution)
         df['who_name'] = ''
         df['beneficiary_name'] = ''
 
         df.set_index('payment_id', inplace=True)
         return df[['cycle', 'who', 'who_name', 'beneficiary', 'beneficiary_name',
-                   'amount_usdc', 'salary_usdc', 'rank', 'is_active',
+                   'amount_usdc', 'amount_dot', 'salary_usdc', 'rank', 'is_active',
                    'block_height', 'block_time']]
 
     def fetch_fellowship_members(self):

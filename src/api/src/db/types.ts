@@ -112,6 +112,7 @@ export interface FellowshipSalaryPayment {
   beneficiary: string;
   beneficiary_name: string | null;
   amount_usdc: number | null;
+  amount_dot: number | null;
   salary_usdc: number | null;
   rank: number | null;
   is_active: number | null;

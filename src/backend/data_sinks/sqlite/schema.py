@@ -181,6 +181,7 @@ FELLOWSHIP_SALARY_PAYMENTS_SCHEMA = TableSchema(
         "beneficiary": "TEXT",
         "beneficiary_name": "TEXT",
         "amount_usdc": "REAL",
+        "amount_dot": "REAL",
         "salary_usdc": "REAL",
         "rank": "INTEGER",
         "is_active": "INTEGER",
