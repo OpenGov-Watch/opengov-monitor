@@ -18,8 +18,9 @@ const createMockColumn = (): Partial<Column<any, any>> => ({
 });
 
 // Helper to get date inputs (uses document.body since Popover renders in portal)
+// These are now text inputs from DateInput component with YYYY-MM-DD placeholder
 const getDateInputs = (): HTMLInputElement[] => {
-  return Array.from(document.body.querySelectorAll('input[type="date"]'));
+  return Array.from(document.body.querySelectorAll('input[placeholder="YYYY-MM-DD"]'));
 };
 
 describe("DataTableDateFilter - FilterGroup Integration", () => {

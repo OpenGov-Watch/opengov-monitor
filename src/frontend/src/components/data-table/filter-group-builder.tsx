@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { FilterCondition, FilterGroup, FacetValue, FacetQueryResponse, QueryConfig } from "@/lib/db/types";
 import { FilterMultiselect } from "./filter-multiselect";
@@ -149,6 +150,13 @@ const FilterConditionRow = React.memo(function FilterConditionRow({
                 searchPlaceholder={`Search ${item.column}...`}
               />
             </div>
+          ) : columnType === 'date' ? (
+            // DateInput for date columns
+            <DateInput
+              className="flex-1"
+              value={item.value as string ?? ""}
+              onChange={(newValue) => updateCondition(index, { value: newValue })}
+            />
           ) : (
             // Free text input for non-categorical columns
             <Input

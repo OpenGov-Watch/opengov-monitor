@@ -8,7 +8,7 @@ import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import {
   Popover,
   PopoverContent,
@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { FilterGroup, FilterCondition } from "@/lib/db/types";
+import { formatPartialDateForDisplay } from "@/lib/date-utils";
 
 interface DataTableDateFilterProps<TData, TValue> {
   column: Column<TData, TValue>;
@@ -49,13 +50,7 @@ const OPERATORS: { value: DateOperator; label: string }[] = [
 ];
 
 function formatDateForDisplay(dateStr: string): string {
-  if (!dateStr) return "";
-  try {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  } catch {
-    return dateStr;
-  }
+  return formatPartialDateForDisplay(dateStr);
 }
 
 function getOperatorSymbol(op: DateOperator): string {
@@ -247,11 +242,10 @@ export function DataTableDateFilter<TData, TValue>({
                     ))}
                   </SelectContent>
                 </Select>
-                <Input
-                  type="date"
+                <DateInput
                   className="flex-1 h-8"
                   value={condition.value}
-                  onChange={(e) => updateCondition(index, { value: e.target.value })}
+                  onChange={(newValue) => updateCondition(index, { value: newValue })}
                 />
                 <Button
                   type="button"

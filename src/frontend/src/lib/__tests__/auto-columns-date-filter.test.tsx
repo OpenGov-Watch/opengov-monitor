@@ -22,8 +22,9 @@ beforeEach(() => {
 });
 
 // Helper to get date inputs from the document body (popover renders in portal)
+// These are now text inputs from DateInput component with YYYY-MM-DD placeholder
 const getDateInputs = (): HTMLInputElement[] => {
-  return Array.from(document.body.querySelectorAll('input[type="date"]'));
+  return Array.from(document.body.querySelectorAll('input[placeholder="YYYY-MM-DD"]'));
 };
 
 describe("auto-columns DateFilter integration", () => {
