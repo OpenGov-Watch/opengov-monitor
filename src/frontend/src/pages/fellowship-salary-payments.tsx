@@ -12,6 +12,7 @@ export default function FellowshipSalaryPaymentsPage() {
         { column: "cycle" },
         { column: "who_name" },
         { column: "amount_usdc" },
+        { column: "amount_dot" },
         { column: "salary_usdc" },
         { column: "rank" },
         { column: "block_time" },

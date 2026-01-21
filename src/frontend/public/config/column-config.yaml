@@ -417,6 +417,7 @@ patterns:
     pattern: "amount_usdc"
     caseInsensitive: true
     config:
+      displayName: "Paid USDC"
       render: currency
       currency: USDC
       decimals: 0
@@ -433,6 +434,7 @@ patterns:
     pattern: "amount_dot"
     caseInsensitive: true
     config:
+      displayName: "Paid DOT Equivalent"
       render: currency
       currency: DOT
       decimals: 2
