@@ -22,6 +22,7 @@ const ALLOWED_SOURCES = new Set([
   "outstanding_claims",
   "expired_claims",
   "all_spending",
+  "treasury_netflows_view",
 ]);
 
 const ALLOWED_TABLES = [
@@ -42,6 +43,7 @@ const ALLOWED_VIEWS = [
   "outstanding_claims",
   "expired_claims",
   "all_spending",
+  "treasury_netflows_view",
 ];
 
 const MAX_ROWS = 10000;
