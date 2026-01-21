@@ -63,6 +63,37 @@ gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
   --command="sudo /usr/local/bin/service-shell opengov-monitor"
 ```
 
+## Python Backfills
+
+The container has a Python venv at `/app/src/backend/.venv` for running data sync scripts.
+
+### Run Full Sync
+```bash
+gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
+  --command="sudo docker exec -w /app/src/backend opengov-monitor .venv/bin/python scripts/run_sqlite.py --db /data/polkadot.db"
+```
+
+### Run Specific Tables
+```bash
+# Fellowship salary data (cycles, claimants, payments)
+gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
+  --command="sudo docker exec -w /app/src/backend opengov-monitor .venv/bin/python scripts/run_sqlite.py --db /data/polkadot.db --tables fellowship_salary_cycles"
+
+# Referenda only
+gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
+  --command="sudo docker exec -w /app/src/backend opengov-monitor .venv/bin/python scripts/run_sqlite.py --db /data/polkadot.db --tables referenda"
+
+# Treasury spends only
+gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
+  --command="sudo docker exec -w /app/src/backend opengov-monitor .venv/bin/python scripts/run_sqlite.py --db /data/polkadot.db --tables treasury"
+```
+
+### Check Sync Logs
+```bash
+gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
+  --command="sudo docker exec opengov-monitor tail -100 /var/log/opengov-sync.log"
+```
+
 ## Trigger Redeploy
 
 Push to `production` branch to trigger CI/CD rebuild and deploy.
