@@ -106,7 +106,11 @@ See `data-table.tsx`, `query-config-utils.ts`, and `filter-group-builder.tsx`.
 
 ### Chart Data May Need Pivot
 
-Stacked bar charts expect pivoted data. The frontend auto-transforms when it detects category columns. See `transformDataForStackedBar()` in chart components.
+Stacked bar charts expect pivoted data. The frontend auto-transforms when it detects category columns. See `pivotBarData()` in `bar-chart.tsx`.
+
+### Chart Colors Are Sorted Alphabetically
+
+Pie and bar charts sort categories **alphabetically** (with "Unknown" last) to ensure consistent colors when displaying the same data. Without this, different query orderings would cause the same category to have different colors in different charts.
 
 ### Dashboard Grid: react-grid-layout Gotchas
 

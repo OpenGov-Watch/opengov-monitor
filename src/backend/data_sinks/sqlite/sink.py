@@ -249,6 +249,7 @@ class SQLiteSink(DataSink):
                 FROM Fellowship f
                 WHERE f.status IN ('Paid', 'Approved')
             ) AS spending
+            WHERE spending.latest_status_change >= '2023-07-01'
         ''')
 
         # Treasury Netflows view: Add computed date columns

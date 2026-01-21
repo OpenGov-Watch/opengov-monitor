@@ -531,6 +531,7 @@ export function DataTable<TData>({
         }))}
         onExportCSV={onExportCSV}
         onExportJSON={onExportJSON}
+        fullQueryConfig={queryConfig}
       />
 
       {viewMode === "card" ? (

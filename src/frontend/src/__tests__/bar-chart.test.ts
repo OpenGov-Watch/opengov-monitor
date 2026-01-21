@@ -102,7 +102,7 @@ describe("transformToBarData", () => {
       expect(result.data[1].Development).toBe(0);
     });
 
-    it("preserves order of categories by first appearance", () => {
+    it("sorts categories alphabetically for consistent colors", () => {
       const data = [
         { quarter: "2024-Q1", sum_usd: 100, category: "Zebra" },
         { quarter: "2024-Q1", sum_usd: 200, category: "Alpha" },
@@ -114,11 +114,11 @@ describe("transformToBarData", () => {
         "category",
       ]);
 
-      // Bars should be in order of first appearance: Zebra, Alpha, Beta
+      // Bars should be sorted alphabetically for consistent colors with pie charts
       expect(result.bars.map((b) => b.dataKey)).toEqual([
-        "Zebra",
         "Alpha",
         "Beta",
+        "Zebra",
       ]);
     });
 
@@ -136,6 +136,27 @@ describe("transformToBarData", () => {
 
       expect(result.data[0].Unknown).toBe(1000);
       expect(result.data[0].Development).toBe(500);
+    });
+
+    it("sorts Unknown category last for consistency", () => {
+      const data = [
+        { quarter: "2024-Q1", sum_usd: 100, category: null },
+        { quarter: "2024-Q1", sum_usd: 200, category: "Alpha" },
+        { quarter: "2024-Q1", sum_usd: 300, category: "Zebra" },
+      ];
+
+      const result = transformToBarData(
+        data as Record<string, unknown>[],
+        "quarter",
+        ["sum_usd", "category"]
+      );
+
+      // Unknown should always be sorted last
+      expect(result.bars.map((b) => b.dataKey)).toEqual([
+        "Alpha",
+        "Zebra",
+        "Unknown",
+      ]);
     });
 
     it("does not pivot when categorical column has numeric strings", () => {

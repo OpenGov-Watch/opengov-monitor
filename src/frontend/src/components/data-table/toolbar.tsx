@@ -156,6 +156,7 @@ interface DataTableToolbarProps<TData> {
   queryConfigColumns?: { id: string; name: string }[];  // Fallback columns when table empty
   onExportCSV?: (handler: () => void) => void;  // Callback to receive export handler for dashboard integration
   onExportJSON?: (handler: () => void) => void;  // Callback to receive export handler for dashboard integration
+  fullQueryConfig?: QueryConfig;  // Full query config for exporting all data
 }
 
 export function DataTableToolbar<TData>({
@@ -181,6 +182,7 @@ export function DataTableToolbar<TData>({
   queryConfigColumns,
   onExportCSV: externalExportCSV,
   onExportJSON: externalExportJSON,
+  fullQueryConfig,
 }: DataTableToolbarProps<TData>) {
   const isFiltered = table.getState().columnFilters.length > 0;
 
@@ -213,17 +215,81 @@ export function DataTableToolbar<TData>({
     }
   };
 
-  const handleExportCSV = React.useCallback(() => {
-    const data = table
-      .getFilteredRowModel()
-      .rows.map((row) => row.original as Record<string, unknown>);
-    exportToCSV(data, tableName);
-  }, [table, tableName]);
+  const handleExportCSV = React.useCallback(async () => {
+    if (fullQueryConfig) {
+      // Fetch full query result without pagination
+      try {
+        const exportConfig = {
+          ...fullQueryConfig,
+          limit: undefined,
+          offset: undefined,
+        };
 
-  const handleExportJSON = React.useCallback(() => {
-    const data = table.getFilteredRowModel().rows.map((row) => row.original);
-    exportToJSON(data, tableName);
-  }, [table, tableName]);
+        const response = await fetch("/api/query/execute", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(exportConfig),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch full query result");
+        }
+
+        const result = await response.json();
+        exportToCSV(result.data as Record<string, unknown>[], tableName);
+      } catch (error) {
+        console.error("Export failed:", error);
+        // Fall back to exporting visible data
+        const data = table
+          .getFilteredRowModel()
+          .rows.map((row) => row.original as Record<string, unknown>);
+        exportToCSV(data, tableName);
+      }
+    } else {
+      // Fall back to exporting visible data if no query config
+      const data = table
+        .getFilteredRowModel()
+        .rows.map((row) => row.original as Record<string, unknown>);
+      exportToCSV(data, tableName);
+    }
+  }, [table, tableName, fullQueryConfig]);
+
+  const handleExportJSON = React.useCallback(async () => {
+    if (fullQueryConfig) {
+      // Fetch full query result without pagination
+      try {
+        const exportConfig = {
+          ...fullQueryConfig,
+          limit: undefined,
+          offset: undefined,
+        };
+
+        const response = await fetch("/api/query/execute", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(exportConfig),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch full query result");
+        }
+
+        const result = await response.json();
+        exportToJSON(result.data, tableName);
+      } catch (error) {
+        console.error("Export failed:", error);
+        // Fall back to exporting visible data
+        const data = table.getFilteredRowModel().rows.map((row) => row.original);
+        exportToJSON(data, tableName);
+      }
+    } else {
+      // Fall back to exporting visible data if no query config
+      const data = table.getFilteredRowModel().rows.map((row) => row.original);
+      exportToJSON(data, tableName);
+    }
+  }, [table, tableName, fullQueryConfig]);
 
   // Expose export handlers to parent component (for dashboard integration)
   React.useEffect(() => {
