@@ -215,22 +215,22 @@ class SQLiteSink(DataSink):
 
                 UNION ALL
 
-                -- Fellowship Salary: From salary cycles (completed cycles only)
-                -- Note: Fellowship salaries are paid in USDC, not DOT
+                -- Fellowship Salary: Aggregated from individual payments
+                -- Shows both DOT and USDC components from actual payment records
                 SELECT
                     'Fellowship Salary' AS type,
-                    'fs-' || c.cycle AS id,
-                    c.end_time AS latest_status_change,
-                    NULL AS DOT_latest,
+                    'fs-' || p.cycle AS id,
+                    MAX(p.block_time) AS latest_status_change,
+                    SUM(p.amount_dot) AS DOT_latest,
                     NULL AS USD_latest,
                     'Development' AS category,
                     'Polkadot Protocol & SDK' AS subcategory,
-                    'Fellowship Salary Cycle ' || c.cycle AS title,
-                    NULL AS DOT_component,
-                    c.registered_paid_amount_usdc AS USDC_component,
+                    'Fellowship Salary Cycle ' || p.cycle AS title,
+                    SUM(p.amount_dot) AS DOT_component,
+                    SUM(p.amount_usdc) AS USDC_component,
                     NULL AS USDT_component
-                FROM "Fellowship Salary Cycles" c
-                WHERE c.end_time IS NOT NULL
+                FROM "Fellowship Salary Payments" p
+                GROUP BY p.cycle
 
                 UNION ALL
 
