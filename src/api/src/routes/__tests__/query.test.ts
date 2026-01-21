@@ -68,7 +68,8 @@ beforeAll(() => {
         "USDT_component" REAL,
         "category_id" INTEGER,
         "notes" TEXT,
-        "hide_in_spends" INTEGER
+        "hide_in_spends" INTEGER,
+        "year" TEXT
       );
 
       CREATE TABLE IF NOT EXISTS "Treasury" (
@@ -100,15 +101,17 @@ beforeAll(() => {
         SELECT id, url, status FROM "Treasury" WHERE status = 'Approved';
 
       CREATE VIEW IF NOT EXISTS "all_spending" AS
-        SELECT id, url FROM "Referenda";
+        SELECT id, url, year, DOT_latest FROM "Referenda";
 
       INSERT INTO "Categories" (id, category, subcategory)
       VALUES (1, 'Development', 'Infrastructure'),
              (2, 'Marketing', 'Community');
 
-      INSERT INTO "Referenda" (id, title, status, DOT_latest, track, category_id)
-      VALUES (1, 'Test Ref 1', 'Executed', 1000, 'Treasurer', 1),
-             (2, 'Test Ref 2', 'Ongoing', 2000, 'SmallSpender', 2);
+      INSERT INTO "Referenda" (id, title, status, DOT_latest, track, category_id, year)
+      VALUES (1, 'Test Ref 1', 'Executed', 1000, 'Treasurer', 1, '2024'),
+             (2, 'Test Ref 2', 'Ongoing', 2000, 'SmallSpender', 2, '2025'),
+             (3, 'Test Ref 3', 'Executed', 3000, 'Treasurer', 1, '2025'),
+             (4, 'Test Ref 4', 'Ongoing', 4000, 'SmallSpender', 2, '2024');
 
       INSERT INTO "Treasury" (id, status, DOT_latest, description)
       VALUES (1, 'Approved', 1000, 'Test'),
@@ -2007,5 +2010,137 @@ describe("Filters with JOINs and Ambiguous Column Names", () => {
     expect(response.status).toBe(200);
     expect(response.body.facets).toBeDefined();
     expect(response.body.facets["c.category"]).toBeDefined();
+  });
+});
+
+describe("Filter Value Type Coercion", () => {
+  // Tests for automatic type coercion when filtering TEXT columns with numeric values
+  // SQLite doesn't automatically match TEXT '2025' with INTEGER 2025
+
+  it("coerces numeric filter value to string for TEXT column (= operator)", async () => {
+    // The 'year' column in all_spending view is computed TEXT, storing values like '2024', '2025'
+    // When filtering with a numeric value like 2025, it should be coerced to '2025'
+    const response = await request(app)
+      .post("/api/query/execute")
+      .send({
+        sourceTable: "all_spending",
+        columns: [{ column: "id" }, { column: "year" }],
+        filters: {
+          operator: "AND",
+          conditions: [
+            { column: "year", operator: "=", value: 2025 } // numeric value
+          ]
+        }
+      });
+
+    expect(response.status).toBe(200);
+    // Should return rows with year '2025'
+    expect(response.body.data.length).toBeGreaterThanOrEqual(1);
+    expect(response.body.data.every((row: { year: string }) => row.year === "2025")).toBe(true);
+  });
+
+  it("coerces numeric filter values in IN operator for TEXT column", async () => {
+    const response = await request(app)
+      .post("/api/query/execute")
+      .send({
+        sourceTable: "all_spending",
+        columns: [{ column: "id" }, { column: "year" }],
+        filters: {
+          operator: "AND",
+          conditions: [
+            { column: "year", operator: "IN", value: [2024, 2025] } // numeric values
+          ]
+        }
+      });
+
+    expect(response.status).toBe(200);
+    // Should return rows with year '2024' or '2025'
+    expect(response.body.data.length).toBeGreaterThanOrEqual(1);
+    expect(response.body.data.every((row: { year: string }) =>
+      row.year === "2024" || row.year === "2025"
+    )).toBe(true);
+  });
+
+  it("coerces numeric filter values in NOT IN operator for TEXT column", async () => {
+    const response = await request(app)
+      .post("/api/query/execute")
+      .send({
+        sourceTable: "all_spending",
+        columns: [{ column: "id" }, { column: "year" }],
+        filters: {
+          operator: "AND",
+          conditions: [
+            { column: "year", operator: "IS NOT NULL", value: null },
+            { column: "year", operator: "NOT IN", value: [2024] } // numeric value
+          ]
+        }
+      });
+
+    expect(response.status).toBe(200);
+    // Should return rows with non-null year that is NOT '2024'
+    expect(response.body.data.length).toBeGreaterThanOrEqual(1);
+    expect(response.body.data.every((row: { year: string }) => row.year !== "2024")).toBe(true);
+  });
+
+  it("coerces numeric filter value for view column with empty type info", async () => {
+    // Views often have empty column type info in PRAGMA table_info
+    // The 'year' column in all_spending view should still work with numeric filters
+    const response = await request(app)
+      .post("/api/query/execute")
+      .send({
+        sourceTable: "all_spending",
+        columns: [{ column: "id" }, { column: "year" }],
+        filters: {
+          operator: "AND",
+          conditions: [
+            { column: "year", operator: "=", value: 2025 }
+          ]
+        }
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.length).toBeGreaterThanOrEqual(1);
+    expect(response.body.data.every((row: { year: string }) => row.year === "2025")).toBe(true);
+  });
+
+  it("coerces numeric filter value with table prefix (table.column)", async () => {
+    // Test that all_spending.year filter also works with numeric value
+    const response = await request(app)
+      .post("/api/query/execute")
+      .send({
+        sourceTable: "all_spending",
+        columns: [{ column: "id" }, { column: "year" }],
+        filters: {
+          operator: "AND",
+          conditions: [
+            { column: "all_spending.year", operator: "=", value: 2025 }
+          ]
+        }
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("preserves numeric type for REAL/INTEGER columns", async () => {
+    // DOT_latest is a REAL column - numeric values should NOT be converted to strings
+    // Use a range filter that should return real data
+    const response = await request(app)
+      .post("/api/query/execute")
+      .send({
+        sourceTable: "Referenda",
+        columns: [{ column: "id" }, { column: "DOT_latest" }],
+        filters: {
+          operator: "AND",
+          conditions: [
+            { column: "DOT_latest", operator: ">", value: 0 }
+          ]
+        }
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.length).toBeGreaterThanOrEqual(1);
+    // Verify that DOT_latest values are numbers, not strings
+    expect(response.body.data.every((row: { DOT_latest: number }) => typeof row.DOT_latest === "number")).toBe(true);
   });
 });

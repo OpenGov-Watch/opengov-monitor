@@ -118,6 +118,47 @@ function getTableColumns(tableName: string): string[] {
   return columns.map((c) => c.name);
 }
 
+// Cache for column type information
+const columnTypeCache = new Map<string, Map<string, string>>();
+
+function getColumnTypes(tableName: string): Map<string, string> {
+  if (columnTypeCache.has(tableName)) {
+    return columnTypeCache.get(tableName)!;
+  }
+
+  const db = getDatabase();
+  const columns = db
+    .prepare(`PRAGMA table_info("${tableName}")`)
+    .all() as { name: string; type: string }[];
+
+  const typeMap = new Map<string, string>();
+  for (const col of columns) {
+    typeMap.set(col.name, col.type.toUpperCase());
+  }
+
+  columnTypeCache.set(tableName, typeMap);
+  return typeMap;
+}
+
+// Get the column type, handling table.column references
+function getColumnType(columnRef: string, sourceTable: string): string | undefined {
+  const lastDotIndex = columnRef.lastIndexOf('.');
+  let tableName = sourceTable;
+  let columnName = columnRef;
+
+  if (lastDotIndex > 0 && lastDotIndex < columnRef.length - 1) {
+    tableName = columnRef.substring(0, lastDotIndex);
+    columnName = columnRef.substring(lastDotIndex + 1);
+  }
+
+  try {
+    const types = getColumnTypes(tableName);
+    return types.get(columnName);
+  } catch {
+    return undefined;
+  }
+}
+
 function validateExpression(
   expression: string,
   availableColumns: string[]
@@ -365,6 +406,23 @@ function validateFilterOperators(filters: FilterCondition[] | FilterGroup): stri
   return null;
 }
 
+// Helper to coerce filter value to match column type
+// SQLite TEXT columns don't match against numeric values, so we convert numbers to strings
+// For views, columns may have empty type info, so we convert numbers to strings as a safe default
+function coerceFilterValue(value: string | number, columnType: string | undefined): string | number {
+  if (typeof value === 'number') {
+    // Convert to string if:
+    // 1. Column is TEXT type
+    // 2. Column type is empty/unknown (common for view columns)
+    // 3. Column type is undefined
+    // SQLite's loose typing handles string-to-number comparisons for numeric columns
+    if (!columnType || columnType === '' || columnType.includes('TEXT')) {
+      return String(value);
+    }
+  }
+  return value;
+}
+
 // Recursive function to build condition from a single FilterCondition
 function buildSingleCondition(
   filter: FilterCondition,
@@ -381,6 +439,9 @@ function buildSingleCondition(
 
   const colName = sanitizeColumnName(columnRef, sourceTable);
 
+  // Get column type for value coercion
+  const columnType = sourceTable ? getColumnType(columnRef, sourceTable) : undefined;
+
   switch (filter.operator) {
     case "IS NULL":
       return `${colName} IS NULL`;
@@ -389,14 +450,16 @@ function buildSingleCondition(
     case "IN":
       if (Array.isArray(filter.value) && filter.value.length > 0) {
         const placeholders = filter.value.map(() => "?").join(", ");
-        params.push(...filter.value);
+        const coercedValues = filter.value.map(v => coerceFilterValue(v, columnType));
+        params.push(...coercedValues);
         return `${colName} IN (${placeholders})`;
       }
       return "";
     case "NOT IN":
       if (Array.isArray(filter.value) && filter.value.length > 0) {
         const placeholders = filter.value.map(() => "?").join(", ");
-        params.push(...filter.value);
+        const coercedValues = filter.value.map(v => coerceFilterValue(v, columnType));
+        params.push(...coercedValues);
         return `${colName} NOT IN (${placeholders})`;
       }
       return "";
@@ -405,7 +468,8 @@ function buildSingleCondition(
       if (filter.value === null || filter.value === undefined || filter.value === "") {
         return "";
       }
-      params.push(filter.value as string | number);
+      const coercedValue = coerceFilterValue(filter.value as string | number, columnType);
+      params.push(coercedValue);
       return `${colName} ${filter.operator} ?`;
   }
 }
