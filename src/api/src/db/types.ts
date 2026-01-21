@@ -303,6 +303,7 @@ export interface GridConfig {
 export interface ExpressionColumn {
   expression: string; // SQL expression, e.g., "DOT_latest * 10"
   alias: string; // Required display name for the result column
+  aggregateFunction?: "COUNT" | "SUM" | "AVG" | "MIN" | "MAX";
 }
 
 export interface JoinCondition {

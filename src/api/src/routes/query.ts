@@ -292,7 +292,14 @@ function buildSelectClause(config: QueryConfig, availableColumns: string[]): str
       throw new Error(`Invalid expression "${expr.alias}": ${validation.error}`);
     }
     const safeAlias = sanitizeAlias(expr.alias);
-    parts.push(`(${expr.expression}) AS "${safeAlias}"`);
+    if (expr.aggregateFunction) {
+      if (!ALLOWED_AGGREGATES.has(expr.aggregateFunction)) {
+        throw new Error(`Invalid aggregate function: ${expr.aggregateFunction}`);
+      }
+      parts.push(`${expr.aggregateFunction}((${expr.expression})) AS "${safeAlias}"`);
+    } else {
+      parts.push(`(${expr.expression}) AS "${safeAlias}"`);
+    }
   }
 
   return parts.join(", ");

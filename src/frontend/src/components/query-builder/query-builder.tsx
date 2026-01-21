@@ -266,7 +266,11 @@ export function QueryBuilder({
       } else {
         // Expression column
         if (col.expression && col.alias) {
-          selectParts.push(`(${col.expression}) AS "${col.alias}"`);
+          if (col.aggregateFunction) {
+            selectParts.push(`${col.aggregateFunction}((${col.expression})) AS "${col.alias}"`);
+          } else {
+            selectParts.push(`(${col.expression}) AS "${col.alias}"`);
+          }
         }
       }
     }

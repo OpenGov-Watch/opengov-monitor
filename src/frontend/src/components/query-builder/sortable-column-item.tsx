@@ -207,42 +207,166 @@ function ExpressionColumnContent({
   onUpdate,
   onRemove,
 }: ExpressionColumnContentProps) {
-  const handleAliasChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Sanitize alias to valid SQL identifier
-    const sanitized = e.target.value.replace(/[^a-zA-Z0-9_]/g, "_");
-    onUpdate({ alias: sanitized });
+  const [isEditingAlias, setIsEditingAlias] = useState(false);
+  const [isEditingExpression, setIsEditingExpression] = useState(false);
+  const [aliasValue, setAliasValue] = useState(column.alias);
+  const [expressionValue, setExpressionValue] = useState(column.expression);
+  const aliasInputRef = useRef<HTMLInputElement>(null);
+  const expressionInputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (isEditingAlias && aliasInputRef.current) {
+      aliasInputRef.current.focus();
+      aliasInputRef.current.select();
+    }
+  }, [isEditingAlias]);
+
+  useEffect(() => {
+    if (isEditingExpression && expressionInputRef.current) {
+      expressionInputRef.current.focus();
+      expressionInputRef.current.select();
+    }
+  }, [isEditingExpression]);
+
+  // Sync local state when column prop changes
+  useEffect(() => {
+    setAliasValue(column.alias);
+    setExpressionValue(column.expression);
+  }, [column.alias, column.expression]);
+
+  const handleAliasClick = () => {
+    setAliasValue(column.alias);
+    setIsEditingAlias(true);
   };
 
-  const handleExpressionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    onUpdate({ expression: e.target.value });
+  const handleAliasBlur = () => {
+    setIsEditingAlias(false);
+    // Sanitize alias to valid SQL identifier
+    const sanitized = aliasValue.trim().replace(/[^a-zA-Z0-9_]/g, "_");
+    if (sanitized && sanitized !== column.alias) {
+      onUpdate({ alias: sanitized });
+    } else if (!sanitized) {
+      // Reset to original if empty
+      setAliasValue(column.alias);
+    }
   };
+
+  const handleAliasKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleAliasBlur();
+    } else if (e.key === "Escape") {
+      setAliasValue(column.alias);
+      setIsEditingAlias(false);
+    }
+  };
+
+  const handleExpressionClick = () => {
+    setExpressionValue(column.expression);
+    setIsEditingExpression(true);
+  };
+
+  const handleExpressionBlur = () => {
+    setIsEditingExpression(false);
+    const trimmed = expressionValue.trim();
+    if (trimmed !== column.expression) {
+      onUpdate({ expression: trimmed });
+    }
+  };
+
+  const handleExpressionKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      setExpressionValue(column.expression);
+      setIsEditingExpression(false);
+    }
+    // Don't handle Enter for textarea - allow multi-line
+  };
+
+  const handleAggregationChange = (value: string) => {
+    onUpdate({
+      aggregateFunction: value === "none" ? undefined : (value as AggregateFunction),
+    });
+  };
+
+  // Truncate expression for display
+  const displayExpression = column.expression.length > 40
+    ? column.expression.slice(0, 40) + "..."
+    : column.expression || "(empty expression)";
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <Input
-          value={column.alias}
-          onChange={handleAliasChange}
-          placeholder="alias_name"
-          className="flex-1 font-mono text-sm h-8"
-        />
-        {onRemove && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onRemove}
-            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+    <div className="flex items-center justify-between gap-2">
+      <div className="flex-1 min-w-0">
+        {isEditingAlias ? (
+          <Input
+            ref={aliasInputRef}
+            value={aliasValue}
+            onChange={(e) => setAliasValue(e.target.value)}
+            onBlur={handleAliasBlur}
+            onKeyDown={handleAliasKeyDown}
+            className="h-7 text-sm"
+            placeholder="alias_name"
+          />
+        ) : isEditingExpression ? (
+          <div className="space-y-1">
+            <div
+              className="cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5"
+              onClick={handleAliasClick}
+              title="Click to edit alias"
+            >
+              <div className="text-sm font-medium truncate">
+                {column.alias || "unnamed"}
+              </div>
+            </div>
+            <Textarea
+              ref={expressionInputRef}
+              value={expressionValue}
+              onChange={(e) => setExpressionValue(e.target.value)}
+              onBlur={handleExpressionBlur}
+              onKeyDown={handleExpressionKeyDown}
+              placeholder="DOT_latest * 10"
+              className="font-mono text-sm min-h-[60px] resize-none"
+            />
+          </div>
+        ) : (
+          <div
+            className="cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5"
+            onClick={handleExpressionClick}
+            title="Click to edit expression"
           >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+            <div className="text-sm font-medium truncate">
+              {column.alias || "unnamed"}
+            </div>
+            <div className="text-xs text-muted-foreground truncate">
+              {displayExpression}
+            </div>
+          </div>
         )}
       </div>
-      <Textarea
-        value={column.expression}
-        onChange={handleExpressionChange}
-        placeholder="DOT_latest * 10"
-        className="font-mono text-sm min-h-[50px] resize-none"
-      />
+      <Select
+        value={column.aggregateFunction || "none"}
+        onValueChange={handleAggregationChange}
+      >
+        <SelectTrigger className="w-24 h-8">
+          <SelectValue placeholder="Aggregate" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="none">Raw</SelectItem>
+          {AGGREGATE_FUNCTIONS.map((fn) => (
+            <SelectItem key={fn} value={fn}>
+              {fn}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {onRemove && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onRemove}
+          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 }

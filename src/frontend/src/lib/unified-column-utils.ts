@@ -31,6 +31,7 @@ export type UnifiedColumn =
       type: "expression";
       expression: string;
       alias: string;
+      aggregateFunction?: AggregateFunction;
     };
 
 /**
@@ -79,11 +80,15 @@ export function toUnifiedColumns(
   // Add expression columns
   if (expressionColumns) {
     for (const expr of expressionColumns) {
-      unified.push({
+      const exprCol: UnifiedColumn = {
         type: "expression",
         expression: expr.expression,
         alias: expr.alias,
-      });
+      };
+      if (expr.aggregateFunction) {
+        exprCol.aggregateFunction = expr.aggregateFunction;
+      }
+      unified.push(exprCol);
     }
   }
 
@@ -119,10 +124,14 @@ export function fromUnifiedColumns(unifiedColumns: UnifiedColumn[]): {
       }
       columns.push(selection);
     } else {
-      expressionColumns.push({
+      const exprCol: ExpressionColumn = {
         expression: col.expression,
         alias: col.alias,
-      });
+      };
+      if (col.aggregateFunction) {
+        exprCol.aggregateFunction = col.aggregateFunction;
+      }
+      expressionColumns.push(exprCol);
     }
   }
 
