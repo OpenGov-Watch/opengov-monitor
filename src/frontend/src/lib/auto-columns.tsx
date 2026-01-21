@@ -70,8 +70,8 @@ export function generateColumns<TData>(
     // Handle category system columns when auto-detected
     // Skip if page provides a custom columnOverride for category_id
     const hasCustomCategoryOverride = columnOverrides['category_id']?.cell !== undefined;
-    if (hasCategorySystem && editConfig?.editableColumns.category_id && !hasCustomCategoryOverride) {
-      const categoryEditConfig = editConfig.editableColumns.category_id;
+    if (hasCategorySystem && !hasCustomCategoryOverride) {
+      const categoryEditConfig = editConfig?.editableColumns.category_id;
 
       // Hide category_id column
       if (columnName === 'category_id') {
@@ -97,7 +97,7 @@ export function generateColumns<TData>(
       if (columnName === 'category') {
         const hasDotNotation = columnName.includes(".");
         const columnId = hasDotNotation ? columnName.replace(/\./g, "_") : columnName;
-        const parentCatCol = categoryEditConfig.parentCategoryColumn;
+        const parentCatCol = categoryEditConfig?.parentCategoryColumn;
 
         return {
           id: columnId,
@@ -112,7 +112,7 @@ export function generateColumns<TData>(
             const rowId = (row.original as any)[idField];
             const parentCategory = parentCatCol ? (row.original as any)[parentCatCol] : null;
 
-            if (isAuthenticated) {
+            if (isAuthenticated && categoryEditConfig) {
               return (
                 <EditableCategoryCell
                   value={value as string}
@@ -136,8 +136,8 @@ export function generateColumns<TData>(
       if (columnName === 'subcategory') {
         const hasDotNotation = columnName.includes(".");
         const columnId = hasDotNotation ? columnName.replace(/\./g, "_") : columnName;
-        const parentCatCol = categoryEditConfig.parentCategoryColumn;
-        const parentSubcatCol = categoryEditConfig.parentSubcategoryColumn;
+        const parentCatCol = categoryEditConfig?.parentCategoryColumn;
+        const parentSubcatCol = categoryEditConfig?.parentSubcategoryColumn;
 
         return {
           id: columnId,
@@ -154,7 +154,7 @@ export function generateColumns<TData>(
             const parentCategory = parentCatCol ? (row.original as any)[parentCatCol] : null;
             const parentSubcategory = parentSubcatCol ? (row.original as any)[parentSubcatCol] : null;
 
-            if (isAuthenticated) {
+            if (isAuthenticated && categoryEditConfig) {
               return (
                 <EditableSubcategoryCell
                   value={value as string}

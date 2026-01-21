@@ -185,6 +185,31 @@ export default function ChildBountiesPage() {
         },
       },
       // category_id is handled by auto-columns with parent inheritance support
+      // Hide parent decoration columns (data used for rendering other columns)
+      parentBountyName: {
+        header: () => null,
+        cell: () => null,
+        enableHiding: true,
+        enableColumnFilter: false,
+        enableSorting: false,
+        meta: { autoHidden: true },
+      },
+      parentCategory: {
+        header: () => null,
+        cell: () => null,
+        enableHiding: true,
+        enableColumnFilter: false,
+        enableSorting: false,
+        meta: { autoHidden: true },
+      },
+      parentSubcategory: {
+        header: () => null,
+        cell: () => null,
+        enableHiding: true,
+        enableColumnFilter: false,
+        enableSorting: false,
+        meta: { autoHidden: true },
+      },
     }),
     []
   );

@@ -39,7 +39,9 @@ export function DataTableColumnVisibility<TData>({
           .getAllColumns()
           .filter(
             (column) =>
-              typeof column.accessorFn !== "undefined" && column.getCanHide()
+              typeof column.accessorFn !== "undefined" &&
+              column.getCanHide() &&
+              !(column.columnDef.meta as { autoHidden?: boolean })?.autoHidden
           )
           .map((column) => {
             return (
