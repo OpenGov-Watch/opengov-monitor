@@ -49,6 +49,11 @@ fetch_limits:
 
 `fellowship_salary_cycles`: `0` = fetch all, `-1` = skip entirely
 
+## Views
+
+Database views are managed exclusively by migrations. The sink validates
+that required views exist at startup but does not create them.
+
 ## Fellowship Salary API
 
 - Cycles: `/fellowship/salary/cycles/{cycle}` - aggregate per cycle

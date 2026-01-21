@@ -3,7 +3,7 @@ Tests for the SQLiteSink class.
 
 Tests cover:
 - Connection management
-- View creation and logic
+- View validation and logic
 - Table management
 - Schema inference
 - DataFrame preparation
@@ -93,54 +93,40 @@ class TestConnectionManagement:
         sqlite_sink.close()
         sqlite_sink.close()  # Should not raise
 
-    def test_sink_context_manager(self):
+    def test_sink_context_manager(self, migrated_db):
         """Verify __enter__/__exit__ work correctly."""
-        sink = SQLiteSink(db_path=":memory:")
+        sink = SQLiteSink(db_path=migrated_db)
         with sink:
             assert sink._connection is not None
         assert sink._connection is None
 
 
 # =============================================================================
-# View Creation Tests
+# View Validation Tests
 # =============================================================================
 
-class TestViewCreation:
-    """Tests for view creation in _ensure_views."""
+class TestViewValidation:
+    """Tests for view validation in connect()."""
 
-    def test_ensure_views_creates_outstanding_claims(self, sqlite_sink):
-        """Verify outstanding_claims view exists after connect."""
-        cursor = sqlite_sink.connection.execute(
-            "SELECT name FROM sqlite_master WHERE type='view' AND name='outstanding_claims'"
-        )
-        assert cursor.fetchone() is not None
+    def test_connect_fails_without_migrations(self, unmigrated_sink):
+        """Verify connect() fails if views don't exist."""
+        with pytest.raises(RuntimeError, match="Missing views"):
+            unmigrated_sink.connect()
 
-    def test_ensure_views_creates_expired_claims(self, sqlite_sink):
-        """Verify expired_claims view exists after connect."""
-        cursor = sqlite_sink.connection.execute(
-            "SELECT name FROM sqlite_master WHERE type='view' AND name='expired_claims'"
-        )
-        assert cursor.fetchone() is not None
+    def test_connect_succeeds_with_migrations(self, migrated_db):
+        """Verify connect() succeeds after migrations."""
+        sink = SQLiteSink(migrated_db)
+        sink.connect()  # Should not raise
+        sink.close()
 
-    def test_ensure_views_creates_all_spending(self, sqlite_sink):
-        """Verify all_spending view exists after connect."""
-        cursor = sqlite_sink.connection.execute(
-            "SELECT name FROM sqlite_master WHERE type='view' AND name='all_spending'"
-        )
-        assert cursor.fetchone() is not None
-
-    def test_views_recreated_on_reconnect(self, sqlite_sink):
-        """Verify views are recreated (DROP IF EXISTS then CREATE)."""
-        # Close and reconnect
-        sqlite_sink.close()
-        sqlite_sink.connect()
-
-        # Views should still exist
-        cursor = sqlite_sink.connection.execute(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type='view'"
-        )
-        count = cursor.fetchone()[0]
-        assert count >= 3  # At least our 3 views
+    def test_error_message_lists_missing_views(self, unmigrated_sink):
+        """Verify error message names the missing views."""
+        try:
+            unmigrated_sink.connect()
+            pytest.fail("Expected RuntimeError")
+        except RuntimeError as e:
+            assert "all_spending" in str(e)
+            assert "outstanding_claims" in str(e)
 
 
 # =============================================================================
@@ -425,10 +411,10 @@ class TestViewLogic:
             VALUES (1, 'Subtreasury Test', 3000, '2024-01-04 00:00:00')
         ''')
 
-        # Fellowship Salary: Completed cycle (end_time not null)
+        # Fellowship Salary: Individual payment record (view aggregates by cycle)
         sqlite_sink.connection.execute('''
-            INSERT INTO "Fellowship Salary Cycles" (cycle, end_time, registered_paid_amount_usdc)
-            VALUES (1, '2024-01-05 00:00:00', 4000)
+            INSERT INTO "Fellowship Salary Payments" (payment_id, cycle, who, amount_dot, amount_usdc, block_time)
+            VALUES (1, 1, 'test_address', 100.0, 4000, '2024-01-05 00:00:00')
         ''')
 
         # Fellowship Grants: Paid status
@@ -788,11 +774,17 @@ class TestUpdateTable:
         sqlite_sink.update_table("Referenda", empty_df, allow_empty=True)
         # No error, early return
 
-    def test_update_table_creates_table_if_missing(self, sqlite_sink, sample_referenda_df):
-        """Verify table auto-created."""
-        assert not sqlite_sink.table_exists("Referenda")
-        sqlite_sink.update_table("Referenda", sample_referenda_df)
-        assert sqlite_sink.table_exists("Referenda")
+    def test_update_table_creates_table_if_missing(self, sqlite_sink):
+        """Verify table auto-created for unknown tables."""
+        # Use a table name not in SCHEMA_REGISTRY to test dynamic creation
+        df = pd.DataFrame({
+            'name': ['Test'],
+            'value': [100],
+        }, index=pd.Index([1], name='id'))
+
+        assert not sqlite_sink.table_exists("DynamicTestTable")
+        sqlite_sink.update_table("DynamicTestTable", df)
+        assert sqlite_sink.table_exists("DynamicTestTable")
 
     def test_update_table_commits_on_success(self, sqlite_sink, sample_referenda_df):
         """Verify commit called after successful insert."""

@@ -1,12 +1,13 @@
 """
 Fixtures for SQLite data sink tests.
 
-Uses in-memory SQLite databases for fast, isolated tests.
+Uses temporary SQLite databases with migrations applied for isolated tests.
 """
 
 import pytest
 import pandas as pd
 import numpy as np
+import sqlite3
 from datetime import datetime, timedelta
 from data_sinks.sqlite.sink import SQLiteSink
 from data_sinks.sqlite.schema import (
@@ -19,13 +20,239 @@ from data_sinks.sqlite.schema import (
 )
 
 
+def setup_test_database(db_path: str) -> None:
+    """Set up a test database with all tables and views.
+
+    Creates all tables with current schema and all required views.
+    This simulates a fully migrated database without running the actual migrations.
+    """
+    from data_sinks.sqlite.schema import (
+        SCHEMA_REGISTRY,
+        generate_create_table_sql,
+        generate_create_indexes_sql,
+    )
+
+    conn = sqlite3.connect(db_path)
+
+    try:
+        # Create all tables
+        for schema in SCHEMA_REGISTRY.values():
+            conn.execute(generate_create_table_sql(schema))
+            for idx_sql in generate_create_indexes_sql(schema):
+                conn.execute(idx_sql)
+
+        # Create views (final definitions from latest migrations)
+        conn.execute('''
+            CREATE VIEW outstanding_claims AS
+            SELECT
+                id, referendumIndex, status, description,
+                DOT_proposal_time, USD_proposal_time,
+                DOT_latest, USD_latest,
+                DOT_component, USDC_component, USDT_component,
+                proposal_time, latest_status_change, validFrom, expireAt,
+                CASE WHEN validFrom <= datetime('now') THEN 'active' ELSE 'upcoming' END AS claim_type,
+                CAST((julianday(expireAt) - julianday('now')) AS INTEGER) AS days_until_expiry,
+                CAST((julianday(validFrom) - julianday('now')) AS INTEGER) AS days_until_valid
+            FROM Treasury
+            WHERE status = 'Approved'
+              AND expireAt > datetime('now')
+        ''')
+
+        conn.execute('''
+            CREATE VIEW expired_claims AS
+            SELECT
+                id, referendumIndex, status, description,
+                DOT_proposal_time, USD_proposal_time,
+                DOT_latest, USD_latest,
+                DOT_component, USDC_component, USDT_component,
+                proposal_time, latest_status_change, validFrom, expireAt,
+                CAST((julianday('now') - julianday(expireAt)) AS INTEGER) AS days_since_expiry
+            FROM Treasury
+            WHERE status = 'Approved'
+              AND expireAt < datetime('now')
+        ''')
+
+        conn.execute('''
+            CREATE VIEW all_spending AS
+            SELECT
+                spending.*,
+                strftime('%Y', spending.latest_status_change) AS year,
+                strftime('%Y-%m', spending.latest_status_change) AS year_month,
+                strftime('%Y', spending.latest_status_change) || '-Q' ||
+                    ((CAST(strftime('%m', spending.latest_status_change) AS INTEGER) + 2) / 3) AS year_quarter
+            FROM (
+                SELECT
+                    'Direct Spend' AS type,
+                    'ref-' || r.id AS id,
+                    r.latest_status_change,
+                    r.DOT_latest,
+                    r.USD_latest,
+                    cat.category,
+                    cat.subcategory,
+                    r.title,
+                    r.DOT_component,
+                    r.USDC_component,
+                    r.USDT_component
+                FROM Referenda r
+                LEFT JOIN Treasury t ON r.id = t.referendumIndex
+                LEFT JOIN Categories cat ON r.category_id = cat.id
+                WHERE t.id IS NULL
+                  AND r.DOT_latest > 0
+                  AND r.status = 'Executed'
+                  AND (r.hide_in_spends IS NULL OR r.hide_in_spends = 0)
+
+                UNION ALL
+
+                SELECT
+                    'Claim' AS type,
+                    'treasury-' || t.id AS id,
+                    t.latest_status_change,
+                    t.DOT_latest,
+                    t.USD_latest,
+                    cat.category,
+                    cat.subcategory,
+                    t.description AS title,
+                    t.DOT_component,
+                    t.USDC_component,
+                    t.USDT_component
+                FROM Treasury t
+                LEFT JOIN Referenda r ON t.referendumIndex = r.id
+                LEFT JOIN Categories cat ON r.category_id = cat.id
+                WHERE t.status IN ('Paid', 'Processed')
+
+                UNION ALL
+
+                SELECT
+                    'Bounty' AS type,
+                    'cb-' || cb.identifier AS id,
+                    cb.latest_status_change,
+                    cb.DOT AS DOT_latest,
+                    cb.USD_latest,
+                    COALESCE(cb_cat.category, b_cat.category) AS category,
+                    COALESCE(cb_cat.subcategory, b_cat.subcategory) AS subcategory,
+                    cb.description AS title,
+                    cb.DOT AS DOT_component,
+                    NULL AS USDC_component,
+                    NULL AS USDT_component
+                FROM "Child Bounties" cb
+                LEFT JOIN Bounties b ON cb.parentBountyId = b.id
+                LEFT JOIN Categories cb_cat ON cb.category_id = cb_cat.id
+                LEFT JOIN Categories b_cat ON b.category_id = b_cat.id
+                WHERE cb.status = 'Claimed'
+                  AND (cb.hide_in_spends IS NULL OR cb.hide_in_spends = 0)
+
+                UNION ALL
+
+                SELECT
+                    'Subtreasury' AS type,
+                    'sub-' || s.id AS id,
+                    s.latest_status_change,
+                    s.DOT_latest,
+                    s.USD_latest,
+                    c.category,
+                    c.subcategory,
+                    s.title,
+                    s.DOT_component,
+                    s.USDC_component,
+                    s.USDT_component
+                FROM Subtreasury s
+                LEFT JOIN Categories c ON s.category_id = c.id
+
+                UNION ALL
+
+                SELECT
+                    'Fellowship Salary' AS type,
+                    'fs-' || p.cycle AS id,
+                    MAX(p.block_time) AS latest_status_change,
+                    SUM(p.amount_dot) AS DOT_latest,
+                    NULL AS USD_latest,
+                    'Development' AS category,
+                    'Polkadot Protocol & SDK' AS subcategory,
+                    'Fellowship Salary Cycle ' || p.cycle AS title,
+                    SUM(p.amount_dot) AS DOT_component,
+                    SUM(p.amount_usdc) AS USDC_component,
+                    NULL AS USDT_component
+                FROM "Fellowship Salary Payments" p
+                GROUP BY p.cycle
+
+                UNION ALL
+
+                SELECT
+                    'Fellowship Grants' AS type,
+                    'fg-' || f.id AS id,
+                    f.latest_status_change,
+                    f.DOT AS DOT_latest,
+                    f.USD_latest,
+                    'Development' AS category,
+                    'Polkadot Protocol & SDK' AS subcategory,
+                    f.description AS title,
+                    f.DOT AS DOT_component,
+                    NULL AS USDC_component,
+                    NULL AS USDT_component
+                FROM Fellowship f
+                WHERE f.status IN ('Paid', 'Approved')
+
+                UNION ALL
+
+                SELECT
+                    cs.type AS type,
+                    'custom-' || cs.id AS id,
+                    cs.latest_status_change,
+                    cs.DOT_latest,
+                    cs.USD_latest,
+                    c.category,
+                    c.subcategory,
+                    cs.title,
+                    cs.DOT_component,
+                    cs.USDC_component,
+                    cs.USDT_component
+                FROM "Custom Spending" cs
+                LEFT JOIN Categories c ON cs.category_id = c.id
+            ) AS spending
+            WHERE spending.latest_status_change >= '2023-07-01'
+        ''')
+
+        conn.execute('''
+            CREATE VIEW treasury_netflows_view AS
+            SELECT
+                month,
+                asset_name,
+                flow_type,
+                amount_usd,
+                amount_dot_equivalent,
+                SUBSTR(month, 1, 4) AS year,
+                month AS year_month,
+                SUBSTR(month, 1, 4) || '-Q' || ((CAST(SUBSTR(month, 6, 2) AS INTEGER) + 2) / 3) AS year_quarter
+            FROM "Treasury Netflows"
+        ''')
+
+        conn.commit()
+    finally:
+        conn.close()
+
+
 @pytest.fixture
-def sqlite_sink():
-    """Create SQLiteSink with in-memory database."""
-    sink = SQLiteSink(db_path=":memory:")
+def migrated_db(tmp_path):
+    """Create a temporary database with all tables and views set up."""
+    db_path = tmp_path / "test.db"
+    setup_test_database(str(db_path))
+    return str(db_path)
+
+
+@pytest.fixture
+def sqlite_sink(migrated_db):
+    """SQLiteSink with properly migrated database."""
+    sink = SQLiteSink(db_path=migrated_db)
     sink.connect()
     yield sink
     sink.close()
+
+
+@pytest.fixture
+def unmigrated_sink(tmp_path):
+    """SQLiteSink with empty database (no migrations)."""
+    db_path = tmp_path / "empty.db"
+    return SQLiteSink(db_path=str(db_path))
 
 
 @pytest.fixture
