@@ -19,6 +19,20 @@ export const DEFAULT_CHART_COLORS = [
 ];
 
 /**
+ * Fixed color mappings for specific categories.
+ * These override the hash-based color assignment for semantic consistency.
+ */
+export const CATEGORY_COLOR_OVERRIDES: Record<string, string> = {
+  Outreach: "#2563eb", // Blue (Tailwind blue-600)
+  Development: "#dc2626", // Red (Tailwind red-600)
+  Economy: "#16a34a", // Green (Tailwind green-600)
+  "Business Development": "#eab308", // Yellow (Tailwind yellow-500)
+  "Talent & Education": "#9333ea", // Purple (Tailwind purple-600)
+  Operations: "#ea580c", // Orange (Tailwind orange-600)
+  Research: "#38bdf8", // Light Blue (Tailwind sky-400)
+};
+
+/**
  * djb2 hash algorithm - fast and good distribution for strings.
  * Returns a positive integer hash for the given string.
  */
@@ -58,6 +72,13 @@ export function buildCategoryColorMap(
   const usedColors = new Set<number>();
 
   for (const category of categories) {
+    // Check for override first
+    if (CATEGORY_COLOR_OVERRIDES[category]) {
+      colorMap[category] = CATEGORY_COLOR_OVERRIDES[category];
+      continue;
+    }
+
+    // Fall back to hash-based assignment
     let colorIndex = getCategoryColorIndex(category, palette.length);
 
     // Handle collisions: find next available color

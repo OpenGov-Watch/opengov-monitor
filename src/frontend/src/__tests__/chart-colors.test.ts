@@ -7,6 +7,7 @@
 import { describe, it, expect } from "vitest";
 import {
   DEFAULT_CHART_COLORS,
+  CATEGORY_COLOR_OVERRIDES,
   getCategoryColorIndex,
   buildCategoryColorMap,
 } from "../lib/chart-colors";
@@ -118,5 +119,49 @@ describe("buildCategoryColorMap", () => {
     const colorMap = buildCategoryColorMap(categories);
 
     expect(DEFAULT_CHART_COLORS.includes(colorMap.Test)).toBe(true);
+  });
+});
+
+describe("CATEGORY_COLOR_OVERRIDES", () => {
+  it("uses override colors for known categories", () => {
+    const categories = ["Development", "Outreach", "Economy"];
+    const colorMap = buildCategoryColorMap(categories);
+
+    expect(colorMap.Development).toBe(CATEGORY_COLOR_OVERRIDES.Development);
+    expect(colorMap.Outreach).toBe(CATEGORY_COLOR_OVERRIDES.Outreach);
+    expect(colorMap.Economy).toBe(CATEGORY_COLOR_OVERRIDES.Economy);
+  });
+
+  it("uses override colors regardless of input order", () => {
+    const categories1 = ["Development", "Outreach"];
+    const categories2 = ["Outreach", "Development"];
+
+    const colorMap1 = buildCategoryColorMap(categories1);
+    const colorMap2 = buildCategoryColorMap(categories2);
+
+    expect(colorMap1.Development).toBe(colorMap2.Development);
+    expect(colorMap1.Outreach).toBe(colorMap2.Outreach);
+    expect(colorMap1.Development).toBe(CATEGORY_COLOR_OVERRIDES.Development);
+  });
+
+  it("mixes override colors and hash-based colors", () => {
+    const categories = ["Development", "UnknownCategory", "Outreach"];
+    const colorMap = buildCategoryColorMap(categories);
+
+    // Known categories get override colors
+    expect(colorMap.Development).toBe(CATEGORY_COLOR_OVERRIDES.Development);
+    expect(colorMap.Outreach).toBe(CATEGORY_COLOR_OVERRIDES.Outreach);
+
+    // Unknown category gets hash-based color from palette
+    expect(DEFAULT_CHART_COLORS.includes(colorMap.UnknownCategory)).toBe(true);
+  });
+
+  it("assigns correct override color for all defined categories", () => {
+    const overrideCategories = Object.keys(CATEGORY_COLOR_OVERRIDES);
+    const colorMap = buildCategoryColorMap(overrideCategories);
+
+    for (const category of overrideCategories) {
+      expect(colorMap[category]).toBe(CATEGORY_COLOR_OVERRIDES[category]);
+    }
   });
 });
