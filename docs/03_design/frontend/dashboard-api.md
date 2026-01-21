@@ -108,6 +108,33 @@ const ROW_HEIGHT = 80;
 />
 ```
 
+## Chart Styling
+
+### Axis Configuration
+
+| Property | Value | Notes |
+|----------|-------|-------|
+| Font size | 14px | Applied to both X and Y axes |
+| Grid | Dashed (3 3) | Optional, enabled by default |
+
+### Value Formatting
+
+Charts use `valueColumnForConfig` to determine formatting for pivoted/stacked data:
+
+- When data is pivoted (e.g., stacked bar charts), category names become `dataKey` values
+- The original value column name is preserved via `valueColumnForConfig`
+- This enables correct currency/number formatting on Y-axis and tooltips
+
+Example: A stacked bar chart with categories "Outreach", "Development" displays:
+- Y-axis: "15M USD" (not "15M")
+- Tooltip: "Outreach: 9,728,426 USD" (not "9728426.123...")
+
+### Chart Component Files
+
+- `src/frontend/src/components/charts/bar-chart.tsx` - Bar charts (stacked/grouped)
+- `src/frontend/src/components/charts/line-chart.tsx` - Line charts
+- `src/frontend/src/components/charts/pie-chart.tsx` - Pie charts
+
 ## Component Files
 
 - `src/frontend/src/components/dashboard/dashboard-grid.tsx` - Grid layout
