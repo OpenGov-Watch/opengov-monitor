@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { DndContext, closestCenter, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -18,22 +17,26 @@ import {
 import Plus from "lucide-react/dist/esm/icons/plus";
 import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import Play from "lucide-react/dist/esm/icons/play";
-import { SortableColumn } from "./sortable-column";
+import { SortableColumnItem } from "./sortable-column-item";
 import {
   loadColumnConfig,
   getColumnDisplayName,
 } from "@/lib/column-renderer";
 import type {
   QueryConfig,
-  ColumnSelection,
   OrderByConfig,
-  ExpressionColumn,
   JoinConfig,
   FilterGroup,
   FilterCondition,
 } from "@/lib/db/types";
 import type { SchemaInfo, ColumnInfo } from "./types";
 import { FilterGroupBuilder } from "@/components/data-table/filter-group-builder";
+import {
+  toUnifiedColumns,
+  fromUnifiedColumns,
+  getColumnId,
+  type UnifiedColumn,
+} from "@/lib/unified-column-utils";
 
 interface QueryBuilderProps {
   initialConfig?: QueryConfig;
@@ -66,7 +69,6 @@ const ensureFilterGroup = (() => {
   };
 })();
 
-const AGGREGATE_FUNCTIONS = ["COUNT", "SUM", "AVG", "MIN", "MAX"] as const;
 const JOIN_TYPES: JoinConfig["type"][] = ["LEFT", "INNER", "RIGHT"];
 
 const defaultConfig: QueryConfig = {
@@ -210,31 +212,66 @@ export function QueryBuilder({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
+  // Unified column state for drag-and-drop reordering
+  const [unifiedColumns, setUnifiedColumns] = useState<UnifiedColumn[]>(() =>
+    toUnifiedColumns(initialConfig?.columns || [], initialConfig?.expressionColumns)
+  );
+
+  // Track if we're in the middle of an initialConfig sync to prevent loops
+  const isInitialSyncRef = useRef(false);
+  const prevInitialConfigRef = useRef(initialConfig);
+
+  // Sync unified columns when config changes externally (e.g., loading saved config)
+  // Only run when initialConfig actually changes (not on every render)
+  useEffect(() => {
+    if (initialConfig && initialConfig !== prevInitialConfigRef.current) {
+      isInitialSyncRef.current = true;
+      prevInitialConfigRef.current = initialConfig;
+      setUnifiedColumns(toUnifiedColumns(initialConfig.columns || [], initialConfig.expressionColumns));
+      // Reset the flag after a microtask to allow the state update to complete
+      Promise.resolve().then(() => {
+        isInitialSyncRef.current = false;
+      });
+    }
+  }, [initialConfig]);
+
+  // Sync config when unified columns change (but not during initial sync)
+  useEffect(() => {
+    if (isInitialSyncRef.current) return;
+    const { columns, expressionColumns } = fromUnifiedColumns(unifiedColumns);
+    setConfig((prev) => ({
+      ...prev,
+      columns,
+      expressionColumns,
+    }));
+  }, [unifiedColumns]);
+
   // Generate SQL client-side as user builds query
+  // Uses unified column order for SELECT clause
   const generatedSql = useMemo(() => {
-    const hasColumns = config.columns.length > 0;
-    const hasExpressions = (config.expressionColumns?.length ?? 0) > 0;
-    if (!config.sourceTable || (!hasColumns && !hasExpressions)) return "";
+    if (!config.sourceTable || unifiedColumns.length === 0) return "";
 
     const selectParts: string[] = [];
 
-    // Regular columns
-    for (const col of config.columns) {
-      const colName = `"${col.column}"`;
-      if (col.aggregateFunction) {
-        const alias = col.alias || `${col.aggregateFunction.toLowerCase()}_${col.column.replace(/[.\s]/g, "_")}`;
-        selectParts.push(`${col.aggregateFunction}(${colName}) AS "${alias}"`);
+    // Process unified columns in display order
+    for (const col of unifiedColumns) {
+      if (col.type === "regular") {
+        const colName = `"${col.column}"`;
+        if (col.aggregateFunction) {
+          const alias = col.alias || `${col.aggregateFunction.toLowerCase()}_${col.column.replace(/[.\s]/g, "_")}`;
+          selectParts.push(`${col.aggregateFunction}(${colName}) AS "${alias}"`);
+        } else {
+          selectParts.push(col.alias ? `${colName} AS "${col.alias}"` : colName);
+        }
       } else {
-        selectParts.push(col.alias ? `${colName} AS "${col.alias}"` : colName);
+        // Expression column
+        if (col.expression && col.alias) {
+          selectParts.push(`(${col.expression}) AS "${col.alias}"`);
+        }
       }
     }
 
-    // Expression columns
-    for (const expr of config.expressionColumns || []) {
-      if (expr.expression && expr.alias) {
-        selectParts.push(`(${expr.expression}) AS "${expr.alias}"`);
-      }
-    }
+    if (selectParts.length === 0) return "";
 
     const parts = [`SELECT ${selectParts.join(", ")}`, `FROM "${config.sourceTable}"`];
 
@@ -339,6 +376,25 @@ export function QueryBuilder({
     return columns;
   }, [selectedTable, config.sourceTable, config.joins, schema]);
 
+  // Extended list of columns including expression column aliases (for filters, group by, order by)
+  const availableColumnsWithExpressions = useMemo(() => {
+    const exprColumns = unifiedColumns
+      .filter((c): c is UnifiedColumn & { type: "expression" } => c.type === "expression")
+      .filter((c) => c.alias) // Only include those with aliases
+      .map((c) => ({
+        name: c.alias,
+        fullName: c.alias,
+        type: "expression" as const,
+        tableSource: "expression",
+        isExpression: true,
+      }));
+
+    return [
+      ...availableColumns.map((c) => ({ ...c, isExpression: false })),
+      ...exprColumns,
+    ];
+  }, [availableColumns, unifiedColumns]);
+
   // Helper to get display name for current table
   const displayName = useCallback(
     (columnName: string) => getColumnDisplayName(config.sourceTable, columnName),
@@ -360,6 +416,7 @@ export function QueryBuilder({
 
   function handleTableChange(tableName: string) {
     // Reset columns, joins, and filters when table changes
+    setUnifiedColumns([]);
     updateConfig({
       sourceTable: tableName,
       columns: [],
@@ -373,45 +430,52 @@ export function QueryBuilder({
 
   function toggleColumn(column: ColumnInfo & { fullName: string }, checked: boolean) {
     if (checked) {
-      updateConfig({
-        columns: [...config.columns, { column: column.fullName }],
-      });
+      // Add column via unified state
+      setUnifiedColumns((prev) => [
+        ...prev,
+        { type: "regular", column: column.fullName },
+      ]);
     } else {
-      updateConfig({
-        columns: config.columns.filter((c) => c.column !== column.fullName),
-      });
+      // Remove column via unified state
+      setUnifiedColumns((prev) =>
+        prev.filter((c) => !(c.type === "regular" && c.column === column.fullName))
+      );
     }
   }
 
   function toggleAllColumnsFromTable(columns: (ColumnInfo & { fullName: string })[], selectAll: boolean) {
     if (selectAll) {
       // Add all columns from this table that aren't already selected
-      const newColumns = columns.filter(
-        col => !config.columns.some(c => c.column === col.fullName)
-      ).map(col => ({ column: col.fullName }));
+      const existingCols = new Set(
+        unifiedColumns
+          .filter((c): c is UnifiedColumn & { type: "regular" } => c.type === "regular")
+          .map((c) => c.column)
+      );
+      const newColumns: UnifiedColumn[] = columns
+        .filter((col) => !existingCols.has(col.fullName))
+        .map((col) => ({ type: "regular", column: col.fullName }));
 
-      updateConfig({
-        columns: [...config.columns, ...newColumns],
-      });
+      setUnifiedColumns((prev) => [...prev, ...newColumns]);
     } else {
       // Remove all columns from this table
-      const columnNamesToRemove = new Set(columns.map(col => col.fullName));
-      updateConfig({
-        columns: config.columns.filter((c) => !columnNamesToRemove.has(c.column)),
-      });
+      const columnNamesToRemove = new Set(columns.map((col) => col.fullName));
+      setUnifiedColumns((prev) =>
+        prev.filter((c) => !(c.type === "regular" && columnNamesToRemove.has(c.column)))
+      );
     }
   }
 
-  function updateColumnAggregation(
-    columnName: string,
-    aggregateFunction: ColumnSelection["aggregateFunction"] | undefined
-  ) {
-    updateConfig({
-      columns: config.columns.map((c) =>
-        c.column === columnName ? { ...c, aggregateFunction } : c
-      ),
-    });
-  }
+  // Update a unified column (used by SortableColumnItem)
+  const updateUnifiedColumn = useCallback((id: string, updates: Partial<UnifiedColumn>) => {
+    setUnifiedColumns((prev) =>
+      prev.map((col) => {
+        if (getColumnId(col) === id) {
+          return { ...col, ...updates } as UnifiedColumn;
+        }
+        return col;
+      })
+    );
+  }, []);
 
   function addJoin() {
     if (schema.length === 0) return;
@@ -513,11 +577,11 @@ export function QueryBuilder({
   }
 
   function addOrderBy() {
-    if (availableColumns.length === 0) return;
+    if (availableColumnsWithExpressions.length === 0) return;
     updateConfig({
       orderBy: [
         ...(config.orderBy || []),
-        { column: availableColumns[0].fullName, direction: "ASC" },
+        { column: availableColumnsWithExpressions[0].fullName, direction: "ASC" },
       ],
     });
   }
@@ -538,37 +602,29 @@ export function QueryBuilder({
 
   // Expression column handlers
   function addExpressionColumn() {
-    const newExpr: ExpressionColumn = {
+    const exprCount = unifiedColumns.filter((c) => c.type === "expression").length;
+    const newExpr: UnifiedColumn = {
+      type: "expression",
       expression: "",
-      alias: `expr_${(config.expressionColumns?.length ?? 0) + 1}`,
+      alias: `expr_${exprCount + 1}`,
     };
-    updateConfig({
-      expressionColumns: [...(config.expressionColumns || []), newExpr],
-    });
+    setUnifiedColumns((prev) => [...prev, newExpr]);
   }
 
-  function updateExpressionColumn(index: number, updates: Partial<ExpressionColumn>) {
-    updateConfig({
-      expressionColumns: config.expressionColumns?.map((e, i) =>
-        i === index ? { ...e, ...updates } : e
-      ),
-    });
-  }
-
-  function removeExpressionColumn(index: number) {
-    updateConfig({
-      expressionColumns: config.expressionColumns?.filter((_, i) => i !== index),
-    });
+  function removeExpressionColumn(alias: string) {
+    setUnifiedColumns((prev) =>
+      prev.filter((c) => !(c.type === "expression" && c.alias === alias))
+    );
   }
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (over && active.id !== over.id) {
-      const oldIndex = config.columns.findIndex((c) => c.column === active.id);
-      const newIndex = config.columns.findIndex((c) => c.column === over.id);
-      updateConfig({
-        columns: arrayMove(config.columns, oldIndex, newIndex),
-      });
+      const oldIndex = unifiedColumns.findIndex((c) => getColumnId(c) === active.id);
+      const newIndex = unifiedColumns.findIndex((c) => getColumnId(c) === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        setUnifiedColumns((prev) => arrayMove(prev, oldIndex, newIndex));
+      }
     }
   }
 
@@ -795,46 +851,30 @@ export function QueryBuilder({
             </div>
           </div>
 
-          {/* Selected Columns - sortable list */}
-          {config.columns.length > 0 && (
+          {/* Columns - unified sortable list with both regular and expression columns */}
+          {unifiedColumns.length > 0 && (
             <div className="space-y-2">
-              <Label>Selected Columns (drag to reorder)</Label>
+              <div className="flex items-center justify-between">
+                <Label>Columns</Label>
+                <Button variant="outline" size="sm" onClick={addExpressionColumn}>
+                  <Plus className="h-4 w-4 mr-1" /> Add Expression
+                </Button>
+              </div>
               <div className="rounded-md border p-4">
                 <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext
-                    items={config.columns.map((c) => c.column)}
+                    items={unifiedColumns.map((c) => getColumnId(c))}
                     strategy={verticalListSortingStrategy}
                   >
                     <div className="space-y-2">
-                      {config.columns.map((col) => (
-                        <SortableColumn key={col.column} id={col.column}>
-                          <div className="flex items-center justify-between gap-4 flex-1">
-                            <span className="text-sm" title={col.column}>
-                              {displayName(col.column)}
-                            </span>
-                            <Select
-                              value={col.aggregateFunction || "none"}
-                              onValueChange={(v) =>
-                                updateColumnAggregation(
-                                  col.column,
-                                  v === "none" ? undefined : (v as ColumnSelection["aggregateFunction"])
-                                )
-                              }
-                            >
-                              <SelectTrigger className="w-28 h-8">
-                                <SelectValue placeholder="Aggregate" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">Raw</SelectItem>
-                                {AGGREGATE_FUNCTIONS.map((fn) => (
-                                  <SelectItem key={fn} value={fn}>
-                                    {fn}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </SortableColumn>
+                      {unifiedColumns.map((col) => (
+                        <SortableColumnItem
+                          key={getColumnId(col)}
+                          column={col}
+                          displayName={col.type === "regular" ? displayName(col.column) : col.alias}
+                          onUpdate={(updates) => updateUnifiedColumn(getColumnId(col), updates)}
+                          onRemove={col.type === "expression" ? () => removeExpressionColumn(col.alias) : undefined}
+                        />
                       ))}
                     </div>
                   </SortableContext>
@@ -842,61 +882,13 @@ export function QueryBuilder({
               </div>
             </div>
           )}
-        </div>
-      )}
 
-      {/* Calculated Columns (Expression Columns) */}
-      {config.sourceTable && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label>Calculated Columns</Label>
-            <Button variant="outline" size="sm" onClick={addExpressionColumn}>
-              <Plus className="h-4 w-4 mr-1" /> Add Expression
-            </Button>
-          </div>
-          {(config.expressionColumns?.length ?? 0) > 0 && (
-            <div className="rounded-md border p-4 space-y-4">
-              {config.expressionColumns?.map((expr, index) => (
-                <div key={index} className="space-y-2 p-3 border rounded bg-muted/20">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1">
-                      <Label className="text-xs text-muted-foreground">Alias (column name)</Label>
-                      <Input
-                        value={expr.alias}
-                        onChange={(e) => updateExpressionColumn(index, {
-                          alias: e.target.value.replace(/[^a-zA-Z0-9_]/g, "_")
-                        })}
-                        placeholder="my_calculated_column"
-                        className="font-mono text-sm"
-                      />
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeExpressionColumn(index)}
-                      className="mt-5"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Expression</Label>
-                    <Textarea
-                      value={expr.expression}
-                      onChange={(e) => updateExpressionColumn(index, { expression: e.target.value })}
-                      placeholder="DOT_latest * 10"
-                      className="font-mono text-sm min-h-[60px]"
-                    />
-                  </div>
-
-                  {/* Available columns hint */}
-                  <div className="text-xs text-muted-foreground">
-                    Available columns: {availableColumns.slice(0, 5).map(c => c.name).join(", ")}
-                    {availableColumns.length > 5 && `, ... (+${availableColumns.length - 5} more)`}
-                  </div>
-                </div>
-              ))}
+          {/* Show Add Expression button when no columns selected yet */}
+          {unifiedColumns.length === 0 && (
+            <div className="flex justify-end">
+              <Button variant="outline" size="sm" onClick={addExpressionColumn}>
+                <Plus className="h-4 w-4 mr-1" /> Add Expression
+              </Button>
             </div>
           )}
         </div>
@@ -908,13 +900,13 @@ export function QueryBuilder({
           <div className="flex items-center justify-between">
             <Label>Filters</Label>
           </div>
-          {availableColumns.length > 0 && (
+          {availableColumnsWithExpressions.length > 0 && (
             <div className="rounded-md border p-4">
               <FilterGroupBuilder
                 group={ensureFilterGroup(config.filters)}
-                availableColumns={availableColumns.map(col => ({
+                availableColumns={availableColumnsWithExpressions.map(col => ({
                   id: col.fullName,
-                  name: col.fullName
+                  name: col.isExpression ? `${col.fullName} (expression)` : col.fullName
                 }))}
                 onUpdate={handleFilterUpdate}
                 sourceTable={config.sourceTable}
@@ -925,13 +917,14 @@ export function QueryBuilder({
       )}
 
       {/* Group By */}
-      {config.sourceTable && config.columns.some((c) => c.aggregateFunction) && (
+      {config.sourceTable && unifiedColumns.some((c) => c.type === "regular" && c.aggregateFunction) && (
         <div className="space-y-2">
           <Label>Group By</Label>
           <div className="rounded-md border p-4">
             <div className="flex flex-wrap gap-4">
-              {config.columns
-                .filter((c) => !c.aggregateFunction)
+              {/* Regular columns without aggregate functions */}
+              {unifiedColumns
+                .filter((c): c is UnifiedColumn & { type: "regular" } => c.type === "regular" && !c.aggregateFunction)
                 .map((col) => (
                   <div key={col.column} className="flex items-center gap-2">
                     <Checkbox
@@ -950,13 +943,34 @@ export function QueryBuilder({
                     </label>
                   </div>
                 ))}
+              {/* Expression columns */}
+              {unifiedColumns
+                .filter((c): c is UnifiedColumn & { type: "expression" } => c.type === "expression" && !!c.alias)
+                .map((col) => (
+                  <div key={`expr-${col.alias}`} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`groupby-expr-${col.alias}`}
+                      checked={config.groupBy?.includes(col.alias)}
+                      onCheckedChange={(checked) =>
+                        toggleGroupBy(col.alias, checked === true)
+                      }
+                    />
+                    <label
+                      htmlFor={`groupby-expr-${col.alias}`}
+                      className="text-sm cursor-pointer text-muted-foreground"
+                      title={`Expression: ${col.expression}`}
+                    >
+                      {col.alias}
+                    </label>
+                  </div>
+                ))}
             </div>
           </div>
         </div>
       )}
 
       {/* Order By */}
-      {config.sourceTable && config.columns.length > 0 && (
+      {config.sourceTable && unifiedColumns.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label>Order By</Label>
@@ -976,9 +990,9 @@ export function QueryBuilder({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableColumns.map((col) => (
+                      {availableColumnsWithExpressions.map((col) => (
                         <SelectItem key={col.fullName} value={col.fullName}>
-                          {col.fullName}
+                          {col.isExpression ? `${col.fullName} (expression)` : col.fullName}
                         </SelectItem>
                       ))}
                     </SelectContent>
