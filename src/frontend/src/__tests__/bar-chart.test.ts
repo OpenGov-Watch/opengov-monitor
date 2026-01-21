@@ -66,10 +66,13 @@ describe("transformToBarData", () => {
         { name: "2024-Q1", Development: 1000, Outreach: 500 },
         { name: "2024-Q2", Development: 2000, Outreach: 800 },
       ]);
-      expect(result.bars).toEqual([
-        { dataKey: "Development", name: "Development" },
-        { dataKey: "Outreach", name: "Outreach" },
-      ]);
+      // Bars sorted by total value descending (Development: 3000, Outreach: 1300)
+      expect(result.bars).toHaveLength(2);
+      expect(result.bars[0]).toMatchObject({ dataKey: "Development", name: "Development" });
+      expect(result.bars[1]).toMatchObject({ dataKey: "Outreach", name: "Outreach" });
+      // Each bar should have a color assigned
+      expect(result.bars[0].color).toBeDefined();
+      expect(result.bars[1].color).toBeDefined();
     });
 
     it("sums values for duplicate label+series combinations", () => {
@@ -102,7 +105,7 @@ describe("transformToBarData", () => {
       expect(result.data[1].Development).toBe(0);
     });
 
-    it("sorts categories alphabetically for consistent colors", () => {
+    it("sorts categories by total value descending", () => {
       const data = [
         { quarter: "2024-Q1", sum_usd: 100, category: "Zebra" },
         { quarter: "2024-Q1", sum_usd: 200, category: "Alpha" },
@@ -114,12 +117,37 @@ describe("transformToBarData", () => {
         "category",
       ]);
 
-      // Bars should be sorted alphabetically for consistent colors with pie charts
+      // Bars should be sorted by total value descending (biggest spenders first)
       expect(result.bars.map((b) => b.dataKey)).toEqual([
-        "Alpha",
-        "Beta",
-        "Zebra",
+        "Beta",   // 300
+        "Alpha",  // 200
+        "Zebra",  // 100
       ]);
+    });
+
+    it("assigns consistent colors based on category name", () => {
+      // First call with certain order
+      const data1 = [
+        { quarter: "2024-Q1", sum_usd: 300, category: "Alpha" },
+        { quarter: "2024-Q1", sum_usd: 100, category: "Beta" },
+      ];
+      const result1 = transformToBarData(data1, "quarter", ["sum_usd", "category"]);
+
+      // Second call with different totals (order changes)
+      const data2 = [
+        { quarter: "2024-Q1", sum_usd: 100, category: "Alpha" },
+        { quarter: "2024-Q1", sum_usd: 300, category: "Beta" },
+      ];
+      const result2 = transformToBarData(data2, "quarter", ["sum_usd", "category"]);
+
+      // Same category should get same color regardless of sort position
+      const alphaColor1 = result1.bars.find((b) => b.dataKey === "Alpha")?.color;
+      const alphaColor2 = result2.bars.find((b) => b.dataKey === "Alpha")?.color;
+      const betaColor1 = result1.bars.find((b) => b.dataKey === "Beta")?.color;
+      const betaColor2 = result2.bars.find((b) => b.dataKey === "Beta")?.color;
+
+      expect(alphaColor1).toBe(alphaColor2);
+      expect(betaColor1).toBe(betaColor2);
     });
 
     it("handles Unknown category values", () => {
@@ -138,9 +166,9 @@ describe("transformToBarData", () => {
       expect(result.data[0].Development).toBe(500);
     });
 
-    it("sorts Unknown category last for consistency", () => {
+    it("sorts Unknown category last even with highest value", () => {
       const data = [
-        { quarter: "2024-Q1", sum_usd: 100, category: null },
+        { quarter: "2024-Q1", sum_usd: 9999, category: null },  // Highest value
         { quarter: "2024-Q1", sum_usd: 200, category: "Alpha" },
         { quarter: "2024-Q1", sum_usd: 300, category: "Zebra" },
       ];
@@ -151,11 +179,12 @@ describe("transformToBarData", () => {
         ["sum_usd", "category"]
       );
 
-      // Unknown should always be sorted last
+      // Unknown should always be sorted last, regardless of value
+      // Other categories sorted by value descending
       expect(result.bars.map((b) => b.dataKey)).toEqual([
-        "Alpha",
-        "Zebra",
-        "Unknown",
+        "Zebra",   // 300
+        "Alpha",   // 200
+        "Unknown", // 9999, but always last
       ]);
     });
 

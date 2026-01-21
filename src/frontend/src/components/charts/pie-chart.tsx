@@ -13,11 +13,16 @@ import {
   getColumnConfig,
   formatValue,
 } from "@/lib/column-renderer";
+import {
+  DEFAULT_CHART_COLORS,
+  buildCategoryColorMap,
+} from "@/lib/chart-colors";
 
 interface PieChartData {
   name: string;
   value: number;
-  [key: string]: string | number;
+  fill?: string;
+  [key: string]: string | number | undefined;
 }
 
 interface DashboardPieChartProps {
@@ -31,19 +36,6 @@ interface DashboardPieChartProps {
   legendPosition?: "bottom" | "right";
   isAnimationActive?: boolean; // Set to false for export to disable animations
 }
-
-const DEFAULT_COLORS = [
-  "#8884d8",
-  "#82ca9d",
-  "#ffc658",
-  "#ff8042",
-  "#0088fe",
-  "#00c49f",
-  "#ffbb28",
-  "#ff8080",
-  "#a4de6c",
-  "#d0ed57",
-];
 
 // Memoized custom tooltip component with formatted values
 const CustomTooltip = memo(function CustomTooltip({
@@ -84,7 +76,7 @@ const CustomTooltip = memo(function CustomTooltip({
 export const DashboardPieChart = memo(
   function DashboardPieChart({
     data,
-    colors = DEFAULT_COLORS,
+    colors = DEFAULT_CHART_COLORS,
     showLegend = true,
     showTooltip = true,
     tableName = "",
@@ -120,10 +112,10 @@ export const DashboardPieChart = memo(
             }
             isAnimationActive={isAnimationActive}
           >
-            {data.map((_, index) => (
+            {data.map((entry, index) => (
               <Cell
                 key={`cell-${index}`}
-                fill={colors[index % colors.length]}
+                fill={entry.fill || colors[index % colors.length]}
               />
             ))}
           </Pie>
@@ -138,6 +130,19 @@ export const DashboardPieChart = memo(
               align={legendPosition === "right" ? "right" : "center"}
               verticalAlign={legendPosition === "right" ? "middle" : "bottom"}
               wrapperStyle={legendPosition === "right" ? { paddingLeft: "20px" } : { paddingTop: "10px" }}
+              content={() => (
+                <ul className={`flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm ${legendPosition === "right" ? "flex-col" : ""}`}>
+                  {data.map((item, index) => (
+                    <li key={item.name} className="flex items-center gap-1.5">
+                      <span
+                        className="inline-block w-3 h-3 rounded-sm"
+                        style={{ backgroundColor: item.fill || colors[index % colors.length] }}
+                      />
+                      <span className="text-muted-foreground">{item.name}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             />
           )}
         </RechartsPieChart>
@@ -160,21 +165,39 @@ export const DashboardPieChart = memo(
   }
 );
 
+/**
+ * Transform data for pie charts.
+ *
+ * Slices are sorted by value (descending) so biggest slices appear first.
+ * Colors are assigned based on category name hash for consistency across
+ * data changes - same category always gets the same color.
+ */
 export function transformToPieData(
   data: Record<string, unknown>[],
   labelColumn: string,
-  valueColumn: string
+  valueColumn: string,
+  colors: string[] = DEFAULT_CHART_COLORS
 ): PieChartData[] {
-  // Transform and sort alphabetically for consistent colors with bar charts
-  // "Unknown" is always sorted last for consistency
-  return data
-    .map((row) => ({
-      name: String(row[labelColumn] ?? "Unknown"),
-      value: Number(row[valueColumn]) || 0,
-    }))
-    .sort((a, b) => {
-      if (a.name === "Unknown") return 1;
-      if (b.name === "Unknown") return -1;
-      return a.name.localeCompare(b.name);
-    });
+  // Transform data
+  const items = data.map((row) => ({
+    name: String(row[labelColumn] ?? "Unknown"),
+    value: Number(row[valueColumn]) || 0,
+  }));
+
+  // Sort by value descending, "Unknown" always last
+  items.sort((a, b) => {
+    if (a.name === "Unknown") return 1;
+    if (b.name === "Unknown") return -1;
+    return b.value - a.value;
+  });
+
+  // Build stable color map based on category names (not sort order)
+  const categoryNames = items.map((item) => item.name);
+  const colorMap = buildCategoryColorMap(categoryNames, colors);
+
+  // Add fill property to each item
+  return items.map((item) => ({
+    ...item,
+    fill: colorMap[item.name],
+  }));
 }

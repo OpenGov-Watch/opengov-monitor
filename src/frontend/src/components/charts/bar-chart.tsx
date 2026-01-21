@@ -18,6 +18,10 @@ import {
   formatValue,
   formatAbbreviated,
 } from "@/lib/column-renderer";
+import {
+  DEFAULT_CHART_COLORS,
+  buildCategoryColorMap,
+} from "@/lib/chart-colors";
 
 interface BarChartData {
   name: string;
@@ -42,19 +46,6 @@ interface DashboardBarChartProps {
   legendPosition?: "bottom" | "right";
   isAnimationActive?: boolean; // Set to false for export to disable animations
 }
-
-const DEFAULT_COLORS = [
-  "#8884d8",
-  "#82ca9d",
-  "#ffc658",
-  "#ff8042",
-  "#0088fe",
-  "#00c49f",
-  "#ffbb28",
-  "#ff8080",
-  "#a4de6c",
-  "#d0ed57",
-];
 
 // Memoized custom tooltip component with formatted values
 const CustomTooltip = memo(function CustomTooltip({
@@ -99,7 +90,7 @@ export const DashboardBarChart = memo(
     data,
     bars,
     stacked = false,
-    colors = DEFAULT_COLORS,
+    colors = DEFAULT_CHART_COLORS,
     showLegend = true,
     showTooltip = true,
     showGrid = true,
@@ -143,6 +134,19 @@ export const DashboardBarChart = memo(
               align={legendPosition === "right" ? "right" : "center"}
               verticalAlign={legendPosition === "right" ? "middle" : "bottom"}
               wrapperStyle={legendPosition === "right" ? { paddingLeft: "20px" } : { paddingTop: "10px" }}
+              content={() => (
+                <ul className={`flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm ${legendPosition === "right" ? "flex-col" : ""}`}>
+                  {bars.map((bar, index) => (
+                    <li key={bar.dataKey} className="flex items-center gap-1.5">
+                      <span
+                        className="inline-block w-3 h-3 rounded-sm"
+                        style={{ backgroundColor: bar.color || colors[index % colors.length] }}
+                      />
+                      <span className="text-muted-foreground">{bar.name || bar.dataKey}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             />
           )}
           {bars.map((bar, index) => {
@@ -204,7 +208,7 @@ export function transformToBarData(
   labelColumn: string,
   valueColumns: string[],
   tableName?: string
-): { data: BarChartData[]; bars: { dataKey: string; name: string }[]; colorByRow?: boolean } {
+): { data: BarChartData[]; bars: { dataKey: string; name: string; color?: string }[]; colorByRow?: boolean } {
   if (data.length === 0) {
     return { data: [], bars: [] };
   }
@@ -257,25 +261,35 @@ export function transformToBarData(
  *   { quarter: "2024-Q1", value: 500, category: "Ops" }
  * Into:
  *   { name: "2024-Q1", Dev: 1000, Ops: 500 }
+ *
+ * Categories are sorted by total value (descending) so biggest spenders appear
+ * first in the legend and at the bottom of stacked bars. Colors are assigned
+ * based on category name hash for consistency across data changes.
  */
 function pivotBarData(
   data: Record<string, unknown>[],
   labelColumn: string,
   valueColumn: string,
-  seriesColumn: string
-): { data: BarChartData[]; bars: { dataKey: string; name: string }[] } {
-  // Get unique series values (categories) and sort them alphabetically for consistent colors
-  const seenSeries = new Set<string>();
+  seriesColumn: string,
+  colors: string[] = DEFAULT_CHART_COLORS
+): { data: BarChartData[]; bars: { dataKey: string; name: string; color: string }[] } {
+  // Calculate totals per category while collecting unique series
+  const seriesTotals = new Map<string, number>();
   for (const row of data) {
     const series = String(row[seriesColumn] ?? "Unknown");
-    seenSeries.add(series);
+    const value = Number(row[valueColumn]) || 0;
+    seriesTotals.set(series, (seriesTotals.get(series) || 0) + value);
   }
-  // Sort alphabetically, with "Unknown" always last for consistency
-  const seriesValues = Array.from(seenSeries).sort((a, b) => {
+
+  // Sort by total descending, with "Unknown" always last
+  const seriesValues = Array.from(seriesTotals.keys()).sort((a, b) => {
     if (a === "Unknown") return 1;
     if (b === "Unknown") return -1;
-    return a.localeCompare(b);
+    return (seriesTotals.get(b) || 0) - (seriesTotals.get(a) || 0);
   });
+
+  // Build stable color map based on category names (not sort order)
+  const colorMap = buildCategoryColorMap(seriesValues, colors);
 
   // Group data by label (e.g., quarter)
   const grouped = new Map<string, BarChartData>();
@@ -302,6 +316,7 @@ function pivotBarData(
   const bars = seriesValues.map((series) => ({
     dataKey: series,
     name: series,
+    color: colorMap[series],
   }));
 
   return { data: barData, bars };
