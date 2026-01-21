@@ -41,7 +41,9 @@ export function EditableCategoryCell({
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="__none__">
-          <span className="text-muted-foreground">None</span>
+          <span className="text-muted-foreground">
+            {parentCategory ? `Default (${parentCategory})` : "None"}
+          </span>
         </SelectItem>
         {uniqueCategories.map((cat) => (
           <SelectItem key={cat} value={cat}>
@@ -76,10 +78,10 @@ export function EditableSubcategoryCell({
   const availableSubcategories = categories
     .filter((c) => c.category === effectiveCategory)
     .map((c) => c.subcategory)
-    // Sort: non-null values alphabetically, NULL (Other) at end
+    // Sort: NULL (Other) first, then non-null values alphabetically
     .sort((a, b) => {
-      if (a === null) return 1;
-      if (b === null) return -1;
+      if (a === null) return -1;
+      if (b === null) return 1;
       return a.localeCompare(b);
     });
 
@@ -112,7 +114,11 @@ export function EditableSubcategoryCell({
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="__none__">
-          <span className="text-muted-foreground">None</span>
+          <span className="text-muted-foreground">
+            {parentSubcategory !== undefined
+              ? `Default (${parentSubcategory === null ? "Other" : parentSubcategory})`
+              : "None"}
+          </span>
         </SelectItem>
         {availableSubcategories.map((sub) => (
           <SelectItem key={sub === null ? "__other__" : sub} value={sub === null ? "Other" : sub}>
@@ -213,10 +219,10 @@ export function CategorySelector({
   const availableSubcategories = useMemo(
     () => categories
       .filter((c) => c.category === effectiveCategory)
-      // Sort: non-null values alphabetically, NULL (Other) at end
+      // Sort: NULL (Other) first, then non-null values alphabetically
       .sort((a, b) => {
-        if (a.subcategory === null) return 1;
-        if (b.subcategory === null) return -1;
+        if (a.subcategory === null) return -1;
+        if (b.subcategory === null) return 1;
         return a.subcategory.localeCompare(b.subcategory);
       }),
     [categories, effectiveCategory]
@@ -288,7 +294,9 @@ export function CategorySelector({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="__none__">
-            <span className="text-muted-foreground">None</span>
+            <span className="text-muted-foreground">
+              {parentCategory ? `Default (${parentCategory})` : "None"}
+            </span>
           </SelectItem>
           {uniqueCategories.map((cat) => (
             <SelectItem key={cat} value={cat}>
@@ -329,7 +337,11 @@ export function CategorySelector({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="__none__">
-            <span className="text-muted-foreground">None</span>
+            <span className="text-muted-foreground">
+              {parentSubcategory !== undefined
+                ? `Default (${parentSubcategory === null ? "Other" : parentSubcategory})`
+                : "None"}
+            </span>
           </SelectItem>
           {availableSubcategories.map((cat) => (
             <SelectItem key={cat.id} value={cat.id.toString()}>
