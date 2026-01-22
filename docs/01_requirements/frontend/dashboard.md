@@ -102,6 +102,7 @@ Must support these component types:
 - Must support adding components to dashboard (authenticated users only)
 - Must support editing component queries and configuration (authenticated users only)
 - Must support updating component grid position and size
+- Must support moving components between dashboards (authenticated users only)
 - Must support deleting components (authenticated users only)
 
 ## Page Requirements

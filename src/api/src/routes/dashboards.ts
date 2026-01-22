@@ -11,6 +11,7 @@ import {
   updateDashboardComponent,
   updateDashboardComponentGrid,
   deleteDashboardComponent,
+  moveDashboardComponent,
 } from "../db/queries.js";
 import { requireAuth } from "../middleware/auth.js";
 
@@ -156,7 +157,7 @@ dashboardsRouter.post("/components", requireAuth, (req, res) => {
 
 dashboardsRouter.put("/components", requireAuth, (req, res) => {
   try {
-    const { id, name, type, query_config, grid_config, chart_config, grid_only } = req.body;
+    const { id, name, type, query_config, grid_config, chart_config, grid_only, move, target_dashboard_id } = req.body;
 
     if (id === undefined) {
       res.status(400).json({ error: "id is required" });
@@ -169,6 +170,55 @@ dashboardsRouter.put("/components", requireAuth, (req, res) => {
         id,
         typeof grid_config === "string" ? grid_config : JSON.stringify(grid_config)
       );
+      res.json({ success: true });
+      return;
+    }
+
+    // Special case: move component to another dashboard
+    if (move && target_dashboard_id !== undefined) {
+      // Validate target dashboard exists
+      const targetDashboard = getDashboardById(target_dashboard_id);
+      if (!targetDashboard) {
+        res.status(404).json({ error: "Target dashboard not found" });
+        return;
+      }
+
+      // Validate component exists and get current dashboard_id
+      const component = getDashboardComponentById(id);
+      if (!component) {
+        res.status(404).json({ error: "Component not found" });
+        return;
+      }
+
+      // Prevent moving to same dashboard
+      if (component.dashboard_id === target_dashboard_id) {
+        res.status(400).json({ error: "Component is already on this dashboard" });
+        return;
+      }
+
+      // Calculate new grid position: x=0, y = max(y+h) of existing components
+      const targetComponents = getDashboardComponents(target_dashboard_id);
+      let newY = 0;
+      for (const comp of targetComponents) {
+        const grid = JSON.parse(comp.grid_config) as { x: number; y: number; w: number; h: number };
+        newY = Math.max(newY, grid.y + grid.h);
+      }
+
+      // Parse current grid config to preserve w and h
+      const currentGrid = JSON.parse(component.grid_config) as { x: number; y: number; w: number; h: number };
+      const newGridConfig = JSON.stringify({
+        x: 0,
+        y: newY,
+        w: currentGrid.w,
+        h: currentGrid.h,
+      });
+
+      const result = moveDashboardComponent(id, target_dashboard_id, newGridConfig);
+      if (!result) {
+        res.status(404).json({ error: "Component not found" });
+        return;
+      }
+
       res.json({ success: true });
       return;
     }

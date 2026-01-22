@@ -36,6 +36,7 @@ interface DashboardGridProps {
   onLayoutChange?: (componentId: number, gridConfig: GridConfig) => void;
   onEditComponent?: (component: DashboardComponentType) => void;
   onDuplicateComponent?: (component: DashboardComponentType) => void;
+  onMoveComponent?: (component: DashboardComponentType) => void;
   onDeleteComponent?: (componentId: number) => void;
   width?: number;
 }
@@ -53,6 +54,7 @@ export function DashboardGrid({
   onLayoutChange,
   onEditComponent,
   onDuplicateComponent,
+  onMoveComponent,
   onDeleteComponent,
 }: DashboardGridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
@@ -221,6 +223,7 @@ export function DashboardGrid({
               editable={editable}
               onEdit={() => onEditComponent?.(component)}
               onDuplicate={() => onDuplicateComponent?.(component)}
+              onMove={() => onMoveComponent?.(component)}
               onDelete={() => onDeleteComponent?.(component.id)}
             />
           </div>

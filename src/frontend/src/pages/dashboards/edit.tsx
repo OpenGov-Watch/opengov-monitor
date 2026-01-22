@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router";
 import { Button } from "@/components/ui/button";
-import { DashboardGrid, ComponentEditor } from "@/components/dashboard";
+import { DashboardGrid, ComponentEditor, MoveComponentModal } from "@/components/dashboard";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
 import Eye from "lucide-react/dist/esm/icons/eye";
@@ -32,6 +32,8 @@ export default function DashboardEditPage() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingComponent, setEditingComponent] = useState<DashboardComponent | null>(null);
   const [highlightComponentId, setHighlightComponentId] = useState<number | null>(null);
+  const [moveModalOpen, setMoveModalOpen] = useState(false);
+  const [movingComponent, setMovingComponent] = useState<DashboardComponent | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -215,6 +217,33 @@ export default function DashboardEditPage() {
     }
   }
 
+  function handleMoveComponent(component: DashboardComponent) {
+    setMovingComponent(component);
+    setMoveModalOpen(true);
+  }
+
+  async function handleComponentMoved(targetDashboardId: number) {
+    if (!movingComponent) return;
+
+    const response = await fetch("/api/dashboards/components", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: movingComponent.id,
+        move: true,
+        target_dashboard_id: targetDashboardId,
+      }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || "Failed to move component");
+    }
+
+    // Refresh the current dashboard to show the component was removed
+    await fetchData();
+  }
+
   async function handleSaveComponent(component: {
     id?: number;
     dashboard_id: number;
@@ -342,6 +371,7 @@ export default function DashboardEditPage() {
           onLayoutChange={handleLayoutChange}
           onEditComponent={handleEditComponent}
           onDuplicateComponent={handleDuplicateComponent}
+          onMoveComponent={handleMoveComponent}
           onDeleteComponent={handleDeleteComponent}
         />
       </div>
@@ -352,6 +382,14 @@ export default function DashboardEditPage() {
         component={editingComponent}
         dashboardId={dashboardId}
         onSave={handleSaveComponent}
+      />
+
+      <MoveComponentModal
+        open={moveModalOpen}
+        onOpenChange={setMoveModalOpen}
+        component={movingComponent}
+        currentDashboardId={dashboardId}
+        onMove={handleComponentMoved}
       />
     </div>
   );

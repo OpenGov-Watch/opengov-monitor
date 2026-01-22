@@ -468,4 +468,148 @@ describe("Dashboard Components CRUD", () => {
       expect(response.body.error).toContain("id is required");
     });
   });
+
+  describe("PUT /api/dashboards/components - move operation", () => {
+    beforeEach(() => {
+      // Create a second dashboard for move tests
+      testDb.exec(`
+        INSERT INTO "Dashboards" (id, name, description, created_at, updated_at)
+        VALUES (2, 'Second Dashboard', null, '2024-01-01', '2024-01-01')
+      `);
+      // Create a component on dashboard 1
+      testDb.exec(`
+        INSERT INTO "Dashboard Components" (id, dashboard_id, name, type, query_config, grid_config, chart_config, created_at, updated_at)
+        VALUES (1, 1, 'Component1', 'table', '{}', '{"x":0,"y":0,"w":6,"h":4}', null, '2024-01-01', '2024-01-01')
+      `);
+    });
+
+    it("moves component to another dashboard", async () => {
+      const response = await request(app)
+        .put("/api/dashboards/components")
+        .send({
+          id: 1,
+          move: true,
+          target_dashboard_id: 2,
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+
+      // Verify component was moved
+      const component = testDb.prepare('SELECT * FROM "Dashboard Components" WHERE id = 1').get() as {
+        dashboard_id: number;
+        grid_config: string;
+      };
+      expect(component.dashboard_id).toBe(2);
+    });
+
+    it("calculates correct grid position when target has components", async () => {
+      // Add existing component at y:0,h:4 to target dashboard
+      testDb.exec(`
+        INSERT INTO "Dashboard Components" (id, dashboard_id, name, type, query_config, grid_config, chart_config, created_at, updated_at)
+        VALUES (2, 2, 'ExistingComp', 'table', '{}', '{"x":0,"y":0,"w":6,"h":4}', null, '2024-01-01', '2024-01-01')
+      `);
+
+      const response = await request(app)
+        .put("/api/dashboards/components")
+        .send({
+          id: 1,
+          move: true,
+          target_dashboard_id: 2,
+        });
+
+      expect(response.status).toBe(200);
+
+      // Verify new y position is 4 (at bottom of existing component)
+      const component = testDb.prepare('SELECT * FROM "Dashboard Components" WHERE id = 1').get() as {
+        grid_config: string;
+      };
+      const grid = JSON.parse(component.grid_config);
+      expect(grid.y).toBe(4);
+      expect(grid.x).toBe(0);
+    });
+
+    it("returns 404 for non-existent target dashboard", async () => {
+      const response = await request(app)
+        .put("/api/dashboards/components")
+        .send({
+          id: 1,
+          move: true,
+          target_dashboard_id: 999,
+        });
+
+      expect(response.status).toBe(404);
+      expect(response.body.error).toContain("Target dashboard not found");
+    });
+
+    it("returns 400 when moving to same dashboard", async () => {
+      const response = await request(app)
+        .put("/api/dashboards/components")
+        .send({
+          id: 1,
+          move: true,
+          target_dashboard_id: 1,
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("already on this dashboard");
+    });
+
+    it("returns 404 for non-existent component", async () => {
+      const response = await request(app)
+        .put("/api/dashboards/components")
+        .send({
+          id: 999,
+          move: true,
+          target_dashboard_id: 2,
+        });
+
+      expect(response.status).toBe(404);
+      expect(response.body.error).toContain("Component not found");
+    });
+
+    it("updates timestamps on both dashboards", async () => {
+      // Get original timestamps
+      const beforeSource = testDb.prepare('SELECT updated_at FROM "Dashboards" WHERE id = 1').get() as { updated_at: string };
+      const beforeTarget = testDb.prepare('SELECT updated_at FROM "Dashboards" WHERE id = 2').get() as { updated_at: string };
+
+      // Wait a bit to ensure timestamp difference
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      await request(app)
+        .put("/api/dashboards/components")
+        .send({
+          id: 1,
+          move: true,
+          target_dashboard_id: 2,
+        });
+
+      const afterSource = testDb.prepare('SELECT updated_at FROM "Dashboards" WHERE id = 1').get() as { updated_at: string };
+      const afterTarget = testDb.prepare('SELECT updated_at FROM "Dashboards" WHERE id = 2').get() as { updated_at: string };
+
+      // Both dashboards should have updated timestamps
+      expect(afterSource.updated_at).not.toBe(beforeSource.updated_at);
+      expect(afterTarget.updated_at).not.toBe(beforeTarget.updated_at);
+    });
+
+    it("preserves component dimensions when moving", async () => {
+      const response = await request(app)
+        .put("/api/dashboards/components")
+        .send({
+          id: 1,
+          move: true,
+          target_dashboard_id: 2,
+        });
+
+      expect(response.status).toBe(200);
+
+      // Verify w and h are preserved
+      const component = testDb.prepare('SELECT * FROM "Dashboard Components" WHERE id = 1').get() as {
+        grid_config: string;
+      };
+      const grid = JSON.parse(component.grid_config);
+      expect(grid.w).toBe(6);
+      expect(grid.h).toBe(4);
+    });
+  });
 });

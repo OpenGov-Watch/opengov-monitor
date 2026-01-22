@@ -1000,3 +1000,38 @@ export function deleteDashboardComponent(id: number): void {
       .run(now, component.dashboard_id);
   }
 }
+
+export function moveDashboardComponent(
+  componentId: number,
+  targetDashboardId: number,
+  newGridConfig: string
+): { sourceDashboardId: number } | null {
+  const db = getWritableDatabase();
+  const now = new Date().toISOString();
+
+  // Get source dashboard_id
+  const component = db
+    .prepare(`SELECT dashboard_id FROM "${TABLE_NAMES.dashboardComponents}" WHERE id = ?`)
+    .get(componentId) as { dashboard_id: number } | undefined;
+
+  if (!component) {
+    return null;
+  }
+
+  const sourceDashboardId = component.dashboard_id;
+
+  // Update component's dashboard_id and grid_config
+  db.prepare(`
+    UPDATE "${TABLE_NAMES.dashboardComponents}"
+    SET dashboard_id = ?, grid_config = ?, updated_at = ?
+    WHERE id = ?
+  `).run(targetDashboardId, newGridConfig, now, componentId);
+
+  // Update timestamps on both source and target dashboards
+  db.prepare(`UPDATE "${TABLE_NAMES.dashboards}" SET updated_at = ? WHERE id = ?`)
+    .run(now, sourceDashboardId);
+  db.prepare(`UPDATE "${TABLE_NAMES.dashboards}" SET updated_at = ? WHERE id = ?`)
+    .run(now, targetDashboardId);
+
+  return { sourceDashboardId };
+}

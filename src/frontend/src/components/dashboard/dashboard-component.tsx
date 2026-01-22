@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import Pencil from "lucide-react/dist/esm/icons/pencil";
 import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
+import ArrowRightLeft from "lucide-react/dist/esm/icons/arrow-right-left";
 import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";
 import Copy from "lucide-react/dist/esm/icons/copy";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
@@ -48,6 +49,7 @@ interface DashboardComponentProps {
   editable?: boolean;
   onEdit?: () => void;
   onDuplicate?: () => void;
+  onMove?: () => void;
   onDelete?: () => void;
 }
 
@@ -57,6 +59,7 @@ export const DashboardComponent = memo(
     editable = false,
     onEdit,
     onDuplicate,
+    onMove,
     onDelete,
   }: DashboardComponentProps) {
   const [data, setData] = useState<Record<string, unknown>[]>([]);
@@ -541,6 +544,15 @@ export const DashboardComponent = memo(
                 title="Duplicate"
               >
                 <Copy className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={onMove}
+                title="Move to another dashboard"
+              >
+                <ArrowRightLeft className="h-3.5 w-3.5" />
               </Button>
               <Button
                 variant="ghost"
