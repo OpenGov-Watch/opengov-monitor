@@ -69,6 +69,21 @@ export interface LocalFlowCsvRow {
   quarter: string;
 }
 
+export interface CustomSpendingCsvRow {
+  id: number | null;  // If provided, updates existing; if null, creates new
+  type: string;
+  title: string;
+  description: string | null;
+  latest_status_change: string | null;
+  DOT_latest: number | null;
+  USD_latest: number | null;
+  DOT_component: number | null;
+  USDC_component: number | null;
+  USDT_component: number | null;
+  category: string | null;
+  subcategory: string | null;
+}
+
 /**
  * Parse a single CSV line, handling quoted values with commas
  */
@@ -346,4 +361,48 @@ export function parseLocalFlowsCSV(content: string): LocalFlowCsvRow[] {
       };
     })
     .filter((row) => row.extrinsic_id !== "");
+}
+
+/**
+ * Parse custom spending CSV content.
+ * Expected format: id, type, title, description, latest_status_change, DOT_latest, USD_latest,
+ *                  DOT_component, USDC_component, USDT_component, category, subcategory
+ */
+export function parseCustomSpendingCSV(content: string): CustomSpendingCsvRow[] {
+  const rows = parseCSV(content);
+  return rows
+    .map((row) => {
+      const idStr = (row.id || "").trim();
+      const id = idStr ? parseInt(idStr, 10) : null;
+
+      const type = (row.type || row.Type || "").trim();
+      const title = (row.title || row.Title || "").trim();
+      const description = (row.description || row.Description || "").trim() || null;
+      const latest_status_change = (row.latest_status_change || row.date || row.Date || "").trim() || null;
+
+      const DOT_latest = row.DOT_latest ? parseFloat(row.DOT_latest) : null;
+      const USD_latest = row.USD_latest ? parseFloat(row.USD_latest) : null;
+      const DOT_component = row.DOT_component ? parseFloat(row.DOT_component) : null;
+      const USDC_component = row.USDC_component ? parseFloat(row.USDC_component) : null;
+      const USDT_component = row.USDT_component ? parseFloat(row.USDT_component) : null;
+
+      const category = (row.category || row.Category || "").trim() || null;
+      const subcategory = (row.subcategory || row.Subcategory || "").trim() || null;
+
+      return {
+        id: id !== null && !isNaN(id) ? id : null,
+        type,
+        title,
+        description,
+        latest_status_change,
+        DOT_latest: DOT_latest !== null && !isNaN(DOT_latest) ? DOT_latest : null,
+        USD_latest: USD_latest !== null && !isNaN(USD_latest) ? USD_latest : null,
+        DOT_component: DOT_component !== null && !isNaN(DOT_component) ? DOT_component : null,
+        USDC_component: USDC_component !== null && !isNaN(USDC_component) ? USDC_component : null,
+        USDT_component: USDT_component !== null && !isNaN(USDT_component) ? USDT_component : null,
+        category,
+        subcategory,
+      };
+    })
+    .filter((row) => row.type !== "" && row.title !== "");
 }

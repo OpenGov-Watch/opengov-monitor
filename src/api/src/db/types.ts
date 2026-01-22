@@ -437,6 +437,24 @@ export interface NetflowImportItem {
   amount_dot_equivalent: number;
 }
 
+export interface CustomSpendingImportItem {
+  id?: number;  // If provided, updates existing; if omitted, creates new
+  type: string;
+  title: string;
+  description?: string | null;
+  latest_status_change?: string | null;
+  DOT_latest?: number | null;
+  USD_latest?: number | null;
+  DOT_component?: number | null;
+  USDC_component?: number | null;
+  USDT_component?: number | null;
+  // Option A: Direct category ID (existing)
+  category_id?: number | null;
+  // Option B: Category strings (backend will resolve)
+  category?: string | null;
+  subcategory?: string | null;
+}
+
 // Table names matching SQLite (with spaces)
 export const TABLE_NAMES = {
   referenda: "Referenda",

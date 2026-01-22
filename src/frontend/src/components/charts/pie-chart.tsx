@@ -144,7 +144,7 @@ export const DashboardPieChart = memo(
               content={() => (
                 <ul className={`flex flex-wrap justify-center ${exportMode ? "gap-x-6 gap-y-2 text-lg" : "gap-x-4 gap-y-1 text-sm"} ${legendPosition === "right" ? "flex-col" : ""}`}>
                   {data.map((item, index) => (
-                    <li key={item.name} className={`flex items-center ${exportMode ? "gap-2" : "gap-1.5"}`}>
+                    <li key={index} className={`flex items-center ${exportMode ? "gap-2" : "gap-1.5"}`}>
                       <span
                         className={`inline-block rounded-sm ${exportMode ? "w-5 h-5" : "w-3 h-3"}`}
                         style={{ backgroundColor: item.fill || colors[index % colors.length] }}

@@ -5,6 +5,7 @@ import {
   createCustomSpending,
   updateCustomSpending,
   deleteCustomSpending,
+  bulkImportCustomSpending,
 } from "../db/queries.js";
 import { requireAuth } from "../middleware/auth.js";
 
@@ -122,5 +123,34 @@ customSpendingRouter.delete("/:id", requireAuth, (req, res) => {
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// Bulk import custom spending entries
+customSpendingRouter.post("/import", requireAuth, (req, res) => {
+  try {
+    const { items } = req.body;
+    if (!Array.isArray(items) || items.length === 0) {
+      res.status(400).json({ error: "items array is required and must not be empty" });
+      return;
+    }
+
+    // Validate each item has required fields
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (!item.type || typeof item.type !== "string" || item.type.trim() === "") {
+        res.status(400).json({ error: `Row ${i + 2}: type is required` });
+        return;
+      }
+      if (!item.title || typeof item.title !== "string" || item.title.trim() === "") {
+        res.status(400).json({ error: `Row ${i + 2}: title is required` });
+        return;
+      }
+    }
+
+    const count = bulkImportCustomSpending(items);
+    res.json({ success: true, count });
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
   }
 });

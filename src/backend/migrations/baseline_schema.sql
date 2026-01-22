@@ -33,6 +33,8 @@ INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUE
 INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (18, 'add_salary_payment_dot_column', '55920a140c49c0216cdff7930aa5d467a50076e904e7f305050e99c4db32133d', 0);
 INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (19, 'fellowship_salary_view_from_payments', '94a27a81f2900ad0e9d29d0ad3a0e99ed9b3dfd610a6d54671fd60d5f8dec69c', 0);
 INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (20, 'fix_fellowship_salary_usd_latest', 'a4f3f7ab169f9f0f03bf0e820ba126ac9ff2f6983eda9a1ed3a45188eaa86fee', 0);
+INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (21, 'filter_treasury_by_hidden_referenda', 'PLACEHOLDER', 0);
+INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (22, 'fix_custom_spending_foreign_key', 'PLACEHOLDER', 0);
 
 -- Tables
 -- Table: Bounties
@@ -79,7 +81,7 @@ CREATE TABLE "Custom Spending" (
     "category_id" INTEGER,
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY ("category_id") REFERENCES "Categories_old"("id")
+    FOREIGN KEY ("category_id") REFERENCES "Categories"("id")
 );
 
 -- Table: Dashboard Components
