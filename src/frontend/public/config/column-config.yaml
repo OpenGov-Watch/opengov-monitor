@@ -208,6 +208,38 @@ tables:
       type: link
       urlTemplate: "https://polkadot.subsquare.io/treasury/spends/{value}"
 
+  DataErrors:
+    table_name:
+      displayName: "Table"
+      type: categorical
+    record_id:
+      displayName: "Record ID"
+      type: text
+    error_type:
+      displayName: "Error Type"
+      type: categorical
+      variants:
+        missing_value: destructive
+        historical_null: warning
+        default: outline
+    error_message:
+      displayName: "Error Message"
+      type: text
+    timestamp:
+      displayName: "Timestamp"
+      type: date
+      format: datetime
+    metadata:
+      displayName: "Metadata"
+      type: text_long
+      modalTitle: "Error Metadata"
+      isJson: true
+    raw_data:
+      displayName: "Raw Data"
+      type: text_long
+      modalTitle: "Raw API Data"
+      isJson: true
+
 # Pattern-based auto-detection (fallback when no explicit config exists)
 # Patterns are evaluated in order, first match wins
 # Pattern types: exact, prefix, suffix, substring

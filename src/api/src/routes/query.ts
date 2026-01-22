@@ -24,6 +24,7 @@ const ALLOWED_SOURCES = new Set([
   "expired_claims",
   "all_spending",
   "treasury_netflows_view",
+  "DataErrors",
 ]);
 
 const ALLOWED_TABLES = [
@@ -39,6 +40,7 @@ const ALLOWED_TABLES = [
   "subtreasury",
   "Fellowship Subtreasury",
   "Treasury Netflows",
+  "DataErrors",
 ];
 
 const ALLOWED_VIEWS = [

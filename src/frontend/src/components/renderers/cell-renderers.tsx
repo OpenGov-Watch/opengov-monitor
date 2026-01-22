@@ -1,8 +1,17 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import ExternalLink from "lucide-react/dist/esm/icons/external-link";
+import Eye from "lucide-react/dist/esm/icons/eye";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { type ColumnRenderConfig } from "@/lib/column-renderer";
 
 // ============================================================================
@@ -222,6 +231,59 @@ export const TextCell = React.memo(function TextCell({ value, truncate = false, 
 });
 
 // ============================================================================
+// Text Long Cell (Modal Viewer)
+// ============================================================================
+
+interface TextLongCellProps {
+  value: string | null;
+  modalTitle?: string;
+  isJson?: boolean;
+}
+
+export const TextLongCell = React.memo(function TextLongCell({
+  value,
+  modalTitle = "View Content",
+  isJson = false,
+}: TextLongCellProps) {
+  const [open, setOpen] = useState(false);
+
+  if (!value) {
+    return <span className="text-muted-foreground">-</span>;
+  }
+
+  // Format content for display
+  let displayContent = value;
+  if (isJson) {
+    try {
+      const parsed = JSON.parse(value);
+      displayContent = JSON.stringify(parsed, null, 2);
+    } catch {
+      // If parsing fails, show raw content
+      displayContent = value;
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm">
+          <Eye className="h-4 w-4 mr-1" />
+          View
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle>{modalTitle}</DialogTitle>
+        </DialogHeader>
+        <pre className="text-xs overflow-auto p-4 bg-muted rounded-md flex-1 min-h-0">
+          {displayContent}
+        </pre>
+      </DialogContent>
+    </Dialog>
+  );
+});
+
+// ============================================================================
 // Dynamic Cell (Main Dispatcher)
 // ============================================================================
 
@@ -275,6 +337,15 @@ export const DynamicCell = React.memo(function DynamicCell({ value, config, row 
     case "address":
       return (
         <AddressCell value={value as string | null} truncate={config.truncate} />
+      );
+
+    case "text_long":
+      return (
+        <TextLongCell
+          value={value as string | null}
+          modalTitle={config.modalTitle}
+          isJson={config.isJson}
+        />
       );
 
     case "text":

@@ -89,6 +89,8 @@ export function getOperatorsForColumnType(columnType: ColumnType): string[] {
     case "link":
     case "address":
       return ["=", "!=", "LIKE", "IS NULL", "IS NOT NULL"];
+    case "text_long":
+      return ["IS NULL", "IS NOT NULL"];
     case "text":
     default:
       return ["=", "!=", ">", "<", ">=", "<=", "LIKE", "IS NULL", "IS NOT NULL"];

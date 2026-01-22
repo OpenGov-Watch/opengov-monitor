@@ -23,6 +23,7 @@ import {
   ReadOnlySubcategoryCell,
   findCategoryId,
 } from "@/components/data-table/editable-cells";
+import { TextLongCell } from "@/components/renderers/cell-renderers";
 
 interface GenerateColumnsOptions<TData> {
   data: TData[];
@@ -436,6 +437,15 @@ function renderCellValue(value: any, config: ColumnRenderConfig, row: any, dashb
       return wrapWithOverflow(
         <div className="text-right">{formattedCurrency}</div>,
         formattedCurrency
+      );
+
+    case "text_long":
+      return (
+        <TextLongCell
+          value={value as string | null}
+          modalTitle={config.modalTitle}
+          isJson={config.isJson}
+        />
       );
 
     case "date":

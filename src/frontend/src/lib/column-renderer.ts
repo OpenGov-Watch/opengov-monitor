@@ -17,6 +17,7 @@ import { formatDate } from "@/lib/utils";
  * | categorical | Badge                   | IN, NOT IN                          |
  * | link        | Clickable link          | =, !=, LIKE                         |
  * | address     | Truncated address       | =, !=, LIKE                         |
+ * | text_long   | Modal viewer button     | IS NULL, IS NOT NULL                |
  */
 export type ColumnType =
   | "text"
@@ -25,7 +26,8 @@ export type ColumnType =
   | "date"
   | "categorical"
   | "link"
-  | "address";
+  | "address"
+  | "text_long";
 
 export type CurrencyType = "DOT" | "USD" | "USDC" | "USDT";
 
@@ -54,6 +56,9 @@ export interface ColumnRenderConfig {
   truncate?: boolean;
   // Number options
   color?: "green" | "red";
+  // text_long options (for modal display)
+  modalTitle?: string;
+  isJson?: boolean;
 }
 
 export type PatternMatchType = "exact" | "prefix" | "suffix" | "substring";
