@@ -31,6 +31,8 @@ if (!fs.existsSync(DB_PATH) && fs.existsSync(oldDbPath)) {
 let db: Database.Database | null = null;
 let writeDb: Database.Database | null = null;
 let lastWriteTimestamp: number | null = null;
+let lastCheckpointTimestamp: number = Date.now();
+let checkpointInterval: NodeJS.Timeout | null = null;
 
 export function getDatabase(): Database.Database {
   if (!db) {
@@ -40,10 +42,27 @@ export function getDatabase(): Database.Database {
   return db;
 }
 
+function checkpointIfNeeded(): void {
+  if (lastWriteTimestamp && lastWriteTimestamp > lastCheckpointTimestamp && writeDb) {
+    try {
+      writeDb.pragma("wal_checkpoint(TRUNCATE)");
+      lastCheckpointTimestamp = Date.now();
+      console.log("Periodic WAL checkpoint completed");
+    } catch (err) {
+      console.warn("Periodic WAL checkpoint failed:", err);
+    }
+  }
+}
+
 export function getWritableDatabase(): Database.Database {
   if (!writeDb) {
     writeDb = new Database(DB_PATH, { readonly: false });
     writeDb.pragma("journal_mode = WAL");
+  }
+  // Start periodic checkpoint interval if not already running
+  if (!checkpointInterval) {
+    checkpointInterval = setInterval(checkpointIfNeeded, 60 * 1000);
+    checkpointInterval.unref(); // Don't block process exit
   }
   // Return a proxy that tracks write operations
   return new Proxy(writeDb, {
@@ -66,6 +85,13 @@ export function getWritableDatabase(): Database.Database {
 
 export function getLastWriteTimestamp(): number | null {
   return lastWriteTimestamp;
+}
+
+export function stopPeriodicCheckpoint(): void {
+  if (checkpointInterval) {
+    clearInterval(checkpointInterval);
+    checkpointInterval = null;
+  }
 }
 
 export function closeDatabase(): void {

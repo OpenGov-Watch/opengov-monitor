@@ -63,6 +63,13 @@ Authenticated users can download database backups via:
 
 All backups are automatically checkpointed before download to ensure WAL consistency. The checkpoint runs `PRAGMA wal_checkpoint(TRUNCATE)` to merge all pending WAL writes into the main database file.
 
+### WAL Checkpointing
+
+The API performs WAL checkpoints at three points:
+- **Periodic:** Every 60 seconds (only if writes occurred since last checkpoint)
+- **On backup download:** Before serving backup files
+- **On shutdown:** During graceful shutdown
+
 ### Last Write Tracking
 
 The API tracks the timestamp of the last database write operation in-memory (resets on server restart). This is available via `GET /api/backup/info` and can be used to determine if recent writes occurred.

@@ -9,7 +9,7 @@ import { fileURLToPath } from "url";
 import { createSessionStore, closeSessionStore } from "./db/session-store.js";
 import { ensureUsersTable } from "./db/auth-queries.js";
 import { generalLimiter, writeLimiter, authLimiter } from "./middleware/rate-limit.js";
-import { getDatabase, closeDatabase } from "./db/index.js";
+import { getDatabase, closeDatabase, stopPeriodicCheckpoint } from "./db/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -200,6 +200,9 @@ async function gracefulShutdown(signal: string): Promise<void> {
       });
     });
     console.log("HTTP server closed");
+
+    // Stop periodic checkpoint interval
+    stopPeriodicCheckpoint();
 
     // Checkpoint and close databases
     try {
