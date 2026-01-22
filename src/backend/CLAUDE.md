@@ -49,10 +49,13 @@ fetch_limits:
 
 `fellowship_salary_cycles`: `0` = fetch all, `-1` = skip entirely
 
-## Views
+## Tables and Views
 
-Database views are managed exclusively by migrations. The sink validates
-that required views exist at startup but does not create them.
+Database tables and views are managed exclusively by migrations:
+- Migration 000 creates all base tables from SCHEMA_REGISTRY
+- Subsequent migrations modify schema and create views
+- Server startup runs `pnpm migrate` to ensure database is initialized
+- The sink only reads/writes data, never modifies schema
 
 ## Fellowship Salary API
 

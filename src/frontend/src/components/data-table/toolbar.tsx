@@ -333,13 +333,17 @@ export function DataTableToolbar<TData>({
     [table.getAllColumns().length] // Only recompute if column count changes
   );
 
+  // When collapsed AND controlled externally (dashboard mode), render nothing
+  if (isCollapsed && onToolbarCollapseChange) {
+    return null;
+  }
+
   return (
     <div
       className={cn(
         "flex items-center justify-between flex-wrap transition-all duration-200",
         compactMode ? "gap-1" : "gap-2"
       )}
-      style={{ minHeight: "2.5rem" }}
     >
       {/* Collapsible Section */}
       {!isCollapsed && (

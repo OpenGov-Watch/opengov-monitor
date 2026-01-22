@@ -96,6 +96,11 @@ pnpm-debug.log*
 .claude/settings.local.json
 tmpclaude-*-cwd
 
+# Root markdown files (security audits, notes, etc.) - except tracked docs
+/*.md
+!README.md
+!CLAUDE.md
+
 # Exploration / scratch file
 nul
 
