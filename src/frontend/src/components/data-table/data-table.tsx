@@ -495,7 +495,10 @@ export function DataTable<TData>({
 
   // RENDER
   return (
-    <div className="flex flex-col flex-1 min-h-0 gap-4">
+    <div className={cn(
+      "flex flex-col flex-1 min-h-0",
+      dashboardMode ? "gap-2 p-3" : "gap-4"
+    )}>
       {!hideViewSelector && (
         <ViewSelector
           views={getSavedViews()}
@@ -571,10 +574,14 @@ export function DataTable<TData>({
         </div>
       ) : (
         // Table view - desktop
-        <div className="flex-1 min-h-0 rounded-md border relative">
+        <div className={cn(
+          "flex-1 min-h-0 relative",
+          !dashboardMode && "rounded-md border",
+          dashboardMode && "overflow-auto"
+        )}>
           {/* Loading Overlay */}
           {loading && (
-            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-[calc(0.5rem-1px)]">
+            <div className={cn("absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10", !dashboardMode && "rounded-[calc(0.5rem-1px)]")}>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span>Loading...</span>
@@ -584,7 +591,7 @@ export function DataTable<TData>({
 
           {/* Error Overlay */}
           {error && (
-            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-[calc(0.5rem-1px)]">
+            <div className={cn("absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10", !dashboardMode && "rounded-[calc(0.5rem-1px)]")}>
               <div className="flex items-center gap-2 text-destructive">
                 <AlertCircle className="h-4 w-4" />
                 <span>Error: {error}</span>
