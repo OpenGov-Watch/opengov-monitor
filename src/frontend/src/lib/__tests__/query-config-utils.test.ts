@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getColumnKey, sortingStateToOrderBy, filterStateToQueryFilters, filtersToGroup, groupToFilters, convertFiltersToQueryConfig, buildFacetQueryConfig } from "../query-config-utils";
+import { getColumnKey, sortingStateToOrderBy, filterStateToQueryFilters, filtersToGroup, groupToFilters, convertFiltersToQueryConfig, buildFacetQueryConfig, normalizeDataKeys } from "../query-config-utils";
 import type { SortingState, ColumnFiltersState } from "@tanstack/react-table";
 import type { FilterCondition, FilterGroup } from "@/lib/db/types";
 
@@ -1236,5 +1236,115 @@ describe("buildFacetQueryConfig - Facet Query Alias Resolution", () => {
       operator: "AND",
       conditions: []
     });
+  });
+});
+
+describe("normalizeDataKeys", () => {
+  it("returns original data when no columns defined", () => {
+    const data = [{ name: "test" }];
+    expect(normalizeDataKeys(data, undefined)).toBe(data);
+  });
+
+  it("returns original data when columns array is empty", () => {
+    const data = [{ name: "test" }];
+    expect(normalizeDataKeys(data, [])).toBe(data);
+  });
+
+  it("returns original data when data array is empty", () => {
+    const data: Record<string, unknown>[] = [];
+    const columns = [{ column: "Categories.name" }];
+    expect(normalizeDataKeys(data, columns)).toBe(data);
+  });
+
+  it("normalizes joined column keys without aliases", () => {
+    const data = [{ name: "Treasury", value: 100 }];
+    const columns = [{ column: "Categories.name" }, { column: "value" }];
+    expect(normalizeDataKeys(data, columns)).toEqual([
+      { "Categories.name": "Treasury", value: 100 }
+    ]);
+  });
+
+  it("normalizes multiple joined columns", () => {
+    const data = [{ name: "Treasury", subcategory: "Bounties", amount: 5000 }];
+    const columns = [
+      { column: "Categories.name" },
+      { column: "Categories.subcategory" },
+      { column: "amount" }
+    ];
+    expect(normalizeDataKeys(data, columns)).toEqual([
+      { "Categories.name": "Treasury", "Categories.subcategory": "Bounties", amount: 5000 }
+    ]);
+  });
+
+  it("preserves aliased columns unchanged", () => {
+    const data = [{ category: "Treasury" }];
+    const columns = [{ column: "c.category", alias: "category" }];
+    expect(normalizeDataKeys(data, columns)).toEqual(data);
+  });
+
+  it("preserves aggregate function keys", () => {
+    const data = [{ sum_amount: 5000 }];
+    const columns = [{ column: "amount", aggregateFunction: "SUM" }];
+    expect(normalizeDataKeys(data, columns)).toEqual(data);
+  });
+
+  it("handles mixed aliased and non-aliased columns", () => {
+    const data = [{ category: "Treasury", name: "Subcategory1", amount: 100 }];
+    const columns = [
+      { column: "c.category", alias: "category" },
+      { column: "Categories.name" },
+      { column: "amount" }
+    ];
+    expect(normalizeDataKeys(data, columns)).toEqual([
+      { category: "Treasury", "Categories.name": "Subcategory1", amount: 100 }
+    ]);
+  });
+
+  it("handles multiple rows", () => {
+    const data = [
+      { name: "Treasury", value: 100 },
+      { name: "Fellowship", value: 200 },
+      { name: "Events", value: 300 }
+    ];
+    const columns = [{ column: "Categories.name" }, { column: "value" }];
+    expect(normalizeDataKeys(data, columns)).toEqual([
+      { "Categories.name": "Treasury", value: 100 },
+      { "Categories.name": "Fellowship", value: 200 },
+      { "Categories.name": "Events", value: 300 }
+    ]);
+  });
+
+  it("returns original data when no key mapping needed", () => {
+    const data = [{ id: 1, status: "Active", amount: 100 }];
+    const columns = [
+      { column: "id" },
+      { column: "status" },
+      { column: "amount" }
+    ];
+    const result = normalizeDataKeys(data, columns);
+    // Should return same reference when no mapping needed
+    expect(result).toBe(data);
+  });
+
+  it("handles deeply nested table references", () => {
+    const data = [{ column: "Value" }];
+    const columns = [{ column: "Schema.Table.column" }];
+    expect(normalizeDataKeys(data, columns)).toEqual([
+      { "Schema.Table.column": "Value" }
+    ]);
+  });
+
+  it("handles aggregate with alias (alias takes precedence)", () => {
+    const data = [{ total: 5000 }];
+    const columns = [{ column: "amount", aggregateFunction: "SUM", alias: "total" }];
+    expect(normalizeDataKeys(data, columns)).toEqual(data);
+  });
+
+  it("preserves extra keys not in column definition", () => {
+    const data = [{ name: "Treasury", extra_field: "extra" }];
+    const columns = [{ column: "Categories.name" }];
+    expect(normalizeDataKeys(data, columns)).toEqual([
+      { "Categories.name": "Treasury", extra_field: "extra" }
+    ]);
   });
 });

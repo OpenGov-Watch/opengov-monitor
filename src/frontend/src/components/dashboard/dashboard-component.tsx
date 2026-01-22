@@ -37,7 +37,7 @@ import { DashboardBarChart as BarChartExport } from "@/components/charts/bar-cha
 import { DashboardLineChart as LineChartExport } from "@/components/charts/line-chart";
 import { DataTable } from "@/components/data-table/data-table";
 import { loadColumnConfig } from "@/lib/column-renderer";
-import { getColumnKey } from "@/lib/query-config-utils";
+import { getColumnKey, normalizeDataKeys } from "@/lib/query-config-utils";
 import type {
   DashboardComponent as DashboardComponentType,
   QueryConfig,
@@ -258,7 +258,10 @@ export const DashboardComponent = memo(
         return;
       }
 
-      setData(result.data);
+      // Normalize data keys to match frontend expectations
+      // SQLite returns "name" for "Categories.name" without alias, but frontend expects "Categories.name"
+      const normalizedData = normalizeDataKeys(result.data, queryConfig.columns);
+      setData(normalizedData);
     } catch (err) {
       setError("Failed to fetch data");
       console.error(err);

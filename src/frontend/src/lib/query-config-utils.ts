@@ -308,6 +308,66 @@ export interface BuildFacetQueryConfigParams {
  * // config.columns will be ["c.category", "c.subcategory"]
  * // config.filters will have resolved column references
  */
+/**
+ * Normalize data keys from SQLite result format to expected frontend keys.
+ *
+ * SQLite returns keys differently based on alias presence:
+ * - With alias: returns the alias
+ * - Without alias for "Table.column": returns just "column"
+ *
+ * This normalizes keys to match getColumnKey() output, ensuring charts
+ * can access data using the same key format the frontend expects.
+ *
+ * @param data - Array of row objects from API response
+ * @param columns - Column definitions from QueryConfig
+ * @returns Data with normalized keys matching getColumnKey() output
+ *
+ * @example
+ * // SQLite returns { name: "Treasury", value: 100 } for "Categories.name" column
+ * // normalizeDataKeys transforms to { "Categories.name": "Treasury", value: 100 }
+ */
+export function normalizeDataKeys(
+  data: Record<string, unknown>[] | undefined,
+  columns: { column: string; alias?: string; aggregateFunction?: string }[] | undefined
+): Record<string, unknown>[] {
+  if (!data || !columns || columns.length === 0 || data.length === 0) {
+    return data ?? [];
+  }
+
+  // Build mapping: SQLite returned key -> expected key
+  const keyMap = new Map<string, string>();
+
+  for (const col of columns) {
+    const expectedKey = getColumnKey(col);
+
+    // Determine what SQLite actually returns
+    let sqliteKey: string;
+    if (col.alias) {
+      sqliteKey = col.alias;
+    } else if (col.aggregateFunction) {
+      sqliteKey = expectedKey; // Aggregates match
+    } else {
+      // No alias: SQLite returns last part after dot
+      const lastDot = col.column.lastIndexOf('.');
+      sqliteKey = lastDot > 0 ? col.column.substring(lastDot + 1) : col.column;
+    }
+
+    if (sqliteKey !== expectedKey) {
+      keyMap.set(sqliteKey, expectedKey);
+    }
+  }
+
+  if (keyMap.size === 0) return data;
+
+  return data.map(row => {
+    const normalized: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(row)) {
+      normalized[keyMap.get(key) ?? key] = value;
+    }
+    return normalized;
+  });
+}
+
 export function buildFacetQueryConfig({
   sourceTable,
   columns,
