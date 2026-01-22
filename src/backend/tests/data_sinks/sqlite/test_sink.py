@@ -626,12 +626,14 @@ class TestUpsertSqlGeneration:
     """Tests for _generate_upsert_sql."""
 
     def test_generate_upsert_basic(self, sqlite_sink):
-        """Verify INSERT OR REPLACE syntax."""
+        """Verify INSERT ... ON CONFLICT DO UPDATE syntax."""
         sql = sqlite_sink._generate_upsert_sql(
             REFERENDA_SCHEMA,
             ['id', 'url', 'title']
         )
-        assert "INSERT OR REPLACE INTO" in sql
+        assert "INSERT INTO" in sql
+        assert "ON CONFLICT" in sql
+        assert "DO UPDATE SET" in sql
 
     def test_generate_upsert_quoted_table(self, sqlite_sink):
         """Verify table name is quoted."""
@@ -963,3 +965,58 @@ class TestEdgeCases:
         # Check NULL values - title is None for row with id=3
         null_title_row = result[result['id'] == 3]
         assert pd.isna(null_title_row['title'].iloc[0]) or null_title_row['title'].iloc[0] is None
+
+    def test_update_table_preserves_unupdated_columns(self, sqlite_sink):
+        """Verify columns not in update DataFrame are preserved (not NULLed).
+
+        This tests the ON CONFLICT DO UPDATE behavior - when updating a row
+        with a subset of columns, columns not in the update should retain
+        their existing values. This is critical for user-assigned fields
+        like category_id, notes, and hide_in_spends that are not present
+        in incoming API data.
+        """
+        # Step 1: Insert a row with all columns populated, including user fields
+        sqlite_sink.connection.execute(generate_create_table_sql(REFERENDA_SCHEMA))
+        for idx_name, idx_cols in REFERENDA_SCHEMA.indexes:
+            for sql in generate_create_indexes_sql(REFERENDA_SCHEMA):
+                sqlite_sink.connection.execute(sql)
+        sqlite_sink.connection.commit()
+
+        # Insert a complete row with user-assigned values
+        sqlite_sink.connection.execute('''
+            INSERT INTO Referenda
+            (id, title, status, DOT_latest, latest_status_change, category_id, notes, hide_in_spends)
+            VALUES
+            (1, 'Original Title', 'Executed', 1000, '2024-01-01 00:00:00', 5, 'User notes here', 1)
+        ''')
+        sqlite_sink.connection.commit()
+
+        # Verify initial data
+        initial = sqlite_sink.read_table("Referenda")
+        assert initial.loc[initial['id'] == 1, 'category_id'].iloc[0] == 5
+        assert initial.loc[initial['id'] == 1, 'notes'].iloc[0] == 'User notes here'
+        assert initial.loc[initial['id'] == 1, 'hide_in_spends'].iloc[0] == 1
+
+        # Step 2: Update with a DataFrame that only contains a subset of columns
+        # (simulating incoming API data that doesn't include user fields)
+        update_df = pd.DataFrame({
+            'title': ['Updated Title'],
+            'status': ['Executed'],
+            'DOT_latest': [2000.0],
+            'latest_status_change': ['2024-02-01 00:00:00'],
+        }, index=pd.Index([1], name='id'))
+
+        sqlite_sink.update_table("Referenda", update_df)
+
+        # Step 3: Verify user-assigned columns are preserved (not NULLed)
+        result = sqlite_sink.read_table("Referenda")
+        row = result[result['id'] == 1].iloc[0]
+
+        # API columns should be updated
+        assert row['title'] == 'Updated Title'
+        assert row['DOT_latest'] == 2000.0
+
+        # User-assigned columns should be preserved
+        assert row['category_id'] == 5, "category_id should be preserved, not NULLed"
+        assert row['notes'] == 'User notes here', "notes should be preserved, not NULLed"
+        assert row['hide_in_spends'] == 1, "hide_in_spends should be preserved, not NULLed"

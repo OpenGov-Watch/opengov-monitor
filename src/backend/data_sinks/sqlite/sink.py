@@ -149,7 +149,11 @@ class SQLiteSink(DataSink):
         schema: TableSchema,
         columns: List[str]
     ) -> str:
-        """Generate INSERT OR REPLACE SQL statement.
+        """Generate INSERT ... ON CONFLICT DO UPDATE SQL statement.
+
+        Uses ON CONFLICT DO UPDATE to preserve existing values in columns
+        not present in the incoming data (e.g., user-assigned fields like
+        category_id, notes, hide_in_spends).
 
         Args:
             schema: Table schema.
@@ -166,7 +170,22 @@ class SQLiteSink(DataSink):
         cols_quoted = ", ".join(f'"{c}"' for c in all_columns)
         placeholders = ", ".join("?" for _ in all_columns)
 
-        return f'INSERT OR REPLACE INTO "{schema.name}" ({cols_quoted}) VALUES ({placeholders})'
+        # Build UPDATE clause for non-primary-key columns only
+        update_columns = [c for c in all_columns if c != schema.primary_key]
+        if update_columns:
+            update_clause = ", ".join(
+                f'"{c}" = excluded."{c}"' for c in update_columns
+            )
+            return (
+                f'INSERT INTO "{schema.name}" ({cols_quoted}) VALUES ({placeholders}) '
+                f'ON CONFLICT("{schema.primary_key}") DO UPDATE SET {update_clause}'
+            )
+        else:
+            # Only primary key - use DO NOTHING
+            return (
+                f'INSERT INTO "{schema.name}" ({cols_quoted}) VALUES ({placeholders}) '
+                f'ON CONFLICT("{schema.primary_key}") DO NOTHING'
+            )
 
     def update_table(
         self,
@@ -176,7 +195,9 @@ class SQLiteSink(DataSink):
     ) -> None:
         """Update a SQLite table with UPSERT semantics.
 
-        Uses INSERT OR REPLACE for atomic upsert operations.
+        Uses INSERT ... ON CONFLICT DO UPDATE for atomic upsert operations.
+        Only updates columns present in the incoming DataFrame, preserving
+        existing values in other columns (e.g., user-assigned category_id).
 
         Args:
             name: Table name to update.
