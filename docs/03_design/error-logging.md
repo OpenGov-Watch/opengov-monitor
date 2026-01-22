@@ -25,13 +25,14 @@ The DataErrors table provides centralized error tracking for data validation and
 ```
 Subsquare API → SubsquareProvider
                      ↓
-            _validate_and_log_treasury_spends()
+            _validate_and_log_treasury_spends()   (Treasury)
+            _validate_and_log_spender_referenda() (Referenda)
                      ↓
             sink.log_data_error()
                      ↓
             INSERT INTO DataErrors
                      ↓
-            Treasury table (still writes invalid rows)
+            Data table (still writes invalid rows)
 ```
 
 ## Implementation
@@ -67,6 +68,19 @@ Checks required columns: `DOT_proposal_time`, `USD_proposal_time`, `DOT_componen
 - Logs errors for records with NULL/NaN in required columns
 - Does NOT filter invalid rows from insertion
 - Treasury table schema allows NULLs intentionally
+
+### Referenda Validation
+
+**Validator:** `SubsquareProvider._validate_and_log_spender_referenda()` (`backend/data_providers/subsquare.py:579`)
+
+Only validates referenda from spender tracks: `SmallSpender`, `MediumSpender`, `BigSpender`, `SmallTipper`, `BigTipper`, `Treasurer`
+
+Checks required columns: `DOT_proposal_time`, `USD_proposal_time`, `DOT_component`, `USDC_component`, `USDT_component`
+
+**Behavior:**
+- Logs errors for spender track referenda with NULL/NaN in required columns
+- Non-spender tracks (Root, FellowshipAdmin, etc.) are ignored
+- Does NOT filter invalid rows from insertion
 
 ### Migration Backfill
 

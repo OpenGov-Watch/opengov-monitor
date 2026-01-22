@@ -114,6 +114,10 @@ from .assets_bag import AssetsBag
 from datetime import datetime, timedelta
 import os
 
+# Tracks that should have USD/DOT values (spending-related tracks)
+SPENDER_TRACKS = ['SmallSpender', 'MediumSpender', 'BigSpender', 'SmallTipper', 'BigTipper', 'Treasurer']
+
+
 class SubsquareProvider(DataProvider):
 
     def __init__(self, network_info: NetworkInfo, price_service, sink=None):
@@ -163,7 +167,10 @@ class SubsquareProvider(DataProvider):
 
         logging.debug("Transforming referenda")
         df_updates = self._transform_referenda(df_updates)
-        
+
+        # Validate spender track referenda and log errors
+        self._validate_and_log_spender_referenda(df_updates, replacements)
+
         # Add continuity check
         self._log_continuity_check(df_updates, "referenda")
         
@@ -570,6 +577,59 @@ class SubsquareProvider(DataProvider):
                 else:
                     self._logger.warning(
                         f"Treasury spend {record_id} has NULL values in {null_columns} (sink not available for logging)"
+                    )
+
+    def _validate_and_log_spender_referenda(self, df: pd.DataFrame, raw_data_list: list) -> None:
+        """
+        Validate referenda from spender tracks and log errors for those with missing values.
+
+        NOTE: This does NOT filter out invalid rows - it only logs errors.
+        Referenda table allows NULLs, so invalid rows are still written to DB.
+
+        Args:
+            df: DataFrame of transformed referenda
+            raw_data_list: List of raw API responses for error logging
+        """
+        required_columns = ['DOT_proposal_time', 'USD_proposal_time', 'DOT_component', 'USDC_component', 'USDT_component']
+
+        for idx, (record_id, row) in enumerate(df.iterrows()):
+            # Only validate spender tracks
+            if row.get('track') not in SPENDER_TRACKS:
+                continue
+
+            # Check for NULL/NaN in critical columns
+            null_columns = []
+            for col in required_columns:
+                value = row.get(col)
+                if pd.isna(value):
+                    null_columns.append(col)
+
+            if null_columns:
+                if self.sink:
+                    raw_data = raw_data_list[idx] if idx < len(raw_data_list) else {}
+
+                    metadata = {
+                        'status': row.get('status', 'Unknown'),
+                        'track': row.get('track', 'Unknown'),
+                        'title': str(row.get('title', 'Unknown'))[:200],
+                        'null_columns': null_columns
+                    }
+
+                    self.sink.log_data_error(
+                        table_name="Referenda",
+                        record_id=str(record_id),
+                        error_type="missing_value",
+                        error_message=f"NULL/NaN values in columns: {', '.join(null_columns)}",
+                        raw_data=raw_data,
+                        metadata=metadata
+                    )
+
+                    self._logger.warning(
+                        f"Referendum {record_id} (track: {row.get('track')}) has NULL values in {null_columns} - logged to DataErrors"
+                    )
+                else:
+                    self._logger.warning(
+                        f"Referendum {record_id} has NULL values in {null_columns} (sink not available for logging)"
                     )
 
     def fetch_child_bounties(self, child_bounties_to_update=10):
