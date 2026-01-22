@@ -96,6 +96,20 @@ See [Column Formatting Reference](./column-formatting.md) for detailed patterns,
 
 **filterColumn mapping**: Display columns can use a different column for filtering via `filterColumn` in columnOverrides. Example: `parentBountyId` displays "Parent" but filters by `parentBountyName` (shows bounty names instead of IDs in dropdowns).
 
+### filterColumn Implementation
+
+The filterColumn feature involves a two-step column name resolution:
+
+1. **Display → Filter column** (`filterColumnMap`): Maps UI column to the column used for filtering
+   - Example: `parentBountyId` → `parentBountyName`
+   - Function: `mapFilterGroupColumns()` in `lib/query-config-utils.ts`
+
+2. **Filter → DB reference** (`columnIdToRef`): Maps column name to actual DB table.column
+   - Example: `parentBountyName` → `b.name`
+   - Function: `resolveFilterGroupAliases()` in `lib/query-config-utils.ts`
+
+Both mappings are applied when fetching facet values and sending filter conditions to the backend.
+
 See [Filters Howto](../../howtos/filters.md) for usage patterns and filter strategies.
 
 ## Sorting

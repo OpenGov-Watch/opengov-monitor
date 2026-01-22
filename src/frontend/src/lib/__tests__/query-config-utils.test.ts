@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getColumnKey, sortingStateToOrderBy, filterStateToQueryFilters, filtersToGroup, groupToFilters, convertFiltersToQueryConfig, buildFacetQueryConfig, normalizeDataKeys } from "../query-config-utils";
+import { getColumnKey, sortingStateToOrderBy, filterStateToQueryFilters, filtersToGroup, groupToFilters, convertFiltersToQueryConfig, buildFacetQueryConfig, normalizeDataKeys, mapFilterGroupColumns } from "../query-config-utils";
 import type { SortingState, ColumnFiltersState } from "@tanstack/react-table";
 import type { FilterCondition, FilterGroup } from "@/lib/db/types";
 
@@ -585,6 +585,218 @@ describe("filtersToGroup and groupToFilters - Round-trip", () => {
     const result = groupToFilters(group);
 
     expect(result).toEqual(originalFilters);
+  });
+});
+
+describe("mapFilterGroupColumns - Display to Filter Column Mapping", () => {
+  it("maps single column in simple filter group", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "parentBountyId", operator: "IN", value: ["Marketing Bounty"] }
+      ]
+    };
+    const columnMap = new Map([["parentBountyId", "parentBountyName"]]);
+
+    const result = mapFilterGroupColumns(filterGroup, columnMap);
+
+    expect(result).toEqual({
+      operator: "AND",
+      conditions: [
+        { column: "parentBountyName", operator: "IN", value: ["Marketing Bounty"] }
+      ]
+    });
+  });
+
+  it("maps multiple columns in filter group", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "parentBountyId", operator: "IN", value: ["Marketing"] },
+        { column: "categoryId", operator: "=", value: "Treasury" }
+      ]
+    };
+    const columnMap = new Map([
+      ["parentBountyId", "parentBountyName"],
+      ["categoryId", "categoryName"]
+    ]);
+
+    const result = mapFilterGroupColumns(filterGroup, columnMap);
+
+    expect(result).toEqual({
+      operator: "AND",
+      conditions: [
+        { column: "parentBountyName", operator: "IN", value: ["Marketing"] },
+        { column: "categoryName", operator: "=", value: "Treasury" }
+      ]
+    });
+  });
+
+  it("maps columns in nested filter groups (recursive)", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "parentBountyId", operator: "IN", value: ["Marketing"] },
+        {
+          operator: "OR",
+          conditions: [
+            { column: "categoryId", operator: "=", value: "Events" },
+            { column: "parentBountyId", operator: "=", value: "Development" }
+          ]
+        }
+      ]
+    };
+    const columnMap = new Map([
+      ["parentBountyId", "parentBountyName"],
+      ["categoryId", "categoryName"]
+    ]);
+
+    const result = mapFilterGroupColumns(filterGroup, columnMap);
+
+    expect(result).toEqual({
+      operator: "AND",
+      conditions: [
+        { column: "parentBountyName", operator: "IN", value: ["Marketing"] },
+        {
+          operator: "OR",
+          conditions: [
+            { column: "categoryName", operator: "=", value: "Events" },
+            { column: "parentBountyName", operator: "=", value: "Development" }
+          ]
+        }
+      ]
+    });
+  });
+
+  it("leaves unmapped columns unchanged", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "parentBountyId", operator: "IN", value: ["Marketing"] },
+        { column: "status", operator: "=", value: "Active" },
+        { column: "amount", operator: ">", value: 1000 }
+      ]
+    };
+    const columnMap = new Map([["parentBountyId", "parentBountyName"]]);
+
+    const result = mapFilterGroupColumns(filterGroup, columnMap);
+
+    expect(result).toEqual({
+      operator: "AND",
+      conditions: [
+        { column: "parentBountyName", operator: "IN", value: ["Marketing"] },
+        { column: "status", operator: "=", value: "Active" },
+        { column: "amount", operator: ">", value: 1000 }
+      ]
+    });
+  });
+
+  it("handles empty column map", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "parentBountyId", operator: "IN", value: ["Marketing"] }
+      ]
+    };
+    const columnMap = new Map<string, string>();
+
+    const result = mapFilterGroupColumns(filterGroup, columnMap);
+
+    expect(result).toEqual(filterGroup);
+  });
+
+  it("handles empty filter group", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: []
+    };
+    const columnMap = new Map([["parentBountyId", "parentBountyName"]]);
+
+    const result = mapFilterGroupColumns(filterGroup, columnMap);
+
+    expect(result).toEqual({
+      operator: "AND",
+      conditions: []
+    });
+  });
+
+  it("preserves all operator types during mapping", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "parentBountyId", operator: "=", value: "Marketing" },
+        { column: "parentBountyId", operator: "!=", value: "Development" },
+        { column: "parentBountyId", operator: "LIKE", value: "%Marketing%" },
+        { column: "parentBountyId", operator: "IN", value: ["Marketing", "Development"] },
+        { column: "parentBountyId", operator: "NOT IN", value: ["Root"] },
+        { column: "parentBountyId", operator: "IS NULL", value: null },
+        { column: "parentBountyId", operator: "IS NOT NULL", value: null }
+      ]
+    };
+    const columnMap = new Map([["parentBountyId", "parentBountyName"]]);
+
+    const result = mapFilterGroupColumns(filterGroup, columnMap);
+
+    // All conditions should have mapped column
+    (result.conditions as FilterCondition[]).forEach(condition => {
+      expect(condition.column).toBe("parentBountyName");
+    });
+
+    // All operators should be preserved
+    expect((result.conditions[0] as FilterCondition).operator).toBe("=");
+    expect((result.conditions[1] as FilterCondition).operator).toBe("!=");
+    expect((result.conditions[2] as FilterCondition).operator).toBe("LIKE");
+    expect((result.conditions[3] as FilterCondition).operator).toBe("IN");
+    expect((result.conditions[4] as FilterCondition).operator).toBe("NOT IN");
+    expect((result.conditions[5] as FilterCondition).operator).toBe("IS NULL");
+    expect((result.conditions[6] as FilterCondition).operator).toBe("IS NOT NULL");
+  });
+
+  it("preserves values during mapping", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "parentBountyId", operator: "IN", value: ["Marketing Bounty", "Development Bounty"] },
+        { column: "amount", operator: ">", value: 1000 }
+      ]
+    };
+    const columnMap = new Map([["parentBountyId", "parentBountyName"]]);
+
+    const result = mapFilterGroupColumns(filterGroup, columnMap);
+
+    expect((result.conditions[0] as FilterCondition).value).toEqual(["Marketing Bounty", "Development Bounty"]);
+    expect((result.conditions[1] as FilterCondition).value).toBe(1000);
+  });
+
+  it("maps deeply nested filter groups (3+ levels)", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "parentBountyId", operator: "=", value: "Level1" },
+        {
+          operator: "OR",
+          conditions: [
+            { column: "parentBountyId", operator: "=", value: "Level2a" },
+            {
+              operator: "AND",
+              conditions: [
+                { column: "parentBountyId", operator: "=", value: "Level3" }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+    const columnMap = new Map([["parentBountyId", "parentBountyName"]]);
+
+    const result = mapFilterGroupColumns(filterGroup, columnMap);
+
+    // Verify all levels are mapped
+    expect((result.conditions[0] as FilterCondition).column).toBe("parentBountyName");
+    const level2 = result.conditions[1] as FilterGroup;
+    expect((level2.conditions[0] as FilterCondition).column).toBe("parentBountyName");
+    const level3 = level2.conditions[1] as FilterGroup;
+    expect((level3.conditions[0] as FilterCondition).column).toBe("parentBountyName");
   });
 });
 

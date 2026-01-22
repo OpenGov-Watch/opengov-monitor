@@ -182,7 +182,7 @@ export function DataTable<TData>({
   // BUILD COMPLETE QUERY CONFIG
   // Merge base config with dynamic sorting/filtering/pagination state
   const queryConfig = useMemo<QueryConfig>(() => {
-    const viewStateFilters = convertFiltersToQueryConfig(columnFilters, filterGroup, columnIdToRef);
+    const viewStateFilters = convertFiltersToQueryConfig(columnFilters, filterGroup, columnIdToRef, filterColumnMap);
 
     // Merge default filters with view state filters
     // If view state has filters, use them; otherwise fall back to default filters
@@ -199,7 +199,7 @@ export function DataTable<TData>({
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
     };
-  }, [baseQueryConfig, sorting, columnFilters, filterGroup, groupBy, pagination, defaultFilters, columnIdToRef]);
+  }, [baseQueryConfig, sorting, columnFilters, filterGroup, groupBy, pagination, defaultFilters, columnIdToRef, filterColumnMap]);
 
   useEffect(() => {
     // Debounce fetch to prevent blocking on every keystroke/change

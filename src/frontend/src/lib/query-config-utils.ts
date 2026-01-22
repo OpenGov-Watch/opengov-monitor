@@ -143,6 +143,46 @@ export function filterStateToQueryFilters(
 }
 
 /**
+ * Map display column names to filter column names in a FilterGroup.
+ * Used when display columns use a different column for filtering
+ * (e.g., parentBountyId → parentBountyName for showing names instead of IDs).
+ *
+ * This is the first step of the two-step column resolution:
+ * 1. Display → Filter column (this function)
+ * 2. Filter → DB reference (resolveFilterGroupAliases)
+ *
+ * @param filterGroup - FilterGroup with display column names
+ * @param columnMap - Mapping from display columns to filter columns
+ * @returns FilterGroup with filter column names
+ *
+ * @example
+ * // parentBountyId shows in UI but filters by parentBountyName
+ * mapFilterGroupColumns(
+ *   { operator: "AND", conditions: [{ column: "parentBountyId", operator: "IN", value: ["Marketing"] }] },
+ *   new Map([["parentBountyId", "parentBountyName"]])
+ * )
+ * // Returns: { operator: "AND", conditions: [{ column: "parentBountyName", operator: "IN", value: ["Marketing"] }] }
+ */
+export function mapFilterGroupColumns(
+  filterGroup: FilterGroup,
+  columnMap: Map<string, string>
+): FilterGroup {
+  return {
+    operator: filterGroup.operator,
+    conditions: filterGroup.conditions.map(condition => {
+      // Nested group - recurse
+      if ('operator' in condition && 'conditions' in condition) {
+        return mapFilterGroupColumns(condition as FilterGroup, columnMap);
+      }
+      // Single condition - map column name
+      const filterCondition = condition as FilterCondition;
+      const mappedColumn = columnMap.get(filterCondition.column) || filterCondition.column;
+      return { ...filterCondition, column: mappedColumn };
+    })
+  };
+}
+
+/**
  * Recursively resolve column aliases in a FilterGroup to actual DB references.
  * Mirrors the alias resolution pattern used in sortingStateToOrderBy().
  *
@@ -186,20 +226,28 @@ export function resolveFilterGroupAliases(
  * @param columnFilters - Legacy TanStack Table column filters (backward compatibility)
  * @param filterGroup - Primary unified filter state with AND/OR logic
  * @param columnIdToRef - Mapping from column IDs to original references (for resolving joined column aliases)
+ * @param filterColumnMap - Mapping from display columns to filter columns (for filterColumn feature)
  * @returns Filters in QueryConfig format (FilterCondition[] or FilterGroup)
  */
 export function convertFiltersToQueryConfig(
   columnFilters: ColumnFiltersState,
   filterGroup?: FilterGroup,
-  columnIdToRef?: Record<string, string>
+  columnIdToRef?: Record<string, string>,
+  filterColumnMap?: Map<string, string>
 ): FilterCondition[] | FilterGroup {
   // PRIMARY: Use filterGroup as the single source of truth
   if (filterGroup && filterGroup.conditions.length > 0) {
-    // Resolve aliases if mapping provided
-    if (columnIdToRef) {
-      return resolveFilterGroupAliases(filterGroup, columnIdToRef);
+    // Step 1: Map display columns to filter columns (e.g., parentBountyId → parentBountyName)
+    let mappedGroup = filterGroup;
+    if (filterColumnMap && filterColumnMap.size > 0) {
+      mappedGroup = mapFilterGroupColumns(filterGroup, filterColumnMap);
     }
-    return filterGroup;
+
+    // Step 2: Resolve filter columns to DB references (e.g., parentBountyName → b.name)
+    if (columnIdToRef) {
+      return resolveFilterGroupAliases(mappedGroup, columnIdToRef);
+    }
+    return mappedGroup;
   }
 
   // FALLBACK: Support legacy columnFilters for backward compatibility
