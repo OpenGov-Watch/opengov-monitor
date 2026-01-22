@@ -44,6 +44,117 @@ import type {
   ChartConfig,
 } from "@/lib/db/types";
 
+interface ChartValidationResult {
+  valid: boolean;
+  error?: string;
+  hint?: string;
+}
+
+function validatePieChartData(
+  data: Record<string, unknown>[],
+  labelColumn: string | undefined,
+  valueColumn: string | undefined,
+  queryColumns: QueryConfig["columns"]
+): ChartValidationResult {
+  // Check: Need at least 2 columns selected
+  if (!queryColumns || queryColumns.length < 2) {
+    return {
+      valid: false,
+      error: "Pie chart requires at least 2 columns",
+      hint: "Select a category column (for labels) and a numeric column (for values). Use GROUP BY to aggregate values by category.",
+    };
+  }
+
+  // Check: Label and value columns must be configured
+  if (!labelColumn || !valueColumn) {
+    return {
+      valid: false,
+      error: "Missing column configuration",
+      hint: "Configure which column provides slice labels and which provides values.",
+    };
+  }
+
+  // Check: Label and value columns must be different
+  if (labelColumn === valueColumn) {
+    return {
+      valid: false,
+      error: "Label and value columns cannot be the same",
+      hint: "Select different columns: one for category labels and one for numeric values.",
+    };
+  }
+
+  // Check: Too many unique values (pie chart becomes unreadable)
+  const uniqueLabels = new Set(data.map((row) => row[labelColumn]));
+  if (uniqueLabels.size > 50) {
+    return {
+      valid: false,
+      error: `Too many categories (${uniqueLabels.size})`,
+      hint: "Pie charts work best with fewer than 20 categories. Add a GROUP BY clause or filter your data.",
+    };
+  }
+
+  return { valid: true };
+}
+
+function validateBarChartData(
+  data: Record<string, unknown>[],
+  labelColumn: string | undefined,
+  valueColumns: string[],
+  queryColumns: QueryConfig["columns"]
+): ChartValidationResult {
+  // Check: Need at least 2 columns
+  if (!queryColumns || queryColumns.length < 2) {
+    return {
+      valid: false,
+      error: "Bar chart requires at least 2 columns",
+      hint: "Select one column for X-axis labels and at least one numeric column for bar values.",
+    };
+  }
+
+  // Check: Need a label column
+  if (!labelColumn) {
+    return {
+      valid: false,
+      error: "Missing X-axis column",
+      hint: "The first column will be used as X-axis labels. Ensure you have at least one column selected.",
+    };
+  }
+
+  // Check: Need at least one value column
+  if (!valueColumns || valueColumns.length === 0) {
+    return {
+      valid: false,
+      error: "No value columns for bars",
+      hint: "Select at least one numeric column in addition to the label column to create bars.",
+    };
+  }
+
+  // Check: Too many data points (bar chart becomes unreadable)
+  if (data.length > 100) {
+    return {
+      valid: false,
+      error: `Too many data points (${data.length})`,
+      hint: "Bar charts work best with fewer than 50 items. Add filters, GROUP BY, or increase aggregation.",
+    };
+  }
+
+  return { valid: true };
+}
+
+function ChartValidationError({ error, hint }: { error: string; hint?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-full text-center p-4 gap-3">
+      <AlertCircle className="h-8 w-8 text-amber-500" />
+      <div>
+        <p className="text-sm font-medium text-foreground">{error}</p>
+        {hint && (
+          <p className="text-xs text-muted-foreground mt-1 max-w-md">{hint}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 interface DashboardComponentProps {
   component: DashboardComponentType;
   editable?: boolean;
@@ -379,13 +490,10 @@ export const DashboardComponent = memo(
           />
         );
 
-      case "pie":
-        if (!labelColumn || !valueColumn) {
-          return (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              Configure label and value columns
-            </div>
-          );
+      case "pie": {
+        const pieValidation = validatePieChartData(data, labelColumn, valueColumn, queryConfig.columns);
+        if (!pieValidation.valid) {
+          return <ChartValidationError error={pieValidation.error!} hint={pieValidation.hint} />;
         }
         return (
           <Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground">Loading chart...</div>}>
@@ -400,9 +508,14 @@ export const DashboardComponent = memo(
             />
           </Suspense>
         );
+      }
 
       case "bar_stacked":
       case "bar_grouped": {
+        const barValidation = validateBarChartData(data, labelColumn, valueColumns, queryConfig.columns);
+        if (!barValidation.valid) {
+          return <ChartValidationError error={barValidation.error!} hint={barValidation.hint} />;
+        }
         return (
           <Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground">Loading chart...</div>}>
             <DashboardBarChart
