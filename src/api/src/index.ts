@@ -47,12 +47,34 @@ ensureUsersTable();
 // Trust proxy for secure cookies behind nginx/reverse proxy
 app.set("trust proxy", 1);
 
-// CORS configuration - allow all origins
+// CORS configuration
 // In production, nginx proxies make requests same-origin from browser perspective
-// CSRF protection should be used instead of CORS for cookie-based auth security
+// For development and cross-origin deployments, we whitelist allowed origins
+const ALLOWED_ORIGINS = process.env.CORS_ALLOWED_ORIGINS
+  ? process.env.CORS_ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+  : null;
+
 app.use(
   cors({
-    origin: true, // Allow all origins
+    origin: (origin, callback) => {
+      // Allow requests with no origin (same-origin, mobile apps, curl, etc.)
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      // In production, only allow whitelisted origins (if configured)
+      if (ALLOWED_ORIGINS) {
+        if (ALLOWED_ORIGINS.includes(origin)) {
+          callback(null, true);
+        } else {
+          console.warn(`CORS blocked request from origin: ${origin}`);
+          callback(new Error("Not allowed by CORS"));
+        }
+      } else {
+        // If no whitelist configured, allow all (development mode behavior)
+        callback(null, true);
+      }
+    },
     credentials: true, // Required for cookies
   })
 );
@@ -61,10 +83,18 @@ app.use(express.json({ limit: '10mb' }));
 // Session middleware
 // Cross-origin auth: Set CROSS_ORIGIN_AUTH=true to enable sameSite: "none" for cross-origin cookies
 const crossOriginAuth = process.env.CROSS_ORIGIN_AUTH === "true";
+
+// Validate SESSION_SECRET in production
+const sessionSecret = process.env.SESSION_SECRET;
+if (process.env.NODE_ENV === "production" && !sessionSecret) {
+  console.error("FATAL: SESSION_SECRET environment variable is required in production mode");
+  process.exit(1);
+}
+
 app.use(
   session({
     store: createSessionStore(),
-    secret: process.env.SESSION_SECRET || "dev-secret-change-in-production",
+    secret: sessionSecret || "dev-secret-change-in-production",
     name: "connect.sid",
     resave: false,
     saveUninitialized: false,
@@ -159,6 +189,7 @@ function sanitizeRequestBody(body: any): any {
 
 // Error handling
 app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  // Always log full error details to server console
   console.error("Error:", err.message);
   console.error("Stack:", err.stack);
   console.error("Request:", {
@@ -167,7 +198,13 @@ app.use((err: Error, req: express.Request, res: express.Response, _next: express
     body: sanitizeRequestBody(req.body),
     query: req.query,
   });
-  res.status(500).json({ error: err.message });
+
+  // In production, return generic error message to avoid leaking implementation details
+  // In development, return the actual error message for debugging
+  const clientMessage = process.env.NODE_ENV === "production"
+    ? "Internal server error"
+    : err.message;
+  res.status(500).json({ error: clientMessage });
 });
 
 let server: http.Server;

@@ -69,3 +69,44 @@ export function optionalAuth(req: Request, _res: Response, next: NextFunction): 
   // Session data is already available via req.session if authenticated
   next();
 }
+
+/**
+ * Get the list of admin usernames from environment variable.
+ * ADMIN_USERNAMES should be a comma-separated list of usernames.
+ */
+function getAdminUsernames(): Set<string> {
+  const adminEnv = process.env.ADMIN_USERNAMES || "";
+  return new Set(
+    adminEnv
+      .split(",")
+      .map((u) => u.trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
+
+/**
+ * Middleware that requires admin privileges.
+ * Returns 401 if not authenticated, 403 if not admin.
+ */
+export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+  if (!req.session?.userId || !req.session?.username) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+
+  const adminUsernames = getAdminUsernames();
+
+  // If no admins configured, all authenticated users can access (backwards compatibility)
+  if (adminUsernames.size === 0) {
+    next();
+    return;
+  }
+
+  // Check if current user is admin
+  if (!adminUsernames.has(req.session.username.toLowerCase())) {
+    res.status(403).json({ error: "Admin privileges required" });
+    return;
+  }
+
+  next();
+}

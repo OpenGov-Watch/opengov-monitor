@@ -115,6 +115,16 @@ from datetime import datetime, timedelta
 import os
 
 class SubsquareProvider(DataProvider):
+    """
+    Subsquare API data provider.
+
+    SECURITY NOTE: External API responses are not currently schema-validated.
+    The code assumes responses match expected formats. Consider adding JSON
+    schema validation (e.g., with pydantic or jsonschema) for defense-in-depth
+    against API response manipulation or unexpected format changes.
+    """
+    # HTTP request timeout in seconds - prevents hanging on unresponsive endpoints
+    REQUEST_TIMEOUT = 30
 
     def __init__(self, network_info: NetworkInfo, price_service, sink=None):
         self.network_info: NetworkInfo = network_info
@@ -731,7 +741,7 @@ class SubsquareProvider(DataProvider):
             self._logger.debug(f"Fetching salary cycle {current_cycle} from {url}")
             
             try:
-                response = requests.get(url)
+                response = requests.get(url, timeout=self.REQUEST_TIMEOUT)
                 if response.status_code == 200:
                     data = response.json()
                     data['cycle'] = current_cycle  # Add cycle number to data
@@ -801,7 +811,7 @@ class SubsquareProvider(DataProvider):
         self._logger.debug(f"Fetching salary claimants from {url}")
         
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=self.REQUEST_TIMEOUT)
             if response.status_code == 200:
                 data = response.json()
                 if not data:
@@ -923,7 +933,7 @@ class SubsquareProvider(DataProvider):
                 self._logger.debug(f"Fetching salary cycle {current_cycle} feeds page {page}")
 
                 try:
-                    response = requests.get(url)
+                    response = requests.get(url, timeout=self.REQUEST_TIMEOUT)
                     if response.status_code == 200:
                         data = response.json()
                         feeds = data.get("items", [])
@@ -1039,7 +1049,7 @@ class SubsquareProvider(DataProvider):
         self._logger.debug(f"Fetching fellowship members from {url}")
         
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=self.REQUEST_TIMEOUT)
             if response.status_code == 200:
                 data = response.json()
                 if not data:
@@ -1089,7 +1099,7 @@ class SubsquareProvider(DataProvider):
         while True:
             url = f"{base_url}?page={page}&page_size=100"
             self._logger.debug(f"Fetching from {url}")
-            response = requests.get(url)
+            response = requests.get(url, timeout=self.REQUEST_TIMEOUT)
             if response.status_code == 200:
                 data = response.json()
                 items = data['items']
@@ -1119,7 +1129,7 @@ class SubsquareProvider(DataProvider):
         return df
     
     def _fetchItem(self, url):
-        response = requests.get(url)
+        response = requests.get(url, timeout=self.REQUEST_TIMEOUT)
         if response.status_code == 200:
             data = response.json()
             return data

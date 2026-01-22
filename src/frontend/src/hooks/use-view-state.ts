@@ -1,3 +1,16 @@
+/**
+ * View state management hook for table configurations.
+ *
+ * SECURITY CONSIDERATIONS:
+ * - This hook stores UI state (filters, sorting, pagination) in localStorage
+ * - The stored data is NON-SENSITIVE (table view preferences only)
+ * - No authentication tokens, passwords, or PII are stored
+ * - localStorage is accessible to JavaScript in the same origin
+ * - XSS attacks on this site could read these preferences, but the impact
+ *   is limited to revealing user's table view configurations
+ * - For sensitive data storage, use httpOnly cookies or secure session storage
+ */
+
 import { useState, useCallback, useEffect, useRef, startTransition } from "react";
 import {
   SortingState,

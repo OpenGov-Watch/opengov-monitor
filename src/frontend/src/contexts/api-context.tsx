@@ -62,10 +62,40 @@ function setUrlParam(name: string, value: string | null): void {
 }
 
 /**
+ * Validate that a URL is safe to use as an API endpoint.
+ * Only allows:
+ * - Relative URLs starting with /
+ * - http://localhost URLs (development)
+ * - URLs from config.json presets
+ */
+function isAllowedApiUrl(url: string, presets: Record<string, string>): boolean {
+  // Allow relative URLs
+  if (url.startsWith("/")) return true;
+
+  // Allow localhost URLs (development)
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+
+  // Allow URLs that are in the presets
+  const presetUrls = Object.values(presets);
+  if (presetUrls.includes(url)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Resolve an API URL from various input formats:
  * - Preset name (e.g., "local", "production") -> looks up in presets
  * - Port number (e.g., "3002" or ":3002") -> http://localhost:{port}/api
- * - Full URL (e.g., "https://example.com/api") -> used as-is
+ * - Full URL (e.g., "https://example.com/api") -> only allowed if in presets or localhost
  */
 function resolveApiUrl(
   value: string,
@@ -82,7 +112,13 @@ function resolveApiUrl(
     return { url: `http://localhost:${portMatch[1]}/api`, preset: null };
   }
 
-  // 3. Assume it's a full URL
+  // 3. Validate arbitrary URLs for security
+  // Only allow URLs that are in presets or point to localhost
+  if (!isAllowedApiUrl(value, presets)) {
+    console.warn(`API URL "${value}" is not whitelisted. Falling back to /api`);
+    return { url: "/api", preset: null };
+  }
+
   return { url: value, preset: null };
 }
 

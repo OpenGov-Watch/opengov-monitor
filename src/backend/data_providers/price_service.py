@@ -10,6 +10,9 @@ from .asset_kind import AssetKind
 PriceService provides price information for the network's native token against USD.
 It fetches historic prices from Yahoo Finance and current prices from CoinGecko.
 '''
+# HTTP request timeout in seconds
+REQUEST_TIMEOUT = 30
+
 class PriceService:
   def __init__(self, network_info):
     self._logger = logging.getLogger(__name__)
@@ -35,7 +38,7 @@ class PriceService:
     # current price
     ticker = self.network_info.name
     url = f'https://api.coingecko.com/api/v3/simple/price?ids={ticker}&vs_currencies=usd'
-    response = requests.get(url)
+    response = requests.get(url, timeout=REQUEST_TIMEOUT)
     
     if response.status_code != 200:
       raise ValueError(f"Failed to fetch current price from CoinGecko: {response.status_code} - {response.text}")

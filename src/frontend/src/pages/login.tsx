@@ -23,7 +23,9 @@ export default function LoginPage() {
   const location = useLocation();
 
   // Get the redirect destination from location state, or default to home
-  const from = (location.state as { from?: string })?.from || "/";
+  // Security: Only allow relative paths starting with / to prevent open redirects
+  const rawFrom = (location.state as { from?: string })?.from;
+  const from = rawFrom && rawFrom.startsWith("/") && !rawFrom.startsWith("//") ? rawFrom : "/";
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();

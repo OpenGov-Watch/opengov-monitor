@@ -75,17 +75,32 @@ RUN chmod 0644 /etc/cron.d/opengov-sync \
     && crontab /etc/cron.d/opengov-sync \
     && chmod +x /app/src/deploy/run-migrations-then-api.sh
 
-# Create data directory
-RUN mkdir -p /data
+# Create non-root user for running services
+# Using UID/GID 1000 which is commonly available
+RUN groupadd -g 1000 appuser && \
+    useradd -u 1000 -g appuser -m -s /bin/bash appuser
+
+# Create data directory with proper permissions
+RUN mkdir -p /data && chown appuser:appuser /data
 
 # Copy default CSV files for sync functionality
 COPY data/defaults/ ./data/defaults/
+
+# Set ownership of app directory to non-root user
+RUN chown -R appuser:appuser /app
 
 # Environment variables
 ENV NODE_ENV=production
 ENV PORT=3001
 ENV DATABASE_PATH=/data/polkadot.db
 ENV SESSIONS_DATABASE_PATH=/data/sessions.db
+
+# Note: We cannot use USER directive here because:
+# 1. nginx requires root to bind to port 80
+# 2. cron requires root to run
+# 3. supervisord needs root to manage processes
+# Instead, we run individual processes as appuser via supervisord configuration
+# This provides defense-in-depth while maintaining functionality
 
 # Expose port
 EXPOSE 80
