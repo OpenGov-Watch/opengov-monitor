@@ -93,40 +93,35 @@ class TestConnectionManagement:
         sqlite_sink.close()
         sqlite_sink.close()  # Should not raise
 
+    def test_sink_close_checkpoints_wal(self, tmp_path):
+        """Verify WAL is checkpointed before closing."""
+        db_path = tmp_path / "test.db"
+        sink = SQLiteSink(db_path=str(db_path))
+        sink.connect()
+
+        # Verify WAL mode is enabled
+        mode = sink.connection.execute("PRAGMA journal_mode").fetchone()[0]
+        assert mode == 'wal'
+
+        # Write some data
+        sink.connection.execute("CREATE TABLE test (id INTEGER PRIMARY KEY)")
+        sink.connection.execute("INSERT INTO test VALUES (1)")
+        sink.connection.commit()
+
+        # Close should checkpoint
+        sink.close()
+
+        # WAL file should be empty or removed after TRUNCATE checkpoint
+        wal_file = tmp_path / "test.db-wal"
+        if wal_file.exists():
+            assert wal_file.stat().st_size == 0
+
     def test_sink_context_manager(self, migrated_db):
         """Verify __enter__/__exit__ work correctly."""
         sink = SQLiteSink(db_path=migrated_db)
         with sink:
             assert sink._connection is not None
         assert sink._connection is None
-
-
-# =============================================================================
-# View Validation Tests
-# =============================================================================
-
-class TestViewValidation:
-    """Tests for view validation in connect()."""
-
-    def test_connect_fails_without_migrations(self, unmigrated_sink):
-        """Verify connect() fails if views don't exist."""
-        with pytest.raises(RuntimeError, match="Missing views"):
-            unmigrated_sink.connect()
-
-    def test_connect_succeeds_with_migrations(self, migrated_db):
-        """Verify connect() succeeds after migrations."""
-        sink = SQLiteSink(migrated_db)
-        sink.connect()  # Should not raise
-        sink.close()
-
-    def test_error_message_lists_missing_views(self, unmigrated_sink):
-        """Verify error message names the missing views."""
-        try:
-            unmigrated_sink.connect()
-            pytest.fail("Expected RuntimeError")
-        except RuntimeError as e:
-            assert "all_spending" in str(e)
-            assert "outstanding_claims" in str(e)
 
 
 # =============================================================================
@@ -497,69 +492,15 @@ class TestTableManagement:
 
         assert sqlite_sink.table_exists("Referenda")
 
-    def test_ensure_table_exists_infers_schema(self, sqlite_sink):
-        """Verify dynamic schema inference for unknown tables."""
+    def test_ensure_table_exists_fails_for_unknown_schema(self, sqlite_sink):
+        """Verify _ensure_table_exists() fails for tables not in SCHEMA_REGISTRY."""
         df = pd.DataFrame({
             'name': ['Test'],
             'value': [100],
         }, index=pd.Index([1], name='id'))
 
-        schema = sqlite_sink._ensure_table_exists("UnknownTable", df)
-
-        assert schema.name == "UnknownTable"
-        assert sqlite_sink.table_exists("UnknownTable")
-
-
-# =============================================================================
-# Schema Inference Tests
-# =============================================================================
-
-class TestSchemaInference:
-    """Tests for _infer_schema_from_dataframe."""
-
-    def test_infer_schema_int64_to_integer(self, sqlite_sink):
-        """Verify int64 -> INTEGER mapping."""
-        df = pd.DataFrame({'value': pd.array([1, 2, 3], dtype='int64')}, index=pd.Index([1, 2, 3], name='id'))
-        schema = sqlite_sink._infer_schema_from_dataframe("Test", df)
-        assert schema.columns['value'] == 'INTEGER'
-
-    def test_infer_schema_float64_to_real(self, sqlite_sink):
-        """Verify float64 -> REAL mapping."""
-        df = pd.DataFrame({'value': [1.5, 2.5, 3.5]}, index=pd.Index([1, 2, 3], name='id'))
-        schema = sqlite_sink._infer_schema_from_dataframe("Test", df)
-        assert schema.columns['value'] == 'REAL'
-
-    def test_infer_schema_object_to_text(self, sqlite_sink):
-        """Verify object -> TEXT mapping."""
-        df = pd.DataFrame({'name': ['a', 'b', 'c']}, index=pd.Index([1, 2, 3], name='id'))
-        schema = sqlite_sink._infer_schema_from_dataframe("Test", df)
-        assert schema.columns['name'] == 'TEXT'
-
-    def test_infer_schema_datetime_to_timestamp(self, sqlite_sink):
-        """Verify datetime64[ns] -> TIMESTAMP mapping."""
-        df = pd.DataFrame({
-            'dt': pd.to_datetime(['2024-01-01', '2024-02-01', '2024-03-01'])
-        }, index=pd.Index([1, 2, 3], name='id'))
-        schema = sqlite_sink._infer_schema_from_dataframe("Test", df)
-        assert schema.columns['dt'] == 'TIMESTAMP'
-
-    def test_infer_schema_bool_to_integer(self, sqlite_sink):
-        """Verify bool -> INTEGER mapping."""
-        df = pd.DataFrame({'flag': [True, False, True]}, index=pd.Index([1, 2, 3], name='id'))
-        schema = sqlite_sink._infer_schema_from_dataframe("Test", df)
-        assert schema.columns['flag'] == 'INTEGER'
-
-    def test_infer_schema_uses_index_as_pk(self, sqlite_sink):
-        """Verify index name becomes primary key."""
-        df = pd.DataFrame({'name': ['a']}, index=pd.Index([1], name='my_id'))
-        schema = sqlite_sink._infer_schema_from_dataframe("Test", df)
-        assert schema.primary_key == 'my_id'
-
-    def test_infer_schema_default_pk_name(self, sqlite_sink):
-        """Verify 'id' used when index is unnamed."""
-        df = pd.DataFrame({'name': ['a']})  # Unnamed index
-        schema = sqlite_sink._infer_schema_from_dataframe("Test", df)
-        assert schema.primary_key == 'id'
+        with pytest.raises(ValueError, match="No predefined schema"):
+            sqlite_sink._ensure_table_exists("UnknownTable", df)
 
 
 # =============================================================================
@@ -774,17 +715,15 @@ class TestUpdateTable:
         sqlite_sink.update_table("Referenda", empty_df, allow_empty=True)
         # No error, early return
 
-    def test_update_table_creates_table_if_missing(self, sqlite_sink):
-        """Verify table auto-created for unknown tables."""
-        # Use a table name not in SCHEMA_REGISTRY to test dynamic creation
+    def test_update_table_fails_for_unknown_schema(self, sqlite_sink):
+        """Verify update_table() fails for tables not in SCHEMA_REGISTRY."""
         df = pd.DataFrame({
             'name': ['Test'],
             'value': [100],
         }, index=pd.Index([1], name='id'))
 
-        assert not sqlite_sink.table_exists("DynamicTestTable")
-        sqlite_sink.update_table("DynamicTestTable", df)
-        assert sqlite_sink.table_exists("DynamicTestTable")
+        with pytest.raises(ValueError, match="No predefined schema"):
+            sqlite_sink.update_table("UnknownTable", df)
 
     def test_update_table_commits_on_success(self, sqlite_sink, sample_referenda_df):
         """Verify commit called after successful insert."""

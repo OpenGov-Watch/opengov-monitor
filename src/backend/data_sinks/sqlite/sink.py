@@ -16,13 +16,8 @@ from datetime import datetime, timezone
 from ..base import DataSink
 from .schema import (
     TableSchema,
-    generate_create_table_sql,
-    generate_create_indexes_sql,
     get_schema_for_table,
 )
-
-
-REQUIRED_VIEWS = ['outstanding_claims', 'expired_claims', 'all_spending', 'treasury_netflows_view']
 
 
 class SQLiteSink(DataSink):
@@ -79,134 +74,33 @@ class SQLiteSink(DataSink):
         # Enable WAL mode for better concurrency
         self._connection.execute("PRAGMA journal_mode = WAL")
 
-        # Validate that required views exist (created by migrations)
-        self._validate_views()
-
         self._logger.info("SQLite connection established")
 
-    def _validate_views(self) -> None:
-        """Validate that required database views exist.
-
-        Views are managed exclusively by migrations. This method validates
-        that the database has been properly set up with all required views.
-
-        Raises:
-            RuntimeError: If any required view is missing, indicating
-                migrations have not been run.
-        """
-        cursor = self._connection.execute(
-            "SELECT name FROM sqlite_master WHERE type='view'"
-        )
-        existing_views = {row[0] for row in cursor.fetchall()}
-
-        missing = set(REQUIRED_VIEWS) - existing_views
-        if missing:
-            raise RuntimeError(
-                f"Database not properly initialized. Missing views: {', '.join(sorted(missing))}. "
-                f"Run migrations first: python migrations/migration_runner.py --db <path>"
-            )
-
-    def _migrate_table_schema(self, schema: TableSchema) -> None:
-        """Add missing columns to existing table.
-
-        SQLite only supports adding columns (not removing/modifying).
-        Uses ALTER TABLE ADD COLUMN for each missing column.
-        """
-        # Get existing columns from the table
-        cursor = self.connection.execute(
-            f'PRAGMA table_info("{schema.name}")'
-        )
-        existing_columns = {row[1] for row in cursor.fetchall()}
-
-        # Add any columns that are in schema but not in table
-        for col_name, col_type in schema.columns.items():
-            if col_name not in existing_columns:
-                alter_sql = f'ALTER TABLE "{schema.name}" ADD COLUMN "{col_name}" {col_type}'
-                self._logger.info(f"Adding missing column: {alter_sql}")
-                self.connection.execute(alter_sql)
-
-        self.connection.commit()
-
     def _ensure_table_exists(self, table_name: str, df: pd.DataFrame) -> TableSchema:
-        """Ensure table exists, creating it if necessary.
+        """Get schema for table.
+
+        Tables are created by migrations, not by the sink. This method
+        retrieves the schema for data preparation and validation.
 
         Args:
             table_name: Name of the table.
-            df: DataFrame to infer schema from if not predefined.
+            df: DataFrame (unused, kept for API compatibility).
 
         Returns:
-            The TableSchema used for the table.
+            The TableSchema for the table.
+
+        Raises:
+            ValueError: If table has no predefined schema.
         """
         schema = get_schema_for_table(table_name)
 
         if schema is None:
-            # Generate schema dynamically from DataFrame
-            schema = self._infer_schema_from_dataframe(table_name, df)
-            self._logger.warning(
-                f"No predefined schema for '{table_name}', inferring from DataFrame"
+            raise ValueError(
+                f"No predefined schema for '{table_name}'. "
+                f"Add schema to SCHEMA_REGISTRY in schema.py"
             )
 
-        # Create table
-        create_sql = generate_create_table_sql(schema)
-        self._logger.debug(f"Ensuring table exists: {create_sql}")
-        self.connection.execute(create_sql)
-
-        # Migrate schema (add any missing columns to existing table)
-        self._migrate_table_schema(schema)
-
-        # Create indexes
-        for idx_sql in generate_create_indexes_sql(schema):
-            self._logger.debug(f"Creating index: {idx_sql}")
-            self.connection.execute(idx_sql)
-
-        self.connection.commit()
         return schema
-
-    def _infer_schema_from_dataframe(
-        self,
-        table_name: str,
-        df: pd.DataFrame
-    ) -> TableSchema:
-        """Infer a TableSchema from a DataFrame structure.
-
-        Args:
-            table_name: Name for the table.
-            df: DataFrame to infer types from.
-
-        Returns:
-            Inferred TableSchema.
-        """
-        type_mapping = {
-            'int64': 'INTEGER',
-            'int32': 'INTEGER',
-            'float64': 'REAL',
-            'float32': 'REAL',
-            'object': 'TEXT',
-            'string': 'TEXT',
-            'datetime64[ns]': 'TIMESTAMP',
-            'datetime64[ns, UTC]': 'TIMESTAMP',
-            'bool': 'INTEGER',
-        }
-
-        columns = {}
-
-        # Add index as primary key column first
-        pk_name = df.index.name if df.index.name else 'id'
-        idx_dtype = str(df.index.dtype)
-        columns[pk_name] = type_mapping.get(idx_dtype, 'TEXT')
-
-        # Add DataFrame columns
-        for col in df.columns:
-            dtype_str = str(df[col].dtype)
-            sql_type = type_mapping.get(dtype_str, 'TEXT')
-            columns[col] = sql_type
-
-        return TableSchema(
-            name=table_name,
-            columns=columns,
-            primary_key=pk_name,
-            indexes=[]
-        )
 
     def _prepare_dataframe_for_insert(
         self,
@@ -499,6 +393,12 @@ class SQLiteSink(DataSink):
     def close(self) -> None:
         """Close the database connection."""
         if self._connection:
+            # Checkpoint WAL to ensure all writes are persisted to main DB
+            try:
+                self._connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+                self._logger.info("WAL checkpoint completed")
+            except Exception as e:
+                self._logger.warning(f"WAL checkpoint failed: {e}")
             self._connection.close()
             self._connection = None
             self._logger.info("SQLite connection closed")

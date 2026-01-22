@@ -14,11 +14,11 @@ backupRouter.get("/download", requireAuth, (req, res) => {
       return;
     }
 
-    // Try to checkpoint before download (use PASSIVE mode to avoid blocking)
+    // Try to checkpoint before download (use TRUNCATE mode to ensure all WAL data is persisted)
     try {
       const db = getDatabase();
-      // Use PASSIVE mode instead of TRUNCATE - it doesn't block and is more compatible with Windows
-      const result = db.pragma("wal_checkpoint(PASSIVE)");
+      // Use TRUNCATE mode to ensure all pending WAL writes are merged into the main database
+      const result = db.pragma("wal_checkpoint(TRUNCATE)");
       console.log("WAL checkpoint result:", result);
     } catch (checkpointError) {
       // Log warning but don't fail - backup will still contain most recent data
