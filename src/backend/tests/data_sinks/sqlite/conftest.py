@@ -121,6 +121,7 @@ def setup_test_database(db_path: str) -> None:
                 LEFT JOIN Referenda r ON t.referendumIndex = r.id
                 LEFT JOIN Categories cat ON r.category_id = cat.id
                 WHERE t.status IN ('Paid', 'Processed')
+                  AND (r.hide_in_spends IS NULL OR r.hide_in_spends = 0)
 
                 UNION ALL
 

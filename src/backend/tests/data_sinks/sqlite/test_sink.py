@@ -328,11 +328,19 @@ class TestViewLogic:
             ('100-1', 1, 'Visible Bounty', 'Claimed', 500, 5000, '2024-01-03', 0, NULL),
             ('100-2', 1, 'Hidden Bounty', 'Claimed', 600, 6000, '2024-01-04', 1, NULL)
         ''')
+
+        # Insert treasury linked to hidden referendum (should be filtered out)
+        sqlite_sink.connection.execute('''
+            INSERT INTO Treasury
+            (id, referendumIndex, description, status, DOT_latest, latest_status_change)
+            VALUES
+            (1, 2, 'Treasury for Hidden Ref', 'Paid', 3000, '2024-01-05')
+        ''')
         sqlite_sink.connection.commit()
 
         # Query all_spending view
         cursor = sqlite_sink.connection.execute(
-            "SELECT id, title FROM all_spending WHERE type IN ('Direct Spend', 'Bounty') ORDER BY id"
+            "SELECT id, title FROM all_spending WHERE type IN ('Direct Spend', 'Bounty', 'Claim') ORDER BY id"
         )
         results = cursor.fetchall()
         result_ids = [row[0] for row in results]
@@ -342,6 +350,7 @@ class TestViewLogic:
         assert 'ref-2' not in result_ids, "Hidden referendum should not appear"
         assert 'cb-100-1' in result_ids, "Visible child bounty should appear"
         assert 'cb-100-2' not in result_ids, "Hidden child bounty should not appear"
+        assert 'treasury-1' not in result_ids, "Treasury linked to hidden referendum should not appear"
 
     def test_all_spending_view_includes_all_source_tables(self, sqlite_sink):
         """Verify all_spending view includes all 7 spending types.
