@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/select";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import Trash2 from "lucide-react/dist/esm/icons/trash-2";
-import Play from "lucide-react/dist/esm/icons/play";
 import { SortableColumnItem } from "./sortable-column-item";
 import {
   loadColumnConfig,
@@ -41,7 +40,6 @@ import {
 interface QueryBuilderProps {
   initialConfig?: QueryConfig;
   onChange: (config: QueryConfig) => void;
-  onPreview?: (results: unknown[], sql: string) => void;
 }
 
 /**
@@ -204,13 +202,10 @@ function detectJoinCondition(
 export function QueryBuilder({
   initialConfig,
   onChange,
-  onPreview,
 }: QueryBuilderProps) {
   const [schema, setSchema] = useState<SchemaInfo>([]);
   const [config, setConfig] = useState<QueryConfig>(initialConfig || defaultConfig);
   const [loading, setLoading] = useState(true);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
 
   // Unified column state for drag-and-drop reordering
   const [unifiedColumns, setUnifiedColumns] = useState<UnifiedColumn[]>(() =>
@@ -632,40 +627,6 @@ export function QueryBuilder({
     }
   }
 
-  async function handlePreview() {
-    const hasColumns = config.columns.length > 0;
-    const hasExpressions = (config.expressionColumns?.length ?? 0) > 0;
-    if ((!hasColumns && !hasExpressions) || !config.sourceTable) {
-      setPreviewError("Please select a table and at least one column or expression");
-      return;
-    }
-
-    setPreviewLoading(true);
-    setPreviewError(null);
-
-    try {
-      const response = await fetch("/api/query/execute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...config, limit: 100 }), // Limit preview to 100 rows
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setPreviewError(data.error || "Query failed");
-        return;
-      }
-
-      onPreview?.(data.data, data.sql);
-    } catch (error) {
-      setPreviewError("Failed to execute query");
-      console.error(error);
-    } finally {
-      setPreviewLoading(false);
-    }
-  }
-
   if (loading) {
     return <div className="p-4 text-muted-foreground">Loading schema...</div>;
   }
@@ -1035,25 +996,11 @@ export function QueryBuilder({
 
       {/* SQL Display - always visible when query is being built */}
       {generatedSql && (
-        <div className="space-y-4 pt-4 border-t">
-          <div className="space-y-2">
-            <Label className="text-muted-foreground">Generated SQL</Label>
-            <div className="rounded-md border bg-muted p-4">
-              <pre className="text-xs overflow-x-auto whitespace-pre-wrap">{generatedSql}</pre>
-            </div>
+        <div className="space-y-2 pt-4 border-t">
+          <Label className="text-muted-foreground">Generated SQL</Label>
+          <div className="rounded-md border bg-muted p-4">
+            <pre className="text-xs overflow-x-auto whitespace-pre-wrap">{generatedSql}</pre>
           </div>
-
-          {previewError && (
-            <div className="text-sm text-red-500">{previewError}</div>
-          )}
-
-          <Button
-            onClick={handlePreview}
-            disabled={previewLoading}
-          >
-            <Play className="h-4 w-4 mr-2" />
-            {previewLoading ? "Running..." : "Preview Results"}
-          </Button>
         </div>
       )}
     </div>

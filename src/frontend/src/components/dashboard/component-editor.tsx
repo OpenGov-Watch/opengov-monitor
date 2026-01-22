@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import Markdown from "react-markdown";
+import Play from "lucide-react/dist/esm/icons/play";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -106,6 +107,8 @@ export function ComponentEditor({
     component ? JSON.parse(component.grid_config) : defaultGridConfig
   );
   const [previewData, setPreviewData] = useState<Record<string, unknown>[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   // Reset state when dialog opens or component changes
   useEffect(() => {
@@ -128,6 +131,7 @@ export function ComponentEditor({
           : defaultGridConfig
       );
       setPreviewData([]);
+      setPreviewError(null);
     }
   }, [open, component]);
 
@@ -135,12 +139,37 @@ export function ComponentEditor({
     setQueryConfig(config);
   }, []);
 
-  const handlePreview = useCallback(
-    (data: unknown[]) => {
-      setPreviewData(data as Record<string, unknown>[]);
-    },
-    []
-  );
+  const fetchPreview = useCallback(async () => {
+    if (!queryConfig.sourceTable || queryConfig.columns.length === 0) {
+      setPreviewError("Please select a table and at least one column");
+      return;
+    }
+
+    setPreviewLoading(true);
+    setPreviewError(null);
+
+    try {
+      const response = await fetch("/api/query/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...queryConfig, limit: 100 }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setPreviewError(data.error || "Query failed");
+        return;
+      }
+
+      setPreviewData(data.data);
+    } catch (error) {
+      setPreviewError("Failed to execute query");
+      console.error(error);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, [queryConfig]);
 
   function handleSave() {
     if (!name.trim()) {
@@ -326,13 +355,12 @@ export function ComponentEditor({
                   <QueryBuilder
                     initialConfig={queryConfig}
                     onChange={handleQueryChange}
-                    onPreview={handlePreview}
                   />
                 </div>
               </div>
 
-              {/* Chart Config - show when we have preview data and it's a chart type */}
-              {previewData.length > 0 && type !== "table" && (
+              {/* Chart Config - show for chart types when columns are configured */}
+              {type !== "table" && queryConfig.columns.length > 0 && (
                 <div className="space-y-4 p-4 border rounded-md bg-muted/50">
                   <Label>Chart Options</Label>
                   <div className="grid grid-cols-2 gap-4">
@@ -420,13 +448,26 @@ export function ComponentEditor({
                 </div>
               )}
 
-              {/* Preview - show when we have data */}
-              {previewData.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Preview ({previewData.length} rows)</Label>
-                  {renderPreview()}
-                </div>
-              )}
+              {/* Preview Button and Results */}
+              <div className="space-y-4 pt-4 border-t">
+                {previewError && (
+                  <div className="text-sm text-red-500">{previewError}</div>
+                )}
+                <Button
+                  onClick={fetchPreview}
+                  disabled={previewLoading || !queryConfig.sourceTable || queryConfig.columns.length === 0}
+                >
+                  <Play className="h-4 w-4 mr-2" />
+                  {previewLoading ? "Loading..." : "Preview Results"}
+                </Button>
+
+                {previewData.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Preview ({previewData.length} rows)</Label>
+                    {renderPreview()}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
