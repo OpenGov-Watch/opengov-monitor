@@ -92,7 +92,7 @@ Source: `backend/migrations/versions/004_log_historical_treasury_nulls.py`
 
 **Route:** `/manage/data-errors` (authenticated)
 **API:** `GET /api/data-errors?table_name=Treasury&error_type=missing_value`
-**Component:** `frontend/src/routes/manage/data-errors.tsx`
+**Component:** `frontend/src/pages/manage/data-errors.tsx`
 
 ## Error Types
 
@@ -113,3 +113,7 @@ Treasury spends with incomplete asset breakdowns still provide value (status, de
 
 **No unique constraint:**
 Same record can generate multiple errors over time if repeatedly fetched with issues.
+
+## Investigating Errors
+
+See [howtos/investigate-data-errors.md](../howtos/investigate-data-errors.md) for debugging workflow.

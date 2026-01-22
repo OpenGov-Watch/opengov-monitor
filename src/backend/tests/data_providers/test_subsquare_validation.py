@@ -29,7 +29,7 @@ class TestValidateSpenderReferenda:
             'USDT_component': [0.0],
         }, index=pd.Index([1831], name='id'))
 
-        provider._validate_and_log_spender_referenda(df, [{}])
+        provider._validate_and_log_spender_referenda(df, {})
 
         mock_sink.log_data_error.assert_called_once()
         call_args = mock_sink.log_data_error.call_args
@@ -57,7 +57,7 @@ class TestValidateSpenderReferenda:
             'USDT_component': [np.nan],
         }, index=pd.Index([100], name='id'))
 
-        provider._validate_and_log_spender_referenda(df, [{}])
+        provider._validate_and_log_spender_referenda(df, {})
 
         mock_sink.log_data_error.assert_not_called()
 
@@ -79,7 +79,7 @@ class TestValidateSpenderReferenda:
             'USDT_component': [0.0],
         }, index=pd.Index([123], name='id'))
 
-        provider._validate_and_log_spender_referenda(df, [{}])
+        provider._validate_and_log_spender_referenda(df, {})
 
         mock_sink.log_data_error.assert_not_called()
 
@@ -102,7 +102,7 @@ class TestValidateSpenderReferenda:
                 'USDT_component': [0.0],
             }, index=pd.Index([1], name='id'))
 
-            provider._validate_and_log_spender_referenda(df, [{}])
+            provider._validate_and_log_spender_referenda(df, {})
 
             assert mock_sink.log_data_error.called, f"Expected error to be logged for track {track}"
 
@@ -124,7 +124,7 @@ class TestValidateSpenderReferenda:
             'USDT_component': [0.0],
         }, index=pd.Index([42], name='id'))
 
-        provider._validate_and_log_spender_referenda(df, [{}])
+        provider._validate_and_log_spender_referenda(df, {})
 
         call_args = mock_sink.log_data_error.call_args
         metadata = call_args.kwargs['metadata']
@@ -151,7 +151,7 @@ class TestValidateSpenderReferenda:
         }, index=pd.Index([1831], name='id'))
 
         # Should not raise - just logs warning
-        provider._validate_and_log_spender_referenda(df, [{}])
+        provider._validate_and_log_spender_referenda(df, {})
 
     def test_multiple_referenda_mixed_tracks(self, polkadot_network):
         """Verify only spender track referenda are validated in mixed dataframe."""
@@ -171,12 +171,39 @@ class TestValidateSpenderReferenda:
             'USDT_component': [np.nan, np.nan, np.nan],
         }, index=pd.Index([1, 2, 3], name='id'))
 
-        provider._validate_and_log_spender_referenda(df, [{}, {}, {}])
+        provider._validate_and_log_spender_referenda(df, {})
 
         # Only the SmallSpender referendum should trigger an error
         assert mock_sink.log_data_error.call_count == 1
         call_args = mock_sink.log_data_error.call_args
         assert call_args.kwargs['record_id'] == '2'
+
+    def test_raw_data_matched_by_id(self, polkadot_network):
+        """Verify raw_data is correctly matched by referendum ID, not position."""
+        mock_sink = MagicMock()
+        mock_price_service = MagicMock()
+
+        provider = SubsquareProvider(polkadot_network, mock_price_service, mock_sink)
+
+        df = pd.DataFrame({
+            'title': ['Test Ref'],
+            'status': ['Executed'],
+            'track': ['Treasurer'],
+            'DOT_proposal_time': [np.nan],
+            'USD_proposal_time': [np.nan],
+            'DOT_component': [1000.0],
+            'USDC_component': [0.0],
+            'USDT_component': [0.0],
+        }, index=pd.Index([1784], name='id'))
+
+        # Provide raw_data keyed by the correct referendum ID
+        raw_data_by_id = {1784: {'referendumIndex': 1784, 'title': 'Correct raw data'}}
+
+        provider._validate_and_log_spender_referenda(df, raw_data_by_id)
+
+        call_args = mock_sink.log_data_error.call_args
+        assert call_args.kwargs['raw_data']['referendumIndex'] == 1784
+        assert call_args.kwargs['raw_data']['title'] == 'Correct raw data'
 
 
 class TestSpenderTracksConstant:

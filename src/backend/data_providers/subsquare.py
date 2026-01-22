@@ -168,8 +168,11 @@ class SubsquareProvider(DataProvider):
         logging.debug("Transforming referenda")
         df_updates = self._transform_referenda(df_updates)
 
+        # Build dict mapping referendum ID to raw data for error logging
+        raw_data_by_id = {item.get('referendumIndex'): item for item in replacements}
+
         # Validate spender track referenda and log errors
-        self._validate_and_log_spender_referenda(df_updates, replacements)
+        self._validate_and_log_spender_referenda(df_updates, raw_data_by_id)
 
         # Add continuity check
         self._log_continuity_check(df_updates, "referenda")
@@ -579,7 +582,7 @@ class SubsquareProvider(DataProvider):
                         f"Treasury spend {record_id} has NULL values in {null_columns} (sink not available for logging)"
                     )
 
-    def _validate_and_log_spender_referenda(self, df: pd.DataFrame, raw_data_list: list) -> None:
+    def _validate_and_log_spender_referenda(self, df: pd.DataFrame, raw_data_by_id: dict) -> None:
         """
         Validate referenda from spender tracks and log errors for those with missing values.
 
@@ -587,12 +590,12 @@ class SubsquareProvider(DataProvider):
         Referenda table allows NULLs, so invalid rows are still written to DB.
 
         Args:
-            df: DataFrame of transformed referenda
-            raw_data_list: List of raw API responses for error logging
+            df: DataFrame of transformed referenda (indexed by referendum ID)
+            raw_data_by_id: Dict mapping referendum ID to raw API response
         """
         required_columns = ['DOT_proposal_time', 'USD_proposal_time', 'DOT_component', 'USDC_component', 'USDT_component']
 
-        for idx, (record_id, row) in enumerate(df.iterrows()):
+        for record_id, row in df.iterrows():
             # Only validate spender tracks
             if row.get('track') not in SPENDER_TRACKS:
                 continue
@@ -606,7 +609,8 @@ class SubsquareProvider(DataProvider):
 
             if null_columns:
                 if self.sink:
-                    raw_data = raw_data_list[idx] if idx < len(raw_data_list) else {}
+                    # Look up raw data by referendum ID (may not exist if not detail-fetched)
+                    raw_data = raw_data_by_id.get(record_id, {})
 
                     metadata = {
                         'status': row.get('status', 'Unknown'),
