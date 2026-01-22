@@ -5,12 +5,25 @@ import { formatDate } from "@/lib/utils";
 // Types
 // ============================================================================
 
-export type RenderType =
+/**
+ * Unified column type that determines both rendering AND filtering behavior.
+ *
+ * | Type        | Rendering               | Filter Operators                    |
+ * |-------------|-------------------------|-------------------------------------|
+ * | text        | Plain text              | =, !=, >, <, >=, <=, LIKE           |
+ * | numeric     | Number format           | =, !=, >, <, >=, <=                 |
+ * | currency    | Formatted with symbol   | =, !=, >, <, >=, <=                 |
+ * | date        | Date format             | =, !=, >, <, >=, <=                 |
+ * | categorical | Badge                   | IN, NOT IN                          |
+ * | link        | Clickable link          | =, !=, LIKE                         |
+ * | address     | Truncated address       | =, !=, LIKE                         |
+ */
+export type ColumnType =
   | "text"
-  | "number"
+  | "numeric"
   | "currency"
   | "date"
-  | "badge"
+  | "categorical"
   | "link"
   | "address";
 
@@ -26,13 +39,13 @@ export type BadgeVariant =
 
 export interface ColumnRenderConfig {
   displayName?: string;
-  render: RenderType;
+  type?: ColumnType;
   // Currency options
   currency?: CurrencyType;
   decimals?: number;
   // Date options
   format?: "date" | "datetime";
-  // Badge options
+  // Badge/categorical options
   variants?: Record<string, BadgeVariant>;
   // Link options
   urlTemplate?: string;
@@ -88,13 +101,13 @@ export async function loadColumnConfig(): Promise<void> {
       {
         match: "prefix",
         pattern: "DOT_",
-        config: { render: "currency", currency: "DOT", decimals: 0 },
+        config: { type: "currency", currency: "DOT", decimals: 0 },
       },
       {
         match: "exact",
         pattern: "status",
         caseInsensitive: true,
-        config: { render: "badge", variants: { default: "outline" } },
+        config: { type: "categorical", variants: { default: "outline" } },
       },
     ];
   }
@@ -106,7 +119,7 @@ export async function loadColumnConfig(): Promise<void> {
 // Config Lookup
 // ============================================================================
 
-const defaultConfig: ColumnRenderConfig = { render: "text" };
+const defaultConfig: ColumnRenderConfig = { type: "text" };
 
 export function getColumnConfig(
   tableName: string,
@@ -201,10 +214,10 @@ export function formatValue(
 ): string {
   if (value === null || value === undefined) return "-";
 
-  switch (config.render) {
+  switch (config.type) {
     case "currency":
       return formatCurrencyValue(value as number, config);
-    case "number":
+    case "numeric":
       return formatNumberValue(value as number, config);
     case "date":
       return formatDate(value as string);

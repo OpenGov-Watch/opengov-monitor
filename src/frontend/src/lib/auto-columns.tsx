@@ -368,8 +368,8 @@ function renderCellValue(value: any, config: ColumnRenderConfig, row: any, dashb
   if (value === null || value === undefined) {
     const nullDisplay = <span className="text-muted-foreground">-</span>;
 
-    // Right-align null values for currency and number columns
-    if (config.render === "currency" || config.render === "number") {
+    // Right-align null values for currency and numeric columns
+    if (config.type === "currency" || config.type === "numeric") {
       return wrapWithOverflow(
         <div className="text-right">{nullDisplay}</div>,
         "-"
@@ -379,8 +379,8 @@ function renderCellValue(value: any, config: ColumnRenderConfig, row: any, dashb
     return wrapWithOverflow(nullDisplay, "-");
   }
 
-  switch (config.render) {
-    case "badge":
+  switch (config.type) {
+    case "categorical":
       if (typeof value === "string") {
         const variant = getBadgeVariant(value, config);
         return wrapWithOverflow(<Badge variant={variant}>{value}</Badge>, value);
@@ -412,7 +412,7 @@ function renderCellValue(value: any, config: ColumnRenderConfig, row: any, dashb
       }
       return wrapWithOverflow(value);
 
-    case "number":
+    case "numeric":
       const formattedNumber = formatValue(value, config);
       if (config.color === "green") {
         return wrapWithOverflow(

@@ -117,7 +117,7 @@ export const DashboardBarChart = memo(
       : null;
     const yAxisConfig = sourceColumn
       ? getColumnConfig(tableName, sourceColumn)
-      : { render: "number" as const };
+      : { type: "numeric" as const };
 
     // Y-axis tick formatter (abbreviated)
     const yAxisFormatter = (value: number) => formatAbbreviated(value, yAxisConfig);

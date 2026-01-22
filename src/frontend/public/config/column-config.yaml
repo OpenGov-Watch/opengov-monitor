@@ -1,133 +1,133 @@
 # Column Configuration
-# Combines display names and render settings for automatic column formatting
+# Combines display names and type settings for automatic column formatting
 #
 # Structure:
 #   columns:       Global column patterns (apply to all tables)
 #   tables:        Table-specific overrides
 #
-# Render types:
-#   text:     Plain text (default)
-#   number:   Formatted number with locale separators
-#   currency: Number with currency symbol (DOT, USD, USDC, USDT)
-#   date:     Date/datetime formatting
-#   badge:    Status badge with color variants
-#   link:     Clickable link to external URL
-#   address:  Blockchain address with truncation
+# Column types (determines both rendering AND filtering behavior):
+#   text:        Plain text, text operators (=, !=, LIKE)
+#   numeric:     Formatted number, comparison operators (=, !=, >, <, >=, <=)
+#   currency:    Number with currency symbol, comparison operators
+#   date:        Date/datetime formatting, comparison operators
+#   categorical: Badge rendering, set operators (IN, NOT IN)
+#   link:        Clickable link to external URL, text operators
+#   address:     Blockchain address with truncation, text operators
 
 columns:
   # Currency columns with custom display names
   DOT_latest:
     displayName: "DOT Value"
-    render: currency
+    type: currency
     currency: DOT
     decimals: 0
 
   DOT_proposal_time:
     displayName: "DOT (at Proposal)"
-    render: currency
+    type: currency
     currency: DOT
     decimals: 0
 
   USD_latest:
     displayName: "USD Value"
-    render: currency
+    type: currency
     currency: USD
     decimals: 0
 
   USD_proposal_time:
     displayName: "USD (at Proposal)"
-    render: currency
+    type: currency
     currency: USD
     decimals: 0
 
   # Date columns with custom display names
   latest_status_change:
     displayName: "Date"
-    render: date
+    type: date
     format: date
 
   validFrom:
     displayName: "Valid From"
-    render: date
+    type: date
     format: date
 
   expireAt:
     displayName: "Expires"
-    render: date
+    type: date
     format: date
 
   # Computed time columns
   year:
     displayName: "Year"
-    render: text
+    type: text
 
   year_month:
     displayName: "Month"
-    render: text
+    type: text
 
   year_quarter:
     displayName: "Quarter"
-    render: text
+    type: text
 
   # Reference/link columns
   referendumIndex:
     displayName: "Ref #"
-    render: link
+    type: link
     urlTemplate: "https://polkadot.subsquare.io/referenda/{value}"
 
   parentBountyId:
     displayName: "Parent Bounty"
-    render: link
+    type: link
     urlTemplate: "https://polkadot.subsquare.io/treasury/bounties/{value}"
 
   # Count/number columns
   registeredCount:
     displayName: "Registered"
-    render: number
+    type: numeric
     decimals: 0
 
   registeredPaidCount:
     displayName: "Paid"
-    render: number
+    type: numeric
     decimals: 0
 
   rank:
     displayName: "Rank"
-    render: number
+    type: numeric
     decimals: 0
 
   cycle:
     displayName: "Cycle"
-    render: number
+    type: numeric
     decimals: 0
 
   # Tally columns with custom display names
   tally.ayes:
     displayName: "Ayes"
-    render: number
+    type: numeric
     decimals: 0
     color: green
 
   tally.nays:
     displayName: "Nays"
-    render: number
+    type: numeric
     decimals: 0
     color: red
 
   # Days columns
   days_until_expiry:
     displayName: "Days Until Expiry"
-    render: number
+    type: numeric
     decimals: 0
 
   days_until_valid:
     displayName: "Days Until Valid"
-    render: number
+    type: numeric
     decimals: 0
 
   days_since_expiry:
     displayName: "Days Since Expiry"
-    render: number
+    type: numeric
     decimals: 0
 
 # Table-specific overrides
@@ -135,16 +135,16 @@ tables:
   all_spending:
     id:
       displayName: "ID"
-      render: text
+      type: text
 
     title:
       displayName: "Description"
-      render: link
+      type: link
       urlField: url
 
     type:
       displayName: "Spending Type"
-      render: badge
+      type: categorical
       variants:
         Direct Spend: default
         Bounty Child: secondary
@@ -154,58 +154,58 @@ tables:
   referenda:
     id:
       displayName: "Ref #"
-      render: link
+      type: link
       urlTemplate: "https://polkadot.subsquare.io/referenda/{value}"
 
     title:
-      render: link
+      type: link
       urlField: url
 
     track:
       displayName: "Track"
-      render: badge
+      type: categorical
       variants:
         default: outline
 
   treasury:
     id:
       displayName: "Spend #"
-      render: link
+      type: link
       urlTemplate: "https://polkadot.subsquare.io/treasury/spends/{value}"
 
     title:
-      render: link
+      type: link
       urlField: url
 
   child-bounties:
     identifier:
       displayName: "ID"
-      render: text
+      type: text
 
     title:
-      render: link
+      type: link
       urlField: url
 
   fellowship:
     id:
       displayName: "Ref #"
-      render: link
+      type: link
       urlTemplate: "https://collectives.subsquare.io/fellowship/referenda/{value}"
 
     title:
-      render: link
+      type: link
       urlField: url
 
   outstanding_claims:
     id:
       displayName: "Spend #"
-      render: link
+      type: link
       urlTemplate: "https://polkadot.subsquare.io/treasury/spends/{value}"
 
   expired_claims:
     id:
       displayName: "Spend #"
-      render: link
+      type: link
       urlTemplate: "https://polkadot.subsquare.io/treasury/spends/{value}"
 
 # Pattern-based auto-detection (fallback when no explicit config exists)
@@ -217,28 +217,28 @@ patterns:
   - match: prefix
     pattern: "DOT_"
     config:
-      render: currency
+      type: currency
       currency: DOT
       decimals: 0
 
   - match: prefix
     pattern: "USD_"
     config:
-      render: currency
+      type: currency
       currency: USD
       decimals: 0
 
   - match: prefix
     pattern: "USDC_"
     config:
-      render: currency
+      type: currency
       currency: USDC
       decimals: 0
 
   - match: prefix
     pattern: "USDT_"
     config:
-      render: currency
+      type: currency
       currency: USDT
       decimals: 0
 
@@ -247,7 +247,7 @@ patterns:
     pattern: ".ayes"
     caseInsensitive: true
     config:
-      render: number
+      type: numeric
       color: green
       decimals: 0
 
@@ -255,7 +255,7 @@ patterns:
     pattern: ".nays"
     caseInsensitive: true
     config:
-      render: number
+      type: numeric
       color: red
       decimals: 0
 
@@ -264,14 +264,14 @@ patterns:
     pattern: "_time"
     caseInsensitive: true
     config:
-      render: date
+      type: date
       format: date
 
   - match: substring
     pattern: "_date"
     caseInsensitive: true
     config:
-      render: date
+      type: date
       format: date
 
   # Special date field - exact matching
@@ -279,7 +279,7 @@ patterns:
     pattern: "createdat"
     caseInsensitive: true
     config:
-      render: date
+      type: date
       format: date
 
   # Status patterns - exact and suffix matching
@@ -287,7 +287,7 @@ patterns:
     pattern: "status"
     caseInsensitive: true
     config:
-      render: badge
+      type: categorical
       variants:
         Executed: success
         Approved: success
@@ -301,7 +301,7 @@ patterns:
     pattern: "_status"
     caseInsensitive: true
     config:
-      render: badge
+      type: categorical
       variants:
         Executed: success
         Approved: success
@@ -311,40 +311,80 @@ patterns:
         Expired: destructive
         default: outline
 
+  # Categorical patterns - columns with finite value sets
+  - match: exact
+    pattern: "track"
+    caseInsensitive: true
+    config:
+      type: categorical
+      variants:
+        default: outline
+
+  - match: exact
+    pattern: "type"
+    caseInsensitive: true
+    config:
+      type: categorical
+      variants:
+        default: outline
+
+  - match: exact
+    pattern: "category"
+    caseInsensitive: true
+    config:
+      type: categorical
+      variants:
+        default: outline
+
+  - match: exact
+    pattern: "subcategory"
+    caseInsensitive: true
+    config:
+      type: categorical
+      variants:
+        default: outline
+
+  - match: exact
+    pattern: "parentBountyName"
+    config:
+      type: categorical
+      variants:
+        default: outline
+
   # Address patterns - exact matching
   - match: exact
     pattern: "beneficiary"
     caseInsensitive: true
     config:
-      render: address
+      type: address
       truncate: true
 
   - match: exact
     pattern: "address"
     caseInsensitive: true
     config:
-      render: address
+      type: address
       truncate: true
 
   - match: exact
     pattern: "who"
     caseInsensitive: true
     config:
-      render: address
+      type: address
       truncate: true
 
   - match: suffix
     pattern: "_address"
     caseInsensitive: true
     config:
-      render: address
+      type: address
       truncate: true
 
   # Non-standard DOT columns (exact matches for tables without DOT_ prefix)
   - match: exact
     pattern: "DOT"
     config:
-      render: currency
+      type: currency
       currency: DOT
       decimals: 0
 
@@ -352,7 +392,7 @@ patterns:
     pattern: "registered_amount_dot"
     caseInsensitive: true
     config:
-      render: currency
+      type: currency
       currency: DOT
       decimals: 0
 
@@ -360,7 +400,7 @@ patterns:
     pattern: "attempt_amount_dot"
     caseInsensitive: true
     config:
-      render: currency
+      type: currency
       currency: DOT
       decimals: 0
 
@@ -369,7 +409,7 @@ patterns:
     pattern: "budget_usdc"
     caseInsensitive: true
     config:
-      render: currency
+      type: currency
       currency: USDC
       decimals: 0
 
@@ -377,7 +417,7 @@ patterns:
     pattern: "registered_paid_amount_usdc"
     caseInsensitive: true
     config:
-      render: currency
+      type: currency
       currency: USDC
       decimals: 0
 
@@ -385,7 +425,7 @@ patterns:
     pattern: "total_registrations_usdc"
     caseInsensitive: true
     config:
-      render: currency
+      type: currency
       currency: USDC
       decimals: 0
 
@@ -393,7 +433,7 @@ patterns:
     pattern: "unregistered_paid_usdc"
     caseInsensitive: true
     config:
-      render: currency
+      type: currency
       currency: USDC
       decimals: 0
 
@@ -401,7 +441,7 @@ patterns:
     pattern: "registered_amount_usdc"
     caseInsensitive: true
     config:
-      render: currency
+      type: currency
       currency: USDC
       decimals: 0
 
@@ -409,7 +449,7 @@ patterns:
     pattern: "attempt_amount_usdc"
     caseInsensitive: true
     config:
-      render: currency
+      type: currency
       currency: USDC
       decimals: 0
 
@@ -418,7 +458,7 @@ patterns:
     caseInsensitive: true
     config:
       displayName: "Paid USDC"
-      render: currency
+      type: currency
       currency: USDC
       decimals: 0
 
@@ -426,7 +466,7 @@ patterns:
     pattern: "salary_usdc"
     caseInsensitive: true
     config:
-      render: currency
+      type: currency
       currency: USDC
       decimals: 0
 
@@ -435,6 +475,6 @@ patterns:
     caseInsensitive: true
     config:
       displayName: "Paid DOT Equivalent"
-      render: currency
+      type: currency
       currency: DOT
       decimals: 2

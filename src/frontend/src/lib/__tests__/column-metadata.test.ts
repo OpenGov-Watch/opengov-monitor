@@ -1,18 +1,214 @@
 /**
  * Column Metadata Tests
  *
- * Tests for column type detection and operator assignment based on column naming patterns.
+ * Tests for column type detection and operator assignment based on the
+ * unified column configuration system.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import {
   getColumnType,
   isCategoricalColumn,
   getOperatorsForColumnType,
+  extractColumnName,
+  extractTableName,
   ColumnType,
 } from "../column-metadata";
+import { __setConfigForTesting, type ColumnConfig } from "../column-renderer";
 
 describe("Column Metadata", () => {
+  beforeAll(() => {
+    // Inject test configuration that mirrors the actual YAML config
+    const testConfig: ColumnConfig = {
+      columns: {
+        DOT_latest: {
+          displayName: "DOT Value",
+          type: "currency",
+          currency: "DOT",
+          decimals: 0,
+        },
+        status: {
+          type: "categorical",
+          variants: {
+            Executed: "success",
+            Rejected: "destructive",
+            default: "outline",
+          },
+        },
+      },
+      tables: {
+        referenda: {
+          track: {
+            displayName: "Track",
+            type: "categorical",
+            variants: { default: "outline" },
+          },
+        },
+        all_spending: {
+          type: {
+            displayName: "Spending Type",
+            type: "categorical",
+            variants: { default: "outline" },
+          },
+        },
+      },
+      patterns: [
+        // Currency patterns
+        {
+          match: "prefix",
+          pattern: "DOT_",
+          config: { type: "currency", currency: "DOT", decimals: 0 },
+        },
+        {
+          match: "prefix",
+          pattern: "USD_",
+          config: { type: "currency", currency: "USD", decimals: 0 },
+        },
+        {
+          match: "prefix",
+          pattern: "USDC_",
+          config: { type: "currency", currency: "USDC", decimals: 0 },
+        },
+        {
+          match: "prefix",
+          pattern: "USDT_",
+          config: { type: "currency", currency: "USDT", decimals: 0 },
+        },
+        // Tally patterns
+        {
+          match: "suffix",
+          pattern: ".ayes",
+          caseInsensitive: true,
+          config: { type: "numeric", color: "green", decimals: 0 },
+        },
+        {
+          match: "suffix",
+          pattern: ".nays",
+          caseInsensitive: true,
+          config: { type: "numeric", color: "red", decimals: 0 },
+        },
+        // Date patterns
+        {
+          match: "substring",
+          pattern: "_time",
+          caseInsensitive: true,
+          config: { type: "date", format: "date" },
+        },
+        {
+          match: "suffix",
+          pattern: "_at",
+          caseInsensitive: true,
+          config: { type: "date", format: "date" },
+        },
+        {
+          match: "substring",
+          pattern: "_date",
+          caseInsensitive: true,
+          config: { type: "date", format: "date" },
+        },
+        {
+          match: "substring",
+          pattern: "date",
+          caseInsensitive: true,
+          config: { type: "date", format: "date" },
+        },
+        // Status/categorical patterns
+        {
+          match: "exact",
+          pattern: "status",
+          caseInsensitive: true,
+          config: { type: "categorical", variants: { default: "outline" } },
+        },
+        {
+          match: "exact",
+          pattern: "status_type",
+          caseInsensitive: true,
+          config: { type: "categorical", variants: { default: "outline" } },
+        },
+        {
+          match: "exact",
+          pattern: "track",
+          caseInsensitive: true,
+          config: { type: "categorical", variants: { default: "outline" } },
+        },
+        {
+          match: "exact",
+          pattern: "type",
+          caseInsensitive: true,
+          config: { type: "categorical", variants: { default: "outline" } },
+        },
+        {
+          match: "exact",
+          pattern: "category",
+          caseInsensitive: true,
+          config: { type: "categorical", variants: { default: "outline" } },
+        },
+        {
+          match: "exact",
+          pattern: "subcategory",
+          caseInsensitive: true,
+          config: { type: "categorical", variants: { default: "outline" } },
+        },
+        {
+          match: "exact",
+          pattern: "parentBountyName",
+          config: { type: "categorical", variants: { default: "outline" } },
+        },
+        // Address patterns
+        {
+          match: "exact",
+          pattern: "beneficiary",
+          caseInsensitive: true,
+          config: { type: "address", truncate: true },
+        },
+      ],
+    };
+
+    __setConfigForTesting(testConfig);
+  });
+
+  describe("extractColumnName", () => {
+    it("extracts column name from table-prefixed name", () => {
+      expect(extractColumnName("Referenda.track")).toBe("track");
+    });
+
+    it("extracts column name from snake_case table prefix", () => {
+      expect(extractColumnName("all_spending.type")).toBe("type");
+    });
+
+    it("preserves dot-notation columns (tally.ayes)", () => {
+      // "tally" is lowercase, so it's not treated as a table prefix
+      expect(extractColumnName("tally.ayes")).toBe("tally.ayes");
+    });
+
+    it("returns original name when no prefix", () => {
+      expect(extractColumnName("track")).toBe("track");
+    });
+
+    it("handles empty string", () => {
+      expect(extractColumnName("")).toBe("");
+    });
+  });
+
+  describe("extractTableName", () => {
+    it("extracts table name from table-prefixed name", () => {
+      expect(extractTableName("Referenda.track")).toBe("Referenda");
+    });
+
+    it("extracts table name from snake_case table prefix", () => {
+      expect(extractTableName("all_spending.type")).toBe("all_spending");
+    });
+
+    it("returns empty for dot-notation columns (tally.ayes)", () => {
+      // "tally" is lowercase, so it's not treated as a table prefix
+      expect(extractTableName("tally.ayes")).toBe("");
+    });
+
+    it("returns empty string when no prefix", () => {
+      expect(extractTableName("track")).toBe("");
+    });
+  });
+
   describe("isCategoricalColumn", () => {
     it("returns true for status column", () => {
       expect(isCategoricalColumn("status")).toBe(true);
@@ -46,7 +242,11 @@ describe("Column Metadata", () => {
       expect(isCategoricalColumn("id")).toBe(false);
       expect(isCategoricalColumn("amount")).toBe(false);
       expect(isCategoricalColumn("description")).toBe(false);
-      expect(isCategoricalColumn("created_at")).toBe(false);
+    });
+
+    it("handles table-prefixed categorical columns", () => {
+      expect(isCategoricalColumn("Referenda.track")).toBe(true);
+      expect(isCategoricalColumn("all_spending.type")).toBe(true);
     });
   });
 
@@ -67,63 +267,38 @@ describe("Column Metadata", () => {
       it("returns categorical for parentBountyName", () => {
         expect(getColumnType("parentBountyName")).toBe("categorical");
       });
+
+      it("returns categorical for table-prefixed track", () => {
+        expect(getColumnType("Referenda.track")).toBe("categorical");
+      });
+    });
+
+    describe("currency columns", () => {
+      it("returns currency for DOT columns", () => {
+        expect(getColumnType("DOT_latest")).toBe("currency");
+        expect(getColumnType("DOT_value")).toBe("currency");
+      });
+
+      it("returns currency for USD columns", () => {
+        expect(getColumnType("USD_amount")).toBe("currency");
+      });
+
+      it("returns currency for USDC columns", () => {
+        expect(getColumnType("USDC_total")).toBe("currency");
+      });
+
+      it("returns currency for USDT columns", () => {
+        expect(getColumnType("USDT_balance")).toBe("currency");
+      });
     });
 
     describe("numeric columns", () => {
-      it("returns numeric for DOT columns", () => {
-        expect(getColumnType("DOT")).toBe("numeric");
-        expect(getColumnType("DOT_value")).toBe("numeric");
+      it("returns numeric for tally.ayes", () => {
+        expect(getColumnType("tally.ayes")).toBe("numeric");
       });
 
-      it("returns numeric for USD columns", () => {
-        expect(getColumnType("USD_amount")).toBe("numeric");
-      });
-
-      it("returns numeric for USDC columns", () => {
-        expect(getColumnType("USDC_total")).toBe("numeric");
-      });
-
-      it("returns numeric for USDT columns", () => {
-        expect(getColumnType("USDT_balance")).toBe("numeric");
-      });
-
-      it("returns numeric for amount columns", () => {
-        expect(getColumnType("total_amount")).toBe("numeric");
-      });
-
-      it("returns numeric for count columns", () => {
-        expect(getColumnType("vote_count")).toBe("numeric");
-        expect(getColumnType("voteCount")).toBe("numeric");
-      });
-
-      it("returns numeric for id column", () => {
-        expect(getColumnType("id")).toBe("numeric");
-      });
-
-      it("returns numeric for _id suffix columns", () => {
-        expect(getColumnType("category_id")).toBe("numeric");
-        expect(getColumnType("user_id")).toBe("numeric");
-      });
-
-      it("returns numeric for Id suffix columns", () => {
-        expect(getColumnType("parentBountyId")).toBe("numeric");
-        expect(getColumnType("referendumId")).toBe("numeric");
-      });
-
-      it("returns numeric for Index suffix columns", () => {
-        expect(getColumnType("trackIndex")).toBe("numeric");
-      });
-
-      it("returns numeric for cycle column", () => {
-        expect(getColumnType("cycle")).toBe("numeric");
-      });
-
-      it("returns numeric for rank column", () => {
-        expect(getColumnType("rank")).toBe("numeric");
-      });
-
-      it("returns numeric for payment_id column", () => {
-        expect(getColumnType("payment_id")).toBe("numeric");
+      it("returns numeric for tally.nays", () => {
+        expect(getColumnType("tally.nays")).toBe("numeric");
       });
     });
 
@@ -153,14 +328,15 @@ describe("Column Metadata", () => {
         expect(getColumnType("notes")).toBe("text");
       });
 
-      it("returns text for name columns", () => {
-        expect(getColumnType("name")).toBe("text");
-        expect(getColumnType("display_name")).toBe("text");
-      });
-
       it("returns text for unknown columns", () => {
         expect(getColumnType("random_field")).toBe("text");
         expect(getColumnType("something_else")).toBe("text");
+      });
+    });
+
+    describe("address columns", () => {
+      it("returns address for beneficiary", () => {
+        expect(getColumnType("beneficiary")).toBe("address");
       });
     });
   });
@@ -186,6 +362,16 @@ describe("Column Metadata", () => {
       expect(ops).toContain("<=");
       expect(ops).toContain("IS NULL");
       expect(ops).toContain("IS NOT NULL");
+      expect(ops).not.toContain("LIKE");
+      expect(ops).not.toContain("IN");
+    });
+
+    it("returns comparison operators for currency type", () => {
+      const ops = getOperatorsForColumnType("currency");
+      expect(ops).toContain("=");
+      expect(ops).toContain("!=");
+      expect(ops).toContain(">");
+      expect(ops).toContain("<");
       expect(ops).not.toContain("LIKE");
       expect(ops).not.toContain("IN");
     });
@@ -218,11 +404,26 @@ describe("Column Metadata", () => {
       expect(ops).not.toContain("IN");
     });
 
+    it("returns LIKE operator for address type", () => {
+      const ops = getOperatorsForColumnType("address");
+      expect(ops).toContain("=");
+      expect(ops).toContain("!=");
+      expect(ops).toContain("LIKE");
+      expect(ops).not.toContain("IN");
+    });
+
+    it("returns LIKE operator for link type", () => {
+      const ops = getOperatorsForColumnType("link");
+      expect(ops).toContain("=");
+      expect(ops).toContain("!=");
+      expect(ops).toContain("LIKE");
+      expect(ops).not.toContain("IN");
+    });
+
     it("returns all operators for unknown type as fallback", () => {
       const ops = getOperatorsForColumnType("unknown" as ColumnType);
       expect(ops).toContain("=");
       expect(ops).toContain("LIKE");
-      expect(ops).toContain("IN");
       expect(ops).toContain(">");
     });
   });
@@ -239,53 +440,28 @@ describe("Column Metadata", () => {
       expect(ops).toContain("IN");
       expect(ops).toContain("NOT IN");
     });
-
-    it("parentBountyId is numeric, not categorical", () => {
-      // parentBountyId should be numeric (ends with Id)
-      expect(isCategoricalColumn("parentBountyId")).toBe(false);
-      expect(getColumnType("parentBountyId")).toBe("numeric");
-    });
   });
 
-  describe("filterColumnMap pattern", () => {
-    /**
-     * The filterColumnMap feature allows a display column (e.g., "parentBountyId")
-     * to use a different column (e.g., "parentBountyName") for filtering.
-     *
-     * Example usage in columnOverrides:
-     *   parentBountyId: {
-     *     header: "Parent",
-     *     filterColumn: "parentBountyName",  // Use name column for filtering
-     *     cell: ... // Display bounty name
-     *   }
-     *
-     * This test documents the expected behavior when filterColumnMap is applied.
-     */
-    it("explains filterColumnMap: display column uses mapped column for type detection", () => {
-      // Without filterColumnMap: parentBountyId is numeric (ID column)
-      const displayColumn = "parentBountyId";
-      expect(getColumnType(displayColumn)).toBe("numeric");
-      expect(isCategoricalColumn(displayColumn)).toBe(false);
-
-      // With filterColumnMap: parentBountyId maps to parentBountyName
-      // The effective column for type checking is parentBountyName
-      const filterColumn = "parentBountyName";
-      expect(getColumnType(filterColumn)).toBe("categorical");
-      expect(isCategoricalColumn(filterColumn)).toBe(true);
-
-      // Result: UI shows "Parent" column, but uses categorical operators
-      // (IN/NOT IN) and fetches facets using parentBountyName values
-      const ops = getOperatorsForColumnType(getColumnType(filterColumn));
-      expect(ops).toContain("IN");
-      expect(ops).toContain("NOT IN");
+  describe("Table-prefixed column support", () => {
+    it("handles Referenda.track as categorical", () => {
+      expect(isCategoricalColumn("Referenda.track")).toBe(true);
+      expect(getColumnType("Referenda.track")).toBe("categorical");
     });
 
-    it("category and subcategory are already categorical (no mapping needed)", () => {
-      // These columns are directly categorical by name
-      expect(isCategoricalColumn("category")).toBe(true);
-      expect(isCategoricalColumn("subcategory")).toBe(true);
-      expect(getColumnType("category")).toBe("categorical");
-      expect(getColumnType("subcategory")).toBe("categorical");
+    it("handles table-prefixed currency columns", () => {
+      expect(getColumnType("Referenda.DOT_latest")).toBe("currency");
+    });
+
+    it("handles table-prefixed date columns", () => {
+      expect(getColumnType("Referenda.proposal_time")).toBe("date");
+    });
+
+    it("gets correct operators for table-prefixed categorical", () => {
+      const columnType = getColumnType("Referenda.track");
+      const ops = getOperatorsForColumnType(columnType);
+      expect(ops).toContain("IN");
+      expect(ops).toContain("NOT IN");
+      expect(ops).not.toContain("LIKE");
     });
   });
 });

@@ -66,7 +66,7 @@ export function DashboardDataTable({
 
   // Determine if column should be right-aligned
   const isRightAligned = (config: ColumnRenderConfig) =>
-    config.render === "currency" || config.render === "number";
+    config.type === "currency" || config.type === "numeric";
 
   return (
     <div className="h-full overflow-auto">

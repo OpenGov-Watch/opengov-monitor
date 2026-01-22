@@ -232,7 +232,7 @@ interface DynamicCellProps {
 }
 
 export const DynamicCell = React.memo(function DynamicCell({ value, config, row }: DynamicCellProps) {
-  switch (config.render) {
+  switch (config.type) {
     case "currency":
       return (
         <CurrencyCell
@@ -242,7 +242,7 @@ export const DynamicCell = React.memo(function DynamicCell({ value, config, row 
         />
       );
 
-    case "number":
+    case "numeric":
       return (
         <NumberCell
           value={value as number | null}
@@ -256,7 +256,7 @@ export const DynamicCell = React.memo(function DynamicCell({ value, config, row 
         <DateCell value={value as string | null} format={config.format} />
       );
 
-    case "badge":
+    case "categorical":
       return (
         <BadgeCell value={value as string | null} variants={config.variants} />
       );
