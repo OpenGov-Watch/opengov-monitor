@@ -94,10 +94,51 @@ FROM Referenda WHERE id = {ID};
 | Cause | How to Identify | Resolution |
 |-------|-----------------|------------|
 | Non-executed referendum | status in (TimedOut, Rejected, Cancelled, Killed) | Expected - no action needed |
+| Call index mismatch | API callIndex not in code's known lists | Add new indices or use `allSpends` |
 | API missing data | Subsquare API returns null/empty for `allSpends` | Upstream issue - report to Subsquare |
 | Unsupported asset type | Check `allSpends[].assetKind` for unknown assets | Add support in `_build_bag_from_all_spends()` |
 | XCM parsing failure | Check logs for "Unknown asset" warnings | Add asset mapping in `AssetKind` |
 | Price service failure | Check logs for price fetch errors | Check CoinGecko/yfinance availability |
+
+## Diagnosing Call Index Mismatches
+
+Runtime upgrades can change pallet indices, breaking value extraction. Example: ref 1831 uses `0x2800` (utility.batch) and `0x3c05` (treasury.spend), but code expected `0x1a00` and `0x1305`.
+
+### 1. Get the Call Index from API
+
+```bash
+curl "https://polkadot-api.subsquare.io/gov2/referendums/{ID}.json" | jq '.onchainData.proposal.callIndex'
+```
+
+### 2. Check Against Code
+
+```python
+# subsquare.py line ~233 - batch calls
+wrapped_proposals = ["0x1a00", "0x1a02", "0x1a03", "0x1a04", ...]
+
+# subsquare.py line ~313 - treasury.spend
+elif call_index == "0x1305":
+```
+
+### 3. Trace the Code Path
+
+```
+_transform_referenda()
+  → _bag_from_referendum_data()
+    → checks treasuryInfo first
+    → else calls _build_bag_from_call_value()
+      → matches call_index against known indices
+      → unmatched = falls through with empty bag → NULL
+```
+
+### 4. Check for Alternative Data
+
+The `allSpends` field bypasses call index parsing:
+```bash
+curl "https://polkadot-api.subsquare.io/gov2/referendums/{ID}.json" | jq '.allSpends'
+```
+
+If populated, using `allSpends` is more resilient than adding new call indices.
 
 ## Files for Debugging
 

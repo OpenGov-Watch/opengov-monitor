@@ -117,6 +117,28 @@ import os
 # Tracks that should have USD/DOT values (spending-related tracks)
 SPENDER_TRACKS = ['SmallSpender', 'MediumSpender', 'BigSpender', 'SmallTipper', 'BigTipper', 'Treasurer']
 
+# Call index mapping for different Polkadot runtime eras
+# Runtime upgrade at ref 1788 changed pallet indices (AssetHub migration)
+POLKADOT_CALL_INDICES = {
+    "relay": {  # Before ref 1788
+        "utility.batch": "0x1a00",
+        "utility.batchAll": "0x1a02",
+        "utility.dispatchAs": "0x1a03",
+        "utility.forceBatch": "0x1a04",
+        "treasury.spend": "0x1305",
+    },
+    "assethub": {  # From ref 1788 onwards
+        "utility.batch": "0x2800",
+        "utility.batchAll": "0x2802",
+        "utility.dispatchAs": "0x2803",
+        "utility.forceBatch": "0x2804",
+        "treasury.spend": "0x3c05",
+    },
+}
+
+# First referendum using AssetHub call indices
+POLKADOT_ASSETHUB_CUTOFF = 1788
+
 
 class SubsquareProvider(DataProvider):
 
@@ -139,12 +161,21 @@ class SubsquareProvider(DataProvider):
         # load details
 
         # for batch referenda, we need to fetch the individual referenda to inspect the proposal
+        # Include both relay (pre-1788) and assethub (post-1788) call indices
         needs_detail_call_indices = [
+            # Relay indices (before ref 1788)
             "0x1a00", # utility.batch
             "0x1a02", # utility.batchAll
             "0x1a03", # utility.dispatchAs
             "0x1a04", # utility.forceBatch
             "0x1305", # treasury.spend
+            # AssetHub indices (from ref 1788)
+            "0x2800", # utility.batch
+            "0x2802", # utility.batchAll
+            "0x2803", # utility.dispatchAs
+            "0x2804", # utility.forceBatch
+            "0x3c05", # treasury.spend
+            # Other indices
             "0x6300", # xcmPallet.send
         ]
 
@@ -185,10 +216,12 @@ class SubsquareProvider(DataProvider):
 
         # return the value of the proposal denominated in the network's token
         def _build_bag_from_call_value(bag: AssetsBag, call, timestamp, ref_id):
-            
-            if ref_id == 1587:
-                pi = 3
-            
+            # Select call index map based on ref_id (runtime upgrade at ref 1788)
+            if ref_id >= POLKADOT_ASSETHUB_CUTOFF:
+                indices = POLKADOT_CALL_INDICES["assethub"]
+            else:
+                indices = POLKADOT_CALL_INDICES["relay"]
+
             # we use this map to emit warnings of proposals we haven't seen on OpenGov before. Those that are known to be zero-value (because they are not Treasury-related) are excluded
             known_zero_value_call_indices = [
                 "0x0000", # system.remark
@@ -230,13 +263,14 @@ class SubsquareProvider(DataProvider):
                 "0x6502", # assetRate.remove
             ]
 
+            # Build wrapped_proposals from dynamic indices (varies by runtime version)
             wrapped_proposals = [
                 "0x0102", # scheduler.scheduleNamed
                 "0x0104", # scheduler.scheduleAfter
-                "0x1a00", # utility.batch 
-                "0x1a02", # utility.batchAll
-                "0x1a03", # utility.dispatchAs
-                "0x1a04", # utility.forceBatch
+                indices["utility.batch"],
+                indices["utility.batchAll"],
+                indices["utility.dispatchAs"],
+                indices["utility.forceBatch"],
             ]
 
             should_inspect_proposal = [
@@ -268,15 +302,15 @@ class SubsquareProvider(DataProvider):
                     elif call_index == "0x0104": # scheduler.scheduleAfter
                         inner_call = args[3]["value"]
                         _build_bag_from_call_value(bag, inner_call, timestamp, ref_id)
-                    elif call_index == "0x1a03": # utility.dispatchAs
-                        
+                    elif call_index == indices["utility.dispatchAs"]:
+
                         # let's make sure the caller is the treasury
                         try:
                             dispatch_source = args[0]["value"]["system"]["signed"]
                         except KeyError:
                             self._logger.warning(f"Ref {ref_id}: dispatchAs call does not have a signed source")
                             return
-                        
+
                         if dispatch_source != self.network_info.treasury_address:
                             self._logger.warning(f"Ref {ref_id}: dispatchAs call does not have a treasury source")
                             return
@@ -291,7 +325,7 @@ class SubsquareProvider(DataProvider):
                         if ref_id in income_neutral_dispatches:
                             return
                         """
-                            
+
                         inner_call = args[1]["value"]
                         _build_bag_from_call_value(bag, inner_call, timestamp, ref_id)
                     else: # batch calls
@@ -310,14 +344,14 @@ class SubsquareProvider(DataProvider):
                     amount = args[2]["value"]
                     amount = self.network_info.apply_denomination(amount, self.network_info.native_asset)
                     bag.add_asset(self.network_info.native_asset, amount)
-                elif call_index == "0x1305": # treasury.spend
+                elif call_index == indices["treasury.spend"]:
                     assert args is not None, "we should always have the details of the call"
                     assert args[0]["name"] == "assetKind"
                     assetKind = self._get_XCM_asset_kind(args[0]["value"])
                     if assetKind == AssetKind.INVALID:
                         bag.set_nan()
                         return
-                    
+
                     assert args[1]["name"] == "amount"
                     amount = args[1]["value"]
 

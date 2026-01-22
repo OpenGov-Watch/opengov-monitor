@@ -27,6 +27,20 @@ pd.to_datetime(blockTime, unit='ms', utc=True)
 | `createdAt`, `lastActivityAt` | ISO string | `pd.to_datetime(value, utc=True)` |
 | `startIndexer.blockTime` | Unix seconds | `blockTime * 1e6` |
 
+### Runtime Upgrade Call Index Changes
+
+Polkadot runtime upgrade at **ref 1788** changed pallet indices. Code must select correct indices based on `ref_id`:
+
+| Call Type | Before 1788 | From 1788 |
+|-----------|-------------|-----------|
+| utility.batch | `0x1a00` | `0x2800` |
+| utility.batchAll | `0x1a02` | `0x2802` |
+| utility.dispatchAs | `0x1a03` | `0x2803` |
+| utility.forceBatch | `0x1a04` | `0x2804` |
+| treasury.spend | `0x1305` | `0x3c05` |
+
+See `POLKADOT_CALL_INDICES` and `POLKADOT_ASSETHUB_CUTOFF` in `subsquare.py`.
+
 ### XCM Asset Versions
 
 v3 uses nested objects, v4/v5 use arrays:
