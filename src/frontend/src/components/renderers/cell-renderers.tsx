@@ -294,7 +294,10 @@ interface DynamicCellProps {
 }
 
 export const DynamicCell = React.memo(function DynamicCell({ value, config, row }: DynamicCellProps) {
-  switch (config.type) {
+  // Use renderAs for visual rendering, fall back to type
+  const renderType = config.renderAs ?? config.type;
+
+  switch (renderType) {
     case "currency":
       return (
         <CurrencyCell
@@ -318,10 +321,15 @@ export const DynamicCell = React.memo(function DynamicCell({ value, config, row 
         <DateCell value={value as string | null} format={config.format} />
       );
 
-    case "categorical":
+    case "chip":
+      // Badge/chip rendering (use with type: categorical for IN/NOT IN filtering)
       return (
         <BadgeCell value={value as string | null} variants={config.variants} />
       );
+
+    case "categorical":
+      // Categorical now renders as text by default (use renderAs: chip for Badge)
+      return <TextCell value={value as string | number | null} />;
 
     case "link":
       return (

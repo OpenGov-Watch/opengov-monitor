@@ -25,10 +25,13 @@ Configured in `frontend/public/config/column-config.yaml`.
 | `USDT_` | prefix | USDT_component | Currency (USDT, 0 decimals) |
 | `_time` | substring | proposal_time, latest_status_change | Date (formatted) |
 | `_at` | suffix | created_at, updated_at | Timestamp |
-| `_status` | suffix | proposal_status | Badge (colored) |
+| `status` | exact | status | Chip/Badge (colored) |
+| `_status` | suffix | proposal_status | Chip/Badge (colored) |
 | `_ayes` | suffix | tally_ayes | Number (green color) |
 | `_nays` | suffix | tally_nays | Number (red color) |
-| `_address` | suffix | curator_address | Address (truncated with copy) |
+| `_address` | suffix | curator_address | Address (truncated) |
+| `category` | exact | category | Plain text (categorical filter) |
+| `subcategory` | exact | subcategory | Plain text (categorical filter) |
 
 ### Adding Custom Patterns
 
@@ -63,16 +66,41 @@ patterns:
 - **suffix**: Pattern must appear at end of column name (`*_status`)
 - **substring**: Pattern can appear anywhere (`*_time*`)
 
-### Render Types
+### Column Types
 
-- `currency` - Formatted with currency symbol and decimals
-- `number` - Formatted number with optional color
-- `date` - Formatted date (relative or absolute)
-- `timestamp` - Full date and time
-- `badge` - Colored badge component
-- `address` - Truncated blockchain address with copy button
-- `email` - Email with mailto link
-- `text` - Plain text (default)
+Column types determine both rendering and filtering behavior:
+
+| Type | Rendering | Filter Operators |
+|------|-----------|------------------|
+| `text` | Plain text | =, !=, LIKE |
+| `numeric` | Formatted number | =, !=, >, <, >=, <= |
+| `currency` | Currency with symbol | =, !=, >, <, >=, <= |
+| `date` | Formatted date | =, !=, >, <, >=, <= |
+| `categorical` | Plain text | IN, NOT IN |
+| `link` | Clickable link | =, !=, LIKE |
+| `address` | Truncated address | =, !=, LIKE |
+| `text_long` | Modal viewer button | IS NULL, IS NOT NULL |
+
+### renderAs Override
+
+Use `renderAs` to change visual rendering while preserving filter behavior:
+
+```yaml
+# Categorical with chip/badge rendering
+status:
+  type: categorical      # Keeps IN/NOT IN filtering
+  renderAs: chip         # Renders as Badge with colored variants
+  variants:
+    Approved: success
+    Rejected: destructive
+    default: outline
+
+# Categorical with plain text (default behavior)
+category:
+  type: categorical      # IN/NOT IN filtering, renders as plain text
+```
+
+**Available renderAs values**: Any column type, plus `"chip"` for Badge rendering.
 
 ### Configuration Options
 

@@ -14,10 +14,12 @@ import { formatDate } from "@/lib/utils";
  * | numeric     | Number format           | =, !=, >, <, >=, <=                 |
  * | currency    | Formatted with symbol   | =, !=, >, <, >=, <=                 |
  * | date        | Date format             | =, !=, >, <, >=, <=                 |
- * | categorical | Badge                   | IN, NOT IN                          |
+ * | categorical | Plain text              | IN, NOT IN                          |
  * | link        | Clickable link          | =, !=, LIKE                         |
  * | address     | Truncated address       | =, !=, LIKE                         |
  * | text_long   | Modal viewer button     | IS NULL, IS NOT NULL                |
+ *
+ * Note: Use `renderAs: "chip"` with `type: categorical` to get Badge rendering.
  */
 export type ColumnType =
   | "text"
@@ -42,6 +44,12 @@ export type BadgeVariant =
 export interface ColumnRenderConfig {
   displayName?: string;
   type?: ColumnType;
+  /**
+   * Overrides visual rendering while preserving `type` for semantic behavior (filtering).
+   * - "chip": Renders as Badge (use with type: categorical for chips with IN/NOT IN filtering)
+   * - Any ColumnType: Renders using that type's visual style
+   */
+  renderAs?: ColumnType | "chip";
   // Currency options
   currency?: CurrencyType;
   decimals?: number;

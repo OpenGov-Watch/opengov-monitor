@@ -5,14 +5,21 @@
 #   columns:       Global column patterns (apply to all tables)
 #   tables:        Table-specific overrides
 #
-# Column types (determines both rendering AND filtering behavior):
+# Column types (determines filtering behavior):
 #   text:        Plain text, text operators (=, !=, LIKE)
 #   numeric:     Formatted number, comparison operators (=, !=, >, <, >=, <=)
 #   currency:    Number with currency symbol, comparison operators
 #   date:        Date/datetime formatting, comparison operators
-#   categorical: Badge rendering, set operators (IN, NOT IN)
+#   categorical: Plain text (default), set operators (IN, NOT IN)
 #   link:        Clickable link to external URL, text operators
 #   address:     Blockchain address with truncation, text operators
+#
+# Optional: renderAs (overrides visual rendering while preserving type for filtering)
+#   - "chip": Renders as Badge (use with type: categorical for chips with IN/NOT IN filtering)
+#   - Any column type: Renders using that type's visual style
+#
+# Example: type: categorical + renderAs: chip
+#   → Keeps IN/NOT IN filter operators, renders as Badge with optional variants
 
 columns:
   # Currency columns with custom display names
@@ -145,6 +152,7 @@ tables:
     type:
       displayName: "Spending Type"
       type: categorical
+      renderAs: chip
       variants:
         Direct Spend: default
         Bounty Child: secondary
@@ -164,6 +172,7 @@ tables:
     track:
       displayName: "Track"
       type: categorical
+      renderAs: chip
       variants:
         default: outline
 
@@ -212,12 +221,14 @@ tables:
     table_name:
       displayName: "Table"
       type: categorical
+      renderAs: chip
     record_id:
       displayName: "Record ID"
       type: text
     error_type:
       displayName: "Error Type"
       type: categorical
+      renderAs: chip
       variants:
         missing_value: destructive
         historical_null: warning
@@ -320,6 +331,7 @@ patterns:
     caseInsensitive: true
     config:
       type: categorical
+      renderAs: chip
       variants:
         Executed: success
         Approved: success
@@ -334,6 +346,7 @@ patterns:
     caseInsensitive: true
     config:
       type: categorical
+      renderAs: chip
       variants:
         Executed: success
         Approved: success
@@ -349,6 +362,7 @@ patterns:
     caseInsensitive: true
     config:
       type: categorical
+      renderAs: chip
       variants:
         default: outline
 
@@ -357,6 +371,7 @@ patterns:
     caseInsensitive: true
     config:
       type: categorical
+      renderAs: chip
       variants:
         default: outline
 
@@ -364,22 +379,19 @@ patterns:
     pattern: "category"
     caseInsensitive: true
     config:
-      type: categorical
-      variants:
-        default: outline
+      type: categorical    # keeps IN/NOT IN filtering, renders as text by default
 
   - match: exact
     pattern: "subcategory"
     caseInsensitive: true
     config:
-      type: categorical
-      variants:
-        default: outline
+      type: categorical    # keeps IN/NOT IN filtering, renders as text by default
 
   - match: exact
     pattern: "parentBountyName"
     config:
       type: categorical
+      renderAs: chip
       variants:
         default: outline
 

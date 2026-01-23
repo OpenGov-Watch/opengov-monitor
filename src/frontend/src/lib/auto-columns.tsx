@@ -324,6 +324,9 @@ export function generateColumns<TData>(
 
 
 function renderCellValue(value: any, config: ColumnRenderConfig, row: any, dashboardMode: boolean = false) {
+  // Use renderAs for visual rendering, fall back to type
+  const renderType = config.renderAs ?? config.type;
+
   // Helper to get text content for title attribute
   const getTextContent = (val: any): string => {
     if (val === null || val === undefined) return "-";
@@ -344,12 +347,12 @@ function renderCellValue(value: any, config: ColumnRenderConfig, row: any, dashb
     );
   };
 
-  // Handle null/undefined based on column type
+  // Handle null/undefined based on column type (alignment is a visual concern)
   if (value === null || value === undefined) {
     const nullDisplay = <span className="text-muted-foreground">-</span>;
 
     // Right-align null values for currency and numeric columns
-    if (config.type === "currency" || config.type === "numeric") {
+    if (renderType === "currency" || renderType === "numeric") {
       return wrapWithOverflow(
         <div className="text-right">{nullDisplay}</div>,
         "-"
@@ -359,13 +362,19 @@ function renderCellValue(value: any, config: ColumnRenderConfig, row: any, dashb
     return wrapWithOverflow(nullDisplay, "-");
   }
 
-  switch (config.type) {
-    case "categorical":
+  switch (renderType) {
+    case "chip":
+      // Badge/chip rendering (use with type: categorical for IN/NOT IN filtering)
       if (typeof value === "string") {
         const variant = getBadgeVariant(value, config);
         return wrapWithOverflow(<Badge variant={variant}>{value}</Badge>, value);
       }
       return wrapWithOverflow(value);
+
+    case "categorical":
+      // Categorical now renders as text by default (use renderAs: chip for Badge)
+      const categoricalValue = formatValue(value, config);
+      return wrapWithOverflow(categoricalValue, categoricalValue);
 
     case "link":
       if (typeof value === "string" || typeof value === "number") {
