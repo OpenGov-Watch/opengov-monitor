@@ -883,7 +883,7 @@ export function QueryBuilder({
       )}
 
       {/* Group By */}
-      {config.sourceTable && unifiedColumns.some((c) => c.type === "regular" && c.aggregateFunction) && (
+      {config.sourceTable && unifiedColumns.some((c) => c.aggregateFunction) && (
         <div className="space-y-2">
           <Label>Group By</Label>
           <div className="rounded-md border p-4">
