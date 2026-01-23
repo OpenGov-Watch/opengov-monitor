@@ -154,14 +154,56 @@ export const DashboardPieChart = memo(
               verticalAlign={legendPosition === "right" ? "middle" : "bottom"}
               wrapperStyle={legendPosition === "right" ? { paddingLeft: "20px" } : { paddingTop: "10px" }}
               content={() => (
-                <ul className={`flex flex-wrap justify-center ${exportMode ? "gap-x-6 gap-y-2 text-lg" : "gap-x-4 gap-y-1 text-sm"} ${legendPosition === "right" ? "flex-col" : ""}`}>
+                <ul
+                  className={exportMode ? undefined : `flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm ${legendPosition === "right" ? "flex-col" : ""}`}
+                  style={exportMode ? {
+                    margin: 0,
+                    padding: 0,
+                    listStyle: "none",
+                    textAlign: legendPosition === "right" ? "left" : "center",
+                  } : undefined}
+                >
                   {data.map((item, index) => (
-                    <li key={index} className={`flex items-center ${exportMode ? "gap-2" : "gap-1.5"}`}>
+                    <li
+                      key={index}
+                      className={exportMode ? undefined : "flex items-center gap-1.5"}
+                      style={exportMode ? {
+                        display: legendPosition === "right" ? "block" : "inline-block",
+                        marginRight: legendPosition === "right" ? 0 : "24px",
+                        marginBottom: "8px",
+                        fontSize: "18px",
+                        lineHeight: "24px",
+                        whiteSpace: "nowrap",
+                      } : undefined}
+                    >
                       <span
-                        className={`inline-block rounded-sm ${exportMode ? "w-5 h-5" : "w-3 h-3"}`}
-                        style={{ backgroundColor: item.fill || colors[index % colors.length] }}
+                        className={exportMode ? undefined : "block flex-shrink-0 rounded-sm w-3 h-3"}
+                        style={{
+                          backgroundColor: item.fill || colors[index % colors.length],
+                          ...(exportMode ? {
+                            display: "inline-block",
+                            width: "20px",
+                            height: "20px",
+                            borderRadius: "2px",
+                            marginRight: "8px",
+                            verticalAlign: "top",
+                          } : {}),
+                        }}
                       />
-                      <span className="text-muted-foreground">{item.name}</span>
+                      <span
+                        className={exportMode ? undefined : "text-muted-foreground"}
+                        style={exportMode ? {
+                          color: "#737373",
+                          display: "inline-block",
+                          verticalAlign: "top",
+                          fontSize: "18px",
+                          lineHeight: 1,
+                          height: "20px",
+                          marginTop: "-8px",
+                        } : undefined}
+                      >
+                        {item.name}
+                      </span>
                     </li>
                   ))}
                 </ul>

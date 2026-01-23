@@ -166,3 +166,23 @@ app.listen(port, '127.0.0.1', () => { ... });
 ### Port File Coordination
 
 API writes port to `data/.api-port`. Frontend reads it for proxy config. Start API before frontend.
+
+---
+
+## Chart Export (html2canvas)
+
+### Text Baseline Rendering Bug
+
+html2canvas renders text ~10px lower than browsers do. For chart legend export, we compensate with `marginTop: "-8px"` on text elements. Without this, legend text appears below the colored squares in exported images.
+
+```typescript
+// In export mode only - compensates for html2canvas text offset
+style={exportMode ? {
+  marginTop: "-8px",
+  verticalAlign: "top",
+  lineHeight: 1,
+  // ... other styles
+} : undefined}
+```
+
+Also: html2canvas doesn't handle CSS `gap` or flexbox alignment reliably. Use inline styles with explicit margins for export mode.
