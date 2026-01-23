@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/auth-context";
+import { useDashboards } from "@/hooks/use-dashboards";
 import {
   Table,
   TableBody,
@@ -23,7 +24,6 @@ import { Label } from "@/components/ui/label";
 import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import LayoutDashboard from "lucide-react/dist/esm/icons/layout-dashboard";
-import type { Dashboard } from "@/lib/db/types";
 import { formatDate } from "@/lib/utils";
 
 interface FormData {
@@ -40,24 +40,9 @@ const emptyFormData: FormData = {
 export default function DashboardsPage() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const [dashboards, setDashboards] = useState<Dashboard[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { dashboards, isLoading: loading, mutate } = useDashboards();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [formData, setFormData] = useState<FormData>(emptyFormData);
-
-  useEffect(() => {
-    fetchDashboards().finally(() => setLoading(false));
-  }, []);
-
-  async function fetchDashboards() {
-    try {
-      const response = await fetch("/api/dashboards");
-      const data = await response.json();
-      setDashboards(data);
-    } catch (error) {
-      console.error("Failed to fetch dashboards:", error);
-    }
-  }
 
   function openAddDialog() {
     setFormData(emptyFormData);
@@ -80,7 +65,7 @@ export default function DashboardsPage() {
       });
 
       setDialogOpen(false);
-      fetchDashboards();
+      mutate();
     } catch (error) {
       console.error("Failed to save dashboard:", error);
     }
@@ -91,7 +76,7 @@ export default function DashboardsPage() {
 
     try {
       await fetch(`/api/dashboards?id=${id}`, { method: "DELETE" });
-      fetchDashboards();
+      mutate();
     } catch (error) {
       console.error("Failed to delete dashboard:", error);
     }

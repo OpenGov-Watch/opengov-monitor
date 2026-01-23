@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { DashboardGrid, ComponentEditor, MoveComponentModal } from "@/components/dashboard";
+import { useDashboards } from "@/hooks/use-dashboards";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
 import Eye from "lucide-react/dist/esm/icons/eye";
@@ -18,6 +19,7 @@ import type {
 export default function DashboardEditPage() {
   const params = useParams();
   const dashboardId = parseInt(params.id as string, 10);
+  const { mutate: mutateDashboards } = useDashboards();
 
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [components, setComponents] = useState<DashboardComponent[]>([]);
@@ -108,6 +110,8 @@ export default function DashboardEditPage() {
         }),
       });
       setMetadataDirty(false);
+      // Refresh the sidebar dashboard list
+      mutateDashboards();
     } catch (err) {
       console.error("Failed to update dashboard:", err);
     } finally {
