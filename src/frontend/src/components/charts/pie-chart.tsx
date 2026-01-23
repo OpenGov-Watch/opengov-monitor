@@ -111,18 +111,28 @@ export const DashboardPieChart = memo(
             outerRadius="80%"
             fill="#8884d8"
             dataKey="value"
-            label={({ name, percent, x, y, midAngle = 0 }) => (
-              <text
-                x={x}
-                y={y}
-                textAnchor={midAngle > 90 && midAngle < 270 ? "end" : "start"}
-                dominantBaseline="central"
-                fontSize={exportMode ? 16 : 14}
-                fill="#374151"
-              >
-                {`${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
-              </text>
-            )}
+            label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+              const RADIAN = Math.PI / 180;
+              const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+              const x = cx + radius * Math.cos(-midAngle * RADIAN);
+              const y = cy + radius * Math.sin(-midAngle * RADIAN);
+              const percentage = (percent ?? 0) * 100;
+              // Hide label if slice is too small
+              if (percentage < 5) return null;
+              return (
+                <text
+                  x={x}
+                  y={y}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fontSize={exportMode ? 14 : 12}
+                  fontWeight={500}
+                  fill="#ffffff"
+                >
+                  {`${percentage.toFixed(0)}%`}
+                </text>
+              );
+            }}
             isAnimationActive={isAnimationActive}
           >
             {data.map((entry, index) => (
