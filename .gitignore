@@ -105,3 +105,5 @@ tmpclaude-*-cwd
 nul
 
 deploy-opengov-monitor-key.json
+# XCM regression test fixtures (too large)
+src/backend/tests/fixtures/api_responses/

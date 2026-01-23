@@ -1405,14 +1405,120 @@ class SubsquareProvider(DataProvider):
 
         return convert_value
     
+    # =========================================================================
+    # XCM Parsing Utilities
+    # =========================================================================
+    #
+    # These shared utilities encapsulate chain-context-aware XCM parsing logic.
+    # XCM has different semantics depending on chain context:
+    #
+    # | Chain Context    | `location.interior.here` means | Asset determined by |
+    # |------------------|-------------------------------|---------------------|
+    # | Relay Chain      | "Native asset (DOT)"          | location alone      |
+    # | AssetHub         | "Current location"            | assetId field       |
+    #
+    # After governance moved to AssetHub (ref 1782), the interpretation of
+    # `here` changed: it no longer implies "native asset", just "current chain".
+    # =========================================================================
+
+    def _general_index_to_asset_kind(self, general_index: int) -> AssetKind:
+        """
+        Maps AssetHub generalIndex to AssetKind.
+
+        Args:
+            general_index: The generalIndex from XCM assetId interior.
+
+        Returns:
+            AssetKind for known indices, or INVALID for unknown.
+        """
+        if general_index == 1337:
+            return AssetKind.USDC
+        elif general_index == 1984:
+            return AssetKind.USDT
+        elif general_index == 30:
+            return AssetKind.DED
+        elif general_index == 19840000000000:
+            # Known invalid value (mistaken entry)
+            return AssetKind.INVALID
+        else:
+            self._logger.warning(f"Unknown general_index: {general_index}")
+            return AssetKind.INVALID
+
+    def _parse_asset_interior_x2(self, x2_interior: list) -> AssetKind:
+        """
+        Parses x2 interior structure with palletInstance + generalIndex.
+
+        Expected format: [{"palletInstance": 50}, {"generalIndex": 1337}]
+
+        Args:
+            x2_interior: List containing palletInstance and generalIndex dicts.
+
+        Returns:
+            AssetKind based on generalIndex, or INVALID if structure is wrong.
+        """
+        try:
+            if len(x2_interior) < 2:
+                self._logger.warning(f"x2 interior too short: {x2_interior}")
+                return AssetKind.INVALID
+
+            pallet_instance = x2_interior[0].get("palletInstance")
+            if pallet_instance != 50:
+                self._logger.warning(f"Expected palletInstance 50, got {pallet_instance}")
+                return AssetKind.INVALID
+
+            if "generalIndex" not in x2_interior[1]:
+                # has been mistakenly the case in ref 1714
+                return AssetKind.INVALID
+
+            general_index = x2_interior[1]["generalIndex"]
+            return self._general_index_to_asset_kind(general_index)
+
+        except (KeyError, IndexError, TypeError) as e:
+            self._logger.warning(f"Invalid x2 structure: {e}")
+            return AssetKind.INVALID
+
+    def _resolve_asset_from_interior(self, interior: dict, parents: int = 0) -> AssetKind:
+        """
+        Resolves asset type from an assetId interior structure.
+
+        This is the core chain-context-aware parsing logic:
+        - parents=1 + here → native relay chain asset (DOT/KSM)
+        - parents=0 + here → native on current chain (still DOT on AssetHub)
+        - parents=0 + x2   → AssetHub fungible (USDC/USDT/DED)
+
+        Args:
+            interior: The interior dict from assetId.
+            parents: The parents value from assetId (0 or 1).
+
+        Returns:
+            AssetKind based on the interior structure.
+        """
+        # parents=1 means we're referencing the relay chain
+        if parents == 1 and "here" in interior:
+            return self.network_info.native_asset
+
+        # parents=0 means we're on the current chain
+        if parents == 0:
+            if "x2" in interior:
+                return self._parse_asset_interior_x2(interior["x2"])
+            elif "here" in interior:
+                # Native asset on current chain (still DOT on AssetHub)
+                return self.network_info.native_asset
+
+        self._logger.warning(f"Unknown interior structure: parents={parents}, keys={list(interior.keys())}")
+        return AssetKind.INVALID
+
     def _get_XCM_asset_kind(self, asset_kind) -> AssetKind:
         """
         Determines the AssetKind from an XCM (Cross-Consensus Message) asset representation.
 
         This method parses different versions of XCM asset formats (v3, v4, v5)
         to identify the type of asset (e.g., DOT, KSM, USDC, USDT, DED).
-        It handles native assets, stablecoins, and DED tokens based on their
-        parachain ID and general index.
+
+        IMPORTANT: Chain context affects XCM semantics:
+        - Pre-1782 (Relay Chain): `location.interior.here` = native DOT
+        - Post-1782 (AssetHub): `location.interior.here` = "current chain",
+          must check `assetId` to determine actual asset type.
 
         Args:
             asset_kind (dict): A dictionary representing the XCM asset.
@@ -1422,125 +1528,117 @@ class SubsquareProvider(DataProvider):
         """
 
         version_key = list(asset_kind.keys())[0]
-        
+
         if version_key == "v3":
-
-            if "here" in asset_kind["v3"]["location"]["interior"]:
-                return self.network_info.native_asset
-
-            parachain = asset_kind["v3"]["location"]["interior"]["x1"]["parachain"]
-            assert parachain >= 1000, "parachain is not a system chain"
-            concrete = asset_kind["v3"]["assetId"]["concrete"]
-            if  "here" in concrete["interior"]:
-                return self.network_info.native_asset
-            
-            assert concrete["interior"]["x2"][0]["palletInstance"] == 50
-            
-            if "generalIndex" not in concrete["interior"]["x2"][1]:
-                # has been mistakenly the case in 1714
-                return AssetKind.INVALID
-
-            general_index = concrete["interior"]["x2"][1]["generalIndex"]
-            if general_index == 1337:
-                return AssetKind.USDC
-            elif general_index == 1984:
-                return AssetKind.USDT
-            elif general_index == 30:
-                return AssetKind.DED
-            elif general_index == 19840000000000:
-                return AssetKind.INVALID # rolleyes emoji
-            else:
-                self._logger.warn(f"Unknown asset kind: {asset_kind}")
-                return AssetKind.INVALID
+            return self._parse_xcm_v3(asset_kind["v3"])
         elif version_key in ["v4", "v5"]:
-            location = asset_kind[version_key]["location"]
-            location_interior = location["interior"]
-            asset_id = asset_kind[version_key]["assetId"]
-
-            # Handle "here" in location - need to check assetId to determine actual asset
-            if "here" in location_interior:
-                asset_id_parents = asset_id.get("parents", 0)
-                asset_id_interior = asset_id["interior"]
-
-                # Case 1: parents=1 means native relay chain asset
-                if asset_id_parents == 1 and "here" in asset_id_interior:
-                    return self.network_info.native_asset
-
-                # Case 2: parents=0 means we're on Asset Hub, parse assetId
-                if asset_id_parents == 0:
-                    if "x2" in asset_id_interior:
-                        try:
-                            pallet_instance = asset_id_interior["x2"][0].get("palletInstance")
-                            if pallet_instance != 50:
-                                self._logger.warning(f"Expected palletInstance 50, got {pallet_instance}")
-                                return AssetKind.INVALID
-                            general_index = asset_id_interior["x2"][1]["generalIndex"]
-                            if general_index == 1337:
-                                return AssetKind.USDC
-                            elif general_index == 1984:
-                                return AssetKind.USDT
-                            else:
-                                self._logger.warning(f"Unknown general_index: {general_index}")
-                                return AssetKind.INVALID
-                        except (KeyError, IndexError, TypeError) as e:
-                            self._logger.warning(f"Invalid x2 structure in assetId: {e}")
-                            return AssetKind.INVALID
-                    elif "here" in asset_id_interior:
-                        # Asset Hub native asset (rare, but handle it)
-                        return self.network_info.native_asset
-                    else:
-                        self._logger.warning(f"Unknown assetId interior for parents=0: {list(asset_id_interior.keys())}")
-                        return AssetKind.INVALID
-
-            # Handle single-hop location (x1) - typically system parachains
-            if "x1" in location_interior:
-                try:
-                    parachain = location_interior["x1"][0]["parachain"]
-                    if parachain < 1000 or parachain >= 2000:
-                        self._logger.warning(f"Parachain {parachain} is not a system chain")
-                        return AssetKind.INVALID
-
-                    # Check if assetId indicates native DOT/KSM
-                    if asset_kind[version_key]["assetId"]["parents"] == 1 and asset_kind[version_key]["assetId"]["interior"].get("here") == None:
-                        return self.network_info.native_asset
-
-                    # Parse assetId interior for specific asset
-                    asset_interior = asset_kind[version_key]["assetId"]["interior"]
-                    if "x2" in asset_interior:
-                        try:
-                            pallet_instance = asset_interior["x2"][0].get("palletInstance")
-                            if pallet_instance != 50:
-                                self._logger.warning(f"Expected palletInstance 50, got {pallet_instance}")
-                                return AssetKind.INVALID
-                            general_index = asset_interior["x2"][1]["generalIndex"]
-                            if general_index == 1337:
-                                return AssetKind.USDC
-                            elif general_index == 1984:
-                                return AssetKind.USDT
-                            else:
-                                self._logger.warning(f"Unknown general_index: {general_index}")
-                                return AssetKind.INVALID
-                        except (KeyError, IndexError, TypeError) as e:
-                            self._logger.warning(f"Invalid x2 structure in assetId for {version_key}: {e}")
-                            return AssetKind.INVALID
-                    else:
-                        self._logger.warning(f"Unknown assetId interior structure for {version_key}: {list(asset_interior.keys())}")
-                        return AssetKind.INVALID
-                except (KeyError, IndexError, TypeError) as e:
-                    self._logger.warning(f"Invalid x1 structure for {version_key}: {e}")
-                    return AssetKind.INVALID
-
-            # Handle multi-hop location (x2, x3, etc.) - not yet implemented
-            if "x2" in location_interior or "x3" in location_interior:
-                self._logger.warning(f"Multi-hop location not yet supported for {version_key}: {list(location_interior.keys())}")
-                return AssetKind.INVALID
-
-            # Unknown interior structure
-            self._logger.warning(f"Unknown interior structure for {version_key}: {list(location_interior.keys())}")
-            return AssetKind.INVALID
+            return self._parse_xcm_v4_v5(asset_kind[version_key], version_key)
         else:
             self._logger.warning(f"Unknown asset kind version: {version_key} in {asset_kind}")
             return AssetKind.INVALID
+
+    def _parse_xcm_v3(self, v3_data: dict) -> AssetKind:
+        """
+        Parse XCM v3 format asset kind.
+
+        v3 format differs from v4/v5:
+        - Uses assetId.concrete instead of assetId directly
+        - location.interior.here doesn't always mean native asset (on AssetHub)
+
+        Args:
+            v3_data: The v3 dict from asset_kind.
+
+        Returns:
+            AssetKind based on parsing.
+        """
+        location_interior = v3_data["location"]["interior"]
+
+        # Case 1: location.interior.here - could be relay chain OR AssetHub
+        # Must check assetId.concrete to determine actual asset
+        if "here" in location_interior:
+            concrete = v3_data["assetId"]["concrete"]
+            concrete_parents = concrete.get("parents", 0)
+            concrete_interior = concrete["interior"]
+            return self._resolve_asset_from_interior(concrete_interior, concrete_parents)
+
+        # Case 2: location has x1 (system parachain reference)
+        if "x1" in location_interior:
+            try:
+                parachain = location_interior["x1"]["parachain"]
+                if parachain < 1000 or parachain >= 2000:
+                    self._logger.warning(f"Parachain {parachain} is not a system chain")
+                    return AssetKind.INVALID
+
+                concrete = v3_data["assetId"]["concrete"]
+                concrete_interior = concrete["interior"]
+
+                if "here" in concrete_interior:
+                    return self.network_info.native_asset
+
+                if "x2" in concrete_interior:
+                    return self._parse_asset_interior_x2(concrete_interior["x2"])
+
+                self._logger.warning(f"Unknown v3 concrete interior: {list(concrete_interior.keys())}")
+                return AssetKind.INVALID
+
+            except (KeyError, TypeError) as e:
+                self._logger.warning(f"Invalid v3 x1 structure: {e}")
+                return AssetKind.INVALID
+
+        self._logger.warning(f"Unknown v3 location interior: {list(location_interior.keys())}")
+        return AssetKind.INVALID
+
+    def _parse_xcm_v4_v5(self, data: dict, version_key: str) -> AssetKind:
+        """
+        Parse XCM v4/v5 format asset kind.
+
+        v4/v5 use a unified assetId structure (no concrete wrapper).
+
+        Args:
+            data: The v4/v5 dict from asset_kind.
+            version_key: "v4" or "v5" for error messages.
+
+        Returns:
+            AssetKind based on parsing.
+        """
+        location_interior = data["location"]["interior"]
+        asset_id = data["assetId"]
+        asset_id_parents = asset_id.get("parents", 0)
+        asset_id_interior = asset_id["interior"]
+
+        # Case 1: location.interior.here - we're on AssetHub, check assetId
+        if "here" in location_interior:
+            return self._resolve_asset_from_interior(asset_id_interior, asset_id_parents)
+
+        # Case 2: location has x1 (system parachain reference)
+        if "x1" in location_interior:
+            try:
+                parachain = location_interior["x1"][0]["parachain"]
+                if parachain < 1000 or parachain >= 2000:
+                    self._logger.warning(f"Parachain {parachain} is not a system chain")
+                    return AssetKind.INVALID
+
+                # Check assetId to determine asset type
+                if asset_id_parents == 1 and "here" in asset_id_interior:
+                    return self.network_info.native_asset
+
+                if "x2" in asset_id_interior:
+                    return self._parse_asset_interior_x2(asset_id_interior["x2"])
+
+                self._logger.warning(f"Unknown {version_key} assetId interior: {list(asset_id_interior.keys())}")
+                return AssetKind.INVALID
+
+            except (KeyError, IndexError, TypeError) as e:
+                self._logger.warning(f"Invalid {version_key} x1 structure: {e}")
+                return AssetKind.INVALID
+
+        # Case 3: Multi-hop location (x2, x3, etc.) - not yet implemented
+        if "x2" in location_interior or "x3" in location_interior:
+            self._logger.warning(f"Multi-hop location not yet supported for {version_key}: {list(location_interior.keys())}")
+            return AssetKind.INVALID
+
+        self._logger.warning(f"Unknown {version_key} location interior: {list(location_interior.keys())}")
+        return AssetKind.INVALID
 
     def _get_XCM_asset_value(self, assets) -> float:
         if "v3" in assets:

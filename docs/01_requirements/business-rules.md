@@ -39,6 +39,17 @@ Unknown call index → log warning, set `AssetsBag.set_nan()`.
 
 ## XCM Asset Mapping
 
+### Chain Context Interpretation
+
+XCM semantics differ based on chain context. After governance moved to AssetHub at ref 1782, interpretation changed:
+
+| Chain Context | `location.interior.here` means | Asset determined by |
+|---------------|-------------------------------|---------------------|
+| Relay Chain (pre-1782) | "Native asset (DOT)" | location alone |
+| AssetHub (post-1782) | "Current location" | `assetId` field |
+
+**Key rule:** When `location.interior.here` is present, always check `assetId` to determine the actual asset type. Don't assume `here` means native asset.
+
 ### General Index → Asset
 
 | Index | Asset |
@@ -48,9 +59,17 @@ Unknown call index → log warning, set `AssetsBag.set_nan()`.
 | 1984 | USDT |
 | 30 | DED |
 
+### Asset Resolution from assetId
+
+| `assetId.parents` | `assetId.interior` | Result |
+|-------------------|-------------------|--------|
+| 1 | `here` | Native relay asset (DOT/KSM) |
+| 0 | `here` | Native on current chain (DOT) |
+| 0 | `x2[palletInstance=50, generalIndex=N]` | Mapped asset (USDC/USDT/DED) |
+
 ### Validation
 
-- Parachain must be ≥ 1000
+- Parachain must be ≥ 1000 and < 2000 (system chain)
 - `palletInstance` must be 50
 - Unknown index → `AssetKind.INVALID` → NaN propagation
 
