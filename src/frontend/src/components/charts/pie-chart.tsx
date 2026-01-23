@@ -111,7 +111,7 @@ export const DashboardPieChart = memo(
             outerRadius="80%"
             fill="#8884d8"
             dataKey="value"
-            label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+            label={({ cx, cy, midAngle = 0, innerRadius, outerRadius, percent }) => {
               const RADIAN = Math.PI / 180;
               const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
               const x = cx + radius * Math.cos(-midAngle * RADIAN);
