@@ -1,0 +1,3 @@
+- use the db-production-backup skill to create a backup of the production database.
+- delete the /data/local/polkacot.* files.
+- move the backup to /data/local/polkadot.db
