@@ -411,6 +411,44 @@ class SQLiteSink(DataSink):
         except Exception as e:
             self._logger.error(f"Failed to log error to DataErrors: {e}")
 
+    def get_error_record_ids(self, table_name: str) -> List[str]:
+        """Get all record IDs from DataErrors for a specific table.
+
+        Args:
+            table_name: Name of the table to get error records for.
+
+        Returns:
+            List of record IDs that have errors logged.
+        """
+        cursor = self.connection.cursor()
+        cursor.execute(
+            "SELECT DISTINCT record_id FROM DataErrors WHERE table_name = ?",
+            (table_name,)
+        )
+        return [row[0] for row in cursor.fetchall()]
+
+    def clear_errors_for_records(self, table_name: str, record_ids: List[str]) -> int:
+        """Remove errors for specific records that were successfully re-processed.
+
+        Args:
+            table_name: Name of the table.
+            record_ids: List of record IDs to clear errors for.
+
+        Returns:
+            Number of error records deleted.
+        """
+        if not record_ids:
+            return 0
+
+        cursor = self.connection.cursor()
+        placeholders = ','.join('?' * len(record_ids))
+        cursor.execute(
+            f"DELETE FROM DataErrors WHERE table_name = ? AND record_id IN ({placeholders})",
+            [table_name] + list(record_ids)
+        )
+        self.connection.commit()
+        return cursor.rowcount
+
     def close(self) -> None:
         """Close the database connection."""
         if self._connection:

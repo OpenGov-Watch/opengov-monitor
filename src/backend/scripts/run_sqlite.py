@@ -50,6 +50,15 @@ def main():
         '--tables',
         help='Comma-separated list of tables to fetch (default: all). Options: referenda, treasury_spends, child_bounties, fellowship_treasury_spends, fellowship_salary_cycles'
     )
+    parser.add_argument(
+        '--refetch-errors',
+        action='store_true',
+        help='Re-fetch all referenda that have errors in DataErrors table'
+    )
+    parser.add_argument(
+        '--referenda-ids',
+        help='Comma-separated list of specific referendum IDs to re-fetch (e.g., 1831,1832,1833)'
+    )
     args = parser.parse_args()
 
     # Parse table list
@@ -121,6 +130,45 @@ def main():
         logger.info("Fetching prices...")
         price_service.load_prices()
         logger.info(f"Current {args.network.upper()} price: ${price_service.current_price:.2f}")
+
+        # Handle re-fetch mode for referenda
+        if args.refetch_errors or args.referenda_ids:
+            ref_ids = []
+
+            if args.refetch_errors:
+                error_ids = sink.get_error_record_ids("Referenda")
+                ref_ids.extend([int(id) for id in error_ids])
+                logger.info(f"Found {len(error_ids)} referenda with errors: {error_ids}")
+
+            if args.referenda_ids:
+                explicit_ids = [int(x.strip()) for x in args.referenda_ids.split(',')]
+                ref_ids.extend(explicit_ids)
+                logger.info(f"Adding specified referenda to re-fetch: {explicit_ids}")
+
+            # Deduplicate
+            ref_ids = list(set(ref_ids))
+
+            if ref_ids:
+                logger.info(f"Re-fetching {len(ref_ids)} referenda: {sorted(ref_ids)}")
+
+                # Clear errors BEFORE re-fetching so validation can re-log any that still fail
+                cleared = sink.clear_errors_for_records("Referenda", [str(id) for id in ref_ids])
+                logger.info(f"Cleared {cleared} existing error records")
+
+                referenda_df = provider.fetch_referenda_by_ids(ref_ids)
+                if not referenda_df.empty:
+                    logger.info(f"Re-fetched {len(referenda_df)} referenda")
+                    sink.update_table("Referenda", referenda_df, allow_empty=True)
+                else:
+                    logger.warning("No referenda data returned from re-fetch")
+            else:
+                logger.info("No referenda to re-fetch")
+
+            # In refetch mode, skip the normal pipeline
+            sink.close()
+            logger.info("=" * 50)
+            logger.info("Re-fetch completed!")
+            return
 
         # Fetch and store referenda
         referenda_limit, _ = get_fetch_limit("Referenda", "referenda")
