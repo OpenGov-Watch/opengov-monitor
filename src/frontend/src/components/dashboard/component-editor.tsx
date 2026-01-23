@@ -590,6 +590,18 @@ export function ComponentEditor({
                         )}
                       </>
                     )}
+                    <div className="flex items-center gap-2 pt-2 border-t">
+                      <Checkbox
+                        id="disableSorting"
+                        checked={chartConfig.disableSorting ?? false}
+                        onCheckedChange={(checked) =>
+                          setChartConfig({ ...chartConfig, disableSorting: checked === true })
+                        }
+                      />
+                      <label htmlFor="disableSorting" className="text-sm">
+                        Disable sorting (preserve ORDER BY from query)
+                      </label>
+                    </div>
                   </div>
                 </div>
               )}

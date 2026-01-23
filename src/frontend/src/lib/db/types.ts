@@ -404,6 +404,7 @@ export interface ChartConfig {
   showGrandTotals?: boolean;  // Show grand totals row (all data)
   hierarchicalDisplay?: boolean;  // Collapse repeated group values
   showGroupTotals?: boolean;      // Show subtotals for each group level
+  disableSorting?: boolean;       // Disable column header sorting (useful for hierarchical display)
 }
 
 export interface QueryCache {

@@ -558,6 +558,7 @@ export const DashboardComponent = memo(
             hierarchicalDisplay={chartConfig.hierarchicalDisplay}
             showGroupTotals={chartConfig.showGroupTotals}
             groupByColumns={queryConfig.groupBy}
+            disableSorting={chartConfig.disableSorting}
           />
         );
 

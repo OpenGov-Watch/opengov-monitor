@@ -89,6 +89,9 @@ interface DataTableProps<TData> {
   hierarchicalDisplay?: boolean;  // Collapse repeated group values
   showGroupTotals?: boolean;      // Show subtotals for each group level
   groupByColumns?: string[];      // Ordered array of columns for grouping
+
+  // Sorting control
+  disableSorting?: boolean;       // Disable column header sorting (useful for hierarchical display)
 }
 
 export function DataTable<TData>({
@@ -119,6 +122,7 @@ export function DataTable<TData>({
   hierarchicalDisplay,
   showGroupTotals,
   groupByColumns,
+  disableSorting = false,
 }: DataTableProps<TData>) {
   // Apply defaults based on dashboardMode
   const hideViewSelector = hideViewSelectorProp ?? dashboardMode;
@@ -651,6 +655,7 @@ export function DataTable<TData>({
     onColumnVisibilityChange: setColumnVisibility,
     onPaginationChange: setPagination,
     onExpandedChange: setExpanded,
+    enableSorting: !disableSorting,
     getCoreRowModel: getCoreRowModel(),
     getGroupedRowModel: getGroupedRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
