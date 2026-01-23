@@ -8,6 +8,13 @@ How to investigate validation errors logged in the DataErrors table.
 # Query errors from DB
 sqlite3 data/local/polkadot.db "SELECT * FROM DataErrors WHERE table_name='Referenda' ORDER BY timestamp DESC LIMIT 10"
 
+# Re-fetch all referenda with errors (after fixing bugs)
+cd src/backend
+python scripts/run_sqlite.py --db ../../data/local/polkadot.db --refetch-errors
+
+# Re-fetch specific referenda by ID
+python scripts/run_sqlite.py --db ../../data/local/polkadot.db --referenda-ids 1831,1832,1833
+
 # Fetch current data from Subsquare API
 curl "https://polkadot-api.subsquare.io/gov2/referendums/1784.json" | jq .
 
@@ -158,4 +165,29 @@ FROM Referenda r
 JOIN DataErrors e ON e.table_name = 'Referenda' AND e.record_id = CAST(r.id AS TEXT)
 WHERE r.status = 'Executed'
 AND r.track IN ('SmallSpender', 'MediumSpender', 'BigSpender', 'SmallTipper', 'BigTipper', 'Treasurer');
+```
+
+## Re-fetching After Bug Fixes
+
+After fixing parsing bugs (e.g., call index mismatches), re-fetch affected referenda:
+
+```bash
+cd src/backend
+
+# Re-fetch all referenda with logged errors
+python scripts/run_sqlite.py --db ../../data/local/polkadot.db --refetch-errors
+
+# Or re-fetch specific IDs
+python scripts/run_sqlite.py --db ../../data/local/polkadot.db --referenda-ids 1788,1789,1790
+```
+
+The re-fetch process:
+1. Clears existing errors for requested IDs
+2. Fetches fresh data from Subsquare API
+3. Re-validates and re-logs any that still fail
+4. Updates database with new data
+
+Check remaining errors after re-fetch:
+```sql
+SELECT record_id, error_type FROM DataErrors WHERE table_name = 'Referenda';
 ```

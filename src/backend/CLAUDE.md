@@ -24,6 +24,12 @@ python scripts/run_sqlite.py --db ../../data/local/polkadot.db
 # Force full backfill
 python scripts/run_sqlite.py --db ../../data/local/polkadot.db --backfill
 
+# Re-fetch referenda with errors (after bug fixes)
+python scripts/run_sqlite.py --db ../../data/local/polkadot.db --refetch-errors
+
+# Re-fetch specific referenda by ID
+python scripts/run_sqlite.py --db ../../data/local/polkadot.db --referenda-ids 1831,1832,1833
+
 # Fetch fellowship salary data
 python scripts/fetch_salaries.py --cycle 17
 python scripts/fetch_salaries.py --claimants-only
