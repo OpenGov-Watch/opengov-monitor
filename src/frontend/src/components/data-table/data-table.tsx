@@ -38,6 +38,11 @@ import { generateColumns } from "@/lib/auto-columns";
 import { getColumnKey, sortingStateToOrderBy, convertFiltersToQueryConfig } from "@/lib/query-config-utils";
 import { cn } from "@/lib/utils";
 import { loadColumnConfig, getColumnConfig, formatValue } from "@/lib/column-renderer";
+import {
+  processHierarchicalData,
+  shouldShowRowBorder,
+  type ProcessedHierarchicalData,
+} from "./hierarchical-utils";
 
 export interface FooterCell {
   columnId: string;
@@ -79,6 +84,11 @@ interface DataTableProps<TData> {
   // Totals rows
   showPageTotals?: boolean;  // Show page-level totals row
   showGrandTotals?: boolean; // Show grand totals row (all data)
+
+  // Hierarchical display
+  hierarchicalDisplay?: boolean;  // Collapse repeated group values
+  showGroupTotals?: boolean;      // Show subtotals for each group level
+  groupByColumns?: string[];      // Ordered array of columns for grouping
 }
 
 export function DataTable<TData>({
@@ -106,6 +116,9 @@ export function DataTable<TData>({
   onExportJSON,
   showPageTotals,
   showGrandTotals,
+  hierarchicalDisplay,
+  showGroupTotals,
+  groupByColumns,
 }: DataTableProps<TData>) {
   // Apply defaults based on dashboardMode
   const hideViewSelector = hideViewSelectorProp ?? dashboardMode;
@@ -504,6 +517,62 @@ export function DataTable<TData>({
     return cells;
   }, [showGrandTotals, grandTotals, tableName, columnMapping, configLoaded]);
 
+  // HIERARCHICAL DISPLAY PROCESSING
+  // Normalize groupByColumns to match data keys
+  // Backend returns column names without table prefix (e.g., "category" not "all_spending.category")
+  const normalizedGroupByColumns = useMemo(() => {
+    if (!groupByColumns || !data || data.length === 0) return null;
+
+    const firstRow = data[0] as Record<string, unknown>;
+    const dataKeys = new Set(Object.keys(firstRow));
+
+    // Try to match each groupBy column to an actual data key
+    return groupByColumns.map(col => {
+      // If the column exists in data as-is, use it
+      if (dataKeys.has(col)) return col;
+
+      // Try stripping table prefix (e.g., "all_spending.category" -> "category")
+      const lastPart = col.split('.').pop() || col;
+      if (dataKeys.has(lastPart)) return lastPart;
+
+      // Fallback to original
+      return col;
+    });
+  }, [groupByColumns, data]);
+
+  // Process data for hierarchical display with collapsed group values and subtotals
+  const hierarchicalData = useMemo<ProcessedHierarchicalData<TData> | null>(() => {
+    if (!hierarchicalDisplay || !normalizedGroupByColumns || normalizedGroupByColumns.length < 2 || !data || data.length === 0 || !configLoaded) {
+      return null;
+    }
+
+    // Identify currency columns for subtotal calculation
+    const currencyColumns: string[] = [];
+    const firstRow = data[0] as Record<string, unknown>;
+    for (const col of Object.keys(firstRow)) {
+      const sourceCol = columnMapping?.[col] || col;
+      // Try multiple column name variations for pattern matching
+      // 1. Full source column (e.g., "all_spending.DOT_latest")
+      // 2. Just the column part without table prefix (e.g., "DOT_latest")
+      const colWithoutTable = sourceCol.includes('.') ? sourceCol.split('.').pop()! : sourceCol;
+
+      let config = getColumnConfig(tableName, sourceCol);
+      if (config.type !== "currency" && colWithoutTable !== sourceCol) {
+        config = getColumnConfig(tableName, colWithoutTable);
+      }
+
+      if (config.type === "currency") {
+        currencyColumns.push(col);
+      }
+    }
+
+    return processHierarchicalData(
+      data as Record<string, unknown>[],
+      normalizedGroupByColumns,
+      currencyColumns
+    ) as ProcessedHierarchicalData<TData>;
+  }, [hierarchicalDisplay, normalizedGroupByColumns, data, tableName, columnMapping, configLoaded]);
+
   // COLUMN GENERATION
   // Schema-based dependency to prevent regeneration on every data fetch
   // Only regenerate when column structure changes, not when values change
@@ -731,52 +800,186 @@ export function DataTable<TData>({
             </TableHeader>
             <TableBody className={cn(loading && "opacity-30")}>
               {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className={cn(
-                      row.getIsGrouped() && "bg-muted/50 font-medium",
-                      row.depth > 0 && "pl-8"
-                    )}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell
-                        key={cell.id}
-                        style={{
-                          paddingLeft: row.depth > 0 ? `${row.depth * 2}rem` : undefined,
-                        }}
-                      >
-                        {cell.getIsGrouped() ? (
-                          // Render group cell with expand/collapse button
-                          <button
-                            onClick={row.getToggleExpandedHandler()}
-                            className="flex items-center gap-2 font-medium"
+                hierarchicalData ? (
+                  // Hierarchical display mode
+                  <>
+                    {table.getRowModel().rows.map((row, rowIndex) => {
+                      const meta = hierarchicalData.rows[rowIndex]?.meta;
+                      // Filter out subtotals with only 1 row - they're redundant
+                      const subtotalsAfter = showGroupTotals
+                        ? (hierarchicalData.subtotalsAfterRow.get(rowIndex) || [])
+                            .filter(st => st.rowCount > 1)
+                        : [];
+                      const showBorder = meta && normalizedGroupByColumns
+                        ? shouldShowRowBorder(meta, normalizedGroupByColumns)
+                        : false;
+
+                      return (
+                        <React.Fragment key={row.id}>
+                          <TableRow
+                            className={cn(
+                              row.getIsGrouped() && "bg-muted/50 font-medium",
+                              row.depth > 0 && "pl-8",
+                              // Add top border only for first row of outermost group
+                              showBorder && rowIndex > 0 && "border-t-2 border-border"
+                            )}
                           >
-                            {row.getIsExpanded() ? "▼" : "►"}
-                            {flexRender(
+                            {row.getVisibleCells().map((cell) => {
+                              const columnId = cell.column.id;
+                              const isGroupColumn = normalizedGroupByColumns?.includes(columnId);
+                              const shouldSuppress = isGroupColumn && meta && !meta.visibleColumns.has(columnId);
+
+                              return (
+                                <TableCell
+                                  key={cell.id}
+                                  style={{
+                                    paddingLeft: row.depth > 0 ? `${row.depth * 2}rem` : undefined,
+                                  }}
+                                >
+                                  {shouldSuppress ? (
+                                    // Suppressed group column - render empty
+                                    ""
+                                  ) : cell.getIsGrouped() ? (
+                                    // Render group cell with expand/collapse button
+                                    <button
+                                      onClick={row.getToggleExpandedHandler()}
+                                      className="flex items-center gap-2 font-medium"
+                                    >
+                                      {row.getIsExpanded() ? "▼" : "►"}
+                                      {flexRender(
+                                        cell.column.columnDef.cell,
+                                        cell.getContext()
+                                      )}{" "}
+                                      ({row.subRows.length})
+                                    </button>
+                                  ) : cell.getIsAggregated() ? (
+                                    // Render aggregated cell
+                                    flexRender(
+                                      cell.column.columnDef.aggregatedCell ??
+                                        cell.column.columnDef.cell,
+                                      cell.getContext()
+                                    )
+                                  ) : cell.getIsPlaceholder() ? null : (
+                                    // Render normal cell
+                                    flexRender(
+                                      cell.column.columnDef.cell,
+                                      cell.getContext()
+                                    )
+                                  )}
+                                </TableCell>
+                              );
+                            })}
+                          </TableRow>
+                          {/* Render subtotal rows after this data row */}
+                          {subtotalsAfter.map((subtotal, stIndex) => {
+                            // Background color based on level (deeper = lighter)
+                            const bgClass = subtotal.level === 0
+                              ? "bg-zinc-200 dark:bg-zinc-700"
+                              : subtotal.level === 1
+                                ? "bg-zinc-150 dark:bg-zinc-750"
+                                : "bg-zinc-100 dark:bg-zinc-800";
+
+                            return (
+                              <TableRow
+                                key={`subtotal-${rowIndex}-${stIndex}`}
+                                className={cn("font-medium", bgClass)}
+                              >
+                                {table.getVisibleLeafColumns().map((column) => {
+                                  const isGroupColumn = normalizedGroupByColumns?.includes(column.id);
+                                  const groupColIndex = normalizedGroupByColumns?.indexOf(column.id) ?? -1;
+
+                                  // For group columns: show value or "Subtotal" label
+                                  if (isGroupColumn && groupColIndex >= 0) {
+                                    if (groupColIndex < subtotal.level) {
+                                      // Higher-level group column - show empty (inherited)
+                                      return <TableCell key={column.id} />;
+                                    } else if (groupColIndex === subtotal.level) {
+                                      // This is the subtotal's level - show "Subtotal: value"
+                                      return (
+                                        <TableCell key={column.id} className="font-bold">
+                                          Subtotal
+                                        </TableCell>
+                                      );
+                                    } else {
+                                      // Lower-level group column - show empty
+                                      return <TableCell key={column.id} />;
+                                    }
+                                  }
+
+                                  // For value columns: show subtotal value if currency
+                                  const subtotalValue = subtotal.totals[column.id];
+                                  if (subtotalValue !== undefined) {
+                                    const sourceCol = columnMapping?.[column.id] || column.id;
+                                    const colWithoutTable = sourceCol.includes('.') ? sourceCol.split('.').pop()! : sourceCol;
+                                    let config = getColumnConfig(tableName, sourceCol);
+                                    if (config.type === "text" && colWithoutTable !== sourceCol) {
+                                      config = getColumnConfig(tableName, colWithoutTable);
+                                    }
+                                    return (
+                                      <TableCell key={column.id} className="text-right">
+                                        {formatValue(subtotalValue, config)}
+                                      </TableCell>
+                                    );
+                                  }
+
+                                  return <TableCell key={column.id} />;
+                                })}
+                              </TableRow>
+                            );
+                          })}
+                        </React.Fragment>
+                      );
+                    })}
+                  </>
+                ) : (
+                  // Standard display mode
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow
+                      key={row.id}
+                      className={cn(
+                        row.getIsGrouped() && "bg-muted/50 font-medium",
+                        row.depth > 0 && "pl-8"
+                      )}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell
+                          key={cell.id}
+                          style={{
+                            paddingLeft: row.depth > 0 ? `${row.depth * 2}rem` : undefined,
+                          }}
+                        >
+                          {cell.getIsGrouped() ? (
+                            // Render group cell with expand/collapse button
+                            <button
+                              onClick={row.getToggleExpandedHandler()}
+                              className="flex items-center gap-2 font-medium"
+                            >
+                              {row.getIsExpanded() ? "▼" : "►"}
+                              {flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext()
+                              )}{" "}
+                              ({row.subRows.length})
+                            </button>
+                          ) : cell.getIsAggregated() ? (
+                            // Render aggregated cell
+                            flexRender(
+                              cell.column.columnDef.aggregatedCell ??
+                                cell.column.columnDef.cell,
+                              cell.getContext()
+                            )
+                          ) : cell.getIsPlaceholder() ? null : (
+                            // Render normal cell
+                            flexRender(
                               cell.column.columnDef.cell,
                               cell.getContext()
-                            )}{" "}
-                            ({row.subRows.length})
-                          </button>
-                        ) : cell.getIsAggregated() ? (
-                          // Render aggregated cell
-                          flexRender(
-                            cell.column.columnDef.aggregatedCell ??
-                              cell.column.columnDef.cell,
-                            cell.getContext()
-                          )
-                        ) : cell.getIsPlaceholder() ? null : (
-                          // Render normal cell
-                          flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
+                            )
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                )
               ) : (
                 <TableRow>
                   <TableCell

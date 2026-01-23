@@ -399,6 +399,8 @@ export interface ChartConfig {
   content?: string; // Markdown content for text components
   showPageTotals?: boolean;   // Show page-level totals row
   showGrandTotals?: boolean;  // Show grand totals row (all data)
+  hierarchicalDisplay?: boolean;  // Collapse repeated group values
+  showGroupTotals?: boolean;      // Show subtotals for each group level
 }
 
 export interface QueryCache {

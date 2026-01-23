@@ -492,6 +492,9 @@ export const DashboardComponent = memo(
             onExportJSON={(handler) => { tableExportJSONRef.current = handler; }}
             showPageTotals={chartConfig.showPageTotals}
             showGrandTotals={chartConfig.showGrandTotals}
+            hierarchicalDisplay={chartConfig.hierarchicalDisplay}
+            showGroupTotals={chartConfig.showGroupTotals}
+            groupByColumns={queryConfig.groupBy}
           />
         );
 

@@ -453,18 +453,21 @@ export function ComponentEditor({
                 <div className="space-y-4 p-4 border rounded-md bg-muted/50">
                   <Label>Table Options</Label>
                   <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="showPageTotals"
-                        checked={chartConfig.showPageTotals ?? false}
-                        onCheckedChange={(checked) =>
-                          setChartConfig({ ...chartConfig, showPageTotals: checked === true })
-                        }
-                      />
-                      <label htmlFor="showPageTotals" className="text-sm">
-                        Show page totals (sums currency columns on current page)
-                      </label>
-                    </div>
+                    {/* Page totals - hidden when groupBy is active */}
+                    {!(queryConfig.groupBy && queryConfig.groupBy.length > 0) && (
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="showPageTotals"
+                          checked={chartConfig.showPageTotals ?? false}
+                          onCheckedChange={(checked) =>
+                            setChartConfig({ ...chartConfig, showPageTotals: checked === true })
+                          }
+                        />
+                        <label htmlFor="showPageTotals" className="text-sm">
+                          Show page totals (sums currency columns on current page)
+                        </label>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2">
                       <Checkbox
                         id="showGrandTotals"
@@ -477,6 +480,43 @@ export function ComponentEditor({
                         Show grand totals (sums currency columns across all data)
                       </label>
                     </div>
+                    {/* Hierarchical display - only when 2+ groupBy columns */}
+                    {queryConfig.groupBy && queryConfig.groupBy.length >= 2 && (
+                      <>
+                        <div className="flex items-center gap-2 pt-2 border-t">
+                          <Checkbox
+                            id="hierarchicalDisplay"
+                            checked={chartConfig.hierarchicalDisplay ?? false}
+                            onCheckedChange={(checked) =>
+                              setChartConfig({
+                                ...chartConfig,
+                                hierarchicalDisplay: checked === true,
+                                // Reset showGroupTotals when disabling hierarchical display
+                                showGroupTotals: checked === true ? chartConfig.showGroupTotals : false,
+                              })
+                            }
+                          />
+                          <label htmlFor="hierarchicalDisplay" className="text-sm">
+                            Hierarchical display (collapse repeated group values)
+                          </label>
+                        </div>
+                        {/* Show group totals - only when hierarchical display is enabled */}
+                        {chartConfig.hierarchicalDisplay && (
+                          <div className="flex items-center gap-2 ml-6">
+                            <Checkbox
+                              id="showGroupTotals"
+                              checked={chartConfig.showGroupTotals ?? false}
+                              onCheckedChange={(checked) =>
+                                setChartConfig({ ...chartConfig, showGroupTotals: checked === true })
+                              }
+                            />
+                            <label htmlFor="showGroupTotals" className="text-sm">
+                              Show group totals (subtotals for each group level)
+                            </label>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
               )}
