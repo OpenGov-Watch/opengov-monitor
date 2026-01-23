@@ -42,8 +42,8 @@ interface DashboardGridProps {
 }
 
 // Responsive breakpoints and column counts
-// lg breakpoint lowered to 800 to work with typical dashboard container widths (~1000-1200px)
-const BREAKPOINTS = { lg: 800, md: 600, sm: 480, xs: 320, xxs: 0 };
+// Aligned with Tailwind breakpoints for consistent behavior
+const BREAKPOINTS = { lg: 1024, md: 768, sm: 640, xs: 480, xxs: 0 };
 const COLS = { lg: 12, md: 8, sm: 4, xs: 2, xxs: 1 };
 const ROW_HEIGHT = 80;
 
