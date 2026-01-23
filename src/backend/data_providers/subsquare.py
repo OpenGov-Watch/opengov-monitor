@@ -118,26 +118,176 @@ import os
 SPENDER_TRACKS = ['SmallSpender', 'MediumSpender', 'BigSpender', 'SmallTipper', 'BigTipper', 'Treasurer']
 
 # Call index mapping for different Polkadot runtime eras
-# Runtime upgrade at ref 1788 changed pallet indices (AssetHub migration)
+# Runtime upgrade at ref 1782 changed pallet indices (AssetHub migration)
 POLKADOT_CALL_INDICES = {
-    "relay": {  # Before ref 1788
+    "relay": {  # Before ref 1782
+        # Utility (0x1a = 26)
         "utility.batch": "0x1a00",
         "utility.batchAll": "0x1a02",
         "utility.dispatchAs": "0x1a03",
         "utility.forceBatch": "0x1a04",
+        # Treasury (0x13 = 19)
+        "treasury.proposeSpend": "0x1300",
+        "treasury.approveProposal": "0x1302",
         "treasury.spend": "0x1305",
+        # Whitelist (0x17 = 23)
+        "whitelist.dispatchWhitelistedCallWithPreimage": "0x1703",
+        # Bounties (0x22 = 34)
+        "bounties.proposeBounty": "0x2200",
+        "bounties.approveBounty": "0x2201",
+        "bounties.proposeCurator": "0x2202",
+        "bounties.unassignCurator": "0x2203",
+        "bounties.acceptCurator": "0x2204",
+        "bounties.closeBounty": "0x2207",
+        "bounties.approveBountyWithCurator": "0x2209",
+        # AssetRate (0x65 = 101)
+        "assetRate.create": "0x6500",
+        "assetRate.update": "0x6501",
+        "assetRate.remove": "0x6502",
+        # Balances (0x05 = 5)
+        "balances.forceSetBalance": "0x0508",
+        "balances.forceAdjustTotalIssuance": "0x0509",
+        # Preimage (0x0a = 10)
+        "preimage.notePreimage": "0x0a00",
+        "preimage.requestPreimage": "0x0a02",
+        # NominationPools (0x27 = 39)
+        "nominationPools.setConfigs": "0x270b",
+        # XcmPallet (0x63 = 99)
+        "xcmPallet.send": "0x6300",
     },
-    "assethub": {  # From ref 1788 onwards
+    "assethub": {  # From ref 1782 onwards
+        # Utility (0x28 = 40)
         "utility.batch": "0x2800",
         "utility.batchAll": "0x2802",
         "utility.dispatchAs": "0x2803",
         "utility.forceBatch": "0x2804",
+        # Treasury (0x3c = 60)
+        "treasury.proposeSpend": "0x3c00",
+        "treasury.approveProposal": "0x3c02",
         "treasury.spend": "0x3c05",
+        # Whitelist (0x40 = 64)
+        "whitelist.dispatchWhitelistedCallWithPreimage": "0x4003",
+        # Bounties (0x41 = 65)
+        "bounties.proposeBounty": "0x4100",
+        "bounties.approveBounty": "0x4101",
+        "bounties.proposeCurator": "0x4102",
+        "bounties.unassignCurator": "0x4103",
+        "bounties.acceptCurator": "0x4104",
+        "bounties.closeBounty": "0x4107",
+        "bounties.approveBountyWithCurator": "0x4109",
+        # AssetRate (0x43 = 67)
+        "assetRate.create": "0x4300",
+        "assetRate.update": "0x4301",
+        "assetRate.remove": "0x4302",
+        # Balances (0x0a = 10)
+        "balances.forceSetBalance": "0x0a08",
+        "balances.forceAdjustTotalIssuance": "0x0a09",
+        # Preimage (0x05 = 5)
+        "preimage.notePreimage": "0x0500",
+        "preimage.requestPreimage": "0x0502",
+        # NominationPools (0x50 = 80)
+        "nominationPools.setConfigs": "0x500b",
+        # PolkadotXcm (0x1f = 31)
+        "xcmPallet.send": "0x1f00",
     },
 }
 
+# Relay-only pallets (don't exist on AssetHub, indices never change)
+RELAY_ONLY_CALL_INDICES = {
+    "configuration.setMaxCodeSize": "0x3303",
+    "configuration.setHrmpChannelMaxCapacity": "0x3320",
+    "paras.forceSetCurrentCode": "0x3800",
+    "paras.forceSetCurrentHead": "0x3801",
+    "hrmp.forceOpenHrmpChannel": "0x3c07",
+    "registrar.deregister": "0x4602",
+    "registrar.swap": "0x4603",
+    "registrar.removeLock": "0x4604",
+    "slots.forceLease": "0x4700",
+    "slots.clearAllLeases": "0x4701",
+    "auctions.newAuction": "0x4800",
+    "identity.addRegistrar": "0x1c00",
+}
+
+# Unchanged across both chains (system, scheduler, referenda have same indices)
+STATIC_CALL_INDICES = {
+    "system.remark": "0x0000",
+    "system.remarkWithEvent": "0x0007",
+    "system.setCode": "0x0002",
+    "scheduler.scheduleNamed": "0x0102",
+    "scheduler.scheduleAfter": "0x0104",
+    "referenda.submit": "0x1500",
+    "referenda.cancel": "0x1503",
+    "referenda.kill": "0x1504",
+}
+
+# Methods that are known to be zero-value (not Treasury-related)
+ZERO_VALUE_METHODS = [
+    "system.remark",
+    "system.remarkWithEvent",
+    "system.setCode",
+    "balances.forceSetBalance",
+    "balances.forceAdjustTotalIssuance",
+    "preimage.notePreimage",
+    "preimage.requestPreimage",
+    "treasury.proposeSpend",
+    "treasury.approveProposal",
+    "referenda.submit",
+    "referenda.cancel",
+    "referenda.kill",
+    "whitelist.dispatchWhitelistedCallWithPreimage",
+    "identity.addRegistrar",
+    "bounties.proposeBounty",
+    "bounties.approveBounty",
+    "bounties.approveBountyWithCurator",
+    "bounties.proposeCurator",
+    "bounties.unassignCurator",
+    "bounties.acceptCurator",
+    "bounties.closeBounty",
+    "nominationPools.setConfigs",
+    "configuration.setMaxCodeSize",
+    "configuration.setHrmpChannelMaxCapacity",
+    "paras.forceSetCurrentCode",
+    "hrmp.forceOpenHrmpChannel",
+    "paras.forceSetCurrentHead",
+    "registrar.deregister",
+    "registrar.swap",
+    "registrar.removeLock",
+    "slots.forceLease",
+    "slots.clearAllLeases",
+    "auctions.newAuction",
+    "xcmPallet.send",
+    "assetRate.create",
+    "assetRate.update",
+    "assetRate.remove",
+]
+
 # First referendum using AssetHub call indices
-POLKADOT_ASSETHUB_CUTOFF = 1788
+POLKADOT_ASSETHUB_CUTOFF = 1782
+
+
+def get_call_index(method_name: str, ref_id: int) -> str | None:
+    """Get call index for a method, handling runtime version differences.
+
+    Args:
+        method_name: The pallet.method name (e.g., "bounties.closeBounty")
+        ref_id: The referendum ID to determine which runtime era to use
+
+    Returns:
+        The call index hex string, or None if method not found
+    """
+    # Check relay-only pallets first (they don't exist on AssetHub)
+    if method_name in RELAY_ONLY_CALL_INDICES:
+        return RELAY_ONLY_CALL_INDICES[method_name]
+
+    # Check static indices (same on both chains)
+    if method_name in STATIC_CALL_INDICES:
+        return STATIC_CALL_INDICES[method_name]
+
+    # Select era-specific indices
+    if ref_id >= POLKADOT_ASSETHUB_CUTOFF:
+        return POLKADOT_CALL_INDICES["assethub"].get(method_name)
+    else:
+        return POLKADOT_CALL_INDICES["relay"].get(method_name)
 
 
 class SubsquareProvider(DataProvider):
@@ -161,23 +311,26 @@ class SubsquareProvider(DataProvider):
         # load details
 
         # for batch referenda, we need to fetch the individual referenda to inspect the proposal
-        # Include both relay (pre-1788) and assethub (post-1788) call indices
-        needs_detail_call_indices = [
-            # Relay indices (before ref 1788)
-            "0x1a00", # utility.batch
-            "0x1a02", # utility.batchAll
-            "0x1a03", # utility.dispatchAs
-            "0x1a04", # utility.forceBatch
-            "0x1305", # treasury.spend
-            # AssetHub indices (from ref 1788)
-            "0x2800", # utility.batch
-            "0x2802", # utility.batchAll
-            "0x2803", # utility.dispatchAs
-            "0x2804", # utility.forceBatch
-            "0x3c05", # treasury.spend
-            # Other indices
-            "0x6300", # xcmPallet.send
+        # Include both relay (pre-1782) and assethub (post-1782) call indices
+        # Methods that require detail fetching due to nested/complex call data
+        needs_detail_methods = [
+            "utility.batch",
+            "utility.batchAll",
+            "utility.dispatchAs",
+            "utility.forceBatch",
+            "treasury.spend",
+            "xcmPallet.send",
+            "whitelist.dispatchWhitelistedCallWithPreimage",
         ]
+        # Build list of indices for both runtime eras
+        needs_detail_call_indices = []
+        for method in needs_detail_methods:
+            relay_idx = POLKADOT_CALL_INDICES["relay"].get(method)
+            assethub_idx = POLKADOT_CALL_INDICES["assethub"].get(method)
+            if relay_idx:
+                needs_detail_call_indices.append(relay_idx)
+            if assethub_idx and assethub_idx != relay_idx:
+                needs_detail_call_indices.append(assethub_idx)
 
         logging.debug("Fetching referenda details")
         replacements = []
@@ -253,65 +406,24 @@ class SubsquareProvider(DataProvider):
 
         # return the value of the proposal denominated in the network's token
         def _build_bag_from_call_value(bag: AssetsBag, call, timestamp, ref_id):
-            # Select call index map based on ref_id (runtime upgrade at ref 1788)
-            if ref_id >= POLKADOT_ASSETHUB_CUTOFF:
-                indices = POLKADOT_CALL_INDICES["assethub"]
-            else:
-                indices = POLKADOT_CALL_INDICES["relay"]
-
-            # we use this map to emit warnings of proposals we haven't seen on OpenGov before. Those that are known to be zero-value (because they are not Treasury-related) are excluded
+            # Build list of known zero-value call indices dynamically based on ref_id
+            # These are proposals we know don't have a direct treasury value
             known_zero_value_call_indices = [
-                "0x0000", # system.remark
-                "0x0007", # system.remarkWithEvent
-                "0x0002", # system.setCode
-                "0x0508", # balances.forceSetBalance <- 1042 burn the treasury
-                "0x0509", # balances.forceAdjustTotalIssuance
-                "0x0a00", # preimage.notePreimage <- lol 828
-                "0x0a02", # preimage.requestPreimage <- eh 74
-                "0x1300", # treasury.proposeSpend <- omg 1108
-                "0x1302", # treasury.approveProposal <- wtf 351
-                "0x1500", # referenda.submit
-                "0x1503", # referenda.cancel
-                "0x1504", # referenda.kill
-                "0x1703", # whitelist.dispatchWhitelistedCallWithPreimage
-                "0x1c00", # identity.addRegistrar
-                "0x2200", # bounties.proposeBounty
-                "0x2201", # bounties.approveBounty <-- the amount to be given to the bounty is not part of the call data at proposal time
-                "0x2209", # bounties.approveBountyWithCurator
-                "0x2202", # bounties.proposeCurator
-                "0x2203", # bounties.unassignCurator
-                "0x2204", # bounties.acceptCurator
-                "0x2207", # bounties.closeBounty
-                "0x270b", # nominationPools.setConfigs
-                "0x3303", # configuration.setMaxCodeSize
-                "0x3320", # configuration.setHrmpChannelMaxCapacity
-                "0x3800", # paras.forceSetCurrentCode
-                "0x3c07", # hrmp.forceOpenHrmpChannel
-                "0x3801", # paras.forceSetCurrentHead
-                "0x4602", # registrar.deregister
-                "0x4603", # registrar.swap
-                "0x4604", # registrar.removeLock
-                "0x4700", # slots.forceLease
-                "0x4701", # slots.clearAllLeases
-                "0x4800", # auctions.newAuction
-                "0x6300", # xcmPallet.send
-                "0x6500", # assetRate.create
-                "0x6501", # assetRate.update
-                "0x6502", # assetRate.remove
+                idx for idx in (get_call_index(m, ref_id) for m in ZERO_VALUE_METHODS) if idx
             ]
 
             # Build wrapped_proposals from dynamic indices (varies by runtime version)
             wrapped_proposals = [
-                "0x0102", # scheduler.scheduleNamed
-                "0x0104", # scheduler.scheduleAfter
-                indices["utility.batch"],
-                indices["utility.batchAll"],
-                indices["utility.dispatchAs"],
-                indices["utility.forceBatch"],
+                get_call_index("scheduler.scheduleNamed", ref_id),
+                get_call_index("scheduler.scheduleAfter", ref_id),
+                get_call_index("utility.batch", ref_id),
+                get_call_index("utility.batchAll", ref_id),
+                get_call_index("utility.dispatchAs", ref_id),
+                get_call_index("utility.forceBatch", ref_id),
             ]
 
             should_inspect_proposal = [
-                "0x6300", # xcmPallet.send
+                get_call_index("xcmPallet.send", ref_id),
             ]
 
             # get call index
@@ -330,16 +442,13 @@ class SubsquareProvider(DataProvider):
                 if call_index in known_zero_value_call_indices:
                     return
                 elif call_index in wrapped_proposals:
-                    if call_index == "0x0102": # scheduler.scheduleNamed
+                    if call_index == get_call_index("scheduler.scheduleNamed", ref_id):
                         inner_call = args[4]["value"]
                         _build_bag_from_call_value(bag, inner_call, timestamp, ref_id)
-                    elif call_index == "0x0103": # scheduler.dispatchAs
-                        inner_call = args[1]["value"]
-                        _build_bag_from_call_value(bag, inner_call, timestamp, ref_id)
-                    elif call_index == "0x0104": # scheduler.scheduleAfter
+                    elif call_index == get_call_index("scheduler.scheduleAfter", ref_id):
                         inner_call = args[3]["value"]
                         _build_bag_from_call_value(bag, inner_call, timestamp, ref_id)
-                    elif call_index == indices["utility.dispatchAs"]:
+                    elif call_index == get_call_index("utility.dispatchAs", ref_id):
 
                         # let's make sure the caller is the treasury
                         try:
@@ -381,7 +490,7 @@ class SubsquareProvider(DataProvider):
                     amount = args[2]["value"]
                     amount = self.network_info.apply_denomination(amount, self.network_info.native_asset)
                     bag.add_asset(self.network_info.native_asset, amount)
-                elif call_index == indices["treasury.spend"]:
+                elif call_index == get_call_index("treasury.spend", ref_id):
                     assert args is not None, "we should always have the details of the call"
                     assert args[0]["name"] == "assetKind"
                     assetKind = self._get_XCM_asset_kind(args[0]["value"])

@@ -24,7 +24,7 @@ Testable business logic. Format: "Given X, expect Y."
 | `0x1a03` | utility.dispatchAs | `args[1].value` |
 | `0x1a04` | utility.forceBatch | `args[0].value[]` |
 
-**Note:** Call indices changed at ref 1788 (AssetHub migration). See `gotchas.md` for mapping table.
+**Note:** Call indices changed at ref 1782 (AssetHub migration). See `gotchas.md` for mapping table.
 
 ### Zero-Value Calls (No Treasury Impact)
 

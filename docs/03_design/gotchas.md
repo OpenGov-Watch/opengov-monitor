@@ -29,17 +29,19 @@ pd.to_datetime(blockTime, unit='ms', utc=True)
 
 ### Runtime Upgrade Call Index Changes
 
-Polkadot runtime upgrade at **ref 1788** changed pallet indices. Code must select correct indices based on `ref_id`:
+Polkadot runtime upgrade at **ref 1782** changed pallet indices. Code must select correct indices based on `ref_id`:
 
-| Call Type | Before 1788 | From 1788 |
-|-----------|-------------|-----------|
+| Call Type | Before 1782 (relay) | From 1782 (assethub) |
+|-----------|---------------------|----------------------|
 | utility.batch | `0x1a00` | `0x2800` |
 | utility.batchAll | `0x1a02` | `0x2802` |
 | utility.dispatchAs | `0x1a03` | `0x2803` |
 | utility.forceBatch | `0x1a04` | `0x2804` |
 | treasury.spend | `0x1305` | `0x3c05` |
+| bounties.closeBounty | `0x2207` | `0x4107` |
+| whitelist.dispatchWhitelistedCallWithPreimage | `0x1703` | `0x4003` |
 
-See `POLKADOT_CALL_INDICES` and `POLKADOT_ASSETHUB_CUTOFF` in `subsquare.py`.
+See `POLKADOT_CALL_INDICES`, `POLKADOT_ASSETHUB_CUTOFF`, and `get_call_index()` in `subsquare.py`.
 
 ### XCM Asset Versions
 
