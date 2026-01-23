@@ -118,20 +118,21 @@ export function DashboardGrid({
     });
 
     // Generate responsive layouts
-    // For smaller screens, adjust width to fit within column constraints
-    const adjustLayout = (layout: LayoutItem[], maxCols: number): LayoutItem[] => {
+    // For smaller screens, scale widths and positions proportionally to preserve side-by-side relationships
+    const adjustLayout = (layout: LayoutItem[], maxCols: number, baseCols: number): LayoutItem[] => {
+      const scale = maxCols / baseCols;
       return layout.map(item => ({
         ...item,
-        w: Math.min(item.w, maxCols),
-        x: Math.min(item.x, Math.max(0, maxCols - item.w)),
+        w: Math.max(1, Math.round(item.w * scale)),
+        x: Math.round(item.x * scale),
       }));
     };
 
     return {
       lg: baseLayout,
-      md: adjustLayout(baseLayout, COLS.md),
-      sm: adjustLayout(baseLayout, COLS.sm),
-      xs: adjustLayout(baseLayout, COLS.xs),
+      md: adjustLayout(baseLayout, COLS.md, COLS.lg),
+      sm: adjustLayout(baseLayout, COLS.sm, COLS.lg),
+      xs: adjustLayout(baseLayout, COLS.xs, COLS.lg),
       xxs: baseLayout.map(item => ({ ...item, w: 1, x: 0 })), // Stack everything on mobile
     };
   }, [componentSignature, editable]);
@@ -208,7 +209,7 @@ export function DashboardGrid({
         isResizable={editable}
         onLayoutChange={handleLayoutChange}
         draggableHandle=".drag-handle"
-        compactType={editable ? "vertical" : null}
+        compactType="vertical"
         preventCollision={false}
       >
         {sortedComponents.map((component) => (
