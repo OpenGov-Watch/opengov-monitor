@@ -34,7 +34,8 @@ export function validateQueryConfig(queryConfig: QueryConfig): QueryConfigValida
   // Build set of valid column keys from current query config (selected columns + expressions)
   const validColumns = new Set<string>();
   for (const col of queryConfig.columns || []) {
-    validColumns.add(getColumnKey(col));
+    validColumns.add(getColumnKey(col));  // alias or derived key
+    validColumns.add(col.column);          // original column reference
   }
   for (const expr of queryConfig.expressionColumns || []) {
     validColumns.add(expr.alias);

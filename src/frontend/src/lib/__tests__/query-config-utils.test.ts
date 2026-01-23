@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getColumnKey, sortingStateToOrderBy, filterStateToQueryFilters, filtersToGroup, groupToFilters, convertFiltersToQueryConfig, buildFacetQueryConfig, normalizeDataKeys, mapFilterGroupColumns } from "../query-config-utils";
+import { getColumnKey, validateQueryConfig, sortingStateToOrderBy, filterStateToQueryFilters, filtersToGroup, groupToFilters, convertFiltersToQueryConfig, buildFacetQueryConfig, normalizeDataKeys, mapFilterGroupColumns } from "../query-config-utils";
 import type { SortingState, ColumnFiltersState } from "@tanstack/react-table";
 import type { FilterCondition, FilterGroup } from "@/lib/db/types";
 
@@ -49,6 +49,85 @@ describe("getColumnKey", () => {
   it("prefers alias over aggregate function", () => {
     const result = getColumnKey({ column: "amount", alias: "total_amount", aggregateFunction: "SUM" });
     expect(result).toBe("total_amount");
+  });
+});
+
+describe("validateQueryConfig - alias handling", () => {
+  it("should NOT flag groupBy as invalid when column has an alias", () => {
+    const config = {
+      sourceTable: "all_spending",
+      columns: [
+        { column: "all_spending.year_quarter", alias: "quarter" },
+        { column: "all_spending.USD_latest", aggregateFunction: "SUM" as const }
+      ],
+      filters: [],
+      groupBy: ["all_spending.year_quarter"],  // References original column
+      orderBy: [],
+    };
+
+    const validation = validateQueryConfig(config);
+    expect(validation.invalidGroupBy).toEqual([]);
+  });
+
+  it("should NOT flag orderBy as invalid when column has an alias", () => {
+    const config = {
+      sourceTable: "all_spending",
+      columns: [
+        { column: "all_spending.year_quarter", alias: "quarter" }
+      ],
+      filters: [],
+      groupBy: [],
+      orderBy: [{ column: "all_spending.year_quarter", direction: "ASC" as const }],
+    };
+
+    const validation = validateQueryConfig(config);
+    expect(validation.invalidOrderBy).toEqual([]);
+  });
+
+  it("should accept both alias and original column reference in groupBy", () => {
+    const config = {
+      sourceTable: "all_spending",
+      columns: [
+        { column: "all_spending.year_quarter", alias: "quarter" }
+      ],
+      filters: [],
+      groupBy: ["quarter"],  // References alias instead of original
+      orderBy: [],
+    };
+
+    const validation = validateQueryConfig(config);
+    expect(validation.invalidGroupBy).toEqual([]);
+  });
+
+  it("should flag truly invalid groupBy entries", () => {
+    const config = {
+      sourceTable: "all_spending",
+      columns: [
+        { column: "all_spending.year_quarter", alias: "quarter" }
+      ],
+      filters: [],
+      groupBy: ["nonexistent_column"],
+      orderBy: [],
+    };
+
+    const validation = validateQueryConfig(config);
+    expect(validation.invalidGroupBy).toEqual(["nonexistent_column"]);
+  });
+
+  it("should validate expression columns by alias", () => {
+    const config = {
+      sourceTable: "all_spending",
+      columns: [],
+      filters: [],
+      expressionColumns: [
+        { expression: "YEAR(created_at)", alias: "year" }
+      ],
+      groupBy: ["year"],
+      orderBy: [],
+    };
+
+    const validation = validateQueryConfig(config);
+    expect(validation.invalidGroupBy).toEqual([]);
   });
 });
 
