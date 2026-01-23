@@ -213,11 +213,14 @@ function validateExpression(
 }
 
 function sanitizeAlias(alias: string): string {
-  // Aliases must be simple identifiers (alphanumeric + underscore, starting with letter/underscore)
-  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(alias)) {
-    throw new Error(`Invalid alias: ${alias}. Use only letters, numbers, and underscores.`);
+  // Auto-sanitize aliases to valid SQL identifiers
+  // Replace any invalid characters (spaces, special chars) with underscores
+  let sanitized = alias.replace(/[^a-zA-Z0-9_]/g, "_");
+  // Ensure it starts with a letter or underscore
+  if (!/^[a-zA-Z_]/.test(sanitized)) {
+    sanitized = "_" + sanitized;
   }
-  return alias;
+  return sanitized;
 }
 
 function validateQueryConfig(config: QueryConfig): string | null {
@@ -254,11 +257,7 @@ function validateQueryConfig(config: QueryConfig): string | null {
     if (!expr.expression || !expr.expression.trim()) {
       return "Expression cannot be empty";
     }
-    try {
-      sanitizeAlias(expr.alias);
-    } catch {
-      return `Invalid expression alias: ${expr.alias}. Use only letters, numbers, and underscores.`;
-    }
+    // Note: sanitizeAlias now auto-sanitizes, so no validation error needed
   }
 
   // Validate joins

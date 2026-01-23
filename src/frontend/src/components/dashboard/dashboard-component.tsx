@@ -291,6 +291,41 @@ export const DashboardComponent = memo(
     return mapping;
   }, [queryConfig.columns, queryConfig.expressionColumns]);
 
+  // Memoize column overrides for displayName support
+  // This allows columns to have custom header text from displayName field
+  // Also supports legacy alias with spaces (auto-sanitized by backend)
+  const columnOverrides = useMemo(() => {
+    const overrides: Record<string, { header: string }> = {};
+    // Regular columns with displayName or alias containing spaces
+    if (queryConfig.columns && Array.isArray(queryConfig.columns)) {
+      for (const col of queryConfig.columns) {
+        const key = getColumnKey(col);
+        // Priority: displayName > alias (if it has spaces)
+        if (col.displayName) {
+          overrides[key] = { header: col.displayName };
+        } else if (col.alias && /[^a-zA-Z0-9_]/.test(col.alias)) {
+          // Alias has spaces or special chars - use it as display name
+          // Backend will auto-sanitize for SQL, but we show original in UI
+          overrides[key] = { header: col.alias };
+        }
+      }
+    }
+    // Expression columns with displayName or alias containing spaces
+    if (queryConfig.expressionColumns && Array.isArray(queryConfig.expressionColumns)) {
+      for (const expr of queryConfig.expressionColumns) {
+        // For expressions, the key used by the table will be the sanitized alias
+        const sanitizedAlias = expr.alias.replace(/[^a-zA-Z0-9_]/g, "_");
+        if (expr.displayName) {
+          overrides[sanitizedAlias] = { header: expr.displayName };
+        } else if (/[^a-zA-Z0-9_]/.test(expr.alias)) {
+          // Alias has spaces or special chars - use it as display name
+          overrides[sanitizedAlias] = { header: expr.alias };
+        }
+      }
+    }
+    return overrides;
+  }, [queryConfig.columns, queryConfig.expressionColumns]);
+
   // Memoize column identifiers
   const labelColumn = useMemo(
     () => chartConfig.labelColumn || (queryConfig.columns?.[0] && getColumnKey(queryConfig.columns[0])),
@@ -509,6 +544,7 @@ export const DashboardComponent = memo(
             queryConfig={queryConfig}
             tableName={tableName}
             columnMapping={columnMapping}
+            columnOverrides={columnOverrides}
             dashboardMode={true}
             dashboardComponentId={String(component.id)}
             defaultFilters={queryConfig.filters}

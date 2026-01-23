@@ -60,9 +60,16 @@ The QueryBuilder uses a unified column model internally to allow drag-and-drop r
 
 ```typescript
 type UnifiedColumn =
-  | { type: "regular"; column: string; alias?: string; aggregateFunction?: AggregateFunction }
-  | { type: "expression"; expression: string; alias: string };
+  | { type: "regular"; column: string; alias?: string; displayName?: string; aggregateFunction?: AggregateFunction }
+  | { type: "expression"; expression: string; alias: string; displayName?: string };
 ```
+
+### Column Naming
+
+- **`alias`**: SQL identifier used in queries. Auto-sanitized to alphanumeric + underscores.
+- **`displayName`**: UI header text shown in tables. Can include spaces and special characters.
+
+When editing a column's "Display Name" in the QueryBuilder, the `displayName` field is updated while `alias` remains a valid SQL identifier.
 
 Conversion utilities in `unified-column-utils.ts`:
 - `toUnifiedColumns()` - Converts API format to unified state

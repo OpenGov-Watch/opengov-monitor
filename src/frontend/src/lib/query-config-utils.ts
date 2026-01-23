@@ -86,6 +86,21 @@ export interface FilterCondition {
 }
 
 /**
+ * Sanitize an alias to a valid SQL identifier.
+ * Matches the backend's sanitizeAlias function in query.ts.
+ *
+ * @param alias - The alias to sanitize
+ * @returns A valid SQL identifier (alphanumeric + underscore)
+ */
+export function sanitizeAlias(alias: string): string {
+  let sanitized = alias.replace(/[^a-zA-Z0-9_]/g, "_");
+  if (!/^[a-zA-Z_]/.test(sanitized)) {
+    sanitized = "_" + sanitized;
+  }
+  return sanitized;
+}
+
+/**
  * Get the key name used in query results for a column definition.
  *
  * @param col - Column definition from QueryConfig
@@ -100,9 +115,12 @@ export interface FilterCondition {
  *
  * getColumnKey({ column: "id" })
  * // Returns: "id"
+ *
+ * getColumnKey({ column: "amount", alias: "DOT Component" })
+ * // Returns: "DOT_Component" (sanitized to match backend)
  */
 export function getColumnKey(col: { column: string; alias?: string; aggregateFunction?: string }): string {
-  if (col.alias) return col.alias;
+  if (col.alias) return sanitizeAlias(col.alias);
   if (col.aggregateFunction) {
     return `${col.aggregateFunction.toLowerCase()}_${col.column.replace(/[.\s]/g, "_")}`;
   }

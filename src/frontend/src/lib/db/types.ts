@@ -305,7 +305,8 @@ export interface GridConfig {
 
 export interface ExpressionColumn {
   expression: string; // SQL expression, e.g., "DOT_latest * 10"
-  alias: string; // Required display name for the result column
+  alias: string; // Required SQL identifier for the result column
+  displayName?: string; // Optional UI display name (can have spaces)
   aggregateFunction?: "COUNT" | "SUM" | "AVG" | "MIN" | "MAX";
   sourceColumn?: string; // Source column for formatting lookup (e.g., "USD_latest" for currency formatting)
 }
@@ -360,7 +361,8 @@ export interface QueryExecuteResponse {
 
 export interface ColumnSelection {
   column: string;
-  alias?: string;
+  alias?: string; // SQL identifier (no spaces)
+  displayName?: string; // UI display name (can have spaces)
   aggregateFunction?: "COUNT" | "SUM" | "AVG" | "MIN" | "MAX";
 }
 

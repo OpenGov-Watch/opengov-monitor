@@ -243,7 +243,7 @@ export function generateColumns<TData>(
             />
           )}
           {!isFacetedFilter && (
-            <DataTableColumnHeader column={column} title={getColumnDisplayName(tableName, columnName)} />
+            <DataTableColumnHeader column={column} title={headerTitle} />
           )}
           {isFacetedFilter && column.getCanSort() && (
             <DataTableColumnHeader column={column} title="" />
@@ -315,10 +315,13 @@ export function generateColumns<TData>(
     // Apply column overrides
     if (columnOverrides[columnName]) {
       const overridesCopy = { ...columnOverrides[columnName] };
-      // If this is a faceted filter column, don't override the header function
-      // (we already handled filterColumn and header title above)
-      if (isFacetedFilter && ('header' in overridesCopy || 'filterColumn' in overridesCopy)) {
+      // Don't override the header function - we already extracted the title from it
+      // and use it in our DataTableColumnHeader component
+      if ('header' in overridesCopy && typeof overridesCopy.header === 'string') {
         delete (overridesCopy as any).header;
+      }
+      // Also remove filterColumn as it's already been processed
+      if ('filterColumn' in overridesCopy) {
         delete (overridesCopy as any).filterColumn;
       }
       Object.assign(columnDef, overridesCopy);

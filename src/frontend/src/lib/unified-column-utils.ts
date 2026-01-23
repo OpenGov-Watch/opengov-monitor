@@ -25,12 +25,14 @@ export type UnifiedColumn =
       type: "regular";
       column: string;
       alias?: string;
+      displayName?: string; // UI display name (can have spaces)
       aggregateFunction?: AggregateFunction;
     }
   | {
       type: "expression";
       expression: string;
       alias: string;
+      displayName?: string; // UI display name (can have spaces)
       aggregateFunction?: AggregateFunction;
       sourceColumn?: string; // Source column for formatting lookup
     };
@@ -86,6 +88,9 @@ export function toUnifiedColumns(
     if (col.alias) {
       regularCol.alias = col.alias;
     }
+    if (col.displayName) {
+      regularCol.displayName = col.displayName;
+    }
     if (col.aggregateFunction) {
       regularCol.aggregateFunction = col.aggregateFunction;
     }
@@ -99,6 +104,9 @@ export function toUnifiedColumns(
       expression: expr.expression,
       alias: expr.alias,
     };
+    if (expr.displayName) {
+      exprCol.displayName = expr.displayName;
+    }
     if (expr.aggregateFunction) {
       exprCol.aggregateFunction = expr.aggregateFunction;
     }
@@ -183,6 +191,9 @@ export function fromUnifiedColumns(unifiedColumns: UnifiedColumn[]): {
       if (col.alias) {
         selection.alias = col.alias;
       }
+      if (col.displayName) {
+        selection.displayName = col.displayName;
+      }
       if (col.aggregateFunction) {
         selection.aggregateFunction = col.aggregateFunction;
       }
@@ -193,6 +204,9 @@ export function fromUnifiedColumns(unifiedColumns: UnifiedColumn[]): {
         expression: col.expression,
         alias: col.alias,
       };
+      if (col.displayName) {
+        exprCol.displayName = col.displayName;
+      }
       if (col.aggregateFunction) {
         exprCol.aggregateFunction = col.aggregateFunction;
       }

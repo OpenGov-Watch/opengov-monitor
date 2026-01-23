@@ -116,39 +116,39 @@ function RegularColumnContent({
   displayName,
   onUpdate,
 }: RegularColumnContentProps) {
-  const [isEditingAlias, setIsEditingAlias] = useState(false);
-  const [aliasValue, setAliasValue] = useState(column.alias || "");
+  const [isEditingHeader, setIsEditingHeader] = useState(false);
+  const [headerValue, setHeaderValue] = useState(column.displayName || "");
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (isEditingAlias && inputRef.current) {
+    if (isEditingHeader && inputRef.current) {
       inputRef.current.focus();
       inputRef.current.select();
     }
-  }, [isEditingAlias]);
+  }, [isEditingHeader]);
 
-  const handleAliasClick = () => {
-    setAliasValue(column.alias || displayName);
-    setIsEditingAlias(true);
+  const handleHeaderClick = () => {
+    setHeaderValue(column.displayName || displayName);
+    setIsEditingHeader(true);
   };
 
-  const handleAliasBlur = () => {
-    setIsEditingAlias(false);
-    // Only set alias if it differs from display name
-    const newAlias = aliasValue.trim();
-    if (newAlias && newAlias !== displayName) {
-      onUpdate({ alias: newAlias });
+  const handleHeaderBlur = () => {
+    setIsEditingHeader(false);
+    // Only set displayName if it differs from default display name
+    const newHeader = headerValue.trim();
+    if (newHeader && newHeader !== displayName) {
+      onUpdate({ displayName: newHeader });
     } else {
-      onUpdate({ alias: undefined });
+      onUpdate({ displayName: undefined });
     }
   };
 
-  const handleAliasKeyDown = (e: React.KeyboardEvent) => {
+  const handleHeaderKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
-      handleAliasBlur();
+      handleHeaderBlur();
     } else if (e.key === "Escape") {
-      setAliasValue(column.alias || "");
-      setIsEditingAlias(false);
+      setHeaderValue(column.displayName || "");
+      setIsEditingHeader(false);
     }
   };
 
@@ -161,24 +161,24 @@ function RegularColumnContent({
   return (
     <div className="flex items-center justify-between gap-2">
       <div className="flex-1 min-w-0">
-        {isEditingAlias ? (
+        {isEditingHeader ? (
           <Input
             ref={inputRef}
-            value={aliasValue}
-            onChange={(e) => setAliasValue(e.target.value)}
-            onBlur={handleAliasBlur}
-            onKeyDown={handleAliasKeyDown}
+            value={headerValue}
+            onChange={(e) => setHeaderValue(e.target.value)}
+            onBlur={handleHeaderBlur}
+            onKeyDown={handleHeaderKeyDown}
             className="h-7 text-sm"
-            placeholder="Column alias"
+            placeholder="Column header"
           />
         ) : (
           <div
             className="cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5"
-            onClick={handleAliasClick}
-            title="Click to edit alias"
+            onClick={handleHeaderClick}
+            title="Click to edit header"
           >
             <div className="text-sm font-medium truncate">
-              {column.alias || displayName}
+              {column.displayName || displayName}
             </div>
             <div className="text-xs text-muted-foreground truncate">
               {column.column}
@@ -217,19 +217,19 @@ function ExpressionColumnContent({
   onUpdate,
   onRemove,
 }: ExpressionColumnContentProps) {
-  const [isEditingAlias, setIsEditingAlias] = useState(false);
+  const [isEditingHeader, setIsEditingHeader] = useState(false);
   const [isEditingExpression, setIsEditingExpression] = useState(false);
-  const [aliasValue, setAliasValue] = useState(column.alias);
+  const [headerValue, setHeaderValue] = useState(column.displayName || column.alias);
   const [expressionValue, setExpressionValue] = useState(column.expression);
-  const aliasInputRef = useRef<HTMLInputElement>(null);
+  const headerInputRef = useRef<HTMLInputElement>(null);
   const expressionInputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (isEditingAlias && aliasInputRef.current) {
-      aliasInputRef.current.focus();
-      aliasInputRef.current.select();
+    if (isEditingHeader && headerInputRef.current) {
+      headerInputRef.current.focus();
+      headerInputRef.current.select();
     }
-  }, [isEditingAlias]);
+  }, [isEditingHeader]);
 
   useEffect(() => {
     if (isEditingExpression && expressionInputRef.current) {
@@ -240,33 +240,43 @@ function ExpressionColumnContent({
 
   // Sync local state when column prop changes
   useEffect(() => {
-    setAliasValue(column.alias);
+    setHeaderValue(column.displayName || column.alias);
     setExpressionValue(column.expression);
-  }, [column.alias, column.expression]);
+  }, [column.alias, column.displayName, column.expression]);
 
-  const handleAliasClick = () => {
-    setAliasValue(column.alias);
-    setIsEditingAlias(true);
+  const handleHeaderClick = () => {
+    setHeaderValue(column.displayName || column.alias);
+    setIsEditingHeader(true);
   };
 
-  const handleAliasBlur = () => {
-    setIsEditingAlias(false);
-    // Sanitize alias to valid SQL identifier
-    const sanitized = aliasValue.trim().replace(/[^a-zA-Z0-9_]/g, "_");
-    if (sanitized && sanitized !== column.alias) {
-      onUpdate({ alias: sanitized });
-    } else if (!sanitized) {
+  const handleHeaderBlur = () => {
+    setIsEditingHeader(false);
+    const trimmed = headerValue.trim();
+    if (!trimmed) {
       // Reset to original if empty
-      setAliasValue(column.alias);
+      setHeaderValue(column.displayName || column.alias);
+      return;
+    }
+    // Generate sanitized alias from header (for SQL identifier)
+    const sanitizedAlias = trimmed.replace(/[^a-zA-Z0-9_]/g, "_");
+    // If header has no special chars, it can be the alias; otherwise set displayName
+    if (trimmed === sanitizedAlias) {
+      // Simple case: no spaces, use as alias directly
+      if (trimmed !== column.alias) {
+        onUpdate({ alias: trimmed, displayName: undefined });
+      }
+    } else {
+      // Header has spaces/special chars: set displayName and generate alias
+      onUpdate({ displayName: trimmed, alias: sanitizedAlias });
     }
   };
 
-  const handleAliasKeyDown = (e: React.KeyboardEvent) => {
+  const handleHeaderKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
-      handleAliasBlur();
+      handleHeaderBlur();
     } else if (e.key === "Escape") {
-      setAliasValue(column.alias);
-      setIsEditingAlias(false);
+      setHeaderValue(column.displayName || column.alias);
+      setIsEditingHeader(false);
     }
   };
 
@@ -302,28 +312,31 @@ function ExpressionColumnContent({
     ? column.expression.slice(0, 40) + "..."
     : column.expression || "(empty expression)";
 
+  // Display header: prefer displayName over alias
+  const displayHeader = column.displayName || column.alias || "unnamed";
+
   return (
     <div className="flex items-center justify-between gap-2">
       <div className="flex-1 min-w-0">
-        {isEditingAlias ? (
+        {isEditingHeader ? (
           <Input
-            ref={aliasInputRef}
-            value={aliasValue}
-            onChange={(e) => setAliasValue(e.target.value)}
-            onBlur={handleAliasBlur}
-            onKeyDown={handleAliasKeyDown}
+            ref={headerInputRef}
+            value={headerValue}
+            onChange={(e) => setHeaderValue(e.target.value)}
+            onBlur={handleHeaderBlur}
+            onKeyDown={handleHeaderKeyDown}
             className="h-7 text-sm"
-            placeholder="alias_name"
+            placeholder="Column header"
           />
         ) : isEditingExpression ? (
           <div className="space-y-1">
             <div
               className="cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5"
-              onClick={handleAliasClick}
-              title="Click to edit alias"
+              onClick={handleHeaderClick}
+              title="Click to edit header"
             >
               <div className="text-sm font-medium truncate">
-                {column.alias || "unnamed"}
+                {displayHeader}
               </div>
             </div>
             <Textarea
@@ -340,10 +353,10 @@ function ExpressionColumnContent({
           <div className="px-1 py-0.5">
             <div
               className="cursor-pointer hover:bg-muted/50 rounded text-sm font-medium truncate"
-              onClick={handleAliasClick}
-              title="Click to edit alias"
+              onClick={handleHeaderClick}
+              title="Click to edit header"
             >
-              {column.alias || "unnamed"}
+              {displayHeader}
             </div>
             <div
               className="cursor-pointer hover:bg-muted/50 rounded text-xs text-muted-foreground truncate"
