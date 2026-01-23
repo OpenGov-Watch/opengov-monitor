@@ -24,7 +24,7 @@ interface SortableColumnItemProps {
   column: UnifiedColumn;
   displayName: string; // Display name for the column (from column-renderer)
   onUpdate: (updates: Partial<UnifiedColumn>) => void;
-  onRemove?: () => void; // Only for expression columns
+  onRemove?: () => void;
 }
 
 export function SortableColumnItem({
@@ -65,6 +65,16 @@ export function SortableColumnItem({
             onUpdate={onUpdate}
           />
         </div>
+        {onRemove && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onRemove}
+            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
       </div>
     );
   }

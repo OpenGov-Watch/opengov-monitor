@@ -839,7 +839,13 @@ export function QueryBuilder({
                           column={col}
                           displayName={col.type === "regular" ? displayName(col.column) : col.alias}
                           onUpdate={(updates) => updateUnifiedColumn(getColumnId(col), updates)}
-                          onRemove={col.type === "expression" ? () => removeExpressionColumn(col.alias) : undefined}
+                          onRemove={
+                          col.type === "expression"
+                            ? () => removeExpressionColumn(col.alias)
+                            : () => setUnifiedColumns((prev) =>
+                                prev.filter((c) => !(c.type === "regular" && c.column === col.column))
+                              )
+                        }
                         />
                       ))}
                     </div>
