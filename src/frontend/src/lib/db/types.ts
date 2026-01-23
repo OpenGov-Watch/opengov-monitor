@@ -309,6 +309,7 @@ export interface ExpressionColumn {
   displayName?: string; // Optional UI display name (can have spaces)
   aggregateFunction?: "COUNT" | "SUM" | "AVG" | "MIN" | "MAX";
   sourceColumn?: string; // Source column for formatting lookup (e.g., "USD_latest" for currency formatting)
+  hidden?: boolean; // Hide from table rendering, keep in SQL query (for sorting/grouping only)
 }
 
 export interface JoinCondition {

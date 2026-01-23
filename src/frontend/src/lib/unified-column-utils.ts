@@ -35,6 +35,7 @@ export type UnifiedColumn =
       displayName?: string; // UI display name (can have spaces)
       aggregateFunction?: AggregateFunction;
       sourceColumn?: string; // Source column for formatting lookup
+      hidden?: boolean; // Hide from table rendering, keep in SQL query
     };
 
 /**
@@ -112,6 +113,9 @@ export function toUnifiedColumns(
     }
     if (expr.sourceColumn) {
       exprCol.sourceColumn = expr.sourceColumn;
+    }
+    if (expr.hidden) {
+      exprCol.hidden = expr.hidden;
     }
     return exprCol;
   };
@@ -212,6 +216,9 @@ export function fromUnifiedColumns(unifiedColumns: UnifiedColumn[]): {
       }
       if (col.sourceColumn) {
         exprCol.sourceColumn = col.sourceColumn;
+      }
+      if (col.hidden) {
+        exprCol.hidden = col.hidden;
       }
       expressionColumns.push(exprCol);
       columnOrder.push(getColumnId(col));

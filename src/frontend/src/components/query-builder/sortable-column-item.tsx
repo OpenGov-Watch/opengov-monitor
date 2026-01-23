@@ -5,6 +5,8 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import GripVertical from "lucide-react/dist/esm/icons/grip-vertical";
 import Trash2 from "lucide-react/dist/esm/icons/trash-2";
+import Eye from "lucide-react/dist/esm/icons/eye";
+import EyeOff from "lucide-react/dist/esm/icons/eye-off";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -84,7 +86,7 @@ export function SortableColumnItem({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-start gap-2 bg-muted/20 p-2 rounded border"
+      className={`flex items-start gap-2 p-2 rounded border ${column.hidden ? "bg-muted/40 opacity-70" : "bg-muted/20"}`}
     >
       <button
         type="button"
@@ -368,6 +370,19 @@ function ExpressionColumnContent({
           </div>
         )}
       </div>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => onUpdate({ hidden: !column.hidden })}
+        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+        title={column.hidden ? "Show in table" : "Hide from table"}
+      >
+        {column.hidden ? (
+          <EyeOff className="h-4 w-4" />
+        ) : (
+          <Eye className="h-4 w-4" />
+        )}
+      </Button>
       <Select
         value={column.aggregateFunction || "none"}
         onValueChange={handleAggregationChange}

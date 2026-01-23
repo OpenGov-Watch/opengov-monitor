@@ -50,7 +50,8 @@ export interface FooterCell {
 }
 
 interface DataTableProps<TData> {
-  queryConfig: Omit<QueryConfig, "orderBy" | "filters">;
+  // orderBy is kept for fallback when sorting state is empty (hidden column sorting)
+  queryConfig: Omit<QueryConfig, "filters">;
   tableName: string;
   editConfig?: DataTableEditConfig;
   isAuthenticated?: boolean;
@@ -92,6 +93,9 @@ interface DataTableProps<TData> {
 
   // Sorting control
   disableSorting?: boolean;       // Disable column header sorting (useful for hierarchical display)
+
+  // Hidden columns (expression columns with hidden: true)
+  hiddenColumns?: Set<string>;
 }
 
 export function DataTable<TData>({
@@ -123,6 +127,7 @@ export function DataTable<TData>({
   showGroupTotals,
   groupByColumns,
   disableSorting = false,
+  hiddenColumns,
 }: DataTableProps<TData>) {
   // Apply defaults based on dashboardMode
   const hideViewSelector = hideViewSelectorProp ?? dashboardMode;
@@ -216,9 +221,14 @@ export function DataTable<TData>({
       ? viewStateFilters
       : (defaultFilters || []);
 
+    // Convert user sorting state to orderBy format
+    const userSorting = sortingStateToOrderBy(sorting, baseQueryConfig, columnIdToRef);
+    // If user has sorting, use it; otherwise fall back to saved orderBy from queryConfig
+    const mergedOrderBy = userSorting.length > 0 ? userSorting : (baseQueryConfig.orderBy || []);
+
     return {
       ...baseQueryConfig,
-      orderBy: sortingStateToOrderBy(sorting, baseQueryConfig, columnIdToRef),
+      orderBy: mergedOrderBy,
       filters: mergedFilters,
       groupBy: groupBy ? [groupBy] : baseQueryConfig.groupBy,
       limit: pagination.pageSize,
@@ -600,6 +610,7 @@ export function DataTable<TData>({
       dashboardMode,
       filterGroup,
       onFilterGroupChange: setFilterGroup,
+      hiddenColumns,
     });
   }, [
     dataSchema, // Changed from 'data' to 'dataSchema' to prevent regeneration on value changes
@@ -613,6 +624,7 @@ export function DataTable<TData>({
     dashboardMode,
     filterGroup,
     setFilterGroup,
+    hiddenColumns,
   ]);
 
   // VIEW MODE STATE

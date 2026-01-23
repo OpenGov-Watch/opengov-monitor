@@ -36,6 +36,7 @@ interface GenerateColumnsOptions<TData> {
   dashboardMode?: boolean;
   filterGroup?: FilterGroup;
   onFilterGroupChange?: (group: FilterGroup) => void;
+  hiddenColumns?: Set<string>;
 }
 
 export function generateColumns<TData>(
@@ -52,12 +53,18 @@ export function generateColumns<TData>(
     dashboardMode = false,
     filterGroup,
     onFilterGroupChange,
+    hiddenColumns,
   } = options;
 
   if (data.length === 0) return [];
 
-  const columns = Object.keys(data[0] as object);
+  const allColumns = Object.keys(data[0] as object);
   const idField = editConfig?.idField || "id";
+
+  // Filter out hidden columns entirely - they should not render at all
+  const columns = hiddenColumns
+    ? allColumns.filter(col => !hiddenColumns.has(col))
+    : allColumns;
 
   // Auto-detect category system: if all three columns exist, use split decoration
   const hasCategorySystem = columns.includes('category_id')

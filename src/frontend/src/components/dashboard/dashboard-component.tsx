@@ -326,6 +326,20 @@ export const DashboardComponent = memo(
     return overrides;
   }, [queryConfig.columns, queryConfig.expressionColumns]);
 
+  // Compute hidden expression aliases
+  const hiddenExpressionAliases = useMemo(() => {
+    const hidden = new Set<string>();
+    if (queryConfig.expressionColumns && Array.isArray(queryConfig.expressionColumns)) {
+      for (const expr of queryConfig.expressionColumns) {
+        if (expr.hidden) {
+          const sanitizedAlias = expr.alias.replace(/[^a-zA-Z0-9_]/g, "_");
+          hidden.add(sanitizedAlias);
+        }
+      }
+    }
+    return hidden;
+  }, [queryConfig.expressionColumns]);
+
   // Memoize column identifiers
   const labelColumn = useMemo(
     () => chartConfig.labelColumn || (queryConfig.columns?.[0] && getColumnKey(queryConfig.columns[0])),
@@ -545,6 +559,7 @@ export const DashboardComponent = memo(
             tableName={tableName}
             columnMapping={columnMapping}
             columnOverrides={columnOverrides}
+            hiddenColumns={hiddenExpressionAliases}
             dashboardMode={true}
             dashboardComponentId={String(component.id)}
             defaultFilters={queryConfig.filters}

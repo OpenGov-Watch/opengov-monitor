@@ -412,6 +412,79 @@ describe("DashboardComponent", () => {
     });
   });
 
+  describe("orderBy Fallback Behavior", () => {
+    it("REGRESSION: preserves queryConfig.orderBy when sorting state is empty", async () => {
+      // Bug: When sorting state is empty, data-table.tsx line 225 always overwrites
+      // baseQueryConfig.orderBy with sortingStateToOrderBy(sorting, ...) which returns []
+      // Expected: When user has no sorting state, fall back to baseQueryConfig.orderBy
+
+      const tableComponent: DashboardComponentType = {
+        id: 200,
+        dashboard_id: 1,
+        name: "Sorted Table",
+        type: "table",
+        query_config: JSON.stringify({
+          sourceTable: "all_spending",
+          columns: [{ column: "all_spending.category" }],
+          // Hidden expression columns - used for sorting but not displayed
+          expressionColumns: [
+            { alias: "category_total", expression: "SUM(DOT_latest)", hidden: true },
+            { alias: "subcategory_total", expression: "SUM(DOT_latest)", hidden: true },
+          ],
+          orderBy: [
+            { column: "category_total", direction: "DESC" },
+            { column: "subcategory_total", direction: "DESC" },
+          ],
+        }),
+        chart_config: null,
+        grid_config: JSON.stringify({ x: 0, y: 0, w: 6, h: 4 }),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      // Mock both column-config.yaml and the API response
+      (global.fetch as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({}), // column-config.yaml
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            data: [{ category: "Test" }],
+            totalCount: 1,
+          }),
+        });
+
+      render(<DashboardComponent component={tableComponent} />);
+
+      // Wait for the API query fetch to be called
+      await waitFor(() => {
+        const calls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls;
+        const apiCall = calls.find(call =>
+          typeof call[0] === 'string' && call[0].includes("/api/query/execute")
+        );
+        expect(apiCall).toBeDefined();
+      });
+
+      // Find the fetch call to /api/query/execute
+      const fetchCalls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls;
+      const executeCall = fetchCalls.find(call =>
+        typeof call[0] === 'string' && call[0].includes("/api/query/execute")
+      );
+
+      expect(executeCall).toBeDefined();
+      const requestBody = JSON.parse(executeCall![1].body);
+
+      // REGRESSION CHECK: orderBy should NOT be empty
+      // It should preserve the orderBy from queryConfig
+      expect(requestBody.orderBy).toEqual([
+        { column: "category_total", direction: "DESC" },
+        { column: "subcategory_total", direction: "DESC" },
+      ]);
+    });
+  });
+
   describe("Query Filters", () => {
     it("applies saved component filters to API requests", async () => {
       // This test verifies that filters saved in the component's query_config
