@@ -77,13 +77,13 @@ describe("Column Renderer with Pattern Detection", () => {
         // Tally patterns
         {
           match: "suffix",
-          pattern: ".ayes",
+          pattern: "_ayes",
           caseInsensitive: true,
           config: { type: "numeric", color: "green", decimals: 0 },
         },
         {
           match: "suffix",
-          pattern: ".nays",
+          pattern: "_nays",
           caseInsensitive: true,
           config: { type: "numeric", color: "red", decimals: 0 },
         },
@@ -240,28 +240,28 @@ describe("Column Renderer with Pattern Detection", () => {
   });
 
   describe("Tally patterns - suffix matching", () => {
-    it("detects .ayes suffix with green color", () => {
-      const config = getColumnConfig("", "tally.ayes");
+    it("detects _ayes suffix with green color", () => {
+      const config = getColumnConfig("", "tally_ayes");
       expect(config.type).toBe("numeric");
       expect(config.color).toBe("green");
       expect(config.decimals).toBe(0);
     });
 
-    it("detects .nays suffix with red color", () => {
-      const config = getColumnConfig("", "tally.nays");
+    it("detects _nays suffix with red color", () => {
+      const config = getColumnConfig("", "tally_nays");
       expect(config.type).toBe("numeric");
       expect(config.color).toBe("red");
       expect(config.decimals).toBe(0);
     });
 
     it("matches suffix pattern regardless of prefix", () => {
-      const config = getColumnConfig("", "something.ayes");
+      const config = getColumnConfig("", "something_ayes");
       expect(config.type).toBe("numeric");
       expect(config.color).toBe("green");
     });
 
     it("is case-insensitive for tally patterns", () => {
-      const config = getColumnConfig("", "tally.AYES");
+      const config = getColumnConfig("", "tally_AYES");
       expect(config.type).toBe("numeric");
       expect(config.color).toBe("green");
     });
@@ -383,7 +383,7 @@ describe("Column Renderer with Pattern Detection", () => {
     });
 
     it("formats number values with commas", () => {
-      const config = getColumnConfig("", "tally.ayes");
+      const config = getColumnConfig("", "tally_ayes");
       const result = formatValue(1234, config);
       expect(result).toBe("1,234");
     });
@@ -453,8 +453,8 @@ describe("Column Renderer with Pattern Detection", () => {
       expect(config.type).toBe("currency");
     });
 
-    it("handles column names with dots (dot-notation)", () => {
-      const config = getColumnConfig("", "tally.ayes");
+    it("handles tally column names with underscore suffix", () => {
+      const config = getColumnConfig("", "tally_ayes");
       expect(config.type).toBe("numeric");
       expect(config.color).toBe("green");
     });

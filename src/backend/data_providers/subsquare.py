@@ -207,10 +207,47 @@ class SubsquareProvider(DataProvider):
 
         # Add continuity check
         self._log_continuity_check(df_updates, "referenda")
-        
+
         return df_updates
 
-    # Out: ['title', 'Status', 'DOT', 'USD_proposal_time', 'Track', 'tally.ayes', 'tally.nays', 'propose_time', 'last_status_change', 'USD_latest']
+    def fetch_referenda_by_ids(self, ref_ids: list[int]):
+        """Fetch specific referenda by their IDs.
+
+        This is used for re-fetching referenda that had errors during previous processing.
+
+        Args:
+            ref_ids: List of referendum IDs to fetch.
+
+        Returns:
+            DataFrame with transformed referendum data.
+        """
+        base_url = f"https://{self.network_info.name}-api.subsquare.io/gov2/referendums"
+
+        items = []
+        for ref_id in ref_ids:
+            url = f"{base_url}/{ref_id}.json"
+            self._logger.info(f"Fetching referendum {ref_id}")
+            try:
+                item = self._fetchItem(url)
+                items.append(item)
+            except SystemExit as e:
+                self._logger.warning(f"Failed to fetch referendum {ref_id}: {e}")
+                continue
+
+        if not items:
+            self._logger.warning("No referenda could be fetched")
+            return pd.DataFrame()
+
+        df = pd.DataFrame(items)
+        df = self._transform_referenda(df)
+
+        # Build raw_data dict for validation
+        raw_data_by_id = {item.get('referendumIndex'): item for item in items}
+        self._validate_and_log_spender_referenda(df, raw_data_by_id)
+
+        return df
+
+    # Out: ['title', 'Status', 'DOT', 'USD_proposal_time', 'Track', 'tally_ayes', 'tally_nays', 'propose_time', 'last_status_change', 'USD_latest']
     def _transform_referenda(self, df):
         df = df.copy()
 
@@ -461,12 +498,12 @@ class SubsquareProvider(DataProvider):
         df[f"{native_asset_name}_component"] = df["bag"].apply(lambda x: x.get_amount(self.network_info.native_asset))
         df[f"USDC_component"] = df["bag"].apply(lambda x: x.get_amount(AssetKind.USDC))
         df[f"USDT_component"] = df["bag"].apply(lambda x: x.get_amount(AssetKind.USDT))
-        df["tally.ayes"] = df.apply(lambda x: self.network_info.apply_denomination(x["onchainData"]["tally"]["ayes"], self.network_info.native_asset), axis=1)
-        df["tally.nays"] = df.apply(lambda x: self.network_info.apply_denomination(x["onchainData"]["tally"]["nays"], self.network_info.native_asset), axis=1)
+        df["tally_ayes"] = df.apply(lambda x: self.network_info.apply_denomination(x["onchainData"]["tally"]["ayes"], self.network_info.native_asset), axis=1)
+        df["tally_nays"] = df.apply(lambda x: self.network_info.apply_denomination(x["onchainData"]["tally"]["nays"], self.network_info.native_asset), axis=1)
         df["track"] = df["onchainData"].apply(_determineTrack)
 
         df.set_index("id", inplace=True)
-        df = df[["title", "status", f"{native_asset_name}_proposal_time", "USD_proposal_time", "track", "tally.ayes", "tally.nays", "proposal_time", "latest_status_change", f"{native_asset_name}_latest", "USD_latest", f"{native_asset_name}_component", "USDC_component", "USDT_component"]]
+        df = df[["title", "status", f"{native_asset_name}_proposal_time", "USD_proposal_time", "track", "tally_ayes", "tally_nays", "proposal_time", "latest_status_change", f"{native_asset_name}_latest", "USD_latest", f"{native_asset_name}_component", "USDC_component", "USDT_component"]]
 
         return df
 

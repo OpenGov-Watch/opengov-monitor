@@ -77,14 +77,9 @@ export function generateColumns<TData>(
 
       // Hide category_id column
       if (columnName === 'category_id') {
-        const hasDotNotation = columnName.includes(".");
-        const columnId = hasDotNotation ? columnName.replace(/\./g, "_") : columnName;
-
         return {
-          id: columnId,
-          ...(hasDotNotation
-            ? { accessorFn: (row: any) => row[columnName] }
-            : { accessorKey: columnName }),
+          id: columnName,
+          accessorKey: columnName,
           header: () => null,
           cell: () => null,
           enableHiding: true,
@@ -97,16 +92,12 @@ export function generateColumns<TData>(
 
       // Handle category column with split dropdown
       if (columnName === 'category') {
-        const hasDotNotation = columnName.includes(".");
-        const columnId = hasDotNotation ? columnName.replace(/\./g, "_") : columnName;
         const parentCatCol = categoryEditConfig?.parentCategoryColumn;
         const isFacetedFilter = facetedFilters?.includes(columnName) || false;
 
         return {
-          id: columnId,
-          ...(hasDotNotation
-            ? { accessorFn: (row: any) => row[columnName] }
-            : { accessorKey: columnName }),
+          id: columnName,
+          accessorKey: columnName,
           header: ({ column }) => (
             <div className="flex items-center space-x-2">
               {isFacetedFilter && (
@@ -131,7 +122,7 @@ export function generateColumns<TData>(
             enableSorting: false,
           }),
           cell: ({ row }) => {
-            const value = hasDotNotation ? (row.original as any)[columnName] : row.getValue(columnId);
+            const value = row.getValue(columnName);
             const rowId = (row.original as any)[idField];
             const parentCategory = parentCatCol ? (row.original as any)[parentCatCol] : null;
 
@@ -157,17 +148,13 @@ export function generateColumns<TData>(
 
       // Handle subcategory column with split dropdown
       if (columnName === 'subcategory') {
-        const hasDotNotation = columnName.includes(".");
-        const columnId = hasDotNotation ? columnName.replace(/\./g, "_") : columnName;
         const parentCatCol = categoryEditConfig?.parentCategoryColumn;
         const parentSubcatCol = categoryEditConfig?.parentSubcategoryColumn;
         const isFacetedFilter = facetedFilters?.includes(columnName) || false;
 
         return {
-          id: columnId,
-          ...(hasDotNotation
-            ? { accessorFn: (row: any) => row[columnName] }
-            : { accessorKey: columnName }),
+          id: columnName,
+          accessorKey: columnName,
           header: ({ column }) => (
             <div className="flex items-center space-x-2">
               {isFacetedFilter && (
@@ -192,7 +179,7 @@ export function generateColumns<TData>(
             enableSorting: false,
           }),
           cell: ({ row }) => {
-            const value = hasDotNotation ? (row.original as any)[columnName] : row.getValue(columnId);
+            const value = row.getValue(columnName);
             const rowId = (row.original as any)[idField];
             const category = (row.original as any)['category'];
             const parentCategory = parentCatCol ? (row.original as any)[parentCatCol] : null;
@@ -229,11 +216,6 @@ export function generateColumns<TData>(
     // Check if this column should have a faceted filter
     const isFacetedFilter = facetedFilters?.includes(columnName) || false;
 
-    // Handle dot-notation columns (e.g., "tally.ayes")
-    // TanStack Table doesn't support dots in accessorKey, so use accessorFn instead
-    const hasDotNotation = columnName.includes(".");
-    const columnId = hasDotNotation ? columnName.replace(/\./g, "_") : columnName;
-
     // Check for filterColumn in columnOverrides (used for faceted filtering)
     const override = columnOverrides[columnName] as any;
     const filterColumnName = override?.filterColumn || columnName;
@@ -241,10 +223,8 @@ export function generateColumns<TData>(
 
     // Base column definition
     const columnDef: ColumnDef<TData> = {
-      id: columnId,
-      ...(hasDotNotation
-        ? { accessorFn: (row: any) => row[columnName] }
-        : { accessorKey: columnName }),
+      id: columnName,
+      accessorKey: columnName,
       header: ({ column }) => (
         <div className="flex items-center space-x-2">
           {isFacetedFilter && (
@@ -265,8 +245,7 @@ export function generateColumns<TData>(
         </div>
       ),
       cell: ({ row }) => {
-        // For dot-notation columns, get value directly from original
-        const value = hasDotNotation ? (row.original as any)[columnName] : row.getValue(columnId);
+        const value = row.getValue(columnName);
         const rowId = (row.original as any)[idField];
 
         // Editable cell rendering

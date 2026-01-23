@@ -77,13 +77,13 @@ describe("Column Metadata", () => {
         // Tally patterns
         {
           match: "suffix",
-          pattern: ".ayes",
+          pattern: "_ayes",
           caseInsensitive: true,
           config: { type: "numeric", color: "green", decimals: 0 },
         },
         {
           match: "suffix",
-          pattern: ".nays",
+          pattern: "_nays",
           caseInsensitive: true,
           config: { type: "numeric", color: "red", decimals: 0 },
         },
@@ -176,9 +176,9 @@ describe("Column Metadata", () => {
       expect(extractColumnName("all_spending.type")).toBe("type");
     });
 
-    it("preserves dot-notation columns (tally.ayes)", () => {
-      // "tally" is lowercase, so it's not treated as a table prefix
-      expect(extractColumnName("tally.ayes")).toBe("tally.ayes");
+    it("preserves simple column names", () => {
+      // Simple column names without table prefix are preserved
+      expect(extractColumnName("tally_ayes")).toBe("tally_ayes");
     });
 
     it("returns original name when no prefix", () => {
@@ -199,9 +199,9 @@ describe("Column Metadata", () => {
       expect(extractTableName("all_spending.type")).toBe("all_spending");
     });
 
-    it("returns empty for dot-notation columns (tally.ayes)", () => {
-      // "tally" is lowercase, so it's not treated as a table prefix
-      expect(extractTableName("tally.ayes")).toBe("");
+    it("returns empty for simple column names", () => {
+      // Simple column names without table prefix return empty table
+      expect(extractTableName("tally_ayes")).toBe("");
     });
 
     it("returns empty string when no prefix", () => {
@@ -293,12 +293,12 @@ describe("Column Metadata", () => {
     });
 
     describe("numeric columns", () => {
-      it("returns numeric for tally.ayes", () => {
-        expect(getColumnType("tally.ayes")).toBe("numeric");
+      it("returns numeric for tally_ayes", () => {
+        expect(getColumnType("tally_ayes")).toBe("numeric");
       });
 
-      it("returns numeric for tally.nays", () => {
-        expect(getColumnType("tally.nays")).toBe("numeric");
+      it("returns numeric for tally_nays", () => {
+        expect(getColumnType("tally_nays")).toBe("numeric");
       });
     });
 

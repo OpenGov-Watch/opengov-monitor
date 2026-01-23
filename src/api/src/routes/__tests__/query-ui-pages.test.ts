@@ -57,8 +57,8 @@ const SCHEMA_SQL = `
     "USDC_component" REAL,
     "USDT_component" REAL,
     "track" TEXT,
-    "tally.ayes" REAL,
-    "tally.nays" REAL,
+    "tally_ayes" REAL,
+    "tally_nays" REAL,
     "proposal_time" TEXT,
     "latest_status_change" TEXT,
     "category_id" INTEGER,
@@ -267,8 +267,8 @@ describe("UI Page QueryConfig Tests", () => {
           { column: "USD_proposal_time" },
           { column: "DOT_latest" },
           { column: "USD_latest" },
-          { column: "tally.ayes" },
-          { column: "tally.nays" },
+          { column: "tally_ayes" },
+          { column: "tally_nays" },
           { column: "proposal_time" },
           { column: "latest_status_change" },
           { column: "category_id" },
@@ -758,14 +758,14 @@ describe("UI Page QueryConfig Tests", () => {
     });
   });
 
-  describe("Column with Dots (Dot-Notation)", () => {
-    it("handles tally.ayes and tally.nays columns correctly", async () => {
+  describe("Tally Columns", () => {
+    it("handles tally_ayes and tally_nays columns correctly", async () => {
       const queryConfig: QueryConfig = {
         sourceTable: "Referenda",
         columns: [
           { column: "id" },
-          { column: "tally.ayes" },
-          { column: "tally.nays" },
+          { column: "tally_ayes" },
+          { column: "tally_nays" },
         ],
         filters: [],
         limit: 10
@@ -777,9 +777,9 @@ describe("UI Page QueryConfig Tests", () => {
 
       expect(response.status).toBe(200);
       expect(response.body.data).toBeDefined();
-      // Verify the SQL properly quotes dot-notation columns
-      expect(response.body.sql).toContain('"tally.ayes"');
-      expect(response.body.sql).toContain('"tally.nays"');
+      // Verify the SQL properly quotes tally columns
+      expect(response.body.sql).toContain('"tally_ayes"');
+      expect(response.body.sql).toContain('"tally_nays"');
     });
   });
 

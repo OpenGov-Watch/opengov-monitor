@@ -85,7 +85,7 @@ Columns are auto-formatted based on naming patterns in `public/config/column-con
 | `DOT_` | DOT_latest, DOT_proposal_time | Currency (DOT, 0 decimals) |
 | `USD_` | USD_latest | Currency (USD, 0 decimals) |
 | `USDC_`, `USDT_` | USDC_component | Currency (2 decimals) |
-| `.ayes`, `.nays` | tally.ayes | Number (green/red) |
+| `_ayes`, `_nays` | tally_ayes | Number (green/red) |
 | `_time`, `_date` | proposal_time | Date |
 | `status` | status | Badge with variants |
 | `beneficiary`, `address`, `who` | beneficiary | Truncated address |

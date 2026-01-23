@@ -35,6 +35,7 @@ INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUE
 INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (20, 'fix_fellowship_salary_usd_latest', 'a4f3f7ab169f9f0f03bf0e820ba126ac9ff2f6983eda9a1ed3a45188eaa86fee', 0);
 INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (21, 'filter_treasury_by_hidden_referenda', 'PLACEHOLDER', 0);
 INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (22, 'fix_custom_spending_foreign_key', 'PLACEHOLDER', 0);
+INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (23, 'rename_tally_columns', 'PLACEHOLDER', 0);
 
 -- Tables
 -- Table: Bounties
@@ -130,7 +131,7 @@ CREATE TABLE "Local Flows" (
 );
 
 -- Table: Referenda
-CREATE TABLE "Referenda" ("id" INTEGER PRIMARY KEY, "title" TEXT, "status" TEXT, "DOT_proposal_time" REAL, "USD_proposal_time" REAL, "track" TEXT, "tally.ayes" REAL, "tally.nays" REAL, "proposal_time" TIMESTAMP, "latest_status_change" TIMESTAMP, "DOT_latest" REAL, "USD_latest" REAL, "DOT_component" REAL, "USDC_component" REAL, "USDT_component" REAL, "category_id" INTEGER, "notes" TEXT, "hide_in_spends" INTEGER);
+CREATE TABLE "Referenda" ("id" INTEGER PRIMARY KEY, "title" TEXT, "status" TEXT, "DOT_proposal_time" REAL, "USD_proposal_time" REAL, "track" TEXT, "tally_ayes" REAL, "tally_nays" REAL, "proposal_time" TIMESTAMP, "latest_status_change" TIMESTAMP, "DOT_latest" REAL, "USD_latest" REAL, "DOT_component" REAL, "USDC_component" REAL, "USDT_component" REAL, "category_id" INTEGER, "notes" TEXT, "hide_in_spends" INTEGER);
 
 -- Table: Subtreasury
 CREATE TABLE "Subtreasury" ("id" INTEGER PRIMARY KEY, "title" TEXT, "description" TEXT, "DOT_latest" REAL, "USD_latest" REAL, "DOT_component" REAL, "USDC_component" REAL, "USDT_component" REAL, "category_id" INTEGER, "latest_status_change" TIMESTAMP);

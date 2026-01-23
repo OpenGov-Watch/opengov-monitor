@@ -59,8 +59,8 @@ beforeAll(() => {
         "track" TEXT,
         "DOT_latest" REAL,
         "USD_latest" REAL,
-        "tally.ayes" REAL,
-        "tally.nays" REAL,
+        "tally_ayes" REAL,
+        "tally_nays" REAL,
         "proposal_time" TIMESTAMP,
         "latest_status_change" TIMESTAMP,
         "DOT_component" REAL,
@@ -295,12 +295,12 @@ describe("Query Builder Security Tests", () => {
       expect(response.status).toBe(200);
     });
 
-    it("accepts column with dot: tally.ayes", async () => {
+    it("accepts column with underscore: DOT_proposal_time", async () => {
       const response = await request(app)
         .post("/api/query/execute")
         .send({
           sourceTable: "Referenda",
-          columns: [{ column: "tally.ayes" }],
+          columns: [{ column: "DOT_proposal_time" }],
           filters: [],
         });
 

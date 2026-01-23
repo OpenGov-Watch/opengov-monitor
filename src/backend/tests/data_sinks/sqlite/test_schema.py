@@ -201,10 +201,10 @@ class TestGenerateCreateTableSql:
         assert "IF NOT EXISTS" in sql
 
     def test_generate_create_table_sql_column_with_dots(self):
-        """Verify columns with dots (like tally.ayes) are handled."""
+        """Verify columns with dots (like tally_ayes) are handled."""
         sql = generate_create_table_sql(REFERENDA_SCHEMA)
-        assert '"tally.ayes"' in sql
-        assert '"tally.nays"' in sql
+        assert '"tally_ayes"' in sql
+        assert '"tally_nays"' in sql
 
     def test_generate_create_table_sql_text_primary_key(self):
         """Verify TEXT primary key works (Child Bounties uses identifier)."""
@@ -294,8 +294,8 @@ class TestSchemaContentValidation:
         assert "id" in schema.columns
         assert "status" in schema.columns
         assert "track" in schema.columns
-        assert "tally.ayes" in schema.columns
-        assert "tally.nays" in schema.columns
+        assert "tally_ayes" in schema.columns
+        assert "tally_nays" in schema.columns
         assert len(schema.indexes) == 4
 
     def test_treasury_schema_includes_claim_dates(self):

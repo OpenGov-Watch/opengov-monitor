@@ -131,7 +131,7 @@ patterns:
 # Table-specific config
 tables:
   referenda:
-    "tally.ayes":
+    tally_ayes:
       render: number
       color: green
 ```
@@ -182,8 +182,8 @@ const columnOverrides = {
 | `*_time` | date | `proposal_time` → "Jan 15, 2025" |
 | `*_date` | date | `start_date` → "Jan 15, 2025" |
 | `status` | badge | `status` → Colored badge |
-| `*.ayes` | number (green) | `tally.ayes` → "1,234" |
-| `*.nays` | number (red) | `tally.nays` → "567" |
+| `*_ayes` | number (green) | `tally_ayes` → "1,234" |
+| `*_nays` | number (red) | `tally_nays` → "567" |
 | `beneficiary` | address | `beneficiary` → "0x1234...5678" |
 
 ## Adding New Patterns

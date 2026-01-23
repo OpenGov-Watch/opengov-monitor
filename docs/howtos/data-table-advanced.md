@@ -159,8 +159,8 @@ export default function ReferendaPage() {
       { column: "track" },
       { column: "DOT_proposal_time" },
       { column: "USD_proposal_time" },
-      { column: "tally.ayes" },
-      { column: "tally.nays" },
+      { column: "tally_ayes" },
+      { column: "tally_nays" },
       { column: "proposal_time" },
       { column: "latest_status_change" },
       { column: "category_id" },
@@ -265,9 +265,9 @@ export default function ReferendaPage() {
 
 ## Advanced Patterns
 
-### Dot-Notation Columns
+### Tally Columns
 
-Columns with dots (e.g., `tally.ayes`) are automatically handled - no special configuration needed.
+Tally columns (e.g., `tally_ayes`, `tally_nays`) are automatically formatted with colors - no special configuration needed.
 
 ### filterColumn - Display vs Filter Column Mapping
 

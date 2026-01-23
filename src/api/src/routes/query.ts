@@ -278,7 +278,6 @@ function sanitizeColumnName(name: string, sourceTable?: string): string {
   }
 
   // Handle table.column format (e.g., "Referenda.id" or "c.category")
-  // But NOT columns with dots in their names (e.g., "tally.ayes")
   const lastDotIndex = name.lastIndexOf('.');
   if (lastDotIndex > 0 && lastDotIndex < name.length - 1) {
     // Check if this might be a column-with-dots by seeing if it exists in source table

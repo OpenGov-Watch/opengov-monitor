@@ -102,13 +102,13 @@ columns:
     decimals: 0
 
   # Tally columns with custom display names
-  tally.ayes:
+  tally_ayes:
     displayName: "Ayes"
     type: numeric
     decimals: 0
     color: green
 
-  tally.nays:
+  tally_nays:
     displayName: "Nays"
     type: numeric
     decimals: 0
@@ -276,7 +276,7 @@ patterns:
 
   # Tally patterns - suffix matching (case-insensitive)
   - match: suffix
-    pattern: ".ayes"
+    pattern: "_ayes"
     caseInsensitive: true
     config:
       type: numeric
@@ -284,7 +284,7 @@ patterns:
       decimals: 0
 
   - match: suffix
-    pattern: ".nays"
+    pattern: "_nays"
     caseInsensitive: true
     config:
       type: numeric

@@ -36,8 +36,8 @@ describe("getColumnKey", () => {
     expect(result).toBe("id");
   });
 
-  it("handles dots in column names for aggregate functions", () => {
-    const result = getColumnKey({ column: "tally.ayes", aggregateFunction: "SUM" });
+  it("handles underscores in column names for aggregate functions", () => {
+    const result = getColumnKey({ column: "tally_ayes", aggregateFunction: "SUM" });
     expect(result).toBe("sum_tally_ayes");
   });
 

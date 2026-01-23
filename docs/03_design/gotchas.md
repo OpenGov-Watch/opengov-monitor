@@ -59,18 +59,6 @@ Both must be handled. See `business-rules.md` for index mappings.
 
 ## Frontend
 
-### Dot-Notation Columns Need `accessorFn`
-
-TanStack Table can't use `accessorKey` for nested fields like `tally.ayes`:
-
-```typescript
-// Wrong - won't work
-{ accessorKey: "tally.ayes" }
-
-// Correct
-{ accessorFn: (row) => row["tally.ayes"], id: "tally.ayes" }
-```
-
 ### Joined Columns Need Alias Resolution for Sorting and Filtering
 
 When using JOINs with aliased columns, both sorting and filtering require mapping aliases back to original references before sending to backend.

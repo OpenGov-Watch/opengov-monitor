@@ -23,7 +23,7 @@ Core fields: `title`, `status`, `track`, `proposal_time`, `latest_status_change`
 
 Value fields: `{ASSET}_proposal_time`, `{ASSET}_latest`, `USD_*`, `{ASSET}_component`
 
-Tally fields: `tally.ayes`, `tally.nays`
+Tally fields: `tally_ayes`, `tally_nays`
 
 Manual fields: `category_id` (FK), `notes`, `hide_in_spends`
 

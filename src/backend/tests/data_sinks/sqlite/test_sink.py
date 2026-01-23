@@ -571,8 +571,8 @@ class TestDataFramePreparation:
                 "proposal_time": "TIMESTAMP",
                 "status": "TEXT",
                 "track": "TEXT",
-                "tally.ayes": "REAL",
-                "tally.nays": "REAL",
+                "tally_ayes": "REAL",
+                "tally_nays": "REAL",
             },
             primary_key="id"
         )
@@ -593,8 +593,8 @@ class TestDataFramePreparation:
                 "proposal_time": "TIMESTAMP",
                 "status": "TEXT",
                 "track": "TEXT",
-                "tally.ayes": "REAL",
-                "tally.nays": "REAL",
+                "tally_ayes": "REAL",
+                "tally_nays": "REAL",
             },
             primary_key="id"
         )
@@ -647,10 +647,10 @@ class TestUpsertSqlGeneration:
         """Verify column names are quoted."""
         sql = sqlite_sink._generate_upsert_sql(
             REFERENDA_SCHEMA,
-            ['id', 'tally.ayes']
+            ['id', 'tally_ayes']
         )
         assert '"id"' in sql
-        assert '"tally.ayes"' in sql
+        assert '"tally_ayes"' in sql
 
     def test_generate_upsert_placeholders(self, sqlite_sink):
         """Verify ? placeholders are used."""
@@ -803,7 +803,7 @@ class TestReadQueryUtilities:
         # Should have all columns from schema
         assert 'id' in result.columns
         assert 'title' in result.columns
-        assert 'tally.ayes' in result.columns
+        assert 'tally_ayes' in result.columns
 
     def test_read_table_empty_table(self, populated_sink):
         """Verify empty DataFrame returned for empty table."""
@@ -935,12 +935,12 @@ class TestEdgeCases:
         assert sqlite_sink.get_row_count("Referenda") == 1000
 
     def test_column_dots_in_name(self, sqlite_sink, sample_referenda_df):
-        """Verify tally.ayes column roundtrip works."""
+        """Verify tally_ayes column roundtrip works."""
         sqlite_sink.update_table("Referenda", sample_referenda_df)
         result = sqlite_sink.read_table("Referenda")
 
-        assert 'tally.ayes' in result.columns
-        assert result['tally.ayes'].iloc[0] == 100000.0
+        assert 'tally_ayes' in result.columns
+        assert result['tally_ayes'].iloc[0] == 100000.0
 
     def test_table_name_with_spaces(self, sqlite_sink, sample_child_bounties_df):
         """Verify 'Child Bounties' roundtrip works."""

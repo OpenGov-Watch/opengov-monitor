@@ -26,8 +26,8 @@ Configured in `frontend/public/config/column-config.yaml`.
 | `_time` | substring | proposal_time, latest_status_change | Date (formatted) |
 | `_at` | suffix | created_at, updated_at | Timestamp |
 | `_status` | suffix | proposal_status | Badge (colored) |
-| `.ayes` | suffix | tally.ayes | Number (green color) |
-| `.nays` | suffix | tally.nays | Number (red color) |
+| `_ayes` | suffix | tally_ayes | Number (green color) |
+| `_nays` | suffix | tally_nays | Number (red color) |
 | `_address` | suffix | curator_address | Address (truncated with copy) |
 
 ### Adding Custom Patterns

@@ -7,8 +7,8 @@ export interface Referendum {
   DOT_proposal_time: number | null;
   USD_proposal_time: number | null;
   track: string;
-  "tally.ayes": number | null;
-  "tally.nays": number | null;
+  tally_ayes: number | null;
+  tally_nays: number | null;
   proposal_time: string | null;
   latest_status_change: string | null;
   DOT_latest: number | null;

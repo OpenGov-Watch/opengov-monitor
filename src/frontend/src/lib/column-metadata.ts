@@ -12,19 +12,16 @@ export type { ColumnType };
 /**
  * Check if a string looks like a table name.
  * Table names are either PascalCase (Referenda) or snake_case (all_spending).
- * Column names with dots like "tally.ayes" have lowercase first parts.
  */
 function looksLikeTableName(name: string): boolean {
   if (!name) return false;
   // Table names start with uppercase (Referenda) or contain underscore (all_spending)
-  // Column dot-notation like "tally.ayes" has lowercase "tally"
   return name[0] === name[0].toUpperCase() || name.includes("_");
 }
 
 /**
  * Extract bare column name from table-prefixed name
  * e.g., "Referenda.track" → "track"
- * But "tally.ayes" → "tally.ayes" (not a table prefix)
  */
 export function extractColumnName(fullColumnName: string): string {
   const dotIndex = fullColumnName.indexOf(".");
@@ -41,7 +38,6 @@ export function extractColumnName(fullColumnName: string): string {
 /**
  * Extract table name from table-prefixed column name
  * e.g., "Referenda.track" → "Referenda"
- * But "tally.ayes" → "" (not a table prefix)
  */
 export function extractTableName(fullColumnName: string): string {
   const dotIndex = fullColumnName.indexOf(".");
