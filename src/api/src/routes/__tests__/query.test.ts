@@ -864,6 +864,48 @@ describe("Query Builder Security Tests", () => {
         expect(response.body.error).toContain("Invalid column name");
       }
     });
+
+    it("uses alias in ORDER BY for aggregated columns", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "all_spending",
+          columns: [
+            { column: "year_quarter" },
+            { column: "DOT_component", alias: "Total_DOT", aggregateFunction: "SUM" },
+          ],
+          filters: [],
+          groupBy: ["year_quarter"],
+          orderBy: [{ column: "DOT_component", direction: "DESC" }],
+          limit: 5,
+        });
+
+      expect(response.status).toBe(200);
+      // The ORDER BY should use the alias "Total_DOT" instead of raw column "DOT_component"
+      expect(response.body.sql).toContain('ORDER BY "Total_DOT" DESC');
+      expect(response.body.sql).not.toMatch(/ORDER BY.*"DOT_component"/);
+    });
+
+    it("uses generated alias in ORDER BY for aggregated columns without explicit alias", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "all_spending",
+          columns: [
+            { column: "year_quarter" },
+            { column: "DOT_component", aggregateFunction: "SUM" },
+          ],
+          filters: [],
+          groupBy: ["year_quarter"],
+          orderBy: [{ column: "DOT_component", direction: "ASC" }],
+          limit: 5,
+        });
+
+      expect(response.status).toBe(200);
+      // Without explicit alias, the generated alias should be "sum_DOT_component"
+      expect(response.body.sql).toContain('ORDER BY "sum_DOT_component" ASC');
+      expect(response.body.sql).not.toMatch(/ORDER BY.*"DOT_component" ASC/);
+    });
   });
 
   // ===========================================================================

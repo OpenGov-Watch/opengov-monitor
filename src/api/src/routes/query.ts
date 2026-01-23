@@ -605,10 +605,43 @@ function buildOrderByClause(
 
   const hasJoins = config?.joins && config.joins.length > 0;
 
+  // Build lookup for columns with aggregate functions
+  const columnLookup = new Map<string, { alias?: string; aggregateFunction?: string; column: string }>();
+  for (const col of config?.columns || []) {
+    // Store by full column name (e.g., "all_spending.DOT_component")
+    columnLookup.set(col.column, col);
+    // Also store by simple column name (e.g., "DOT_component") for backward compatibility
+    if (col.column.includes('.')) {
+      const simpleName = col.column.split('.').pop()!;
+      columnLookup.set(simpleName, col);
+    }
+  }
+
+  // Build lookup for expression columns with aggregate functions
+  const exprLookup = new Map<string, { alias: string; aggregateFunction?: string }>();
+  for (const expr of config?.expressionColumns || []) {
+    exprLookup.set(expr.alias, expr);
+  }
+
   return `ORDER BY ${orderBy
     .map((o) => {
       let columnRef = o.column;
-      // Prefix with source table if no prefix and JOINs present
+
+      // Check if this column has an aggregate function
+      const colDef = columnLookup.get(columnRef);
+      if (colDef?.aggregateFunction) {
+        // Use the alias for aggregated columns (PostgreSQL requires this)
+        const alias = colDef.alias || `${colDef.aggregateFunction.toLowerCase()}_${colDef.column.replace(/[.\s]/g, "_")}`;
+        return `"${sanitizeAlias(alias)}" ${o.direction}`;
+      }
+
+      // Check if this is an expression column with aggregation
+      const exprDef = exprLookup.get(columnRef);
+      if (exprDef?.aggregateFunction) {
+        return `"${sanitizeAlias(exprDef.alias)}" ${o.direction}`;
+      }
+
+      // Non-aggregated column: use the original behavior
       if (hasJoins && config && !columnRef.includes('.')) {
         columnRef = `${config.sourceTable}.${columnRef}`;
       }
