@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { getColumnKey } from "@/lib/query-config-utils";
+import { validateQueryConfig, hasInvalidQueryConfig } from "@/lib/query-config-utils";
 import {
   Dialog,
   DialogContent,
@@ -113,43 +113,13 @@ export function ComponentEditor({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
-  // Detect all invalid query configuration entries
-  const queryConfigValidation = useMemo(() => {
-    const result = {
-      invalidGroupBy: [] as string[],
-      invalidOrderBy: [] as { column: string; direction: string }[],
-    };
+  // Detect invalid query configuration entries using shared validation
+  const queryConfigValidation = useMemo(
+    () => validateQueryConfig(queryConfig),
+    [queryConfig.columns, queryConfig.expressionColumns, queryConfig.groupBy, queryConfig.orderBy]
+  );
 
-    // Build set of valid column keys from current query config (selected columns + expressions)
-    const validColumns = new Set<string>();
-    for (const col of queryConfig.columns || []) {
-      validColumns.add(getColumnKey(col));
-    }
-    for (const expr of queryConfig.expressionColumns || []) {
-      validColumns.add(expr.alias);
-    }
-
-    // Check groupBy - must be in selected columns
-    for (const gb of queryConfig.groupBy || []) {
-      if (!validColumns.has(gb)) {
-        result.invalidGroupBy.push(gb);
-      }
-    }
-
-    // Check orderBy - must be in selected columns
-    for (const ob of queryConfig.orderBy || []) {
-      if (!validColumns.has(ob.column)) {
-        result.invalidOrderBy.push(ob);
-      }
-    }
-
-    return result;
-  }, [queryConfig.columns, queryConfig.expressionColumns, queryConfig.groupBy, queryConfig.orderBy]);
-
-  // Convenience flag
-  const hasInvalidConfig =
-    queryConfigValidation.invalidGroupBy.length > 0 ||
-    queryConfigValidation.invalidOrderBy.length > 0;
+  const hasInvalidConfig = hasInvalidQueryConfig(queryConfigValidation);
 
   // Reset state when dialog opens or component changes
   useEffect(() => {

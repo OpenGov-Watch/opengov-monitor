@@ -2,6 +2,72 @@ import type { SortingState, ColumnFiltersState } from "@tanstack/react-table";
 import type { FilterGroup, FacetQueryConfig, QueryConfig } from "@/lib/db/types";
 
 /**
+ * Validation result for QueryConfig groupBy and orderBy entries.
+ * Returns lists of invalid entries that reference columns no longer in the query.
+ */
+export interface QueryConfigValidation {
+  invalidGroupBy: string[];
+  invalidOrderBy: { column: string; direction: string }[];
+}
+
+/**
+ * Validate QueryConfig groupBy and orderBy entries against selected columns.
+ *
+ * Returns lists of invalid entries that reference columns no longer in the query.
+ * This can happen when columns are removed but groupBy/orderBy entries remain.
+ *
+ * @param queryConfig - The QueryConfig to validate
+ * @returns Validation result with lists of invalid entries
+ *
+ * @example
+ * const validation = validateQueryConfig(config);
+ * if (hasInvalidQueryConfig(validation)) {
+ *   // Show error or clean up invalid entries
+ * }
+ */
+export function validateQueryConfig(queryConfig: QueryConfig): QueryConfigValidation {
+  const result: QueryConfigValidation = {
+    invalidGroupBy: [],
+    invalidOrderBy: [],
+  };
+
+  // Build set of valid column keys from current query config (selected columns + expressions)
+  const validColumns = new Set<string>();
+  for (const col of queryConfig.columns || []) {
+    validColumns.add(getColumnKey(col));
+  }
+  for (const expr of queryConfig.expressionColumns || []) {
+    validColumns.add(expr.alias);
+  }
+
+  // Check groupBy - must be in selected columns
+  for (const gb of queryConfig.groupBy || []) {
+    if (!validColumns.has(gb)) {
+      result.invalidGroupBy.push(gb);
+    }
+  }
+
+  // Check orderBy - must be in selected columns
+  for (const ob of queryConfig.orderBy || []) {
+    if (!validColumns.has(ob.column)) {
+      result.invalidOrderBy.push(ob);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Check if a QueryConfigValidation has any invalid entries.
+ *
+ * @param validation - The validation result from validateQueryConfig
+ * @returns true if there are invalid groupBy or orderBy entries
+ */
+export function hasInvalidQueryConfig(validation: QueryConfigValidation): boolean {
+  return validation.invalidGroupBy.length > 0 || validation.invalidOrderBy.length > 0;
+}
+
+/**
  * OrderBy configuration for QueryConfig
  */
 export interface OrderByConfig {

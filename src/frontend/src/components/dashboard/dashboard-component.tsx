@@ -37,7 +37,7 @@ import { DashboardBarChart as BarChartExport } from "@/components/charts/bar-cha
 import { DashboardLineChart as LineChartExport } from "@/components/charts/line-chart";
 import { DataTable } from "@/components/data-table/data-table";
 import { loadColumnConfig } from "@/lib/column-renderer";
-import { getColumnKey, normalizeDataKeys } from "@/lib/query-config-utils";
+import { getColumnKey, normalizeDataKeys, validateQueryConfig, hasInvalidQueryConfig } from "@/lib/query-config-utils";
 import type {
   DashboardComponent as DashboardComponentType,
   QueryConfig,
@@ -471,6 +471,24 @@ export const DashboardComponent = memo(
             <span className="text-muted-foreground">No content</span>
           )}
         </div>
+      );
+    }
+
+    // Validate query config - show error if groupBy/orderBy reference missing columns
+    const queryValidation = validateQueryConfig(queryConfig);
+    if (hasInvalidQueryConfig(queryValidation)) {
+      const parts: string[] = [];
+      if (queryValidation.invalidGroupBy.length > 0) {
+        parts.push(`GROUP BY: ${queryValidation.invalidGroupBy.join(", ")}`);
+      }
+      if (queryValidation.invalidOrderBy.length > 0) {
+        parts.push(`ORDER BY: ${queryValidation.invalidOrderBy.map(o => o.column).join(", ")}`);
+      }
+      return (
+        <ChartValidationError
+          error="Invalid query configuration"
+          hint={`References columns not in query: ${parts.join("; ")}. Edit to fix.`}
+        />
       );
     }
 

@@ -135,6 +135,17 @@ Example: A stacked bar chart with categories "Outreach", "Development" displays:
 - `src/frontend/src/components/charts/line-chart.tsx` - Line charts
 - `src/frontend/src/components/charts/pie-chart.tsx` - Pie charts
 
+## QueryConfig Validation
+
+Dashboard components validate `groupBy` and `orderBy` entries against selected columns. Invalid entries (referencing removed columns) trigger:
+
+- **View mode**: `ChartValidationError` with summary message
+- **Edit mode**: Detailed alert listing invalid entries; auto-cleanup on save
+
+Validation utilities in `src/frontend/src/lib/query-config-utils.ts`:
+- `validateQueryConfig()` - Returns invalid groupBy/orderBy entries
+- `hasInvalidQueryConfig()` - Boolean helper
+
 ## Component Files
 
 - `src/frontend/src/components/dashboard/dashboard-grid.tsx` - Grid layout
