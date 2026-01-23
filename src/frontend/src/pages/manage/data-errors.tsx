@@ -12,6 +12,7 @@ interface DataError {
   raw_data: string | null;
   metadata: string | null;
   timestamp: string;
+  classification: string;
 }
 
 function DataErrorsPageContent() {
@@ -26,6 +27,16 @@ function DataErrorsPageContent() {
         { column: "timestamp" },
         { column: "metadata" },
         { column: "raw_data" },
+      ],
+      expressionColumns: [
+        {
+          expression: `CASE
+            WHEN json_extract(metadata, '$.status') IN ('TimedOut', 'Rejected', 'Cancelled', 'Killed')
+            THEN 'Acceptable'
+            ELSE 'Needs Investigation'
+          END`,
+          alias: "classification",
+        },
       ],
       filters: [],
       orderBy: [{ column: "timestamp", direction: "DESC" }],
@@ -44,7 +55,7 @@ function DataErrorsPageContent() {
       <DataTable<DataError>
         queryConfig={queryConfig}
         tableName="DataErrors"
-        facetedFilters={["table_name", "error_type"]}
+        facetedFilters={["table_name", "error_type", "classification"]}
       />
     </div>
   );

@@ -24,17 +24,17 @@ sqlite3 data/local/polkadot.db "SELECT id, title, status, track, DOT_proposal_ti
 
 ## Error Categories
 
-### Expected Errors (Not Bugs)
+### Acceptable Errors (Not Bugs)
 
-NULL values are **expected** when referendum status is:
+NULL values are **acceptable** when referendum status is:
 - `TimedOut` - proposal never reached execution
 - `Rejected` - proposal was voted down
 - `Cancelled` - proposal was cancelled
 - `Killed` - proposal was killed
 
-These referenda have no spending data because they never executed.
+These referenda have no spending data because they never executed. Spending reports only include executed proposals, so these errors don't affect reports.
 
-### Unexpected Errors (Investigate Further)
+### Needs Investigation
 
 NULL values need investigation when:
 - Status is `Executed` or `Approved` - spending should have happened
@@ -100,7 +100,7 @@ FROM Referenda WHERE id = {ID};
 
 | Cause | How to Identify | Resolution |
 |-------|-----------------|------------|
-| Non-executed referendum | status in (TimedOut, Rejected, Cancelled, Killed) | Expected - no action needed |
+| Non-executed referendum | status in (TimedOut, Rejected, Cancelled, Killed) | Acceptable - no action needed |
 | Call index mismatch | API callIndex not in code's known lists | Add new indices or use `allSpends` |
 | API missing data | Subsquare API returns null/empty for `allSpends` | Upstream issue - report to Subsquare |
 | Unsupported asset type | Check `allSpends[].assetKind` for unknown assets | Add support in `_build_bag_from_all_spends()` |
