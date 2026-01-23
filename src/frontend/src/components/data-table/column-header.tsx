@@ -55,20 +55,20 @@ export function DataTableColumnHeader<TData, TValue>({
   };
 
   return (
-    <div className={cn("flex items-center space-x-2", className)}>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="-ml-3 h-8"
-        onClick={handleSort}
-      >
-        <span>{title}</span>
+    <Button
+      variant="ghost"
+      size="sm"
+      className={cn("h-8 w-full justify-between px-2", className)}
+      onClick={handleSort}
+    >
+      <span>{title}</span>
+      <span className="flex items-center">
         {isSorted === "desc" ? (
-          <ArrowDown className="ml-2 h-4 w-4" />
+          <ArrowDown className="h-4 w-4" />
         ) : isSorted === "asc" ? (
-          <ArrowUp className="ml-2 h-4 w-4" />
+          <ArrowUp className="h-4 w-4" />
         ) : (
-          <ChevronsUpDown className="ml-2 h-4 w-4" />
+          <ChevronsUpDown className="h-4 w-4" />
         )}
         {/* Show sort order number for multi-column sorting */}
         {isSorted && sortIndex !== -1 && (
@@ -76,7 +76,7 @@ export function DataTableColumnHeader<TData, TValue>({
             {sortIndex + 1}
           </Badge>
         )}
-      </Button>
-    </div>
+      </span>
+    </Button>
   );
 }
