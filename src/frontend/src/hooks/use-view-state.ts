@@ -45,10 +45,16 @@ function decodeViewState(encoded: string): ViewState | null {
 interface UseViewStateOptions {
   defaultSorting?: SortingState;
   defaultViews?: SavedView[];
+  /**
+   * When true, disables URL sync for this hook instance.
+   * Use this for dashboard tables where multiple DataTable components
+   * would otherwise fight over the same ?view= URL parameter.
+   */
+  disableUrlSync?: boolean;
 }
 
 export function useViewState(tableName: string, options: UseViewStateOptions = {}) {
-  const { defaultSorting = [], defaultViews = [] } = options;
+  const { defaultSorting = [], defaultViews = [], disableUrlSync = false } = options;
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -141,7 +147,10 @@ export function useViewState(tableName: string, options: UseViewStateOptions = {
 
   // Phase 3: URL sync - debounced URL updates on state changes
   // Optimized: Only update URL if state actually changed (prevents blocking on every render)
+  // Note: disableUrlSync prevents URL updates for dashboard tables where multiple
+  // DataTable components would otherwise fight over the same ?view= URL parameter
   useEffect(() => {
+    if (disableUrlSync) return; // Skip URL sync for dashboard tables
     if (!initialLoadDone.current) return; // Don't sync during initial load
 
     const timeoutId = setTimeout(() => {
@@ -152,14 +161,16 @@ export function useViewState(tableName: string, options: UseViewStateOptions = {
       // This prevents unnecessary navigation and reduces main thread blocking
       if (encoded && encoded !== lastEncodedState.current) {
         lastEncodedState.current = encoded;
-        const params = new URLSearchParams(searchParams.toString());
+        // Use location.search instead of searchParams to avoid dependency on searchParams object
+        // This prevents re-runs when searchParams reference changes after navigate()
+        const params = new URLSearchParams(location.search);
         params.set("view", encoded);
         navigate(`${location.pathname}?${params.toString()}`, { replace: true });
       }
     }, 500); // Debounce for 500ms
 
     return () => clearTimeout(timeoutId);
-  }, [sorting, columnFilters, columnVisibility, pagination, filterGroup, groupBy, getCurrentState, navigate, location.pathname, searchParams]);
+  }, [sorting, columnFilters, columnVisibility, pagination, filterGroup, groupBy, getCurrentState, navigate, location, disableUrlSync]);
 
   // Save a named view
   const saveView = useCallback((name: string, overwrite: boolean = false): boolean => {
@@ -203,12 +214,12 @@ export function useViewState(tableName: string, options: UseViewStateOptions = {
       // Update URL
       const encoded = encodeViewState(view.state);
       if (encoded) {
-        const params = new URLSearchParams(searchParams.toString());
+        const params = new URLSearchParams(location.search);
         params.set("view", encoded);
         navigate(`${location.pathname}?${params.toString()}`, { replace: true });
       }
     }
-  }, [getSavedViews, applyViewState, searchParams, navigate, location.pathname]);
+  }, [getSavedViews, applyViewState, navigate, location]);
 
   // Delete a named view
   const deleteView = useCallback((name: string) => {
@@ -242,11 +253,11 @@ export function useViewState(tableName: string, options: UseViewStateOptions = {
     // Also update URL
     const encoded = encodeViewState(state);
     if (encoded) {
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams(location.search);
       params.set("view", encoded);
       navigate(`${location.pathname}?${params.toString()}`, { replace: true });
     }
-  }, [getCurrentState, tableName, searchParams, navigate, location.pathname]);
+  }, [getCurrentState, tableName, navigate, location]);
 
   // Legacy load (deprecated)
   const loadViewState = useCallback(() => {

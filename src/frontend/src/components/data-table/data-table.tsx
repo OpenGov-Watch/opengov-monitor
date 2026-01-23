@@ -125,7 +125,8 @@ export function DataTable<TData>({
   const toolbarCollapsible = toolbarCollapsibleProp ?? dashboardMode;
   const initialToolbarCollapsed = initialToolbarCollapsedProp ?? dashboardMode;
   // VIEW STATE MANAGEMENT (moved before queryConfig to access sorting/filtering)
-  const viewState = useViewState(tableName, { defaultSorting, defaultViews });
+  // disableUrlSync prevents multiple dashboard tables from fighting over the same ?view= URL param
+  const viewState = useViewState(tableName, { defaultSorting, defaultViews, disableUrlSync: dashboardMode });
 
   const {
     sorting,
@@ -576,10 +577,10 @@ export function DataTable<TData>({
   // COLUMN GENERATION
   // Schema-based dependency to prevent regeneration on every data fetch
   // Only regenerate when column structure changes, not when values change
-  const dataSchema = useMemo(
-    () => (data && data.length > 0 && data[0] ? Object.keys(data[0] as Record<string, unknown>).sort().join(',') : ''),
-    [data && data.length > 0 && data[0] ? Object.keys(data[0] as Record<string, unknown>).sort().join(',') : '']
-  );
+  const dataSchemaKey = data && data.length > 0 && data[0]
+    ? Object.keys(data[0] as Record<string, unknown>).sort().join(',')
+    : '';
+  const dataSchema = useMemo(() => dataSchemaKey, [dataSchemaKey]);
 
   const columns = useMemo(() => {
     if (!data || data.length === 0 || !configLoaded) return [];
