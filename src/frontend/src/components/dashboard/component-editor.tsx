@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import Markdown from "react-markdown";
 import Play from "lucide-react/dist/esm/icons/play";
+import AlertTriangle from "lucide-react/dist/esm/icons/alert-triangle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { getColumnKey } from "@/lib/query-config-utils";
 import {
   Dialog,
   DialogContent,
@@ -110,6 +113,44 @@ export function ComponentEditor({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
+  // Detect all invalid query configuration entries
+  const queryConfigValidation = useMemo(() => {
+    const result = {
+      invalidGroupBy: [] as string[],
+      invalidOrderBy: [] as { column: string; direction: string }[],
+    };
+
+    // Build set of valid column keys from current query config (selected columns + expressions)
+    const validColumns = new Set<string>();
+    for (const col of queryConfig.columns || []) {
+      validColumns.add(getColumnKey(col));
+    }
+    for (const expr of queryConfig.expressionColumns || []) {
+      validColumns.add(expr.alias);
+    }
+
+    // Check groupBy - must be in selected columns
+    for (const gb of queryConfig.groupBy || []) {
+      if (!validColumns.has(gb)) {
+        result.invalidGroupBy.push(gb);
+      }
+    }
+
+    // Check orderBy - must be in selected columns
+    for (const ob of queryConfig.orderBy || []) {
+      if (!validColumns.has(ob.column)) {
+        result.invalidOrderBy.push(ob);
+      }
+    }
+
+    return result;
+  }, [queryConfig.columns, queryConfig.expressionColumns, queryConfig.groupBy, queryConfig.orderBy]);
+
+  // Convenience flag
+  const hasInvalidConfig =
+    queryConfigValidation.invalidGroupBy.length > 0 ||
+    queryConfigValidation.invalidOrderBy.length > 0;
+
   // Reset state when dialog opens or component changes
   useEffect(() => {
     if (open) {
@@ -181,12 +222,33 @@ export function ComponentEditor({
       return;
     }
 
+    // Build the query config to save, removing invalid entries
+    let queryConfigToSave = queryConfig;
+    if (type !== "text" && hasInvalidConfig) {
+      const invalidGroupBySet = new Set(queryConfigValidation.invalidGroupBy);
+      const invalidOrderBySet = new Set(queryConfigValidation.invalidOrderBy.map(e => e.column));
+
+      // Clean groupBy
+      const cleanedGroupBy = (queryConfigToSave.groupBy || [])
+        .filter(gb => !invalidGroupBySet.has(gb));
+
+      // Clean orderBy
+      const cleanedOrderBy = (queryConfigToSave.orderBy || [])
+        .filter(ob => !invalidOrderBySet.has(ob.column));
+
+      queryConfigToSave = {
+        ...queryConfigToSave,
+        groupBy: cleanedGroupBy,
+        orderBy: cleanedOrderBy,
+      };
+    }
+
     onSave({
       id: component?.id,
       dashboard_id: dashboardId,
       name: name.trim(),
       type,
-      query_config: type === "text" ? defaultQueryConfig : queryConfig,
+      query_config: type === "text" ? defaultQueryConfig : queryConfigToSave,
       grid_config: gridConfig,
       chart_config: chartConfig,
     });
@@ -294,6 +356,47 @@ export function ComponentEditor({
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Invalid Configuration Warning */}
+          {hasInvalidConfig && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Invalid query configuration detected</AlertTitle>
+              <AlertDescription>
+                <p className="mb-2">
+                  The following query elements reference columns that no longer exist in this component's query:
+                </p>
+
+                {queryConfigValidation.invalidGroupBy.length > 0 && (
+                  <div className="mb-2">
+                    <span className="font-medium">GROUP BY:</span>
+                    <ul className="list-disc list-inside ml-2">
+                      {queryConfigValidation.invalidGroupBy.map((entry, idx) => (
+                        <li key={idx}><code className="bg-muted px-1 rounded">{entry}</code></li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {queryConfigValidation.invalidOrderBy.length > 0 && (
+                  <div className="mb-2">
+                    <span className="font-medium">ORDER BY:</span>
+                    <ul className="list-disc list-inside ml-2">
+                      {queryConfigValidation.invalidOrderBy.map((entry, idx) => (
+                        <li key={idx}>
+                          <code className="bg-muted px-1 rounded">{entry.column}</code> ({entry.direction})
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <p className="text-sm mt-2">
+                  These invalid entries will be automatically removed when you save this component.
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Basic Info */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
