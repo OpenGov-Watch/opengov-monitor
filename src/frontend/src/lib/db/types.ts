@@ -397,6 +397,8 @@ export interface ChartConfig {
   showLegend?: boolean;
   showTooltip?: boolean;
   content?: string; // Markdown content for text components
+  showPageTotals?: boolean;   // Show page-level totals row
+  showGrandTotals?: boolean;  // Show grand totals row (all data)
 }
 
 export interface QueryCache {

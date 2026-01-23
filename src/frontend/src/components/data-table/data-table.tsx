@@ -37,7 +37,7 @@ import { QueryConfig, QueryExecuteResponse, DataTableEditConfig, FacetQueryConfi
 import { generateColumns } from "@/lib/auto-columns";
 import { getColumnKey, sortingStateToOrderBy, convertFiltersToQueryConfig } from "@/lib/query-config-utils";
 import { cn } from "@/lib/utils";
-import { loadColumnConfig } from "@/lib/column-renderer";
+import { loadColumnConfig, getColumnConfig, formatValue } from "@/lib/column-renderer";
 
 export interface FooterCell {
   columnId: string;
@@ -75,6 +75,10 @@ interface DataTableProps<TData> {
   // Export handler callbacks for external download buttons (dashboard integration)
   onExportCSV?: (handler: () => void) => void;
   onExportJSON?: (handler: () => void) => void;
+
+  // Totals rows
+  showPageTotals?: boolean;  // Show page-level totals row
+  showGrandTotals?: boolean; // Show grand totals row (all data)
 }
 
 export function DataTable<TData>({
@@ -100,6 +104,8 @@ export function DataTable<TData>({
   onToolbarCollapseChange,
   onExportCSV,
   onExportJSON,
+  showPageTotals,
+  showGrandTotals,
 }: DataTableProps<TData>) {
   // Apply defaults based on dashboardMode
   const hideViewSelector = hideViewSelectorProp ?? dashboardMode;
@@ -142,6 +148,7 @@ export function DataTable<TData>({
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState<number | undefined>(undefined);
   const [serverFacets, setServerFacets] = useState<Record<string, Map<any, number>>>({});
+  const [grandTotals, setGrandTotals] = useState<Record<string, number>>({});
 
   // AbortController ref to cancel in-flight requests
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -391,6 +398,112 @@ export function DataTable<TData>({
     return wrappedConfig;
   }, [editConfig]);
 
+  // GRAND TOTALS FETCHING
+  // Fetch aggregate sums for currency columns when showGrandTotals is enabled
+  useEffect(() => {
+    if (!showGrandTotals || !configLoaded || !data || data.length === 0) {
+      setGrandTotals({});
+      return;
+    }
+
+    // Find currency columns from current data
+    const currencyColumns: string[] = [];
+    const firstRow = data[0] as Record<string, unknown>;
+    for (const col of Object.keys(firstRow)) {
+      const sourceCol = columnMapping?.[col] || col;
+      const config = getColumnConfig(tableName, sourceCol);
+      if (config.type === "currency") {
+        currencyColumns.push(col);
+      }
+    }
+
+    if (currencyColumns.length === 0) {
+      setGrandTotals({});
+      return;
+    }
+
+    // Build aggregate query for currency columns
+    const aggregateConfig: QueryConfig = {
+      sourceTable: baseQueryConfig.sourceTable,
+      columns: currencyColumns.map(col => ({
+        column: columnMapping?.[col] || col,
+        alias: col,
+        aggregateFunction: "SUM" as const,
+      })),
+      joins: baseQueryConfig.joins,
+      filters: queryConfig.filters,
+      limit: 1,
+    };
+
+    const controller = new AbortController();
+
+    fetch("/api/query/execute", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(aggregateConfig),
+      signal: controller.signal,
+    })
+      .then(res => res.json())
+      .then(result => {
+        if (result.data?.[0]) {
+          setGrandTotals(result.data[0] as Record<string, number>);
+        }
+      })
+      .catch(err => {
+        if (err.name !== 'AbortError') {
+          console.warn("Failed to fetch grand totals:", err);
+        }
+      });
+
+    return () => controller.abort();
+  }, [showGrandTotals, queryConfig.filters, configLoaded, data, tableName, columnMapping, baseQueryConfig.sourceTable, baseQueryConfig.joins]);
+
+  // PAGE TOTALS CALCULATION
+  // Calculate page-level totals for currency columns from current page data
+  const pageTotalsCells = useMemo<FooterCell[]>(() => {
+    if (!showPageTotals || !data || data.length === 0 || !configLoaded) return [];
+
+    const cells: FooterCell[] = [];
+    const firstRow = data[0] as Record<string, unknown>;
+
+    for (const col of Object.keys(firstRow)) {
+      const sourceCol = columnMapping?.[col] || col;
+      const config = getColumnConfig(tableName, sourceCol);
+      if (config.type === "currency") {
+        // Sum all values in this column
+        const sum = (data as Record<string, unknown>[]).reduce((acc, row) => {
+          const value = row[col];
+          return acc + (typeof value === "number" ? value : 0);
+        }, 0);
+        cells.push({
+          columnId: col,
+          value: formatValue(sum, config),
+        });
+      }
+    }
+
+    return cells;
+  }, [showPageTotals, data, tableName, columnMapping, configLoaded]);
+
+  // GRAND TOTALS CELLS
+  // Format grand totals for display
+  const grandTotalsCells = useMemo<FooterCell[]>(() => {
+    if (!showGrandTotals || Object.keys(grandTotals).length === 0 || !configLoaded) return [];
+
+    const cells: FooterCell[] = [];
+    for (const [col, value] of Object.entries(grandTotals)) {
+      const sourceCol = columnMapping?.[col] || col;
+      const config = getColumnConfig(tableName, sourceCol);
+      cells.push({
+        columnId: col,
+        value: formatValue(value, config),
+      });
+    }
+
+    return cells;
+  }, [showGrandTotals, grandTotals, tableName, columnMapping, configLoaded]);
+
   // COLUMN GENERATION
   // Schema-based dependency to prevent regeneration on every data fetch
   // Only regenerate when column structure changes, not when values change
@@ -600,7 +713,7 @@ export function DataTable<TData>({
           )}
 
           <Table wrapperClassName="h-full">
-            <TableHeader className="relative z-20 bg-background">
+            <TableHeader className="relative z-20 bg-muted/30">
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
@@ -675,32 +788,78 @@ export function DataTable<TData>({
                 </TableRow>
               )}
             </TableBody>
-            {footerCells && footerCells.length > 0 && (
-              <TableFooter>
-                <TableRow className="bg-muted/50 font-medium">
-                  {table.getVisibleLeafColumns().map((column, index) => {
-                    const footerCell = footerCells.find(
-                      (fc) => fc.columnId === column.id
-                    );
-                    const hasFooterValue = footerCell?.value !== undefined;
-                    return (
-                      <TableCell
-                        key={column.id}
-                        className={
-                          index === 0
-                            ? "font-bold"
-                            : hasFooterValue
-                              ? "text-right"
-                              : ""
-                        }
-                      >
-                        {index === 0
-                          ? footerLabel || "GRAND TOTAL"
-                          : footerCell?.value ?? ""}
-                      </TableCell>
-                    );
-                  })}
-                </TableRow>
+            {/* Footer rows: Page Totals, Grand Totals, or legacy footerCells */}
+            {(pageTotalsCells.length > 0 || grandTotalsCells.length > 0 || (footerCells && footerCells.length > 0)) && (
+              <TableFooter className="sticky bottom-0">
+                {/* Page Totals Row - medium background */}
+                {pageTotalsCells.length > 0 && (
+                  <TableRow className="bg-zinc-100 dark:bg-zinc-800">
+                    {table.getVisibleLeafColumns().map((column, index) => {
+                      const cell = pageTotalsCells.find(
+                        (fc) => fc.columnId === column.id
+                      );
+                      const hasValue = cell?.value !== undefined;
+                      return (
+                        <TableCell
+                          key={column.id}
+                          className={cn("whitespace-nowrap", hasValue && "text-right")}
+                        >
+                          {index === 0
+                            ? "PAGE TOTAL"
+                            : cell?.value ?? ""}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                )}
+                {/* Grand Totals Row - darker background */}
+                {grandTotalsCells.length > 0 && (
+                  <TableRow className="bg-zinc-200 dark:bg-zinc-700">
+                    {table.getVisibleLeafColumns().map((column, index) => {
+                      const cell = grandTotalsCells.find(
+                        (fc) => fc.columnId === column.id
+                      );
+                      const hasValue = cell?.value !== undefined;
+                      return (
+                        <TableCell
+                          key={column.id}
+                          className={cn("whitespace-nowrap", hasValue && "text-right")}
+                        >
+                          {index === 0
+                            ? "TOTAL"
+                            : cell?.value ?? ""}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                )}
+                {/* Legacy footerCells prop (backwards compatibility) */}
+                {footerCells && footerCells.length > 0 && (
+                  <TableRow className="bg-muted/50 font-medium">
+                    {table.getVisibleLeafColumns().map((column, index) => {
+                      const footerCell = footerCells.find(
+                        (fc) => fc.columnId === column.id
+                      );
+                      const hasFooterValue = footerCell?.value !== undefined;
+                      return (
+                        <TableCell
+                          key={column.id}
+                          className={
+                            index === 0
+                              ? "font-bold"
+                              : hasFooterValue
+                                ? "text-right"
+                                : ""
+                          }
+                        >
+                          {index === 0
+                            ? footerLabel || "GRAND TOTAL"
+                            : footerCell?.value ?? ""}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                )}
               </TableFooter>
             )}
           </Table>

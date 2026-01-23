@@ -448,6 +448,39 @@ export function ComponentEditor({
                 </div>
               )}
 
+              {/* Table Options - show for table type when columns are configured */}
+              {type === "table" && queryConfig.columns.length > 0 && (
+                <div className="space-y-4 p-4 border rounded-md bg-muted/50">
+                  <Label>Table Options</Label>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="showPageTotals"
+                        checked={chartConfig.showPageTotals ?? false}
+                        onCheckedChange={(checked) =>
+                          setChartConfig({ ...chartConfig, showPageTotals: checked === true })
+                        }
+                      />
+                      <label htmlFor="showPageTotals" className="text-sm">
+                        Show page totals (sums currency columns on current page)
+                      </label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="showGrandTotals"
+                        checked={chartConfig.showGrandTotals ?? false}
+                        onCheckedChange={(checked) =>
+                          setChartConfig({ ...chartConfig, showGrandTotals: checked === true })
+                        }
+                      />
+                      <label htmlFor="showGrandTotals" className="text-sm">
+                        Show grand totals (sums currency columns across all data)
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Preview Button and Results */}
               <div className="space-y-4 pt-4 border-t">
                 {previewError && (

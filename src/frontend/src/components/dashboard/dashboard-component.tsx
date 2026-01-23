@@ -490,6 +490,8 @@ export const DashboardComponent = memo(
             onToolbarCollapseChange={setIsToolbarCollapsed}
             onExportCSV={(handler) => { tableExportCSVRef.current = handler; }}
             onExportJSON={(handler) => { tableExportJSONRef.current = handler; }}
+            showPageTotals={chartConfig.showPageTotals}
+            showGrandTotals={chartConfig.showGrandTotals}
           />
         );
 
