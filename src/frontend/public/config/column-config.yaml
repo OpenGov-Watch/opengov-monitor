@@ -256,29 +256,29 @@ tables:
 # Pattern types: exact, prefix, suffix, substring
 # Options: caseInsensitive (default: false)
 patterns:
-  # Currency patterns - prefix matching
-  - match: prefix
+  # Currency patterns - substring matching to support table-prefixed columns (e.g., "all_spending.DOT_latest")
+  - match: substring
     pattern: "DOT_"
     config:
       type: currency
       currency: DOT
       decimals: 0
 
-  - match: prefix
+  - match: substring
     pattern: "USD_"
     config:
       type: currency
       currency: USD
       decimals: 0
 
-  - match: prefix
+  - match: substring
     pattern: "USDC_"
     config:
       type: currency
       currency: USDC
       decimals: 0
 
-  - match: prefix
+  - match: substring
     pattern: "USDT_"
     config:
       type: currency
@@ -522,3 +522,66 @@ patterns:
       type: currency
       currency: DOT
       decimals: 2
+
+  # Aggregate patterns - detect currency from aliases containing currency names
+  # These are fallback patterns for columns like "SUM USD", "Total DOT", etc.
+  # IMPORTANT: These should remain at the end to avoid matching non-currency columns
+  - match: substring
+    pattern: " USD"
+    config:
+      type: currency
+      currency: USD
+      decimals: 0
+
+  - match: substring
+    pattern: "_USD"
+    caseInsensitive: true
+    config:
+      type: currency
+      currency: USD
+      decimals: 0
+
+  - match: substring
+    pattern: " DOT"
+    config:
+      type: currency
+      currency: DOT
+      decimals: 0
+
+  - match: substring
+    pattern: "_DOT"
+    caseInsensitive: true
+    config:
+      type: currency
+      currency: DOT
+      decimals: 0
+
+  - match: substring
+    pattern: " USDC"
+    config:
+      type: currency
+      currency: USDC
+      decimals: 0
+
+  - match: substring
+    pattern: "_USDC"
+    caseInsensitive: true
+    config:
+      type: currency
+      currency: USDC
+      decimals: 0
+
+  - match: substring
+    pattern: " USDT"
+    config:
+      type: currency
+      currency: USDT
+      decimals: 0
+
+  - match: substring
+    pattern: "_USDT"
+    caseInsensitive: true
+    config:
+      type: currency
+      currency: USDT
+      decimals: 0

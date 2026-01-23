@@ -67,7 +67,13 @@ export function generateColumns<TData>(
   return columns.map((columnName) => {
     // Get source column name for config lookup
     const sourceColumn = columnMapping[columnName] || columnName;
-    const renderConfig: ColumnRenderConfig = getColumnConfig(tableName, sourceColumn);
+    // Try stripping table prefix if initial config lookup returns "text" (default)
+    // This handles columns like "all_spending.DOT_latest" -> "DOT_latest" for pattern matching
+    const colWithoutTable = sourceColumn.includes('.') ? sourceColumn.split('.').pop()! : sourceColumn;
+    let renderConfig: ColumnRenderConfig = getColumnConfig(tableName, sourceColumn);
+    if (renderConfig.type === "text" && colWithoutTable !== sourceColumn) {
+      renderConfig = getColumnConfig(tableName, colWithoutTable);
+    }
 
     // Handle category system columns when auto-detected
     // Skip if page provides a custom columnOverride for category_id

@@ -32,6 +32,7 @@ export type UnifiedColumn =
       expression: string;
       alias: string;
       aggregateFunction?: AggregateFunction;
+      sourceColumn?: string; // Source column for formatting lookup
     };
 
 /**
@@ -100,6 +101,9 @@ export function toUnifiedColumns(
     };
     if (expr.aggregateFunction) {
       exprCol.aggregateFunction = expr.aggregateFunction;
+    }
+    if (expr.sourceColumn) {
+      exprCol.sourceColumn = expr.sourceColumn;
     }
     return exprCol;
   };
@@ -191,6 +195,9 @@ export function fromUnifiedColumns(unifiedColumns: UnifiedColumn[]): {
       };
       if (col.aggregateFunction) {
         exprCol.aggregateFunction = col.aggregateFunction;
+      }
+      if (col.sourceColumn) {
+        exprCol.sourceColumn = col.sourceColumn;
       }
       expressionColumns.push(exprCol);
       columnOrder.push(getColumnId(col));

@@ -19,10 +19,10 @@ Configured in `frontend/public/config/column-config.yaml`.
 
 | Pattern | Type | Matches | Renders |
 |---------|------|---------|---------|
-| `DOT_` | prefix | DOT_latest, DOT_value | Currency (DOT, 0 decimals) |
-| `USD_` | prefix | USD_latest, USD_component | Currency (USD, 0 decimals) |
-| `USDC_` | prefix | USDC_component | Currency (USDC, 0 decimals) |
-| `USDT_` | prefix | USDT_component | Currency (USDT, 0 decimals) |
+| `DOT_` | substring | DOT_latest, all_spending.DOT_latest | Currency (DOT, 0 decimals) |
+| `USD_` | substring | USD_latest, table.USD_component | Currency (USD, 0 decimals) |
+| `USDC_` | substring | USDC_component | Currency (USDC, 0 decimals) |
+| `USDT_` | substring | USDT_component | Currency (USDT, 0 decimals) |
 | `_time` | substring | proposal_time, latest_status_change | Date (formatted) |
 | `_at` | suffix | created_at, updated_at | Timestamp |
 | `status` | exact | status | Chip/Badge (colored) |
@@ -187,6 +187,15 @@ const columnMapping = {
 ```
 
 This allows custom query columns to inherit formatting from known column patterns.
+
+### Table-Prefixed Source Columns
+
+When source columns have table prefixes (e.g., `all_spending.DOT_latest` from JOINs), the system automatically strips the prefix for pattern matching:
+
+1. Initial lookup: `all_spending.DOT_latest` → no direct match → returns "text"
+2. Fallback: strips prefix → `DOT_latest` → matches `DOT_` pattern → returns currency config
+
+This enables aggregate columns over JOINed tables to inherit proper formatting.
 
 ## See Also
 

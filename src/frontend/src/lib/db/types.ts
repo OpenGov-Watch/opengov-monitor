@@ -307,6 +307,7 @@ export interface ExpressionColumn {
   expression: string; // SQL expression, e.g., "DOT_latest * 10"
   alias: string; // Required display name for the result column
   aggregateFunction?: "COUNT" | "SUM" | "AVG" | "MIN" | "MAX";
+  sourceColumn?: string; // Source column for formatting lookup (e.g., "USD_latest" for currency formatting)
 }
 
 export interface JoinCondition {

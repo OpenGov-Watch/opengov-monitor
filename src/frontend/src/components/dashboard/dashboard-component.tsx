@@ -273,14 +273,23 @@ export const DashboardComponent = memo(
   // Memoize column mapping computation
   const columnMapping: Record<string, string> = useMemo(() => {
     const mapping: Record<string, string> = {};
+    // Regular columns
     if (queryConfig.columns && Array.isArray(queryConfig.columns)) {
       for (const col of queryConfig.columns) {
         const key = getColumnKey(col);
         mapping[key] = col.column;
       }
     }
+    // Expression columns with sourceColumn (for proper formatting lookup)
+    if (queryConfig.expressionColumns && Array.isArray(queryConfig.expressionColumns)) {
+      for (const expr of queryConfig.expressionColumns) {
+        if (expr.sourceColumn) {
+          mapping[expr.alias] = expr.sourceColumn;
+        }
+      }
+    }
     return mapping;
-  }, [queryConfig.columns]);
+  }, [queryConfig.columns, queryConfig.expressionColumns]);
 
   // Memoize column identifiers
   const labelColumn = useMemo(
