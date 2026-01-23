@@ -325,6 +325,7 @@ export interface QueryConfig {
   sourceTable: string;
   columns: ColumnSelection[];
   expressionColumns?: ExpressionColumn[];
+  columnOrder?: string[];   // Interleaved column order: "col:X" for regular, "expr:Y" for expressions
   joins?: JoinConfig[];     // Array of joins
   filters: FilterCondition[] | FilterGroup;  // Support both old array and new group format
   groupBy?: string[];

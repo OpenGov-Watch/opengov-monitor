@@ -160,7 +160,7 @@ describe("toUnifiedColumns", () => {
 describe("fromUnifiedColumns", () => {
   it("returns empty arrays for empty input", () => {
     const result = fromUnifiedColumns([]);
-    expect(result).toEqual({ columns: [], expressionColumns: [] });
+    expect(result).toEqual({ columns: [], expressionColumns: [], columnOrder: [] });
   });
 
   it("extracts regular columns", () => {
@@ -370,5 +370,157 @@ describe("getExpressionColumnAliases helper", () => {
       .map((col) => col.alias);
 
     expect(aliases).toEqual(["total_value", "stablecoins"]);
+  });
+});
+
+describe("columnOrder support", () => {
+  describe("fromUnifiedColumns generates columnOrder", () => {
+    it("generates correct columnOrder for regular columns", () => {
+      const unified: UnifiedColumn[] = [
+        { type: "regular", column: "col_a" },
+        { type: "regular", column: "col_b" },
+      ];
+      const result = fromUnifiedColumns(unified);
+      expect(result.columnOrder).toEqual(["col:col_a", "col:col_b"]);
+    });
+
+    it("generates correct columnOrder for expression columns", () => {
+      const unified: UnifiedColumn[] = [
+        { type: "expression", expression: "a + b", alias: "sum_ab" },
+        { type: "expression", expression: "c * d", alias: "prod_cd" },
+      ];
+      const result = fromUnifiedColumns(unified);
+      expect(result.columnOrder).toEqual(["expr:sum_ab", "expr:prod_cd"]);
+    });
+
+    it("generates correct columnOrder for interleaved columns", () => {
+      const unified: UnifiedColumn[] = [
+        { type: "expression", expression: "a + b", alias: "sum_ab" },
+        { type: "regular", column: "col_a" },
+        { type: "expression", expression: "c * d", alias: "prod_cd" },
+        { type: "regular", column: "col_b" },
+      ];
+      const result = fromUnifiedColumns(unified);
+      expect(result.columnOrder).toEqual([
+        "expr:sum_ab",
+        "col:col_a",
+        "expr:prod_cd",
+        "col:col_b",
+      ]);
+    });
+  });
+
+  describe("toUnifiedColumns respects columnOrder", () => {
+    it("reorders columns based on columnOrder", () => {
+      const columns: ColumnSelection[] = [
+        { column: "col_a" },
+        { column: "col_b" },
+      ];
+      const expressions: ExpressionColumn[] = [
+        { expression: "a + b", alias: "sum_ab" },
+      ];
+      const columnOrder = ["expr:sum_ab", "col:col_a", "col:col_b"];
+
+      const result = toUnifiedColumns(columns, expressions, columnOrder);
+
+      expect(result).toEqual([
+        { type: "expression", expression: "a + b", alias: "sum_ab" },
+        { type: "regular", column: "col_a" },
+        { type: "regular", column: "col_b" },
+      ]);
+    });
+
+    it("puts expression first when columnOrder specifies", () => {
+      const columns: ColumnSelection[] = [{ column: "col_a" }];
+      const expressions: ExpressionColumn[] = [
+        { expression: "x * 10", alias: "scaled" },
+      ];
+      const columnOrder = ["expr:scaled", "col:col_a"];
+
+      const result = toUnifiedColumns(columns, expressions, columnOrder);
+
+      expect(result[0].type).toBe("expression");
+      expect(result[1].type).toBe("regular");
+    });
+
+    it("falls back to default order when columnOrder is undefined", () => {
+      const columns: ColumnSelection[] = [{ column: "col_a" }];
+      const expressions: ExpressionColumn[] = [
+        { expression: "x * 10", alias: "scaled" },
+      ];
+
+      const result = toUnifiedColumns(columns, expressions, undefined);
+
+      // Default: regular columns first, then expressions
+      expect(result[0].type).toBe("regular");
+      expect(result[1].type).toBe("expression");
+    });
+
+    it("falls back to default order when columnOrder is empty", () => {
+      const columns: ColumnSelection[] = [{ column: "col_a" }];
+      const expressions: ExpressionColumn[] = [
+        { expression: "x * 10", alias: "scaled" },
+      ];
+
+      const result = toUnifiedColumns(columns, expressions, []);
+
+      // Default: regular columns first, then expressions
+      expect(result[0].type).toBe("regular");
+      expect(result[1].type).toBe("expression");
+    });
+
+    it("handles columns not in columnOrder (backward compatibility)", () => {
+      const columns: ColumnSelection[] = [
+        { column: "col_a" },
+        { column: "col_b" },
+      ];
+      const expressions: ExpressionColumn[] = [
+        { expression: "a + b", alias: "sum_ab" },
+      ];
+      // Only includes col_a and sum_ab, not col_b
+      const columnOrder = ["expr:sum_ab", "col:col_a"];
+
+      const result = toUnifiedColumns(columns, expressions, columnOrder);
+
+      // col_b should be appended at the end
+      expect(result.length).toBe(3);
+      expect(result[0]).toEqual({ type: "expression", expression: "a + b", alias: "sum_ab" });
+      expect(result[1]).toEqual({ type: "regular", column: "col_a" });
+      expect(result[2]).toEqual({ type: "regular", column: "col_b" });
+    });
+  });
+
+  describe("Round-trip with columnOrder", () => {
+    it("preserves interleaved order through round-trip", () => {
+      // Start with interleaved unified columns
+      const originalUnified: UnifiedColumn[] = [
+        { type: "expression", expression: "a + b", alias: "sum_ab" },
+        { type: "regular", column: "col_a" },
+        { type: "expression", expression: "c * d", alias: "prod_cd" },
+        { type: "regular", column: "col_b" },
+      ];
+
+      // Convert to API format
+      const { columns, expressionColumns, columnOrder } = fromUnifiedColumns(originalUnified);
+
+      // Convert back to unified format using columnOrder
+      const restoredUnified = toUnifiedColumns(columns, expressionColumns, columnOrder);
+
+      // Should preserve the original interleaved order
+      expect(restoredUnified).toEqual(originalUnified);
+    });
+
+    it("preserves expression-first order through round-trip", () => {
+      const originalUnified: UnifiedColumn[] = [
+        { type: "expression", expression: "DOT * 10", alias: "scaled_dot" },
+        { type: "regular", column: "category" },
+        { type: "regular", column: "subcategory" },
+      ];
+
+      const { columns, expressionColumns, columnOrder } = fromUnifiedColumns(originalUnified);
+      const restoredUnified = toUnifiedColumns(columns, expressionColumns, columnOrder);
+
+      expect(restoredUnified).toEqual(originalUnified);
+    });
   });
 });

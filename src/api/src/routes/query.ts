@@ -306,13 +306,21 @@ function buildSelectClause(config: QueryConfig, availableColumns: string[]): str
   const parts: string[] = [];
   const hasJoins = config.joins && config.joins.length > 0;
 
-  // Regular columns
+  // Build lookup maps for quick access
+  const columnsMap = new Map<string, typeof config.columns[number]>();
   for (const col of config.columns || []) {
-    // If column doesn't have a table prefix (no dot before last segment) and we have JOINs,
-    // prefix with source table to avoid ambiguity
+    columnsMap.set(`col:${col.column}`, col);
+  }
+
+  const expressionsMap = new Map<string, typeof config.expressionColumns extends (infer T)[] | undefined ? T : never>();
+  for (const expr of config.expressionColumns || []) {
+    expressionsMap.set(`expr:${expr.alias}`, expr);
+  }
+
+  // Helper to build a regular column SQL part
+  const buildRegularColumnPart = (col: typeof config.columns[number]): string => {
     let columnRef = col.column;
     if (hasJoins && !columnRef.includes('.')) {
-      // Column from source table without prefix - add table name
       columnRef = `${config.sourceTable}.${columnRef}`;
     }
 
@@ -320,15 +328,15 @@ function buildSelectClause(config: QueryConfig, availableColumns: string[]): str
     if (col.aggregateFunction) {
       const alias = col.alias || `${col.aggregateFunction.toLowerCase()}_${col.column.replace(/[.\s]/g, "_")}`;
       const safeAlias = sanitizeAlias(alias);
-      parts.push(`${col.aggregateFunction}(${colName}) AS "${safeAlias}"`);
+      return `${col.aggregateFunction}(${colName}) AS "${safeAlias}"`;
     } else {
       const safeAlias = col.alias ? sanitizeAlias(col.alias) : null;
-      parts.push(safeAlias ? `${colName} AS "${safeAlias}"` : colName);
+      return safeAlias ? `${colName} AS "${safeAlias}"` : colName;
     }
-  }
+  };
 
-  // Expression columns
-  for (const expr of config.expressionColumns || []) {
+  // Helper to build an expression column SQL part
+  const buildExpressionColumnPart = (expr: NonNullable<typeof config.expressionColumns>[number]): string => {
     const validation = validateExpression(expr.expression, availableColumns);
     if (!validation.valid) {
       throw new Error(`Invalid expression "${expr.alias}": ${validation.error}`);
@@ -338,9 +346,50 @@ function buildSelectClause(config: QueryConfig, availableColumns: string[]): str
       if (!ALLOWED_AGGREGATES.has(expr.aggregateFunction)) {
         throw new Error(`Invalid aggregate function: ${expr.aggregateFunction}`);
       }
-      parts.push(`${expr.aggregateFunction}((${expr.expression})) AS "${safeAlias}"`);
+      return `${expr.aggregateFunction}((${expr.expression})) AS "${safeAlias}"`;
     } else {
-      parts.push(`(${expr.expression}) AS "${safeAlias}"`);
+      return `(${expr.expression}) AS "${safeAlias}"`;
+    }
+  };
+
+  // If columnOrder exists, use it to determine column ordering
+  if (config.columnOrder && config.columnOrder.length > 0) {
+    const processedIds = new Set<string>();
+
+    for (const id of config.columnOrder) {
+      if (id.startsWith('col:')) {
+        const col = columnsMap.get(id);
+        if (col) {
+          parts.push(buildRegularColumnPart(col));
+          processedIds.add(id);
+        }
+      } else if (id.startsWith('expr:')) {
+        const expr = expressionsMap.get(id);
+        if (expr) {
+          parts.push(buildExpressionColumnPart(expr));
+          processedIds.add(id);
+        }
+      }
+    }
+
+    // Add any columns not in columnOrder (backward compatibility)
+    for (const [id, col] of columnsMap) {
+      if (!processedIds.has(id)) {
+        parts.push(buildRegularColumnPart(col));
+      }
+    }
+    for (const [id, expr] of expressionsMap) {
+      if (!processedIds.has(id)) {
+        parts.push(buildExpressionColumnPart(expr));
+      }
+    }
+  } else {
+    // Fallback: regular columns first, then expression columns (original behavior)
+    for (const col of config.columns || []) {
+      parts.push(buildRegularColumnPart(col));
+    }
+    for (const expr of config.expressionColumns || []) {
+      parts.push(buildExpressionColumnPart(expr));
     }
   }
 

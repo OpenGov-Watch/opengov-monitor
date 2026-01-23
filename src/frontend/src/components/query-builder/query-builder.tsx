@@ -209,7 +209,7 @@ export function QueryBuilder({
 
   // Unified column state for drag-and-drop reordering
   const [unifiedColumns, setUnifiedColumns] = useState<UnifiedColumn[]>(() =>
-    toUnifiedColumns(initialConfig?.columns || [], initialConfig?.expressionColumns)
+    toUnifiedColumns(initialConfig?.columns || [], initialConfig?.expressionColumns, initialConfig?.columnOrder)
   );
 
   // Track if we're in the middle of an initialConfig sync to prevent loops
@@ -222,7 +222,7 @@ export function QueryBuilder({
     if (initialConfig && initialConfig !== prevInitialConfigRef.current) {
       isInitialSyncRef.current = true;
       prevInitialConfigRef.current = initialConfig;
-      setUnifiedColumns(toUnifiedColumns(initialConfig.columns || [], initialConfig.expressionColumns));
+      setUnifiedColumns(toUnifiedColumns(initialConfig.columns || [], initialConfig.expressionColumns, initialConfig.columnOrder));
       // Reset the flag after a microtask to allow the state update to complete
       Promise.resolve().then(() => {
         isInitialSyncRef.current = false;
@@ -233,11 +233,12 @@ export function QueryBuilder({
   // Sync config when unified columns change (but not during initial sync)
   useEffect(() => {
     if (isInitialSyncRef.current) return;
-    const { columns, expressionColumns } = fromUnifiedColumns(unifiedColumns);
+    const { columns, expressionColumns, columnOrder } = fromUnifiedColumns(unifiedColumns);
     setConfig((prev) => ({
       ...prev,
       columns,
       expressionColumns,
+      columnOrder,
     }));
   }, [unifiedColumns]);
 

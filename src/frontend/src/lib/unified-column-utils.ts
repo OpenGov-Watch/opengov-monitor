@@ -50,20 +50,34 @@ export function getColumnId(col: UnifiedColumn): string {
 
 /**
  * Converts API format (columns + expressionColumns) to unified format.
- * Regular columns are added first, followed by expression columns.
+ * If columnOrder is provided, columns are arranged in that order.
+ * Otherwise, regular columns are added first, followed by expression columns.
  *
  * @param columns - Array of ColumnSelection from QueryConfig
  * @param expressionColumns - Array of ExpressionColumn from QueryConfig (optional)
+ * @param columnOrder - Array of column IDs specifying interleaved order (optional)
  * @returns Array of UnifiedColumn for UI state
  */
 export function toUnifiedColumns(
   columns: ColumnSelection[],
-  expressionColumns?: ExpressionColumn[]
+  expressionColumns?: ExpressionColumn[],
+  columnOrder?: string[]
 ): UnifiedColumn[] {
-  const unified: UnifiedColumn[] = [];
-
-  // Add regular columns
+  // Build lookup maps
+  const columnsMap = new Map<string, ColumnSelection>();
   for (const col of columns) {
+    columnsMap.set(`col:${col.column}`, col);
+  }
+
+  const expressionsMap = new Map<string, ExpressionColumn>();
+  if (expressionColumns) {
+    for (const expr of expressionColumns) {
+      expressionsMap.set(`expr:${expr.alias}`, expr);
+    }
+  }
+
+  // Helper to convert ColumnSelection to UnifiedColumn
+  const toRegularUnified = (col: ColumnSelection): UnifiedColumn => {
     const regularCol: UnifiedColumn = {
       type: "regular",
       column: col.column,
@@ -74,21 +88,68 @@ export function toUnifiedColumns(
     if (col.aggregateFunction) {
       regularCol.aggregateFunction = col.aggregateFunction;
     }
-    unified.push(regularCol);
+    return regularCol;
+  };
+
+  // Helper to convert ExpressionColumn to UnifiedColumn
+  const toExpressionUnified = (expr: ExpressionColumn): UnifiedColumn => {
+    const exprCol: UnifiedColumn = {
+      type: "expression",
+      expression: expr.expression,
+      alias: expr.alias,
+    };
+    if (expr.aggregateFunction) {
+      exprCol.aggregateFunction = expr.aggregateFunction;
+    }
+    return exprCol;
+  };
+
+  // If columnOrder is provided, use it to arrange columns
+  if (columnOrder && columnOrder.length > 0) {
+    const unified: UnifiedColumn[] = [];
+    const processedIds = new Set<string>();
+
+    for (const id of columnOrder) {
+      if (id.startsWith("col:")) {
+        const col = columnsMap.get(id);
+        if (col) {
+          unified.push(toRegularUnified(col));
+          processedIds.add(id);
+        }
+      } else if (id.startsWith("expr:")) {
+        const expr = expressionsMap.get(id);
+        if (expr) {
+          unified.push(toExpressionUnified(expr));
+          processedIds.add(id);
+        }
+      }
+    }
+
+    // Add any columns not in columnOrder (backward compatibility)
+    for (const [id, col] of columnsMap) {
+      if (!processedIds.has(id)) {
+        unified.push(toRegularUnified(col));
+      }
+    }
+    for (const [id, expr] of expressionsMap) {
+      if (!processedIds.has(id)) {
+        unified.push(toExpressionUnified(expr));
+      }
+    }
+
+    return unified;
   }
 
-  // Add expression columns
+  // Fallback: regular columns first, then expression columns
+  const unified: UnifiedColumn[] = [];
+
+  for (const col of columns) {
+    unified.push(toRegularUnified(col));
+  }
+
   if (expressionColumns) {
     for (const expr of expressionColumns) {
-      const exprCol: UnifiedColumn = {
-        type: "expression",
-        expression: expr.expression,
-        alias: expr.alias,
-      };
-      if (expr.aggregateFunction) {
-        exprCol.aggregateFunction = expr.aggregateFunction;
-      }
-      unified.push(exprCol);
+      unified.push(toExpressionUnified(expr));
     }
   }
 
@@ -96,22 +157,21 @@ export function toUnifiedColumns(
 }
 
 /**
- * Converts unified format back to API format (columns + expressionColumns).
+ * Converts unified format back to API format (columns + expressionColumns + columnOrder).
  * Extracts regular columns and expression columns while preserving their properties.
- *
- * Note: The order of regular columns and expression columns in the API format
- * is based on their relative order within each type, not their position in the
- * unified array. The unified array order is used only for display purposes.
+ * Also generates columnOrder to preserve the interleaved ordering.
  *
  * @param unifiedColumns - Array of UnifiedColumn from UI state
- * @returns Object with columns and expressionColumns arrays
+ * @returns Object with columns, expressionColumns, and columnOrder arrays
  */
 export function fromUnifiedColumns(unifiedColumns: UnifiedColumn[]): {
   columns: ColumnSelection[];
   expressionColumns: ExpressionColumn[];
+  columnOrder: string[];
 } {
   const columns: ColumnSelection[] = [];
   const expressionColumns: ExpressionColumn[] = [];
+  const columnOrder: string[] = [];
 
   for (const col of unifiedColumns) {
     if (col.type === "regular") {
@@ -123,6 +183,7 @@ export function fromUnifiedColumns(unifiedColumns: UnifiedColumn[]): {
         selection.aggregateFunction = col.aggregateFunction;
       }
       columns.push(selection);
+      columnOrder.push(getColumnId(col));
     } else {
       const exprCol: ExpressionColumn = {
         expression: col.expression,
@@ -132,10 +193,11 @@ export function fromUnifiedColumns(unifiedColumns: UnifiedColumn[]): {
         exprCol.aggregateFunction = col.aggregateFunction;
       }
       expressionColumns.push(exprCol);
+      columnOrder.push(getColumnId(col));
     }
   }
 
-  return { columns, expressionColumns };
+  return { columns, expressionColumns, columnOrder };
 }
 
 /**
