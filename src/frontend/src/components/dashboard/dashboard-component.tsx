@@ -737,8 +737,8 @@ export const DashboardComponent = memo(
   // Always show border in edit mode for visual clarity
   const showBorder = editable || component.type !== "text" || chartConfig.showBorder !== false;
 
-  // Hide header for text components in view mode
-  const showHeader = editable || component.type !== "text";
+  // Hide header for text and metric components in view mode
+  const showHeader = editable || (component.type !== "text" && component.type !== "metric");
 
   // Background color from chart config (only if valid hex color)
   const backgroundColor = chartConfig.backgroundColor && /^#[0-9A-Fa-f]{6}$/.test(chartConfig.backgroundColor)
