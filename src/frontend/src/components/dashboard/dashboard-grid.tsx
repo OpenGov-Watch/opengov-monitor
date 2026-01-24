@@ -240,7 +240,7 @@ export function DashboardGrid({
   }
 
   return (
-    <div ref={gridRef} className="w-full h-full overflow-auto relative">
+    <div ref={gridRef} className="w-full relative pb-24">
       {/* Grid overlay showing column and row boundaries in edit mode */}
       {editable && containerWidth > 0 && (() => {
         const colWidth = (containerWidth - GRID_MARGIN[0] * 2) / 12;
