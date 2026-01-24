@@ -388,6 +388,7 @@ export interface ChartConfig {
   showLegend?: boolean;
   showTooltip?: boolean;
   subtitle?: string;  // Optional subtitle displayed below component name
+  backgroundColor?: string;  // Hex color code for component background (e.g., "#ffffff")
   content?: string; // Markdown content for text components
   // Text component options
   showBorder?: boolean;           // Show border around component (default: true)

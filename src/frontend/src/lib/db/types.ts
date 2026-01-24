@@ -282,7 +282,8 @@ export type DashboardComponentType =
   | "bar_stacked"
   | "bar_grouped"
   | "line"
-  | "text";
+  | "text"
+  | "metric";
 
 export interface DashboardComponent {
   id: number;
@@ -401,6 +402,7 @@ export interface ChartConfig {
   showLegend?: boolean;
   showTooltip?: boolean;
   subtitle?: string;  // Optional subtitle displayed below component name
+  backgroundColor?: string;  // Hex color code for component background (e.g., "#ffffff")
   content?: string; // Markdown content for text components
   showPageTotals?: boolean;   // Show page-level totals row
   showGrandTotals?: boolean;  // Show grand totals row (all data)
@@ -411,6 +413,11 @@ export interface ChartConfig {
   showBorder?: boolean;           // Show border around component (default: true)
   constrainHeight?: boolean;      // Constrain to grid height with scroll (default: true)
   textAlign?: 'left' | 'center' | 'right' | 'justify';  // Text alignment (default: left)
+  // Metric component options
+  metricLabel?: string;           // Label below the number
+  metricPrefix?: string;          // Text before number (e.g., "$")
+  metricSuffix?: string;          // Text after number (e.g., "%")
+  metricValue?: string;           // Manual value for metric components (stored as string)
 }
 
 export interface QueryCache {

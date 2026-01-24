@@ -35,6 +35,7 @@ const DashboardLineChart = lazy(() => import("@/components/charts/line-chart").t
 import { DashboardPieChart as PieChartExport } from "@/components/charts/pie-chart";
 import { DashboardBarChart as BarChartExport } from "@/components/charts/bar-chart";
 import { DashboardLineChart as LineChartExport } from "@/components/charts/line-chart";
+import { MetricDisplay } from "@/components/charts/metric-display";
 import { DataTable } from "@/components/data-table/data-table";
 import { loadColumnConfig } from "@/lib/column-renderer";
 import { getColumnKey, normalizeDataKeys, validateQueryConfig, hasInvalidQueryConfig } from "@/lib/query-config-utils";
@@ -141,6 +142,31 @@ function validateBarChartData(
   return { valid: true };
 }
 
+function validateMetricData(
+  data: Record<string, unknown>[],
+  queryColumns: QueryConfig["columns"]
+): ChartValidationResult {
+  // Check: Need exactly 1 column
+  if (!queryColumns || queryColumns.length !== 1) {
+    return {
+      valid: false,
+      error: `Metric requires exactly 1 column (found ${queryColumns?.length || 0})`,
+      hint: "Select a single column with an aggregate function (COUNT, SUM, AVG, etc.) to display as a metric.",
+    };
+  }
+
+  // Check: Query must return exactly 1 row
+  if (data.length !== 1) {
+    return {
+      valid: false,
+      error: `Metric requires exactly 1 row (found ${data.length})`,
+      hint: "Use an aggregate function (COUNT, SUM, AVG) without GROUP BY to produce a single value.",
+    };
+  }
+
+  return { valid: true };
+}
+
 function ChartValidationError({ error, hint }: { error: string; hint?: string }) {
   return (
     <div className="flex flex-col items-center justify-center h-full text-center p-4 gap-3">
@@ -237,12 +263,14 @@ export const DashboardComponent = memo(
 
   useEffect(() => {
     // Text and table components don't need data fetching (DataTable handles it internally)
-    if (component.type === "text" || component.type === "table") {
+    // Metric components in manual mode also don't need data fetching
+    if (component.type === "text" || component.type === "table" ||
+        (component.type === "metric" && chartConfig.metricValue !== undefined)) {
       setLoading(false);
       return;
     }
     fetchData();
-  }, [queryConfigString, component.type, component.id]);
+  }, [queryConfigString, component.type, component.id, chartConfig.metricValue]);
 
   // Measure and report height for unconstrained text components
   const constrainHeight = chartConfig.constrainHeight !== false;
@@ -663,6 +691,39 @@ export const DashboardComponent = memo(
         );
       }
 
+      case "metric": {
+        // Manual mode: display the manual value directly
+        if (chartConfig.metricValue !== undefined) {
+          return (
+            <MetricDisplay
+              value={chartConfig.metricValue}
+              label={chartConfig.metricLabel}
+              prefix={chartConfig.metricPrefix}
+              suffix={chartConfig.metricSuffix}
+            />
+          );
+        }
+        // Query mode: validate and display query result
+        const metricValidation = validateMetricData(data, queryConfig.columns);
+        if (!metricValidation.valid) {
+          return <ChartValidationError error={metricValidation.error!} hint={metricValidation.hint} />;
+        }
+        // Get the single value from the first (and only) row and column
+        const firstColumnKey = queryConfig.columns[0] && getColumnKey(queryConfig.columns[0]);
+        const metricValue = firstColumnKey ? data[0][firstColumnKey] : null;
+        return (
+          <MetricDisplay
+            value={metricValue as number | string | null}
+            label={chartConfig.metricLabel}
+            prefix={chartConfig.metricPrefix}
+            suffix={chartConfig.metricSuffix}
+            tableName={tableName}
+            valueColumn={firstColumnKey}
+            columnMapping={columnMapping}
+          />
+        );
+      }
+
       default:
         return (
           <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -679,8 +740,16 @@ export const DashboardComponent = memo(
   // Hide header for text components in view mode
   const showHeader = editable || component.type !== "text";
 
+  // Background color from chart config (only if valid hex color)
+  const backgroundColor = chartConfig.backgroundColor && /^#[0-9A-Fa-f]{6}$/.test(chartConfig.backgroundColor)
+    ? chartConfig.backgroundColor
+    : undefined;
+
   return (
-    <div className={`h-full flex flex-col bg-background ${showBorder ? "border" : ""} overflow-hidden`}>
+    <div
+      className={`h-full flex flex-col ${!backgroundColor ? "bg-background" : ""} ${showBorder ? "border" : ""} overflow-hidden`}
+      style={backgroundColor ? { backgroundColor } : undefined}
+    >
       {/* Header - hidden for text components in view mode */}
       {showHeader && (
       <div className="flex items-center justify-between p-3">
@@ -730,7 +799,8 @@ export const DashboardComponent = memo(
               </Button>
             </>
           )}
-          {component.type !== "text" && component.type !== "table" && (
+          {component.type !== "text" && component.type !== "table" &&
+           !(component.type === "metric" && chartConfig.metricValue !== undefined) && (
             <Button
               variant="ghost"
               size="icon"

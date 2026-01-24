@@ -27,12 +27,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { QueryBuilder } from "@/components/query-builder";
 import {
   DashboardDataTable,
   DashboardPieChart,
   DashboardBarChart,
   DashboardLineChart,
+  MetricDisplay,
   transformToPieData,
   transformToBarData,
   transformToLineData,
@@ -67,6 +69,7 @@ const COMPONENT_TYPES: { value: DashboardComponentType; label: string }[] = [
   { value: "bar_grouped", label: "Bar Chart (Grouped)" },
   { value: "bar_stacked", label: "Bar Chart (Stacked)" },
   { value: "line", label: "Line Chart" },
+  { value: "metric", label: "Single Metric" },
   { value: "text", label: "Text (Markdown)" },
 ];
 
@@ -116,6 +119,14 @@ export function ComponentEditor({
   const [previewData, setPreviewData] = useState<Record<string, unknown>[]>([]);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  // Metric mode: "manual" for static value, "query" for query-based value
+  const [metricMode, setMetricMode] = useState<"manual" | "query">(
+    component?.chart_config
+      ? JSON.parse(component.chart_config).metricValue !== undefined
+        ? "manual"
+        : "query"
+      : "query"
+  );
 
   // Detect invalid query configuration entries using shared validation
   const queryConfigValidation = useMemo(
@@ -135,11 +146,10 @@ export function ComponentEditor({
           ? JSON.parse(component.query_config)
           : defaultQueryConfig
       );
-      setChartConfig(
-        component?.chart_config
-          ? JSON.parse(component.chart_config)
-          : defaultChartConfig
-      );
+      const parsedChartConfig = component?.chart_config
+        ? JSON.parse(component.chart_config)
+        : defaultChartConfig;
+      setChartConfig(parsedChartConfig);
       setGridConfig(
         component?.grid_config
           ? JSON.parse(component.grid_config)
@@ -147,6 +157,8 @@ export function ComponentEditor({
       );
       setPreviewData([]);
       setPreviewError(null);
+      // Reset metric mode based on whether metricValue exists
+      setMetricMode(parsedChartConfig.metricValue !== undefined ? "manual" : "query");
     }
   }, [open, component]);
 
@@ -191,14 +203,18 @@ export function ComponentEditor({
       return;
     }
 
-    // Text components don't need query validation
-    if (type !== "text" && (!queryConfig.sourceTable || queryConfig.columns.length === 0)) {
+    // Determine if query is required
+    const isManualMetric = type === "metric" && metricMode === "manual";
+    const skipQueryValidation = type === "text" || isManualMetric;
+
+    // Text and manual metric components don't need query validation
+    if (!skipQueryValidation && (!queryConfig.sourceTable || queryConfig.columns.length === 0)) {
       return;
     }
 
     // Build the query config to save, removing invalid entries
     let queryConfigToSave = queryConfig;
-    if (type !== "text" && hasInvalidConfig) {
+    if (!skipQueryValidation && hasInvalidConfig) {
       const invalidGroupBySet = new Set(queryConfigValidation.invalidGroupBy);
       const invalidOrderBySet = new Set(queryConfigValidation.invalidOrderBy.map(e => e.column));
 
@@ -217,14 +233,25 @@ export function ComponentEditor({
       };
     }
 
+    // Build chart config, handling metric mode
+    let chartConfigToSave = { ...chartConfig };
+    if (type === "metric") {
+      if (metricMode === "manual") {
+        // Keep metricValue, it should already be set
+      } else {
+        // Query mode: remove metricValue if present
+        delete chartConfigToSave.metricValue;
+      }
+    }
+
     onSave({
       id: component?.id,
       dashboard_id: dashboardId,
       name: name.trim(),
       type,
-      query_config: type === "text" ? defaultQueryConfig : queryConfigToSave,
+      query_config: skipQueryValidation ? defaultQueryConfig : queryConfigToSave,
       grid_config: gridConfig,
-      chart_config: chartConfig,
+      chart_config: chartConfigToSave,
     });
 
     onOpenChange(false);
@@ -317,6 +344,49 @@ export function ComponentEditor({
               lines={lines}
               showLegend={chartConfig.showLegend}
               showTooltip={chartConfig.showTooltip}
+            />
+          </div>
+        );
+      }
+
+      case "metric": {
+        // Manual mode: display the manual value directly
+        if (metricMode === "manual") {
+          return (
+            <div className="h-64 border rounded">
+              <MetricDisplay
+                value={chartConfig.metricValue ?? null}
+                label={chartConfig.metricLabel}
+                prefix={chartConfig.metricPrefix}
+                suffix={chartConfig.metricSuffix}
+              />
+            </div>
+          );
+        }
+        // Query mode: validate and display query result
+        if (queryConfig.columns.length !== 1) {
+          return (
+            <div className="h-64 flex items-center justify-center text-muted-foreground">
+              Select exactly 1 column for metric display
+            </div>
+          );
+        }
+        if (previewData.length !== 1) {
+          return (
+            <div className="h-64 flex items-center justify-center text-muted-foreground">
+              Query must return exactly 1 row (found {previewData.length})
+            </div>
+          );
+        }
+        const metricColumnKey = queryConfig.columns[0]?.alias || queryConfig.columns[0]?.column;
+        const metricValue = metricColumnKey ? previewData[0][metricColumnKey] : null;
+        return (
+          <div className="h-64 border rounded">
+            <MetricDisplay
+              value={metricValue as number | string | null}
+              label={chartConfig.metricLabel}
+              prefix={chartConfig.metricPrefix}
+              suffix={chartConfig.metricSuffix}
             />
           </div>
         );
@@ -496,8 +566,162 @@ export function ComponentEditor({
             </div>
           )}
 
-          {/* Query Builder for data types */}
-          {type !== "text" && (
+          {/* Metric component editor */}
+          {type === "metric" && (
+            <div className="space-y-4">
+              {/* Mode selector */}
+              <div className="space-y-2">
+                <Label>Value Source</Label>
+                <RadioGroup
+                  value={metricMode}
+                  onValueChange={(v: string) => setMetricMode(v as "manual" | "query")}
+                  className="flex gap-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="manual" id="metric-manual" />
+                    <Label htmlFor="metric-manual" className="font-normal cursor-pointer">Manual</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="query" id="metric-query" />
+                    <Label htmlFor="metric-query" className="font-normal cursor-pointer">Query</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {/* Manual mode: value input and options */}
+              {metricMode === "manual" && (
+                <div className="space-y-4 p-4 border rounded-md bg-muted/50">
+                  <div className="space-y-2">
+                    <Label className="text-sm">Value</Label>
+                    <Input
+                      value={chartConfig.metricValue || ""}
+                      onChange={(e) =>
+                        setChartConfig({ ...chartConfig, metricValue: e.target.value })
+                      }
+                      placeholder='e.g., "1,234" or "42.5"'
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Enter a static value. Use formatting as you want it displayed (e.g., &quot;1,234&quot;).
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm">Prefix</Label>
+                      <Input
+                        value={chartConfig.metricPrefix || ""}
+                        onChange={(e) =>
+                          setChartConfig({ ...chartConfig, metricPrefix: e.target.value })
+                        }
+                        placeholder='e.g., "$"'
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm">Suffix</Label>
+                      <Input
+                        value={chartConfig.metricSuffix || ""}
+                        onChange={(e) =>
+                          setChartConfig({ ...chartConfig, metricSuffix: e.target.value })
+                        }
+                        placeholder='e.g., "%"'
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm">Label</Label>
+                      <Input
+                        value={chartConfig.metricLabel || ""}
+                        onChange={(e) =>
+                          setChartConfig({ ...chartConfig, metricLabel: e.target.value })
+                        }
+                        placeholder="Label below number"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Query mode: query builder and options */}
+              {metricMode === "query" && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Data Query</Label>
+                    <div className="rounded-md border p-4">
+                      <QueryBuilder
+                        initialConfig={queryConfig}
+                        onChange={handleQueryChange}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Metric Options - show when columns are configured */}
+                  {queryConfig.columns.length > 0 && (
+                    <div className="space-y-4 p-4 border rounded-md bg-muted/50">
+                      <Label>Metric Options</Label>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm">Prefix</Label>
+                          <Input
+                            value={chartConfig.metricPrefix || ""}
+                            onChange={(e) =>
+                              setChartConfig({ ...chartConfig, metricPrefix: e.target.value })
+                            }
+                            placeholder='e.g., "$"'
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm">Suffix</Label>
+                          <Input
+                            value={chartConfig.metricSuffix || ""}
+                            onChange={(e) =>
+                              setChartConfig({ ...chartConfig, metricSuffix: e.target.value })
+                            }
+                            placeholder='e.g., "%"'
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm">Label</Label>
+                          <Input
+                            value={chartConfig.metricLabel || ""}
+                            onChange={(e) =>
+                              setChartConfig({ ...chartConfig, metricLabel: e.target.value })
+                            }
+                            placeholder="Label below number"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Metric components require exactly 1 column (with an aggregate function) and must return exactly 1 row.
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Preview */}
+              <div className="space-y-2">
+                <Label>Preview</Label>
+                {metricMode === "manual" ? (
+                  renderPreview()
+                ) : (
+                  <>
+                    {previewError && (
+                      <div className="text-sm text-red-500">{previewError}</div>
+                    )}
+                    <Button
+                      onClick={fetchPreview}
+                      disabled={previewLoading || !queryConfig.sourceTable || queryConfig.columns.length === 0}
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      {previewLoading ? "Loading..." : "Preview Results"}
+                    </Button>
+                    {previewData.length > 0 && renderPreview()}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Query Builder for non-text, non-metric data types */}
+          {type !== "text" && type !== "metric" && (
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Data Query</Label>
@@ -509,7 +733,7 @@ export function ComponentEditor({
                 </div>
               </div>
 
-              {/* Chart Config - show for chart types when columns are configured */}
+              {/* Chart Config - show for chart types (not table) when columns are configured */}
               {type !== "table" && queryConfig.columns.length > 0 && (
                 <div className="space-y-4 p-4 border rounded-md bg-muted/50">
                   <Label>Chart Options</Label>
@@ -706,6 +930,47 @@ export function ComponentEditor({
             </div>
           )}
 
+          {/* Render Options - available for all component types */}
+          <div className="space-y-4 p-4 border rounded-md bg-muted/50">
+            <Label>Render Options</Label>
+            <div className="space-y-2">
+              <Label htmlFor="backgroundColor" className="text-sm font-normal">Background Color</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  id="backgroundColorPicker"
+                  value={chartConfig.backgroundColor || "#ffffff"}
+                  onChange={(e) => setChartConfig({ ...chartConfig, backgroundColor: e.target.value })}
+                  className="h-9 w-12 cursor-pointer rounded border border-input p-1"
+                />
+                <Input
+                  id="backgroundColor"
+                  value={chartConfig.backgroundColor || ""}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Allow empty value to clear the color
+                    if (value === "" || /^#[0-9A-Fa-f]{0,6}$/.test(value)) {
+                      setChartConfig({ ...chartConfig, backgroundColor: value || undefined });
+                    }
+                  }}
+                  placeholder="#ffffff"
+                  className="w-28 font-mono"
+                  maxLength={7}
+                />
+                {chartConfig.backgroundColor && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setChartConfig({ ...chartConfig, backgroundColor: undefined })}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-4 border-t">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -715,7 +980,9 @@ export function ComponentEditor({
               onClick={handleSave}
               disabled={
                 !name.trim() ||
-                (type !== "text" && (!queryConfig.sourceTable || queryConfig.columns.length === 0))
+                (type !== "text" &&
+                 !(type === "metric" && metricMode === "manual") &&
+                 (!queryConfig.sourceTable || queryConfig.columns.length === 0))
               }
             >
               {component ? "Update" : "Add"} Component
