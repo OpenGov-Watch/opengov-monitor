@@ -43,8 +43,8 @@ interface DashboardGridProps {
 }
 
 // Responsive breakpoints and column counts
-// Aligned with Tailwind breakpoints for consistent behavior
-const BREAKPOINTS = { lg: 1024, md: 768, sm: 640, xs: 480, xxs: 0 };
+// lg is 1200 for dashboard; others aligned with Tailwind breakpoints
+const BREAKPOINTS = { lg: 1200, md: 768, sm: 640, xs: 480, xxs: 0 };
 const COLS = { lg: 12, md: 8, sm: 4, xs: 2, xxs: 1 };
 const ROW_HEIGHT = 80;
 const GRID_MARGIN: [number, number] = [10, 10]; // [horizontal, vertical] margin between items
