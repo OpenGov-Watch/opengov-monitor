@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { DashboardGrid, ComponentEditor, MoveComponentModal } from "@/components/dashboard";
 import { useDashboards } from "@/hooks/use-dashboards";
 import Plus from "lucide-react/dist/esm/icons/plus";
-import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
 import Eye from "lucide-react/dist/esm/icons/eye";
 import Check from "lucide-react/dist/esm/icons/check";
 import type {
@@ -325,11 +324,6 @@ export default function DashboardEditPage() {
     <div className="flex-1 min-h-0 flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link to="/dashboards">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
           <div className="flex-1 space-y-1">
             <input
               type="text"

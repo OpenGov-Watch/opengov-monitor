@@ -3,7 +3,6 @@ import { useParams, Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { DashboardGrid } from "@/components/dashboard";
 import Pencil from "lucide-react/dist/esm/icons/pencil";
-import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
 import { useAuth } from "@/contexts/auth-context";
 import type { Dashboard, DashboardComponent } from "@/lib/db/types";
 
@@ -65,11 +64,6 @@ export default function DashboardViewPage() {
     <div className="flex-1 min-h-0 flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link to="/dashboards">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
           <div>
             <h1 className="text-3xl font-bold tracking-tight">
               {dashboard.name}
