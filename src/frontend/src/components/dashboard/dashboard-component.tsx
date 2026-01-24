@@ -597,7 +597,9 @@ export const DashboardComponent = memo(
     }
 
     // Table components fetch their own data, so skip the empty data check
-    if (component.type !== "table" && (!data || !Array.isArray(data) || data.length === 0)) {
+    // Manual metric components also don't need data (value is in chartConfig)
+    const isManualMetric = component.type === "metric" && chartConfig.metricValue !== undefined;
+    if (component.type !== "table" && !isManualMetric && (!data || !Array.isArray(data) || data.length === 0)) {
       return (
         <div className="flex items-center justify-center h-full text-muted-foreground">
           No data available

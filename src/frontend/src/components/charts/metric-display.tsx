@@ -41,13 +41,13 @@ export const MetricDisplay = memo(
     return (
       <div className="@container flex flex-col items-center justify-center h-full w-full p-4">
         <div className="text-center w-full">
-          <p className="font-bold text-muted-foreground leading-none whitespace-nowrap text-[clamp(1.3rem,10cqw,4rem)]">
+          <p className="font-bold text-muted-foreground leading-none whitespace-nowrap text-[clamp(2rem,15cqw,6rem)]">
             {prefix && <span>{prefix}</span>}
             <span>{displayValue}</span>
             {suffix && <span>{suffix}</span>}
           </p>
           {label && (
-            <p className="mt-2 text-muted-foreground text-[clamp(0.65rem,2.5cqw,1rem)]">
+            <p className="mt-2 text-muted-foreground text-[clamp(1rem,4cqw,1.5rem)]">
               {label}
             </p>
           )}
