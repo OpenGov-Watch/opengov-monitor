@@ -533,10 +533,17 @@ export const DashboardComponent = memo(
 
     // Text components don't need data
     if (component.type === "text") {
+      const alignmentClass = {
+        left: 'text-left',
+        center: 'text-center',
+        right: 'text-right',
+        justify: 'text-justify',
+      }[chartConfig.textAlign ?? 'left'];
+
       return (
         <div
           ref={textContentRef}
-          className={`prose prose-lg max-w-none dark:prose-invert ${constrainHeight ? "h-full overflow-auto" : ""}`}
+          className={`prose prose-lg max-w-none dark:prose-invert ${alignmentClass} ${constrainHeight ? "h-full overflow-auto" : ""}`}
         >
           {chartConfig.content && <Markdown>{chartConfig.content}</Markdown>}
         </div>

@@ -4,6 +4,10 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import Markdown from "react-markdown";
 import Play from "lucide-react/dist/esm/icons/play";
 import AlertTriangle from "lucide-react/dist/esm/icons/alert-triangle";
+import AlignLeft from "lucide-react/dist/esm/icons/align-left";
+import AlignCenter from "lucide-react/dist/esm/icons/align-center";
+import AlignRight from "lucide-react/dist/esm/icons/align-right";
+import AlignJustify from "lucide-react/dist/esm/icons/align-justify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -229,8 +233,15 @@ export function ComponentEditor({
   function renderPreview() {
     // Text components show markdown preview
     if (type === "text") {
+      const alignmentClass = {
+        left: 'text-left',
+        center: 'text-center',
+        right: 'text-right',
+        justify: 'text-justify',
+      }[chartConfig.textAlign ?? 'left'];
+
       return (
-        <div className="h-64 overflow-auto border rounded p-4 prose prose-lg max-w-none dark:prose-invert">
+        <div className={`h-64 overflow-auto border rounded p-4 prose prose-lg max-w-none dark:prose-invert ${alignmentClass}`}>
           {chartConfig.content ? (
             <Markdown>{chartConfig.content}</Markdown>
           ) : (
@@ -439,6 +450,31 @@ export function ComponentEditor({
                   <Label htmlFor="constrain-height" className="font-normal cursor-pointer">
                     Fixed height (scroll if content overflows)
                   </Label>
+                </div>
+                <div className="flex items-center gap-3 pt-2">
+                  <Label className="font-normal">Text alignment</Label>
+                  <div className="flex border rounded-md">
+                    {([
+                      { value: 'left', icon: AlignLeft, label: 'Left' },
+                      { value: 'center', icon: AlignCenter, label: 'Center' },
+                      { value: 'right', icon: AlignRight, label: 'Right' },
+                      { value: 'justify', icon: AlignJustify, label: 'Justify' },
+                    ] as const).map(({ value, icon: Icon, label }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setChartConfig({ ...chartConfig, textAlign: value })}
+                        className={`p-2 transition-colors ${
+                          (chartConfig.textAlign ?? 'left') === value
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-muted'
+                        } ${value === 'left' ? 'rounded-l-md' : ''} ${value === 'justify' ? 'rounded-r-md' : ''}`}
+                        title={label}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 

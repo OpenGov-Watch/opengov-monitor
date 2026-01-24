@@ -391,6 +391,7 @@ export interface ChartConfig {
   // Text component options
   showBorder?: boolean;           // Show border around component (default: true)
   constrainHeight?: boolean;      // Constrain to grid height with scroll (default: true)
+  textAlign?: 'left' | 'center' | 'right' | 'justify';  // Text alignment (default: left)
 }
 
 export interface QueryCache {
