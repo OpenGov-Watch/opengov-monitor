@@ -253,15 +253,6 @@ export function DashboardGrid({
               left: GRID_MARGIN[0],
               right: GRID_MARGIN[0],
               bottom: 0,
-              backgroundImage: `
-                repeating-linear-gradient(
-                  to right,
-                  hsl(var(--primary) / 0.06),
-                  hsl(var(--primary) / 0.06) ${colWidth - 1}px,
-                  transparent ${colWidth - 1}px,
-                  transparent ${colWidth}px
-                )
-              `,
             }}
           >
             {/* Vertical dashed lines */}
