@@ -305,8 +305,8 @@ export function DashboardGrid({
         isResizable={editable}
         onLayoutChange={handleLayoutChange}
         draggableHandle=".drag-handle"
-        compactType="vertical"
-        preventCollision={false}
+        compactType={null}
+        preventCollision={true}
       >
         {sortedComponents.map((component) => (
           <div

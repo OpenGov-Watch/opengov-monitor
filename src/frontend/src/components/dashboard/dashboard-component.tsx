@@ -538,11 +538,7 @@ export const DashboardComponent = memo(
           ref={textContentRef}
           className={`prose prose-sm max-w-none dark:prose-invert ${constrainHeight ? "h-full overflow-auto" : ""}`}
         >
-          {chartConfig.content ? (
-            <Markdown>{chartConfig.content}</Markdown>
-          ) : (
-            <span className="text-muted-foreground">No content</span>
-          )}
+          {chartConfig.content && <Markdown>{chartConfig.content}</Markdown>}
         </div>
       );
     }
@@ -673,9 +669,13 @@ export const DashboardComponent = memo(
   // Always show border in edit mode for visual clarity
   const showBorder = editable || component.type !== "text" || chartConfig.showBorder !== false;
 
+  // Hide header for text components in view mode
+  const showHeader = editable || component.type !== "text";
+
   return (
     <div className={`h-full flex flex-col bg-background ${showBorder ? "border rounded-lg" : ""} overflow-hidden`}>
-      {/* Header */}
+      {/* Header - hidden for text components in view mode */}
+      {showHeader && (
       <div className={`flex items-center justify-between p-3 ${showBorder ? "border-b" : ""} bg-muted/30`}>
         <h3 className="font-medium text-sm truncate">{component.name}</h3>
         <div className="flex items-center gap-1">
@@ -795,6 +795,7 @@ export const DashboardComponent = memo(
           )}
         </div>
       </div>
+      )}
 
       {/* Content */}
       <div ref={chartContentRef} className={`flex-1 min-h-0 ${component.type === "table" ? "p-0 flex flex-col" : "p-3 overflow-auto"}`}>{renderChart()}</div>
