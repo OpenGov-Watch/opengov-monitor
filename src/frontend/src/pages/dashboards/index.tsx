@@ -90,7 +90,7 @@ export default function DashboardsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboards</h1>
+          <h1 className="text-4xl font-bold tracking-tight">Dashboards</h1>
           <p className="text-muted-foreground">
             Create and manage custom dashboards with charts and tables
           </p>

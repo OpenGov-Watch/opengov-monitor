@@ -47,7 +47,7 @@ function DataErrorsPageContent() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Data Validation Errors</h1>
+        <h1 className="text-4xl font-bold tracking-tight">Data Validation Errors</h1>
         <p className="text-muted-foreground">
           View and diagnose data validation errors across all tables
         </p>

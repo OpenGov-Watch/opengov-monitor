@@ -65,7 +65,7 @@ export default function DashboardViewPage() {
       <div className="flex items-center justify-between px-[10px]">
         <div className="flex items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="text-4xl font-bold tracking-tight">
               {dashboard.name}
             </h1>
             {dashboard.description && (
