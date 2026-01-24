@@ -153,10 +153,11 @@ describe("DashboardComponent", () => {
       render(<DashboardComponent component={textComponent} />);
 
       // Should render immediately without fetching
-      expect(screen.getByText("Test Text")).toBeInTheDocument();
+      // Note: text components hide the header in view mode (non-editable)
       await waitFor(() => {
         expect(screen.getByText("Test Markdown")).toBeInTheDocument();
       });
+      expect(screen.getByText("This is test content.")).toBeInTheDocument();
 
       // Should not have called fetch
       expect(global.fetch).not.toHaveBeenCalled();

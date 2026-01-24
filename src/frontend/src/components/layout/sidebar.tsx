@@ -31,6 +31,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { useApi } from "@/contexts/api-context";
 import { useDashboards } from "@/hooks/use-dashboards";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -296,6 +297,18 @@ export function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps = 
             {(!collapsed || isMobileOpen) && "Sign in"}
           </Link>
         )}
+        {/* Theme toggle */}
+        <div
+          className={cn(
+            "flex items-center",
+            (collapsed && !isMobileOpen) ? "justify-center" : "justify-between"
+          )}
+        >
+          {(!collapsed || isMobileOpen) && (
+            <span className="text-sm text-muted-foreground">Theme</span>
+          )}
+          <ThemeToggle collapsed={collapsed && !isMobileOpen} />
+        </div>
         {/* API selector - only visible in development */}
         {import.meta.env.DEV && (
           <DropdownMenu>
