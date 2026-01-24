@@ -684,7 +684,12 @@ export const DashboardComponent = memo(
       {/* Header - hidden for text components in view mode */}
       {showHeader && (
       <div className="flex items-center justify-between p-3">
-        <h3 className="font-medium text-base truncate">{component.name}</h3>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-medium text-base truncate">{component.name}</h3>
+          {chartConfig?.subtitle && (
+            <p className="text-sm text-muted-foreground truncate">{chartConfig.subtitle}</p>
+          )}
+        </div>
         <div className="flex items-center gap-1">
           {component.type === "table" && (
             <>

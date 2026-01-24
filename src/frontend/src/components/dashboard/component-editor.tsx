@@ -409,6 +409,17 @@ export function ComponentEditor({
             </div>
           </div>
 
+          {/* Subtitle */}
+          <div className="space-y-2">
+            <Label htmlFor="subtitle">Subtitle (optional)</Label>
+            <Input
+              id="subtitle"
+              value={chartConfig.subtitle || ""}
+              onChange={(e) => setChartConfig({ ...chartConfig, subtitle: e.target.value })}
+              placeholder="Optional subtitle displayed below the component name"
+            />
+          </div>
+
           {/* Text Editor for text type */}
           {type === "text" && (
             <div className="space-y-4">

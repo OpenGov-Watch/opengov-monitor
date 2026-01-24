@@ -400,6 +400,7 @@ export interface ChartConfig {
   valueColumn?: string;
   showLegend?: boolean;
   showTooltip?: boolean;
+  subtitle?: string;  // Optional subtitle displayed below component name
   content?: string; // Markdown content for text components
   showPageTotals?: boolean;   // Show page-level totals row
   showGrandTotals?: boolean;  // Show grand totals row (all data)

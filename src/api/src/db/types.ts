@@ -387,6 +387,7 @@ export interface ChartConfig {
   valueColumn?: string;
   showLegend?: boolean;
   showTooltip?: boolean;
+  subtitle?: string;  // Optional subtitle displayed below component name
   content?: string; // Markdown content for text components
   // Text component options
   showBorder?: boolean;           // Show border around component (default: true)
