@@ -39,8 +39,8 @@ export const MetricDisplay = memo(
     }
 
     return (
-      <div className="flex flex-col items-center justify-center h-full w-full p-4">
-        <div className="text-center @container w-full">
+      <div className="@container flex flex-col items-center justify-center h-full w-full p-4">
+        <div className="text-center w-full">
           <p className="font-bold text-muted-foreground leading-none whitespace-nowrap text-[clamp(1.3rem,10cqw,4rem)]">
             {prefix && <span>{prefix}</span>}
             <span>{displayValue}</span>
