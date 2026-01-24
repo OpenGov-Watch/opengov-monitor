@@ -673,11 +673,11 @@ export const DashboardComponent = memo(
   const showHeader = editable || component.type !== "text";
 
   return (
-    <div className={`h-full flex flex-col bg-background ${showBorder ? "border rounded-lg" : ""} overflow-hidden`}>
+    <div className={`h-full flex flex-col bg-background ${showBorder ? "border" : ""} overflow-hidden`}>
       {/* Header - hidden for text components in view mode */}
       {showHeader && (
-      <div className={`flex items-center justify-between p-3 ${showBorder ? "border-b" : ""} bg-muted/30`}>
-        <h3 className="font-medium text-sm truncate">{component.name}</h3>
+      <div className="flex items-center justify-between p-3">
+        <h3 className="font-medium text-base truncate">{component.name}</h3>
         <div className="flex items-center gap-1">
           {component.type === "table" && (
             <>
