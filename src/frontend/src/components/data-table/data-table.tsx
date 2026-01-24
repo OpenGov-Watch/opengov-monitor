@@ -891,11 +891,12 @@ export function DataTable<TData>({
                           {/* Render subtotal rows after this data row */}
                           {subtotalsAfter.map((subtotal, stIndex) => {
                             // Background color based on level (deeper = lighter)
+                            // Uses theme-aware muted color with varying opacity
                             const bgClass = subtotal.level === 0
-                              ? "bg-zinc-200 dark:bg-zinc-700"
+                              ? "bg-muted/70"
                               : subtotal.level === 1
-                                ? "bg-zinc-150 dark:bg-zinc-750"
-                                : "bg-zinc-100 dark:bg-zinc-800";
+                                ? "bg-muted/50"
+                                : "bg-muted/30";
 
                             return (
                               <TableRow
@@ -1012,9 +1013,9 @@ export function DataTable<TData>({
             {/* Footer rows: Page Totals, Grand Totals, or legacy footerCells */}
             {(pageTotalsCells.length > 0 || grandTotalsCells.length > 0 || (footerCells && footerCells.length > 0)) && (
               <TableFooter className="sticky bottom-0">
-                {/* Page Totals Row - medium background */}
+                {/* Page Totals Row - lighter background */}
                 {pageTotalsCells.length > 0 && (
-                  <TableRow className="bg-zinc-100 dark:bg-zinc-800">
+                  <TableRow className="bg-muted/50">
                     {table.getVisibleLeafColumns().map((column, index) => {
                       const cell = pageTotalsCells.find(
                         (fc) => fc.columnId === column.id
@@ -1033,9 +1034,9 @@ export function DataTable<TData>({
                     })}
                   </TableRow>
                 )}
-                {/* Grand Totals Row - darker background */}
+                {/* Grand Totals Row - more prominent background */}
                 {grandTotalsCells.length > 0 && (
-                  <TableRow className="bg-zinc-200 dark:bg-zinc-700">
+                  <TableRow className="bg-muted/70">
                     {table.getVisibleLeafColumns().map((column, index) => {
                       const cell = grandTotalsCells.find(
                         (fc) => fc.columnId === column.id
