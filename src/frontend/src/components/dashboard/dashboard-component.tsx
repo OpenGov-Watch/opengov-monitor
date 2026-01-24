@@ -162,6 +162,7 @@ interface DashboardComponentProps {
   onDuplicate?: () => void;
   onMove?: () => void;
   onDelete?: () => void;
+  onHeightChange?: (componentId: number, contentHeight: number) => void;
 }
 
 export const DashboardComponent = memo(
@@ -172,6 +173,7 @@ export const DashboardComponent = memo(
     onDuplicate,
     onMove,
     onDelete,
+    onHeightChange,
   }: DashboardComponentProps) {
   const [data, setData] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
@@ -179,6 +181,7 @@ export const DashboardComponent = memo(
   const [, setConfigLoaded] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const chartContentRef = useRef<HTMLDivElement>(null);
+  const textContentRef = useRef<HTMLDivElement>(null);
 
   // Table export handlers (set by DataTable component)
   const tableExportCSVRef = useRef<(() => void) | null>(null);
@@ -240,6 +243,24 @@ export const DashboardComponent = memo(
     }
     fetchData();
   }, [queryConfigString, component.type, component.id]);
+
+  // Measure and report height for unconstrained text components
+  const constrainHeight = chartConfig.constrainHeight !== false;
+  useEffect(() => {
+    if (component.type !== "text" || constrainHeight || !onHeightChange || !textContentRef.current) {
+      return;
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      const height = entries[0]?.contentRect.height;
+      if (height) {
+        onHeightChange(component.id, height);
+      }
+    });
+
+    observer.observe(textContentRef.current);
+    return () => observer.disconnect();
+  }, [component.id, component.type, constrainHeight, onHeightChange]);
 
   async function fetchData() {
     setLoading(true);
@@ -513,7 +534,10 @@ export const DashboardComponent = memo(
     // Text components don't need data
     if (component.type === "text") {
       return (
-        <div className="prose prose-sm max-w-none dark:prose-invert h-full overflow-auto">
+        <div
+          ref={textContentRef}
+          className={`prose prose-sm max-w-none dark:prose-invert ${constrainHeight ? "h-full overflow-auto" : ""}`}
+        >
           {chartConfig.content ? (
             <Markdown>{chartConfig.content}</Markdown>
           ) : (
@@ -645,10 +669,14 @@ export const DashboardComponent = memo(
     }
   }
 
+  // Border toggle only applies to text components in view mode (default: true)
+  // Always show border in edit mode for visual clarity
+  const showBorder = editable || component.type !== "text" || chartConfig.showBorder !== false;
+
   return (
-    <div className="h-full flex flex-col bg-background border rounded-lg overflow-hidden">
+    <div className={`h-full flex flex-col bg-background ${showBorder ? "border rounded-lg" : ""} overflow-hidden`}>
       {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b bg-muted/30">
+      <div className={`flex items-center justify-between p-3 ${showBorder ? "border-b" : ""} bg-muted/30`}>
         <h3 className="font-medium text-sm truncate">{component.name}</h3>
         <div className="flex items-center gap-1">
           {component.type === "table" && (

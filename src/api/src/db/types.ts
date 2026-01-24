@@ -388,6 +388,9 @@ export interface ChartConfig {
   showLegend?: boolean;
   showTooltip?: boolean;
   content?: string; // Markdown content for text components
+  // Text component options
+  showBorder?: boolean;           // Show border around component (default: true)
+  constrainHeight?: boolean;      // Constrain to grid height with scroll (default: true)
 }
 
 export interface QueryCache {

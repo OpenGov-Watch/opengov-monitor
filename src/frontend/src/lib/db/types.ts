@@ -406,6 +406,9 @@ export interface ChartConfig {
   hierarchicalDisplay?: boolean;  // Collapse repeated group values
   showGroupTotals?: boolean;      // Show subtotals for each group level
   disableSorting?: boolean;       // Disable column header sorting (useful for hierarchical display)
+  // Text component options
+  showBorder?: boolean;           // Show border around component (default: true)
+  constrainHeight?: boolean;      // Constrain to grid height with scroll (default: true)
 }
 
 export interface QueryCache {

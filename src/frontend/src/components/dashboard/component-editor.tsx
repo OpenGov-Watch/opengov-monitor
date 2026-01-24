@@ -412,6 +412,36 @@ export function ComponentEditor({
                   placeholder="# Heading&#10;&#10;Write your **markdown** content here..."
                 />
               </div>
+
+              {/* Display Options */}
+              <div className="space-y-3">
+                <Label>Display Options</Label>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="show-border"
+                    checked={chartConfig.showBorder !== false}
+                    onCheckedChange={(checked) =>
+                      setChartConfig({ ...chartConfig, showBorder: checked as boolean })
+                    }
+                  />
+                  <Label htmlFor="show-border" className="font-normal cursor-pointer">
+                    Show border
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="constrain-height"
+                    checked={chartConfig.constrainHeight !== false}
+                    onCheckedChange={(checked) =>
+                      setChartConfig({ ...chartConfig, constrainHeight: checked as boolean })
+                    }
+                  />
+                  <Label htmlFor="constrain-height" className="font-normal cursor-pointer">
+                    Fixed height (scroll if content overflows)
+                  </Label>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label>Preview</Label>
                 {renderPreview()}

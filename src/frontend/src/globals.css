@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -134,4 +135,19 @@
 table tbody tr {
   content-visibility: auto;
   contain-intrinsic-size: auto 48px;
+}
+
+/* Dashboard text component typography */
+.prose {
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
+  font-family: 'DM Serif Display', serif;
+  font-weight: 400;
 }
