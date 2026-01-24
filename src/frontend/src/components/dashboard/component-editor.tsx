@@ -278,6 +278,20 @@ export function ComponentEditor({
       );
     }
 
+    // Metric manual mode: display the manual value directly (no data fetch needed)
+    if (type === "metric" && metricMode === "manual") {
+      return (
+        <div className="h-64 border rounded">
+          <MetricDisplay
+            value={chartConfig.metricValue ?? null}
+            label={chartConfig.metricLabel}
+            prefix={chartConfig.metricPrefix}
+            suffix={chartConfig.metricSuffix}
+          />
+        </div>
+      );
+    }
+
     if (previewData.length === 0) {
       return (
         <div className="flex items-center justify-center h-64 text-muted-foreground">
@@ -350,20 +364,7 @@ export function ComponentEditor({
       }
 
       case "metric": {
-        // Manual mode: display the manual value directly
-        if (metricMode === "manual") {
-          return (
-            <div className="h-64 border rounded">
-              <MetricDisplay
-                value={chartConfig.metricValue ?? null}
-                label={chartConfig.metricLabel}
-                prefix={chartConfig.metricPrefix}
-                suffix={chartConfig.metricSuffix}
-              />
-            </div>
-          );
-        }
-        // Query mode: validate and display query result
+        // Query mode: validate and display query result (manual mode handled above)
         if (queryConfig.columns.length !== 1) {
           return (
             <div className="h-64 flex items-center justify-center text-muted-foreground">
