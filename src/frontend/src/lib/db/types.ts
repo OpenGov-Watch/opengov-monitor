@@ -413,6 +413,7 @@ export interface ChartConfig {
   showBorder?: boolean;           // Show border around component (default: true)
   constrainHeight?: boolean;      // Constrain to grid height with scroll (default: true)
   textAlign?: 'left' | 'center' | 'right' | 'justify';  // Text alignment (default: left)
+  textSize?: 'small' | 'medium' | 'large';  // Font size for text components (default: medium)
   // Metric component options
   metricLabel?: string;           // Label below the number
   metricPrefix?: string;          // Text before number (e.g., "$")

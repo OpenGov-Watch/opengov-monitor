@@ -568,10 +568,16 @@ export const DashboardComponent = memo(
         justify: 'text-justify',
       }[chartConfig.textAlign ?? 'left'];
 
+      const sizeClass = {
+        small: 'prose-sm',
+        medium: 'prose-lg',
+        large: 'prose-xl',
+      }[chartConfig.textSize ?? 'medium'];
+
       return (
         <div
           ref={textContentRef}
-          className={`prose prose-lg max-w-none dark:prose-invert ${alignmentClass} ${constrainHeight ? "h-full overflow-auto" : ""}`}
+          className={`prose ${sizeClass} max-w-none dark:prose-invert ${alignmentClass} ${constrainHeight ? "h-full overflow-auto" : ""}`}
         >
           {chartConfig.content && <Markdown>{chartConfig.content}</Markdown>}
         </div>

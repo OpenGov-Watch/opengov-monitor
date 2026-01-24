@@ -267,8 +267,14 @@ export function ComponentEditor({
         justify: 'text-justify',
       }[chartConfig.textAlign ?? 'left'];
 
+      const sizeClass = {
+        small: 'prose-sm',
+        medium: 'prose-lg',
+        large: 'prose-xl',
+      }[chartConfig.textSize ?? 'medium'];
+
       return (
-        <div className={`h-64 overflow-auto border rounded p-4 prose prose-lg max-w-none dark:prose-invert ${alignmentClass}`}>
+        <div className={`h-64 overflow-auto border rounded p-4 prose ${sizeClass} max-w-none dark:prose-invert ${alignmentClass}`}>
           {chartConfig.content ? (
             <Markdown>{chartConfig.content}</Markdown>
           ) : (
@@ -554,6 +560,25 @@ export function ComponentEditor({
                         title={label}
                       >
                         <Icon className="h-4 w-4" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Label className="font-normal">Font size</Label>
+                  <div className="flex border rounded-md">
+                    {(['small', 'medium', 'large'] as const).map((size) => (
+                      <button
+                        key={size}
+                        type="button"
+                        onClick={() => setChartConfig({ ...chartConfig, textSize: size })}
+                        className={`px-3 py-1.5 text-sm transition-colors ${
+                          (chartConfig.textSize ?? 'medium') === size
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-muted'
+                        } ${size === 'small' ? 'rounded-l-md' : ''} ${size === 'large' ? 'rounded-r-md' : ''}`}
+                      >
+                        {size.charAt(0).toUpperCase() + size.slice(1)}
                       </button>
                     ))}
                   </div>
