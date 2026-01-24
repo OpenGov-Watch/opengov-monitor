@@ -536,7 +536,7 @@ export const DashboardComponent = memo(
       return (
         <div
           ref={textContentRef}
-          className={`prose prose-sm max-w-none dark:prose-invert ${constrainHeight ? "h-full overflow-auto" : ""}`}
+          className={`prose prose-lg max-w-none dark:prose-invert ${constrainHeight ? "h-full overflow-auto" : ""}`}
         >
           {chartConfig.content && <Markdown>{chartConfig.content}</Markdown>}
         </div>

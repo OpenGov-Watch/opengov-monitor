@@ -230,7 +230,7 @@ export function ComponentEditor({
     // Text components show markdown preview
     if (type === "text") {
       return (
-        <div className="h-64 overflow-auto border rounded p-4 prose prose-sm max-w-none dark:prose-invert">
+        <div className="h-64 overflow-auto border rounded p-4 prose prose-lg max-w-none dark:prose-invert">
           {chartConfig.content ? (
             <Markdown>{chartConfig.content}</Markdown>
           ) : (
