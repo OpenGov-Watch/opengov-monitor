@@ -62,19 +62,17 @@ export default function DashboardViewPage() {
 
   return (
     <div className="flex-1 min-h-0 flex flex-col gap-6">
-      <div className="flex items-center justify-between px-[10px]">
-        <div className="flex items-center gap-4">
-          <div>
-            <h1 className="text-4xl font-bold tracking-tight">
-              {dashboard.name}
-            </h1>
-            {dashboard.description && (
-              <p className="text-muted-foreground">{dashboard.description}</p>
-            )}
-          </div>
+      <div className="flex items-center justify-center px-[10px] relative pt-12 pb-8">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold tracking-tight">
+            {dashboard.name}
+          </h1>
+          {dashboard.description && (
+            <p className="text-muted-foreground">{dashboard.description}</p>
+          )}
         </div>
         {isAuthenticated && (
-          <Button asChild>
+          <Button asChild className="absolute right-[10px]">
             <Link to={`/dashboards/${dashboardId}/edit`}>
               <Pencil className="mr-2 h-4 w-4" />
               Edit Dashboard
