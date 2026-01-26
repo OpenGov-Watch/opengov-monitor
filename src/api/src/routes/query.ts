@@ -733,6 +733,22 @@ function buildCountQuery(config: QueryConfig): { sql: string; params: (string | 
   const joinClause = buildJoinClause(config.joins);
   const hasJoins = !!(config.joins && config.joins.length > 0);
   const { clause: whereClause, params } = buildWhereClause(config.filters || [], config.sourceTable, hasJoins);
+  const groupByClause = buildGroupByClause(config.groupBy, config.sourceTable);
+
+  // When GROUP BY is present, count distinct groups instead of raw rows
+  if (groupByClause) {
+    const innerSql = [
+      `SELECT 1`,
+      `FROM ${tableName}`,
+      joinClause,
+      whereClause,
+      groupByClause,
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    return { sql: `SELECT COUNT(*) as total FROM (${innerSql})`, params };
+  }
 
   const sql = [
     `SELECT COUNT(*) as total`,
