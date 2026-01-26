@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { TABLE_STYLES, LEGEND_STYLES, COLORS } from "../export-styles";
+import { TABLE_STYLES, LEGEND_STYLES, COLORS, calculateTableExportDimensions } from "../export-styles";
 
 describe("Export Styles", () => {
   describe("TABLE_STYLES", () => {
@@ -129,6 +129,94 @@ describe("Export Styles", () => {
       expect(COLORS.headerText).toBeDefined();
       expect(COLORS.mutedText).toBeDefined();
       expect(COLORS.legendText).toBeDefined();
+    });
+  });
+
+  describe("calculateTableExportDimensions", () => {
+    const createMockData = (rowCount: number, columns: string[]) => {
+      return Array.from({ length: rowCount }, (_, i) => {
+        const row: Record<string, unknown> = {};
+        columns.forEach((col) => {
+          row[col] = `value_${i}_${col}`;
+        });
+        return row;
+      });
+    };
+
+    it("calculates width based on column count", () => {
+      const columns = ["a", "b", "c"];
+      const data = createMockData(5, columns);
+      const { width } = calculateTableExportDimensions(data, columns);
+
+      // 3 columns × 150px + 48px padding = 498px
+      expect(width).toBe(498);
+    });
+
+    it("calculates height based on row count", () => {
+      const columns = ["a"];
+      const data = createMockData(10, columns);
+      const { height } = calculateTableExportDimensions(data, columns);
+
+      // 60 (title) + 50 (header) + 10×40 (rows) + 48 (padding) = 558
+      expect(height).toBe(558);
+    });
+
+    it("respects minimum width", () => {
+      const columns = ["a"];
+      const data = createMockData(1, columns);
+      const { width } = calculateTableExportDimensions(data, columns);
+
+      // 1 column × 150px + 48px = 198px, but min is 400px
+      expect(width).toBe(400);
+    });
+
+    it("respects maximum width", () => {
+      const columns = Array.from({ length: 20 }, (_, i) => `col_${i}`);
+      const data = createMockData(1, columns);
+      const { width } = calculateTableExportDimensions(data, columns);
+
+      // 20 columns × 150px + 48px = 3048px, but max is 2400px
+      expect(width).toBe(2400);
+    });
+
+    it("respects maximum height", () => {
+      const columns = ["a"];
+      const data = createMockData(100, columns);
+      const { height } = calculateTableExportDimensions(data, columns, 100);
+
+      // Would be 60 + 50 + 100×40 + 48 = 4158px, but max is 2000px
+      expect(height).toBe(2000);
+    });
+
+    it("adds truncation note height when data exceeds maxRows", () => {
+      const columns = ["a"];
+      const data = createMockData(10, columns);
+
+      const { height: heightNoTruncation } = calculateTableExportDimensions(data, columns, 10);
+      const { height: heightWithTruncation } = calculateTableExportDimensions(data, columns, 5);
+
+      // Truncated should include 30px for truncation note, but fewer rows
+      // No truncation: 60 + 50 + 10×40 + 48 = 558
+      // Truncation: 60 + 50 + 5×40 + 30 + 48 = 388
+      expect(heightNoTruncation).toBe(558);
+      expect(heightWithTruncation).toBe(388);
+    });
+
+    it("handles empty visible columns", () => {
+      const data = createMockData(5, ["a"]);
+      const { width } = calculateTableExportDimensions(data, []);
+
+      // 0 columns, should use minimum width
+      expect(width).toBe(400);
+    });
+
+    it("handles single row", () => {
+      const columns = ["a", "b"];
+      const data = createMockData(1, columns);
+      const { height } = calculateTableExportDimensions(data, columns);
+
+      // 60 + 50 + 1×40 + 48 = 198, but min is 200
+      expect(height).toBe(200);
     });
   });
 });

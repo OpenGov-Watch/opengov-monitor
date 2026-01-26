@@ -149,3 +149,56 @@ export const COLORS = {
   mutedText: "#666",
   legendText: "#737373",
 };
+
+// ============================================================================
+// Table Export Dimension Calculation
+// ============================================================================
+
+export interface TableExportDimensions {
+  width: number;
+  height: number;
+}
+
+/**
+ * Calculate export dimensions for a table based on content.
+ *
+ * Width: Based on column count with variable column widths
+ * Height: Based on row count with fixed row heights
+ */
+export function calculateTableExportDimensions(
+  data: Record<string, unknown>[],
+  visibleColumns: string[],
+  maxRows: number = 50
+): TableExportDimensions {
+  // Column width estimates (in pixels)
+  const COLUMN_WIDTH = 150; // Average column width
+  const MIN_WIDTH = 400;
+  const MAX_WIDTH = 2400;
+
+  // Height constants (in pixels)
+  const TITLE_HEIGHT = 60; // Title area
+  const HEADER_HEIGHT = 50; // Table header row
+  const ROW_HEIGHT = 40; // Data row
+  const TRUNCATION_NOTE_HEIGHT = 30; // "Showing X of Y rows"
+  const PADDING = 48; // Container padding (top + bottom)
+  const MIN_HEIGHT = 200;
+  const MAX_HEIGHT = 2000;
+
+  // Calculate width based on column count
+  const columnCount = visibleColumns.length;
+  const calculatedWidth = columnCount * COLUMN_WIDTH + 48; // 48px for container padding
+  const width = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, calculatedWidth));
+
+  // Calculate height based on row count
+  const rowCount = Math.min(data.length, maxRows);
+  const isTruncated = data.length > maxRows;
+  const calculatedHeight =
+    TITLE_HEIGHT +
+    HEADER_HEIGHT +
+    rowCount * ROW_HEIGHT +
+    (isTruncated ? TRUNCATION_NOTE_HEIGHT : 0) +
+    PADDING;
+  const height = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, calculatedHeight));
+
+  return { width, height };
+}

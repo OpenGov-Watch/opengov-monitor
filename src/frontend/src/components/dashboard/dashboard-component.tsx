@@ -39,6 +39,7 @@ import { MetricDisplay } from "@/components/charts/metric-display";
 import { DataTable } from "@/components/data-table/data-table";
 import { ExportTable } from "@/components/data-table/export-table";
 import { loadColumnConfig } from "@/lib/column-renderer";
+import { calculateTableExportDimensions } from "@/lib/export-styles";
 import Image from "lucide-react/dist/esm/icons/image";
 import { getColumnKey, normalizeDataKeys, validateQueryConfig, hasInvalidQueryConfig } from "@/lib/query-config-utils";
 import type {
@@ -591,12 +592,17 @@ export const DashboardComponent = memo(
         />
       );
 
-      // Calculate dynamic height based on row count
-      const rowCount = Math.min(tableData.length, 50);
-      const height = Math.min(800, 100 + rowCount * 40);
+      // Calculate visible columns for dimension calculation
+      const allColumns = Object.keys(tableData[0] || {});
+      const visibleColumns = hiddenExpressionAliases
+        ? allColumns.filter((col) => !hiddenExpressionAliases.has(col))
+        : allColumns;
+
+      // Calculate dynamic dimensions based on content
+      const { width, height } = calculateTableExportDimensions(tableData, visibleColumns, 50);
 
       const filename = `${component.name.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.png`;
-      await exportChartAsPNG(renderTable, component.name, filename, 1200, height);
+      await exportChartAsPNG(renderTable, component.name, filename, width, height);
     } catch (error) {
       console.error("Failed to download table as PNG:", error);
       alert("Failed to download table. Please try again.");
@@ -625,11 +631,16 @@ export const DashboardComponent = memo(
         />
       );
 
-      // Calculate dynamic height based on row count
-      const rowCount = Math.min(tableData.length, 50);
-      const height = Math.min(800, 100 + rowCount * 40);
+      // Calculate visible columns for dimension calculation
+      const allColumns = Object.keys(tableData[0] || {});
+      const visibleColumns = hiddenExpressionAliases
+        ? allColumns.filter((col) => !hiddenExpressionAliases.has(col))
+        : allColumns;
 
-      await copyChartToClipboard(renderTable, component.name, 1200, height);
+      // Calculate dynamic dimensions based on content
+      const { width, height } = calculateTableExportDimensions(tableData, visibleColumns, 50);
+
+      await copyChartToClipboard(renderTable, component.name, width, height);
     } catch (error) {
       console.error("Failed to copy table to clipboard:", error);
       alert("Failed to copy table to clipboard. Please try again.");
