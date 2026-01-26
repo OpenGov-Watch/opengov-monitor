@@ -893,10 +893,16 @@ export const DashboardComponent = memo(
       if (queryValidation.invalidOrderBy.length > 0) {
         parts.push(`ORDER BY: ${queryValidation.invalidOrderBy.map(o => o.column).join(", ")}`);
       }
+      if (queryValidation.groupByWithoutAggregates) {
+        parts.push("GROUP BY configured without aggregate functions");
+      }
+      const hint = queryValidation.groupByWithoutAggregates
+        ? "GROUP BY requires at least one column with an aggregate function (SUM, COUNT, etc.). Edit to fix."
+        : `References columns not in query: ${parts.join("; ")}. Edit to fix.`;
       return (
         <ChartValidationError
           error="Invalid query configuration"
-          hint={`References columns not in query: ${parts.join("; ")}. Edit to fix.`}
+          hint={hint}
         />
       );
     }

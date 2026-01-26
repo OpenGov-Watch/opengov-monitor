@@ -139,6 +139,7 @@ describe("ComponentEditor Query Config Validation", () => {
         columns: [
           { column: "all_spending.year_quarter" },
           { column: "all_spending.category" },
+          { column: "all_spending.amount", aggregateFunction: "SUM" }, // Need aggregate with groupBy
         ],
         groupBy: ["all_spending.year_quarter", "all_spending.category"],
       });
@@ -207,8 +208,8 @@ describe("ComponentEditor Query Config Validation", () => {
     it("validates groupBy against expression column aliases", async () => {
       const component = createMockComponent({
         columns: [{ column: "all_spending.year_quarter" }],
-        expressionColumns: [{ expression: "SUM(amount)", alias: "total_amount" }],
-        groupBy: ["all_spending.year_quarter", "total_amount"], // total_amount is valid (expression alias)
+        expressionColumns: [{ expression: "amount", alias: "total_amount", aggregateFunction: "SUM" }],
+        groupBy: ["all_spending.year_quarter"], // total_amount is an aggregate, not in groupBy
       });
 
       render(<ComponentEditor component={component} {...defaultProps} />);
@@ -238,7 +239,10 @@ describe("ComponentEditor Query Config Validation", () => {
       const user = userEvent.setup();
       const onSave = vi.fn();
       const component = createMockComponent({
-        columns: [{ column: "all_spending.year_quarter" }],
+        columns: [
+          { column: "all_spending.year_quarter" },
+          { column: "all_spending.amount", aggregateFunction: "SUM" }, // Need aggregate with groupBy
+        ],
         groupBy: ["year_quarter", "category", "all_spending.year_quarter"],
         orderBy: [
           { column: "removed", direction: "ASC" },
@@ -276,7 +280,7 @@ describe("ComponentEditor Query Config Validation", () => {
       const component = createMockComponent({
         columns: [
           { column: "all_spending.year_quarter" },
-          { column: "all_spending.amount" },
+          { column: "all_spending.amount", aggregateFunction: "SUM" }, // Need aggregate with groupBy
         ],
         groupBy: ["invalid_column", "all_spending.year_quarter"],
         orderBy: [{ column: "all_spending.amount", direction: "ASC" }],
@@ -302,7 +306,10 @@ describe("ComponentEditor Query Config Validation", () => {
   describe("No warning for valid config", () => {
     it("does not show warning when all config is valid", async () => {
       const component = createMockComponent({
-        columns: [{ column: "all_spending.year_quarter" }],
+        columns: [
+          { column: "all_spending.year_quarter" },
+          { column: "all_spending.amount", aggregateFunction: "SUM" }, // Need aggregate with groupBy
+        ],
         groupBy: ["all_spending.year_quarter"],
         orderBy: [{ column: "all_spending.year_quarter", direction: "ASC" }],
       });
@@ -353,7 +360,10 @@ describe("ComponentEditor Query Config Validation", () => {
   describe("Column alias validation", () => {
     it("validates groupBy against column aliases", async () => {
       const component = createMockComponent({
-        columns: [{ column: "all_spending.year_quarter", alias: "quarter" }],
+        columns: [
+          { column: "all_spending.year_quarter", alias: "quarter" },
+          { column: "all_spending.amount", aggregateFunction: "SUM" }, // Need aggregate with groupBy
+        ],
         groupBy: ["quarter"], // Using the alias
       });
 

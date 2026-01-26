@@ -2,52 +2,14 @@ import { Router } from "express";
 import { getDatabase } from "../db/index.js";
 import { getCustomTableNames } from "../db/queries.js";
 import type { QueryConfig, FilterCondition, FilterGroup, ExpressionColumn, JoinConfig, FacetQueryConfig, FacetValue, FacetQueryResponse } from "../db/types.js";
+import { QUERYABLE_TABLE_NAMES, QUERYABLE_VIEW_NAMES } from "../db/types.js";
 
 export const queryRouter: Router = Router();
 
-// Base whitelist of tables/views that can be queried (static)
-const BASE_ALLOWED_SOURCES = [
-  "Referenda",
-  "Treasury",
-  "Child Bounties",
-  "Fellowship",
-  "Fellowship Salary Cycles",
-  "Fellowship Salary Claimants",
-  "Fellowship Salary Payments",
-  "Categories",
-  "Bounties",
-  "Subtreasury",
-  "Fellowship Subtreasury",
-  "Treasury Netflows",
-  "outstanding_claims",
-  "expired_claims",
-  "all_spending",
-  "treasury_netflows_view",
-  "DataErrors",
-];
-
-const BASE_ALLOWED_TABLES = [
-  "Referenda",
-  "Treasury",
-  "Child Bounties",
-  "Fellowship",
-  "Fellowship Salary Cycles",
-  "Fellowship Salary Claimants",
-  "Fellowship Salary Payments",
-  "Categories",
-  "Bounties",
-  "Subtreasury",
-  "Fellowship Subtreasury",
-  "Treasury Netflows",
-  "DataErrors",
-];
-
-const ALLOWED_VIEWS = [
-  "outstanding_claims",
-  "expired_claims",
-  "all_spending",
-  "treasury_netflows_view",
-];
+// Derive allowlists from constants - no hardcoded table names
+const BASE_ALLOWED_TABLES = [...QUERYABLE_TABLE_NAMES];
+const ALLOWED_VIEWS = [...QUERYABLE_VIEW_NAMES];
+const BASE_ALLOWED_SOURCES = [...BASE_ALLOWED_TABLES, ...ALLOWED_VIEWS];
 
 // Dynamic function to get all allowed sources including custom tables
 function getAllowedSources(): Set<string> {

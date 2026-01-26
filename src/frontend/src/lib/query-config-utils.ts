@@ -8,6 +8,8 @@ import type { FilterGroup, FacetQueryConfig, QueryConfig } from "@/lib/db/types"
 export interface QueryConfigValidation {
   invalidGroupBy: string[];
   invalidOrderBy: { column: string; direction: string }[];
+  /** GROUP BY is configured but no columns have aggregate functions */
+  groupByWithoutAggregates: boolean;
 }
 
 /**
@@ -29,16 +31,24 @@ export function validateQueryConfig(queryConfig: QueryConfig): QueryConfigValida
   const result: QueryConfigValidation = {
     invalidGroupBy: [],
     invalidOrderBy: [],
+    groupByWithoutAggregates: false,
   };
 
   // Build set of valid column keys from current query config (selected columns + expressions)
   const validColumns = new Set<string>();
+  let hasAggregates = false;
   for (const col of queryConfig.columns || []) {
     validColumns.add(getColumnKey(col));  // alias or derived key
     validColumns.add(col.column);          // original column reference
+    if (col.aggregateFunction) {
+      hasAggregates = true;
+    }
   }
   for (const expr of queryConfig.expressionColumns || []) {
     validColumns.add(expr.alias);
+    if (expr.aggregateFunction) {
+      hasAggregates = true;
+    }
   }
 
   // Check groupBy - must be in selected columns
@@ -46,6 +56,12 @@ export function validateQueryConfig(queryConfig: QueryConfig): QueryConfigValida
     if (!validColumns.has(gb)) {
       result.invalidGroupBy.push(gb);
     }
+  }
+
+  // Check for GROUP BY without aggregate functions
+  const hasGroupBy = (queryConfig.groupBy?.length ?? 0) > 0;
+  if (hasGroupBy && !hasAggregates) {
+    result.groupByWithoutAggregates = true;
   }
 
   // Check orderBy - must be in selected columns
@@ -62,10 +78,10 @@ export function validateQueryConfig(queryConfig: QueryConfig): QueryConfigValida
  * Check if a QueryConfigValidation has any invalid entries.
  *
  * @param validation - The validation result from validateQueryConfig
- * @returns true if there are invalid groupBy or orderBy entries
+ * @returns true if there are invalid groupBy or orderBy entries, or groupBy without aggregates
  */
 export function hasInvalidQueryConfig(validation: QueryConfigValidation): boolean {
-  return validation.invalidGroupBy.length > 0 || validation.invalidOrderBy.length > 0;
+  return validation.invalidGroupBy.length > 0 || validation.invalidOrderBy.length > 0 || validation.groupByWithoutAggregates;
 }
 
 /**

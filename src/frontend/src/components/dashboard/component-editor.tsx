@@ -218,9 +218,15 @@ export function ComponentEditor({
       const invalidGroupBySet = new Set(queryConfigValidation.invalidGroupBy);
       const invalidOrderBySet = new Set(queryConfigValidation.invalidOrderBy.map(e => e.column));
 
-      // Clean groupBy
-      const cleanedGroupBy = (queryConfigToSave.groupBy || [])
-        .filter(gb => !invalidGroupBySet.has(gb));
+      // Clean groupBy - remove invalid entries, or clear entirely if no aggregates
+      let cleanedGroupBy: string[];
+      if (queryConfigValidation.groupByWithoutAggregates) {
+        // GROUP BY without aggregates is invalid, clear it
+        cleanedGroupBy = [];
+      } else {
+        cleanedGroupBy = (queryConfigToSave.groupBy || [])
+          .filter(gb => !invalidGroupBySet.has(gb));
+      }
 
       // Clean orderBy
       const cleanedOrderBy = (queryConfigToSave.orderBy || [])
@@ -445,6 +451,16 @@ export function ComponentEditor({
                         </li>
                       ))}
                     </ul>
+                  </div>
+                )}
+
+                {queryConfigValidation.groupByWithoutAggregates && (
+                  <div className="mb-2">
+                    <span className="font-medium">GROUP BY without aggregates:</span>
+                    <p className="ml-2 text-sm">
+                      GROUP BY is configured but no columns have aggregate functions (SUM, COUNT, etc.).
+                      Either add an aggregate function to a column, or the GROUP BY will be removed on save.
+                    </p>
                   </div>
                 )}
 

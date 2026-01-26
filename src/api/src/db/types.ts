@@ -504,12 +504,15 @@ export const TABLE_NAMES = {
   treasuryNetflows: "Treasury Netflows",
   crossChainFlows: "Cross Chain Flows",
   localFlows: "Local Flows",
+  dataErrors: "DataErrors",
   // Dashboard tables
   dashboards: "Dashboards",
   dashboardComponents: "Dashboard Components",
   queryCache: "Query Cache",
   // Custom tables
   customTableMetadata: "Custom Table Metadata",
+  // Auth tables
+  users: "Users",
 } as const;
 
 // View names (lowercase, no spaces)
@@ -517,7 +520,34 @@ export const VIEW_NAMES = {
   outstandingClaims: "outstanding_claims",
   expiredClaims: "expired_claims",
   allSpending: "all_spending",
+  treasuryNetflowsView: "treasury_netflows_view",
 } as const;
 
 export type TableName = (typeof TABLE_NAMES)[keyof typeof TABLE_NAMES];
 export type ViewName = (typeof VIEW_NAMES)[keyof typeof VIEW_NAMES];
+
+// Tables that can be queried via the dashboard query builder
+export const QUERYABLE_TABLE_NAMES = [
+  TABLE_NAMES.referenda,
+  TABLE_NAMES.treasury,
+  TABLE_NAMES.childBounties,
+  TABLE_NAMES.fellowship,
+  TABLE_NAMES.fellowshipSalaryCycles,
+  TABLE_NAMES.fellowshipSalaryClaimants,
+  TABLE_NAMES.fellowshipSalaryPayments,
+  TABLE_NAMES.categories,
+  TABLE_NAMES.bounties,
+  TABLE_NAMES.subtreasury,
+  TABLE_NAMES.customSpending,
+  TABLE_NAMES.fellowshipSubtreasury,
+  TABLE_NAMES.treasuryNetflows,
+  TABLE_NAMES.dataErrors,
+] as const;
+
+// Views that can be queried via the dashboard query builder
+export const QUERYABLE_VIEW_NAMES = [
+  VIEW_NAMES.outstandingClaims,
+  VIEW_NAMES.expiredClaims,
+  VIEW_NAMES.allSpending,
+  VIEW_NAMES.treasuryNetflowsView,
+] as const;
