@@ -5,6 +5,12 @@
  * so we need inline styles for export mode. These constants keep both modes in sync.
  */
 
+import {
+  getColumnConfig,
+  getColumnDisplayName,
+  formatValue,
+} from "@/lib/column-renderer";
+
 // ============================================================================
 // Table Styles
 // ============================================================================
@@ -159,19 +165,41 @@ export interface TableExportDimensions {
   height: number;
 }
 
+export interface TableExportOptions {
+  tableName?: string;
+  columnMapping?: Record<string, string>;
+  columnOverrides?: Record<string, { header?: string }>;
+}
+
 /**
- * Calculate export dimensions for a table based on content.
+ * Estimate text width in pixels based on character count.
+ * Uses average character width for proportional fonts at given font size.
+ */
+function estimateTextWidth(text: string, fontSize: number): number {
+  // Average character width is ~0.55 of font size for proportional fonts
+  const avgCharWidth = fontSize * 0.55;
+  return text.length * avgCharWidth;
+}
+
+/**
+ * Calculate export dimensions for a table based on actual content.
  *
- * Width: Based on column count with variable column widths
+ * Width: Based on actual column content (header + max cell width per column)
  * Height: Based on row count with fixed row heights
  */
 export function calculateTableExportDimensions(
   data: Record<string, unknown>[],
   visibleColumns: string[],
-  maxRows: number = 50
+  maxRows: number = 50,
+  options?: TableExportOptions
 ): TableExportDimensions {
-  // Column width estimates (in pixels)
-  const COLUMN_WIDTH = 300; // Average column width (accommodates text columns)
+  // Width constants
+  const HEADER_FONT_SIZE = 16;
+  const CELL_FONT_SIZE = 14;
+  const CELL_PADDING = 32; // 16px left + 16px right
+  const MIN_COLUMN_WIDTH = 80;
+  const MAX_COLUMN_WIDTH = 400;
+  const CONTAINER_PADDING = 48;
   const MIN_WIDTH = 800;
   const MAX_WIDTH = 3200;
 
@@ -184,10 +212,41 @@ export function calculateTableExportDimensions(
   const MIN_HEIGHT = 200;
   const MAX_HEIGHT = 2000;
 
-  // Calculate width based on column count
-  const columnCount = visibleColumns.length;
-  const calculatedWidth = columnCount * COLUMN_WIDTH + 48; // 48px for container padding
-  const width = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, calculatedWidth));
+  // Calculate width for each column based on content
+  const displayData = data.slice(0, maxRows);
+  let totalWidth = CONTAINER_PADDING;
+
+  for (const col of visibleColumns) {
+    // Get column config for formatting
+    const sourceColumn = options?.columnMapping?.[col] ?? col;
+    const config = getColumnConfig(options?.tableName ?? "", sourceColumn);
+
+    // Get header display name
+    const headerName =
+      options?.columnOverrides?.[col]?.header ??
+      getColumnDisplayName(options?.tableName ?? "", col);
+
+    // Calculate header width
+    const headerWidth = estimateTextWidth(headerName, HEADER_FONT_SIZE);
+
+    // Calculate max cell width from data
+    let maxCellWidth = 0;
+    for (const row of displayData) {
+      const formattedValue = formatValue(row[col], config);
+      const cellWidth = estimateTextWidth(formattedValue, CELL_FONT_SIZE);
+      maxCellWidth = Math.max(maxCellWidth, cellWidth);
+    }
+
+    // Column width is max of header and cell widths, plus padding
+    const columnWidth = Math.max(headerWidth, maxCellWidth) + CELL_PADDING;
+    const clampedWidth = Math.max(
+      MIN_COLUMN_WIDTH,
+      Math.min(MAX_COLUMN_WIDTH, columnWidth)
+    );
+    totalWidth += clampedWidth;
+  }
+
+  const width = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, totalWidth));
 
   // Calculate height based on row count
   const rowCount = Math.min(data.length, maxRows);

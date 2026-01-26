@@ -598,8 +598,13 @@ export const DashboardComponent = memo(
         ? allColumns.filter((col) => !hiddenExpressionAliases.has(col))
         : allColumns;
 
-      // Calculate dynamic dimensions based on content
-      const { width, height } = calculateTableExportDimensions(tableData, visibleColumns, 50);
+      // Calculate dynamic dimensions based on actual content
+      const { width, height } = calculateTableExportDimensions(
+        tableData,
+        visibleColumns,
+        50,
+        { tableName, columnMapping, columnOverrides }
+      );
 
       const filename = `${component.name.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.png`;
       await exportChartAsPNG(renderTable, component.name, filename, width, height);
@@ -637,8 +642,13 @@ export const DashboardComponent = memo(
         ? allColumns.filter((col) => !hiddenExpressionAliases.has(col))
         : allColumns;
 
-      // Calculate dynamic dimensions based on content
-      const { width, height } = calculateTableExportDimensions(tableData, visibleColumns, 50);
+      // Calculate dynamic dimensions based on actual content
+      const { width, height } = calculateTableExportDimensions(
+        tableData,
+        visibleColumns,
+        50,
+        { tableName, columnMapping, columnOverrides }
+      );
 
       await copyChartToClipboard(renderTable, component.name, width, height);
     } catch (error) {
