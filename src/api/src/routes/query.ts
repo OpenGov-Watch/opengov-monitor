@@ -530,6 +530,15 @@ function buildSingleCondition(
         return `${colName} NOT IN (${placeholders})`;
       }
       return "";
+    case "!=":
+      // Skip conditions with empty/null values
+      if (filter.value === null || filter.value === undefined || filter.value === "") {
+        return "";
+      }
+      // != in SQL doesn't match NULL values, so include them explicitly
+      const neCoercedValue = coerceFilterValue(filter.value as string | number, columnType);
+      params.push(neCoercedValue);
+      return `(${colName} != ? OR ${colName} IS NULL)`;
     default:
       // Skip conditions with empty/null values (except IS NULL operators)
       if (filter.value === null || filter.value === undefined || filter.value === "") {
