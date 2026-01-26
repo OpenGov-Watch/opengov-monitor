@@ -148,8 +148,8 @@ describe("Export Styles", () => {
       const data = createMockData(5, columns);
       const { width } = calculateTableExportDimensions(data, columns);
 
-      // 3 columns × 150px + 48px padding = 498px
-      expect(width).toBe(498);
+      // 3 columns × 300px + 48px padding = 948px
+      expect(width).toBe(948);
     });
 
     it("calculates height based on row count", () => {
@@ -166,8 +166,8 @@ describe("Export Styles", () => {
       const data = createMockData(1, columns);
       const { width } = calculateTableExportDimensions(data, columns);
 
-      // 1 column × 150px + 48px = 198px, but min is 400px
-      expect(width).toBe(400);
+      // 1 column × 300px + 48px = 348px, but min is 800px
+      expect(width).toBe(800);
     });
 
     it("respects maximum width", () => {
@@ -175,8 +175,8 @@ describe("Export Styles", () => {
       const data = createMockData(1, columns);
       const { width } = calculateTableExportDimensions(data, columns);
 
-      // 20 columns × 150px + 48px = 3048px, but max is 2400px
-      expect(width).toBe(2400);
+      // 20 columns × 300px + 48px = 6048px, but max is 3200px
+      expect(width).toBe(3200);
     });
 
     it("respects maximum height", () => {
@@ -207,7 +207,7 @@ describe("Export Styles", () => {
       const { width } = calculateTableExportDimensions(data, []);
 
       // 0 columns, should use minimum width
-      expect(width).toBe(400);
+      expect(width).toBe(800);
     });
 
     it("handles single row", () => {

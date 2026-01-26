@@ -171,9 +171,9 @@ export function calculateTableExportDimensions(
   maxRows: number = 50
 ): TableExportDimensions {
   // Column width estimates (in pixels)
-  const COLUMN_WIDTH = 150; // Average column width
-  const MIN_WIDTH = 400;
-  const MAX_WIDTH = 2400;
+  const COLUMN_WIDTH = 300; // Average column width (accommodates text columns)
+  const MIN_WIDTH = 800;
+  const MAX_WIDTH = 3200;
 
   // Height constants (in pixels)
   const TITLE_HEIGHT = 60; // Title area
