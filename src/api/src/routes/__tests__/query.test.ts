@@ -131,6 +131,16 @@ beforeAll(() => {
 
     INSERT OR IGNORE INTO "secret_data" (id, password)
     VALUES (1, 'supersecret123');
+
+    CREATE TABLE IF NOT EXISTS "Custom Table Metadata" (
+      "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+      "table_name" TEXT NOT NULL UNIQUE,
+      "display_name" TEXT NOT NULL,
+      "schema_json" TEXT NOT NULL,
+      "row_count" INTEGER DEFAULT 0,
+      "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   app = createApp();

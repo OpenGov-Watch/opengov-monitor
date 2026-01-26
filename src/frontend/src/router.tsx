@@ -21,6 +21,7 @@ const ManageCategoriesPage = lazy(() => import("@/pages/manage/categories"));
 const ManageBountiesPage = lazy(() => import("@/pages/manage/bounties"));
 const ManageSubtreasuryPage = lazy(() => import("@/pages/manage/subtreasury"));
 const ManageCustomSpendingPage = lazy(() => import("@/pages/manage/custom-spending"));
+const ManageCustomTablesPage = lazy(() => import("@/pages/manage/custom-tables"));
 const TreasuryNetflowsPage = lazy(() => import("@/pages/treasury-netflows"));
 const ManageSyncSettingsPage = lazy(() => import("@/pages/manage/sync-settings"));
 const ManageDataErrorsPage = lazy(() => import("@/pages/manage/data-errors"));
@@ -76,6 +77,7 @@ export const router = createBrowserRouter([
       { path: "manage/bounties", element: withSuspense(ManageBountiesPage), errorElement: childErrorElement },
       { path: "manage/subtreasury", element: withSuspense(ManageSubtreasuryPage), errorElement: childErrorElement },
       { path: "manage/custom-spending", element: withSuspense(ManageCustomSpendingPage), errorElement: childErrorElement },
+      { path: "manage/custom-tables", element: withSuspense(ManageCustomTablesPage), errorElement: childErrorElement },
       { path: "treasury-netflows", element: withSuspense(TreasuryNetflowsPage), errorElement: childErrorElement },
       { path: "manage/sync", element: withSuspense(ManageSyncSettingsPage), errorElement: childErrorElement },
       { path: "manage/data-errors", element: withSuspense(ManageDataErrorsPage), errorElement: childErrorElement },

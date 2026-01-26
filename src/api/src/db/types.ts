@@ -181,6 +181,28 @@ export interface TreasuryNetflow {
   amount_dot_equivalent: number;
 }
 
+// Custom Table Metadata (tracks user-created tables via CSV import)
+export interface CustomTableMetadata {
+  id: number;
+  table_name: string;              // Internal name: "custom_my_data"
+  display_name: string;            // User-friendly: "My Data"
+  schema_json: string;             // JSON string of CustomTableSchema
+  row_count: number;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+// Schema definition for custom tables
+export interface CustomTableColumnDef {
+  name: string;
+  type: "text" | "integer" | "real" | "date" | "boolean";
+  nullable: boolean;
+}
+
+export interface CustomTableSchema {
+  columns: CustomTableColumnDef[];
+}
+
 export interface FellowshipSubtreasury {
   id: number;
   title: string | null;
@@ -486,6 +508,8 @@ export const TABLE_NAMES = {
   dashboards: "Dashboards",
   dashboardComponents: "Dashboard Components",
   queryCache: "Query Cache",
+  // Custom tables
+  customTableMetadata: "Custom Table Metadata",
 } as const;
 
 // View names (lowercase, no spaces)

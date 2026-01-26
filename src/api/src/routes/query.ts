@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { getDatabase } from "../db/index.js";
+import { getCustomTableNames } from "../db/queries.js";
 import type { QueryConfig, FilterCondition, FilterGroup, ExpressionColumn, JoinConfig, FacetQueryConfig, FacetValue, FacetQueryResponse } from "../db/types.js";
 
 export const queryRouter: Router = Router();
 
-// Whitelist of tables/views that can be queried
-const ALLOWED_SOURCES = new Set([
+// Base whitelist of tables/views that can be queried (static)
+const BASE_ALLOWED_SOURCES = [
   "Referenda",
   "Treasury",
   "Child Bounties",
@@ -25,9 +26,9 @@ const ALLOWED_SOURCES = new Set([
   "all_spending",
   "treasury_netflows_view",
   "DataErrors",
-]);
+];
 
-const ALLOWED_TABLES = [
+const BASE_ALLOWED_TABLES = [
   "Referenda",
   "Treasury",
   "Child Bounties",
@@ -49,6 +50,23 @@ const ALLOWED_VIEWS = [
   "all_spending",
   "treasury_netflows_view",
 ];
+
+// Dynamic function to get all allowed sources including custom tables
+function getAllowedSources(): Set<string> {
+  const customTables = getCustomTableNames();
+  return new Set([...BASE_ALLOWED_SOURCES, ...customTables]);
+}
+
+// Dynamic function to get all allowed tables including custom tables
+function getAllowedTables(): string[] {
+  const customTables = getCustomTableNames();
+  return [...BASE_ALLOWED_TABLES, ...customTables];
+}
+
+// Helper to check if a source is allowed
+function isSourceAllowed(source: string): boolean {
+  return getAllowedSources().has(source);
+}
 
 const MAX_ROWS = 10000;
 const ALLOWED_OPERATORS = new Set([
@@ -224,7 +242,7 @@ function sanitizeAlias(alias: string): string {
 }
 
 function validateQueryConfig(config: QueryConfig): string | null {
-  if (!config.sourceTable || !ALLOWED_SOURCES.has(config.sourceTable)) {
+  if (!config.sourceTable || !isSourceAllowed(config.sourceTable)) {
     return `Invalid source table: ${config.sourceTable}`;
   }
 
@@ -655,7 +673,7 @@ function validateJoinConfig(join: JoinConfig): string | null {
   if (!allowedTypes.has(join.type)) {
     return `Invalid join type: ${join.type}`;
   }
-  if (!ALLOWED_SOURCES.has(join.table)) {
+  if (!isSourceAllowed(join.table)) {
     return `Invalid join table: ${join.table}`;
   }
   if (!join.on || !join.on.left || !join.on.right) {
@@ -803,7 +821,7 @@ queryRouter.get("/schema", (_req, res) => {
     const result: { name: string; columns: { name: string; type: string; nullable: boolean }[] }[] = [];
 
     for (const item of tablesAndViews) {
-      const isAllowedTable = ALLOWED_TABLES.includes(item.name);
+      const isAllowedTable = getAllowedTables().includes(item.name);
       const isAllowedView = ALLOWED_VIEWS.includes(item.name);
 
       if (!isAllowedTable && !isAllowedView) {
@@ -878,7 +896,7 @@ queryRouter.post("/facets", (req, res) => {
     const config = req.body as FacetQueryConfig;
 
     // Validate source table
-    if (!config.sourceTable || !ALLOWED_SOURCES.has(config.sourceTable)) {
+    if (!config.sourceTable || !isSourceAllowed(config.sourceTable)) {
       res.status(400).json({ error: `Invalid source table: ${config.sourceTable}` });
       return;
     }

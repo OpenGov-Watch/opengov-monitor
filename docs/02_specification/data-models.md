@@ -139,6 +139,27 @@ Type values: Must be one of: "Direct Spend", "Claim", "Bounty", "Subtreasury", "
 
 ID format in views: `custom-{id}` (e.g., custom-1, custom-2)
 
+### Custom Table Metadata
+
+Tracks user-created tables via CSV import.
+
+Primary key: `id` (auto-increment)
+
+Fields: `table_name` (unique), `display_name`, `schema_json`, `row_count`, `created_at`, `updated_at`
+
+**Schema JSON format:**
+```json
+{
+  "columns": [
+    { "name": "col_name", "type": "text|integer|real|date|boolean", "nullable": true }
+  ]
+}
+```
+
+**Table naming:** Internal tables prefixed with `custom_` (e.g., `custom_my_data`)
+
+**Query integration:** Custom tables automatically added to ALLOWED_SOURCES for query builder
+
 ### Users
 
 Primary key: `id` (auto-increment)

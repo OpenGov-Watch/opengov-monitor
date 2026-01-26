@@ -153,6 +153,16 @@ const SCHEMA_SQL = `
       JULIANDAY('now') - JULIANDAY(expireAt) as days_since_expiry
     FROM "Treasury"
     WHERE status = 'Approved' AND JULIANDAY(expireAt) <= JULIANDAY('now');
+
+  CREATE TABLE IF NOT EXISTS "Custom Table Metadata" (
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "table_name" TEXT NOT NULL UNIQUE,
+    "display_name" TEXT NOT NULL,
+    "schema_json" TEXT NOT NULL,
+    "row_count" INTEGER DEFAULT 0,
+    "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
 `;
 
 let app: express.Express;

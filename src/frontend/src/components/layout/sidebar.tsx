@@ -26,6 +26,7 @@ import LayoutDashboard from "lucide-react/dist/esm/icons/layout-dashboard";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import TrendingUp from "lucide-react/dist/esm/icons/trending-up";
 import AlertTriangle from "lucide-react/dist/esm/icons/alert-triangle";
+import Table2 from "lucide-react/dist/esm/icons/table-2";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { useApi } from "@/contexts/api-context";
@@ -101,6 +102,7 @@ const authenticatedNavigation: NavSection[] = [
       { name: "Bounties", href: "/manage/bounties", icon: Coins },
       { name: "Subtreasury", href: "/manage/subtreasury", icon: FileBox },
       { name: "Custom Spending", href: "/manage/custom-spending", icon: Database },
+      { name: "Custom Tables", href: "/manage/custom-tables", icon: Table2 },
       { name: "Sync Settings", href: "/manage/sync", icon: RefreshCw },
       { name: "Data Errors", href: "/manage/data-errors", icon: AlertTriangle },
     ],

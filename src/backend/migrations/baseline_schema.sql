@@ -36,6 +36,8 @@ INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUE
 INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (21, 'filter_treasury_by_hidden_referenda', 'PLACEHOLDER', 0);
 INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (22, 'fix_custom_spending_foreign_key', 'PLACEHOLDER', 0);
 INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (23, 'rename_tally_columns', 'PLACEHOLDER', 0);
+INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (24, 'fix_tally_column_refs', 'PLACEHOLDER', 0);
+INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (25, 'add_custom_table_metadata', 'PLACEHOLDER', 0);
 
 -- Tables
 -- Table: Bounties
@@ -156,6 +158,17 @@ CREATE TABLE Users (
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
+-- Table: Custom Table Metadata
+CREATE TABLE "Custom Table Metadata" (
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "table_name" TEXT NOT NULL UNIQUE,
+    "display_name" TEXT NOT NULL,
+    "schema_json" TEXT NOT NULL,
+    "row_count" INTEGER DEFAULT 0,
+    "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes
 CREATE INDEX "idx_bounties_category_id" ON "Bounties" ("category_id");
 CREATE INDEX "idx_categories_category" ON "Categories" ("category");
@@ -200,6 +213,7 @@ CREATE INDEX "idx_subtreasury_category_id" ON "Subtreasury" ("category_id");
 CREATE INDEX "idx_treasury_referendum" ON "Treasury" ("referendumIndex");
 CREATE INDEX "idx_treasury_status" ON "Treasury" ("status");
 CREATE INDEX idx_users_username ON Users (username);
+CREATE INDEX "idx_custom_table_metadata_name" ON "Custom Table Metadata" ("table_name");
 
 -- Views
 -- View: all_spending
