@@ -913,10 +913,10 @@ export function DataTable<TData>({
                                       // Higher-level group column - show empty (inherited)
                                       return <TableCell key={column.id} />;
                                     } else if (groupColIndex === subtotal.level) {
-                                      // This is the subtotal's level - show "Subtotal: value"
+                                      // This is the subtotal's level - show "<group value> Subtotal"
                                       return (
                                         <TableCell key={column.id} className="font-bold">
-                                          Subtotal
+                                          {String(subtotal.groupValue)} Subtotal
                                         </TableCell>
                                       );
                                     } else {
