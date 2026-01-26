@@ -38,7 +38,8 @@ import { DashboardLineChart as LineChartExport } from "@/components/charts/line-
 import { MetricDisplay } from "@/components/charts/metric-display";
 import { DataTable } from "@/components/data-table/data-table";
 import { ExportTable } from "@/components/data-table/export-table";
-import { loadColumnConfig } from "@/lib/column-renderer";
+import { loadColumnConfig, getColumnConfig, formatValue } from "@/lib/column-renderer";
+import { processHierarchicalData } from "@/components/data-table/hierarchical-utils";
 import { calculateTableExportDimensions } from "@/lib/export-styles";
 import Image from "lucide-react/dist/esm/icons/image";
 import { getColumnKey, normalizeDataKeys, validateQueryConfig, hasInvalidQueryConfig } from "@/lib/query-config-utils";
@@ -581,6 +582,89 @@ export const DashboardComponent = memo(
         return;
       }
 
+      // Calculate visible columns for dimension calculation
+      const allColumns = Object.keys(tableData[0] || {});
+      const visibleColumns = hiddenExpressionAliases
+        ? allColumns.filter((col) => !hiddenExpressionAliases.has(col))
+        : allColumns;
+
+      // Identify currency columns for subtotals/totals
+      const currencyColumnIds: string[] = [];
+      for (const col of allColumns) {
+        const sourceCol = columnMapping?.[col] || col;
+        const colWithoutTable = sourceCol.includes(".")
+          ? sourceCol.split(".").pop()!
+          : sourceCol;
+        let config = getColumnConfig(tableName, sourceCol);
+        if (config.type !== "currency" && colWithoutTable !== sourceCol) {
+          config = getColumnConfig(tableName, colWithoutTable);
+        }
+        if (config.type === "currency") {
+          currencyColumnIds.push(col);
+        }
+      }
+
+      // Normalize groupBy columns to match data keys
+      const normalizedGroupBy = queryConfig.groupBy?.map((col) => {
+        if (allColumns.includes(col)) return col;
+        const lastPart = col.split(".").pop() || col;
+        if (allColumns.includes(lastPart)) return lastPart;
+        return col;
+      });
+
+      // Calculate subtotal count for dimension calculation
+      let subtotalRowCount = 0;
+      if (
+        chartConfig.hierarchicalDisplay &&
+        chartConfig.showGroupTotals &&
+        normalizedGroupBy &&
+        normalizedGroupBy.length >= 2
+      ) {
+        const hierarchicalData = processHierarchicalData(
+          tableData,
+          normalizedGroupBy,
+          currencyColumnIds
+        );
+        // Count subtotals with rowCount > 1 (redundant ones are filtered out)
+        subtotalRowCount = hierarchicalData.subtotals.filter((st) => st.rowCount > 1).length;
+      }
+
+      // Fetch grand totals if enabled
+      let grandTotalsCells: { columnId: string; value: string }[] | undefined;
+      if (chartConfig.showGrandTotals && currencyColumnIds.length > 0) {
+        try {
+          const aggregateConfig = {
+            sourceTable: queryConfig.sourceTable,
+            columns: currencyColumnIds.map((col) => ({
+              column: columnMapping?.[col] || col,
+              alias: col,
+              aggregateFunction: "SUM" as const,
+            })),
+            joins: queryConfig.joins,
+            filters: queryConfig.filters,
+            limit: 1,
+          };
+          const res = await fetch("/api/query/execute", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(aggregateConfig),
+          });
+          const result = await res.json();
+          if (result.data?.[0]) {
+            grandTotalsCells = currencyColumnIds.map((col) => {
+              const sourceCol = columnMapping?.[col] || col;
+              const config = getColumnConfig(tableName, sourceCol);
+              return {
+                columnId: col,
+                value: formatValue(result.data[0][col], config),
+              };
+            });
+          }
+        } catch (err) {
+          console.warn("Failed to fetch grand totals for export:", err);
+        }
+      }
+
       const renderTable = () => (
         <ExportTable
           data={tableData}
@@ -589,21 +673,28 @@ export const DashboardComponent = memo(
           columnOverrides={columnOverrides}
           hiddenColumns={hiddenExpressionAliases}
           maxRows={50}
+          hierarchicalDisplay={chartConfig.hierarchicalDisplay}
+          groupByColumns={normalizedGroupBy}
+          showGroupTotals={chartConfig.showGroupTotals}
+          currencyColumns={currencyColumnIds}
+          showPageTotals={chartConfig.showPageTotals}
+          grandTotalsCells={grandTotalsCells}
         />
       );
-
-      // Calculate visible columns for dimension calculation
-      const allColumns = Object.keys(tableData[0] || {});
-      const visibleColumns = hiddenExpressionAliases
-        ? allColumns.filter((col) => !hiddenExpressionAliases.has(col))
-        : allColumns;
 
       // Calculate dynamic dimensions based on actual content
       const { width, height } = calculateTableExportDimensions(
         tableData,
         visibleColumns,
         50,
-        { tableName, columnMapping, columnOverrides }
+        {
+          tableName,
+          columnMapping,
+          columnOverrides,
+          subtotalRowCount,
+          hasPageTotals: chartConfig.showPageTotals && currencyColumnIds.length > 0,
+          hasGrandTotals: chartConfig.showGrandTotals && grandTotalsCells && grandTotalsCells.length > 0,
+        }
       );
 
       const filename = `${component.name.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.png`;
@@ -625,6 +716,89 @@ export const DashboardComponent = memo(
         return;
       }
 
+      // Calculate visible columns for dimension calculation
+      const allColumns = Object.keys(tableData[0] || {});
+      const visibleColumns = hiddenExpressionAliases
+        ? allColumns.filter((col) => !hiddenExpressionAliases.has(col))
+        : allColumns;
+
+      // Identify currency columns for subtotals/totals
+      const currencyColumnIds: string[] = [];
+      for (const col of allColumns) {
+        const sourceCol = columnMapping?.[col] || col;
+        const colWithoutTable = sourceCol.includes(".")
+          ? sourceCol.split(".").pop()!
+          : sourceCol;
+        let config = getColumnConfig(tableName, sourceCol);
+        if (config.type !== "currency" && colWithoutTable !== sourceCol) {
+          config = getColumnConfig(tableName, colWithoutTable);
+        }
+        if (config.type === "currency") {
+          currencyColumnIds.push(col);
+        }
+      }
+
+      // Normalize groupBy columns to match data keys
+      const normalizedGroupBy = queryConfig.groupBy?.map((col) => {
+        if (allColumns.includes(col)) return col;
+        const lastPart = col.split(".").pop() || col;
+        if (allColumns.includes(lastPart)) return lastPart;
+        return col;
+      });
+
+      // Calculate subtotal count for dimension calculation
+      let subtotalRowCount = 0;
+      if (
+        chartConfig.hierarchicalDisplay &&
+        chartConfig.showGroupTotals &&
+        normalizedGroupBy &&
+        normalizedGroupBy.length >= 2
+      ) {
+        const hierarchicalData = processHierarchicalData(
+          tableData,
+          normalizedGroupBy,
+          currencyColumnIds
+        );
+        // Count subtotals with rowCount > 1 (redundant ones are filtered out)
+        subtotalRowCount = hierarchicalData.subtotals.filter((st) => st.rowCount > 1).length;
+      }
+
+      // Fetch grand totals if enabled
+      let grandTotalsCells: { columnId: string; value: string }[] | undefined;
+      if (chartConfig.showGrandTotals && currencyColumnIds.length > 0) {
+        try {
+          const aggregateConfig = {
+            sourceTable: queryConfig.sourceTable,
+            columns: currencyColumnIds.map((col) => ({
+              column: columnMapping?.[col] || col,
+              alias: col,
+              aggregateFunction: "SUM" as const,
+            })),
+            joins: queryConfig.joins,
+            filters: queryConfig.filters,
+            limit: 1,
+          };
+          const res = await fetch("/api/query/execute", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(aggregateConfig),
+          });
+          const result = await res.json();
+          if (result.data?.[0]) {
+            grandTotalsCells = currencyColumnIds.map((col) => {
+              const sourceCol = columnMapping?.[col] || col;
+              const config = getColumnConfig(tableName, sourceCol);
+              return {
+                columnId: col,
+                value: formatValue(result.data[0][col], config),
+              };
+            });
+          }
+        } catch (err) {
+          console.warn("Failed to fetch grand totals for export:", err);
+        }
+      }
+
       const renderTable = () => (
         <ExportTable
           data={tableData}
@@ -633,21 +807,28 @@ export const DashboardComponent = memo(
           columnOverrides={columnOverrides}
           hiddenColumns={hiddenExpressionAliases}
           maxRows={50}
+          hierarchicalDisplay={chartConfig.hierarchicalDisplay}
+          groupByColumns={normalizedGroupBy}
+          showGroupTotals={chartConfig.showGroupTotals}
+          currencyColumns={currencyColumnIds}
+          showPageTotals={chartConfig.showPageTotals}
+          grandTotalsCells={grandTotalsCells}
         />
       );
-
-      // Calculate visible columns for dimension calculation
-      const allColumns = Object.keys(tableData[0] || {});
-      const visibleColumns = hiddenExpressionAliases
-        ? allColumns.filter((col) => !hiddenExpressionAliases.has(col))
-        : allColumns;
 
       // Calculate dynamic dimensions based on actual content
       const { width, height } = calculateTableExportDimensions(
         tableData,
         visibleColumns,
         50,
-        { tableName, columnMapping, columnOverrides }
+        {
+          tableName,
+          columnMapping,
+          columnOverrides,
+          subtotalRowCount,
+          hasPageTotals: chartConfig.showPageTotals && currencyColumnIds.length > 0,
+          hasGrandTotals: chartConfig.showGrandTotals && grandTotalsCells && grandTotalsCells.length > 0,
+        }
       );
 
       await copyChartToClipboard(renderTable, component.name, width, height);

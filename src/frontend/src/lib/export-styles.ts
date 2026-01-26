@@ -53,6 +53,67 @@ export const TABLE_STYLES = {
     },
     interactive: "text-sm px-4 py-2.5 whitespace-nowrap",
   },
+  // Subtotal row styles (level-based backgrounds for hierarchical display)
+  subtotalRow: {
+    export: {
+      level0: {
+        backgroundColor: "#d1d5db", // bg-muted/70
+        fontWeight: 600,
+        fontSize: "14px",
+        padding: "10px 16px",
+        borderBottom: "1px solid #e5e7eb",
+        whiteSpace: "nowrap" as const,
+        color: "#374151",
+      },
+      level1: {
+        backgroundColor: "#e5e7eb", // bg-muted/50
+        fontWeight: 500,
+        fontSize: "14px",
+        padding: "10px 16px",
+        borderBottom: "1px solid #e5e7eb",
+        whiteSpace: "nowrap" as const,
+        color: "#374151",
+      },
+      level2: {
+        backgroundColor: "#f3f4f6", // bg-muted/30
+        fontWeight: 500,
+        fontSize: "14px",
+        padding: "10px 16px",
+        borderBottom: "1px solid #e5e7eb",
+        whiteSpace: "nowrap" as const,
+        color: "#374151",
+      },
+    },
+  },
+  // Footer row styles (page totals and grand totals)
+  footerRow: {
+    export: {
+      pageTotals: {
+        backgroundColor: "#e5e7eb", // bg-muted/50
+        fontWeight: 500,
+        fontSize: "14px",
+        padding: "10px 16px",
+        borderBottom: "1px solid #e5e7eb",
+        whiteSpace: "nowrap" as const,
+        color: "#374151",
+      },
+      grandTotals: {
+        backgroundColor: "#d1d5db", // bg-muted/70
+        fontWeight: 600,
+        fontSize: "14px",
+        padding: "10px 16px",
+        borderBottom: "1px solid #e5e7eb",
+        whiteSpace: "nowrap" as const,
+        color: "#374151",
+      },
+    },
+  },
+  // Group border style (top border on group change)
+  groupBorder: {
+    export: {
+      borderTop: "2px solid #9ca3af",
+    },
+  },
   emptyState: {
     export: {
       padding: "24px",
@@ -169,6 +230,12 @@ export interface TableExportOptions {
   tableName?: string;
   columnMapping?: Record<string, string>;
   columnOverrides?: Record<string, { header?: string }>;
+  /** Number of subtotal rows that will be rendered */
+  subtotalRowCount?: number;
+  /** Whether page totals row will be rendered */
+  hasPageTotals?: boolean;
+  /** Whether grand totals row will be rendered */
+  hasGrandTotals?: boolean;
 }
 
 /**
@@ -251,10 +318,18 @@ export function calculateTableExportDimensions(
   // Calculate height based on row count
   const rowCount = Math.min(data.length, maxRows);
   const isTruncated = data.length > maxRows;
+
+  // Additional rows for subtotals and totals
+  const subtotalRows = options?.subtotalRowCount ?? 0;
+  const footerRows =
+    (options?.hasPageTotals ? 1 : 0) + (options?.hasGrandTotals ? 1 : 0);
+
   const calculatedHeight =
     TITLE_HEIGHT +
     HEADER_HEIGHT +
     rowCount * ROW_HEIGHT +
+    subtotalRows * ROW_HEIGHT +
+    footerRows * ROW_HEIGHT +
     (isTruncated ? TRUNCATION_NOTE_HEIGHT : 0) +
     PADDING;
   const height = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, calculatedHeight));
