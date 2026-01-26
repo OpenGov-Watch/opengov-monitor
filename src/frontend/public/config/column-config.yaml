@@ -424,12 +424,37 @@ patterns:
       type: address
       truncate: true
 
-  # Non-standard DOT columns (exact matches for tables without DOT_ prefix)
+  # Non-standard currency columns (exact matches for tables without prefix)
   - match: exact
     pattern: "DOT"
+    caseInsensitive: true
     config:
       type: currency
       currency: DOT
+      decimals: 0
+
+  - match: exact
+    pattern: "USD"
+    caseInsensitive: true
+    config:
+      type: currency
+      currency: USD
+      decimals: 0
+
+  - match: exact
+    pattern: "USDC"
+    caseInsensitive: true
+    config:
+      type: currency
+      currency: USDC
+      decimals: 0
+
+  - match: exact
+    pattern: "USDT"
+    caseInsensitive: true
+    config:
+      type: currency
+      currency: USDT
       decimals: 0
 
   - match: exact
