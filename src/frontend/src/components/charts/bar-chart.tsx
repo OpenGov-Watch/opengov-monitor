@@ -22,6 +22,7 @@ import {
   DEFAULT_CHART_COLORS,
   buildCategoryColorMap,
 } from "@/lib/chart-colors";
+import { ChartLegend } from "./shared/chart-legend";
 
 interface BarChartData {
   name: string;
@@ -145,59 +146,14 @@ export const DashboardBarChart = memo(
               verticalAlign={legendPosition === "right" ? "middle" : "bottom"}
               wrapperStyle={legendPosition === "right" ? { paddingLeft: "20px" } : { paddingTop: "10px" }}
               content={() => (
-                <ul
-                  className={exportMode ? undefined : `flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm ${legendPosition === "right" ? "flex-col" : ""}`}
-                  style={exportMode ? {
-                    margin: 0,
-                    padding: 0,
-                    listStyle: "none",
-                    textAlign: legendPosition === "right" ? "left" : "center",
-                  } : undefined}
-                >
-                  {bars.map((bar, index) => (
-                    <li
-                      key={bar.dataKey}
-                      className={exportMode ? undefined : "flex items-center gap-1.5"}
-                      style={exportMode ? {
-                        display: legendPosition === "right" ? "block" : "inline-block",
-                        marginRight: legendPosition === "right" ? 0 : "24px",
-                        marginBottom: "8px",
-                        fontSize: "18px",
-                        lineHeight: "24px",
-                        whiteSpace: "nowrap",
-                      } : undefined}
-                    >
-                      <span
-                        className={exportMode ? undefined : "block flex-shrink-0 rounded-sm w-3 h-3"}
-                        style={{
-                          backgroundColor: bar.color || colors[index % colors.length],
-                          ...(exportMode ? {
-                            display: "inline-block",
-                            width: "20px",
-                            height: "20px",
-                            borderRadius: "2px",
-                            marginRight: "8px",
-                            verticalAlign: "top",
-                          } : {}),
-                        }}
-                      />
-                      <span
-                        className={exportMode ? undefined : "text-muted-foreground"}
-                        style={exportMode ? {
-                          color: "#737373",
-                          display: "inline-block",
-                          verticalAlign: "top",
-                          fontSize: "18px",
-                          lineHeight: 1,
-                          height: "20px",
-                          marginTop: "-8px",
-                        } : undefined}
-                      >
-                        {bar.name || bar.dataKey}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <ChartLegend
+                  items={bars.map((bar, index) => ({
+                    label: bar.name || bar.dataKey,
+                    color: bar.color || colors[index % colors.length],
+                  }))}
+                  exportMode={exportMode}
+                  legendPosition={legendPosition}
+                />
               )}
             />
           )}

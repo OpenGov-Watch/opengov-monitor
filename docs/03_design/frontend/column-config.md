@@ -6,6 +6,8 @@
 
 The column configuration system provides automatic formatting for table columns based on naming patterns and explicit configuration.
 
+**Note**: Formatting defined here applies to both interactive display and PNG export rendering. The shared logic in `column-renderer.ts` is used by `SimpleTable` (with `exportMode` prop) to ensure consistent formatting across both modes.
+
 ## Configuration File
 
 **Location**: `frontend/public/config/column-config.yaml`

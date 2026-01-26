@@ -173,9 +173,37 @@ cell: ({ row }) =>
 
 ## Export
 
-- **Formats**: CSV (with quote escaping) and JSON
+- **Formats**: CSV (with quote escaping), JSON, and PNG (tables/charts)
 - **Scope**: Filtered rows + visible columns only
 - **UI**: Dropdown menu in toolbar
+
+### PNG Export Rendering
+
+Tables and charts support PNG export via `html2canvas`. Since html2canvas cannot reliably resolve Tailwind CSS classes on off-screen elements, exportable components use an `exportMode` prop:
+
+```
+exportMode=false (default): Tailwind CSS classes for interactive display
+exportMode=true: Inline styles for html2canvas capture
+```
+
+**Architecture**:
+- `SimpleTable`: Unified table component with `exportMode` prop
+- `ExportTable`: Thin wrapper that sets `exportMode={true}`
+- `ChartLegend`: Shared legend component for pie/bar/line charts
+
+**Shared logic** (same code path for both modes):
+- Column config lookup (`getColumnConfig`)
+- Value formatting (`formatValue`)
+- Display name resolution (`getColumnDisplayName`)
+- Hidden column filtering
+
+**Style constants** in `lib/export-styles.ts` define corresponding values for both modes to keep them in sync.
+
+**Key files**:
+- `components/data-table/simple-table.tsx` - Unified table with exportMode
+- `components/data-table/export-table.tsx` - Export-mode wrapper
+- `components/charts/shared/chart-legend.tsx` - Shared chart legend
+- `lib/export-styles.ts` - Style constants
 
 ## Dashboard Integration
 
@@ -193,6 +221,8 @@ See [Dashboard Howto](../../howtos/dashboard.md) for creating dashboards with Da
 frontend/src/components/
 ├── data-table/
 │   ├── data-table.tsx (unified component: regular + dashboard mode)
+│   ├── simple-table.tsx (unified table with exportMode prop)
+│   ├── export-table.tsx (thin wrapper for PNG export)
 │   ├── use-view-state.ts (state management)
 │   ├── toolbar.tsx (search, export, filters)
 │   ├── column-header.tsx (sort UI)
@@ -202,6 +232,10 @@ frontend/src/components/
 │   ├── pagination.tsx (page controls)
 │   ├── data-table-card.tsx (mobile view)
 │   └── editable-cells.tsx (inline editors)
+├── charts/
+│   ├── pie-chart.tsx, bar-chart.tsx, line-chart.tsx
+│   └── shared/
+│       └── chart-legend.tsx (unified legend with exportMode)
 ├── dashboard/
 │   ├── dashboard-grid.tsx (react-grid-layout wrapper)
 │   ├── dashboard-component.tsx (grid item renderer)
@@ -210,7 +244,8 @@ frontend/src/components/
 │   └── query-builder.tsx (visual SQL builder)
 └── lib/
     ├── auto-columns.ts (column generation from QueryConfig)
-    └── column-renderer.ts (formatting utilities)
+    ├── column-renderer.ts (formatting utilities)
+    └── export-styles.ts (style constants for export mode)
 ```
 
 ## Pages Using DataTable
