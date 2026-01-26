@@ -28,7 +28,7 @@ export async function exportChartAsPNG(
     exportContainer.style.backgroundColor = "#ffffff";
     exportContainer.style.display = "flex";
     exportContainer.style.flexDirection = "column";
-    exportContainer.style.padding = "24px";
+    exportContainer.style.padding = "16px 24px 24px 24px"; // 0.5rem less at top
     exportContainer.style.boxSizing = "border-box";
 
     // Create title element
@@ -36,7 +36,7 @@ export async function exportChartAsPNG(
     titleElement.textContent = title;
     titleElement.style.fontSize = "29px";
     titleElement.style.fontWeight = "600";
-    titleElement.style.marginBottom = "16px";
+    titleElement.style.marginBottom = "16px"; // 1rem below title
     titleElement.style.color = "#000000";
     titleElement.style.textAlign = "center";
 
@@ -114,7 +114,7 @@ export async function copyChartToClipboard(
     exportContainer.style.backgroundColor = "#ffffff";
     exportContainer.style.display = "flex";
     exportContainer.style.flexDirection = "column";
-    exportContainer.style.padding = "24px";
+    exportContainer.style.padding = "16px 24px 24px 24px"; // 0.5rem less at top
     exportContainer.style.boxSizing = "border-box";
 
     // Create title element
@@ -122,7 +122,7 @@ export async function copyChartToClipboard(
     titleElement.textContent = title;
     titleElement.style.fontSize = "29px";
     titleElement.style.fontWeight = "600";
-    titleElement.style.marginBottom = "16px";
+    titleElement.style.marginBottom = "16px"; // 1rem below title
     titleElement.style.color = "#000000";
     titleElement.style.textAlign = "center";
 

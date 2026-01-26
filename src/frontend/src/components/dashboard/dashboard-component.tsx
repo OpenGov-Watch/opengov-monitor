@@ -37,7 +37,9 @@ import { DashboardBarChart as BarChartExport } from "@/components/charts/bar-cha
 import { DashboardLineChart as LineChartExport } from "@/components/charts/line-chart";
 import { MetricDisplay } from "@/components/charts/metric-display";
 import { DataTable } from "@/components/data-table/data-table";
+import { ExportTable } from "@/components/data-table/export-table";
 import { loadColumnConfig } from "@/lib/column-renderer";
+import Image from "lucide-react/dist/esm/icons/image";
 import { getColumnKey, normalizeDataKeys, validateQueryConfig, hasInvalidQueryConfig } from "@/lib/query-config-utils";
 import type {
   DashboardComponent as DashboardComponentType,
@@ -541,6 +543,101 @@ export const DashboardComponent = memo(
     }
   }
 
+  // Fetch table data for PNG export (with row limit)
+  async function fetchTableDataForExport(maxRows = 50): Promise<Record<string, unknown>[]> {
+    try {
+      // Create a modified query config with pagination limit
+      const exportQueryConfig = {
+        ...queryConfig,
+        limit: maxRows,
+        offset: 0,
+      };
+
+      const response = await fetch("/api/query/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(exportQueryConfig),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Query failed");
+      }
+
+      return normalizeDataKeys(result.data, queryConfig.columns);
+    } catch (err) {
+      console.error("Failed to fetch table data for export:", err);
+      return [];
+    }
+  }
+
+  async function handleDownloadTablePNG() {
+    setIsExporting(true);
+    try {
+      const tableData = await fetchTableDataForExport(50);
+      if (tableData.length === 0) {
+        alert("No data available to export.");
+        return;
+      }
+
+      const renderTable = () => (
+        <ExportTable
+          data={tableData}
+          tableName={tableName}
+          columnMapping={columnMapping}
+          columnOverrides={columnOverrides}
+          hiddenColumns={hiddenExpressionAliases}
+          maxRows={50}
+        />
+      );
+
+      // Calculate dynamic height based on row count
+      const rowCount = Math.min(tableData.length, 50);
+      const height = Math.min(800, 100 + rowCount * 40);
+
+      const filename = `${component.name.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.png`;
+      await exportChartAsPNG(renderTable, component.name, filename, 1200, height);
+    } catch (error) {
+      console.error("Failed to download table as PNG:", error);
+      alert("Failed to download table. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  async function handleCopyTablePNG() {
+    setIsExporting(true);
+    try {
+      const tableData = await fetchTableDataForExport(50);
+      if (tableData.length === 0) {
+        alert("No data available to copy.");
+        return;
+      }
+
+      const renderTable = () => (
+        <ExportTable
+          data={tableData}
+          tableName={tableName}
+          columnMapping={columnMapping}
+          columnOverrides={columnOverrides}
+          hiddenColumns={hiddenExpressionAliases}
+          maxRows={50}
+        />
+      );
+
+      // Calculate dynamic height based on row count
+      const rowCount = Math.min(tableData.length, 50);
+      const height = Math.min(800, 100 + rowCount * 40);
+
+      await copyChartToClipboard(renderTable, component.name, 1200, height);
+    } catch (error) {
+      console.error("Failed to copy table to clipboard:", error);
+      alert("Failed to copy table to clipboard. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   function renderChart() {
     if (loading) {
       return (
@@ -770,18 +867,32 @@ export const DashboardComponent = memo(
         <div className="flex items-center gap-1">
           {component.type === "table" && (
             <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={handleCopyTablePNG}
+                disabled={isExporting}
+                title="Copy table as image"
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7"
-                    title="Download table data"
+                    title="Download table"
                   >
                     <Download className="h-3.5 w-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleDownloadTablePNG} disabled={isExporting}>
+                    <Image className="mr-2 h-4 w-4" />
+                    Download as PNG
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleTableExport("csv")}>
                     <FileDown className="mr-2 h-4 w-4" />
                     Download as CSV
