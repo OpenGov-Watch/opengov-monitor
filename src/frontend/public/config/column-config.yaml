@@ -147,7 +147,7 @@ tables:
     title:
       displayName: "Description"
       type: link
-      urlField: url
+      urlFunction: spending
 
     type:
       displayName: "Spending Type"
@@ -166,8 +166,7 @@ tables:
       urlTemplate: "https://polkadot.subsquare.io/referenda/{value}"
 
     title:
-      type: link
-      urlField: url
+      type: text
 
     track:
       displayName: "Track"
@@ -183,8 +182,7 @@ tables:
       urlTemplate: "https://polkadot.subsquare.io/treasury/spends/{value}"
 
     title:
-      type: link
-      urlField: url
+      type: text
 
   child-bounties:
     identifier:
@@ -192,8 +190,7 @@ tables:
       type: text
 
     title:
-      type: link
-      urlField: url
+      type: text
 
   fellowship:
     id:
@@ -202,8 +199,7 @@ tables:
       urlTemplate: "https://collectives.subsquare.io/fellowship/referenda/{value}"
 
     title:
-      type: link
-      urlField: url
+      type: text
 
   outstanding_claims:
     id:

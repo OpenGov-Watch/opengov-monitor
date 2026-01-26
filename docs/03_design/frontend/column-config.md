@@ -87,9 +87,18 @@ truncate: true
 
 ### Link
 ```yaml
-render: link
-external: true
+type: link
+urlTemplate: "https://example.com/{value}"  # URL with {value} placeholder
+urlField: url                                # Field in row containing URL
+urlFunction: spending                        # Named function to generate URL
 ```
+
+Link priority: `urlFunction` > `urlField` > `urlTemplate` > value as URL.
+
+If `urlFunction` returns null, renders as plain text (no broken link).
+
+Available URL functions:
+- `spending`: Parses `all_spending.id` prefix to generate Subsquare URLs
 
 ## Priority Order
 

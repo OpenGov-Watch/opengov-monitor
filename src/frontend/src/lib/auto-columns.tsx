@@ -7,6 +7,7 @@ import {
   getColumnDisplayName,
   getBadgeVariant,
   formatValue,
+  getUrlFromFunction,
   type ColumnRenderConfig
 } from "@/lib/column-renderer";
 import { Badge } from "@/components/ui/badge";
@@ -394,13 +395,22 @@ function renderCellValue(value: any, config: ColumnRenderConfig, row: any, dashb
 
     case "link":
       if (typeof value === "string" || typeof value === "number") {
-        let url: string;
-        if (config.urlField && row[config.urlField]) {
-          url = row[config.urlField];
+        let url: string | null = null;
+
+        // Priority: urlFunction > urlField > urlTemplate > value as URL
+        if (config.urlFunction) {
+          url = getUrlFromFunction(config.urlFunction, row);
+        } else if (config.urlField && row[config.urlField]) {
+          url = row[config.urlField] as string;
         } else if (config.urlTemplate) {
           url = config.urlTemplate.replace("{value}", String(value));
         } else {
           url = String(value);
+        }
+
+        // If urlFunction returned null, render as plain text (not a broken link)
+        if (url === null) {
+          return wrapWithOverflow(String(value), String(value));
         }
 
         return wrapWithOverflow(

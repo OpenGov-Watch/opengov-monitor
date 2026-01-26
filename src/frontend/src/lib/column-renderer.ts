@@ -1,5 +1,6 @@
 import yaml from "yaml";
 import { formatDate } from "@/lib/utils";
+import { getSpendingUrl } from "@/lib/urls";
 
 // ============================================================================
 // Types
@@ -60,6 +61,7 @@ export interface ColumnRenderConfig {
   // Link options
   urlTemplate?: string;
   urlField?: string; // Field in row that contains the URL
+  urlFunction?: string; // Named function to generate URL from row data (e.g., "spending")
   // Address options
   truncate?: boolean;
   // Number options
@@ -349,6 +351,47 @@ export function getLinkUrl(
   }
 
   return null;
+}
+
+// ============================================================================
+// URL Function Registry
+// ============================================================================
+
+/**
+ * Registry of named URL functions that can generate URLs from row data.
+ * Functions receive the row and return a URL string or null.
+ */
+type UrlFunction = (row: Record<string, unknown>) => string | null;
+
+const urlFunctionRegistry: Record<string, UrlFunction> = {
+  /**
+   * Generate URL for all_spending rows based on the id field.
+   * Uses getSpendingUrl to parse the ID prefix and generate the appropriate URL.
+   */
+  spending: (row) => {
+    const id = row.id;
+    if (!id || typeof id !== "string") return null;
+    return getSpendingUrl(id);
+  },
+};
+
+/**
+ * Get URL using a named function from the registry.
+ *
+ * @param functionName Name of the registered URL function
+ * @param row Row data to pass to the function
+ * @returns Generated URL or null
+ */
+export function getUrlFromFunction(
+  functionName: string,
+  row: Record<string, unknown>
+): string | null {
+  const fn = urlFunctionRegistry[functionName];
+  if (!fn) {
+    console.warn(`Unknown URL function: ${functionName}`);
+    return null;
+  }
+  return fn(row);
 }
 
 // ============================================================================

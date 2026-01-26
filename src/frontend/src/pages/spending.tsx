@@ -3,6 +3,7 @@ import { DataTable } from "@/components/data-table/data-table";
 import { Badge } from "@/components/ui/badge";
 import { RequireAuth } from "@/components/auth/require-auth";
 import type { AllSpending, SpendingType, QueryConfig } from "@/lib/db/types";
+import { getSpendingUrl } from "@/lib/urls";
 
 function getTypeVariant(
   type: SpendingType
@@ -63,6 +64,23 @@ function SpendingPageContent() {
       title: {
         cell: ({ row }: { row: any }) => {
           const title = row.original.title;
+          const id = row.original.id;
+          const url = getSpendingUrl(id);
+
+          if (url) {
+            return (
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="max-w-[350px] truncate block font-medium hover:underline text-blue-600"
+                title={title}
+              >
+                {title || "No title"}
+              </a>
+            );
+          }
+
           return (
             <span className="max-w-[350px] truncate block" title={title}>
               {title || "No title"}
