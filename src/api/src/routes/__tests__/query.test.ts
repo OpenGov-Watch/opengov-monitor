@@ -438,6 +438,25 @@ describe("Query Builder Security Tests", () => {
       expect(response.status).toBe(200);
     });
 
+    it("!= operator includes NULL values in results", async () => {
+      // The != operator should include rows where the column is NULL
+      // SQL's != does not match NULLs by default, so we generate (col != ? OR col IS NULL)
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }, { column: "notes" }],
+          filters: [{ column: "notes", operator: "!=", value: "some_value" }],
+        });
+
+      expect(response.status).toBe(200);
+      // Should include rows where notes is NULL (all test rows have NULL notes)
+      expect(response.body.data.length).toBeGreaterThan(0);
+      // Verify the SQL includes the NULL handling pattern
+      expect(response.body.sql).toContain("IS NULL");
+      expect(response.body.sql).toMatch(/\(.*!=.*OR.*IS NULL\)/);
+    });
+
     it("accepts operator: >", async () => {
       const response = await request(app)
         .post("/api/query/execute")
@@ -822,6 +841,37 @@ describe("Query Builder Security Tests", () => {
       if (response.status === 500) {
         expect(response.body.error).toContain("Invalid column name");
       }
+    });
+
+    it("totalCount reflects grouped row count, not raw row count", async () => {
+      // When using GROUP BY with pagination (offset), totalCount should reflect
+      // the number of groups, not the number of raw rows before grouping
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [
+            { column: "status" },
+            { column: "id", aggregateFunction: "COUNT" },
+          ],
+          filters: [],
+          groupBy: ["status"],
+          offset: 0,  // Enable server-side pagination to get totalCount
+          limit: 100,
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.totalCount).toBeDefined();
+      // totalCount should equal the number of distinct status values (groups),
+      // not the total number of Referenda rows
+      expect(response.body.totalCount).toBe(response.body.data.length);
+      // The total count should be less than or equal to the sum of all group counts
+      // (proving we're counting groups, not raw rows)
+      const sumOfCounts = response.body.data.reduce(
+        (sum: number, row: { count_id: number }) => sum + row.count_id,
+        0
+      );
+      expect(response.body.totalCount).toBeLessThanOrEqual(sumOfCounts);
     });
   });
 
