@@ -117,7 +117,7 @@ Errors:
 
 ### Whitelisted Tables
 
-Referenda, Treasury, Child Bounties, Fellowship, Fellowship Salary Cycles, Fellowship Salary Claimants, categories, bounties, subtreasury, Fellowship Subtreasury, outstanding_claims, expired_claims, all_spending
+Referenda, Treasury, Child Bounties, Fellowship, Fellowship Salary Cycles, Fellowship Salary Claimants, Fellowship Salary Payments, Categories, Bounties, Subtreasury, Fellowship Subtreasury, Treasury Netflows, DataErrors, outstanding_claims, expired_claims, all_spending, treasury_netflows_view
 
 ---
 
