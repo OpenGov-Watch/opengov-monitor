@@ -10,6 +10,7 @@ import { createSessionStore, closeSessionStore } from "./db/session-store.js";
 import { ensureUsersTable } from "./db/auth-queries.js";
 import { generalLimiter, writeLimiter, authLimiter } from "./middleware/rate-limit.js";
 import { getDatabase, closeDatabase, stopPeriodicCheckpoint } from "./db/index.js";
+import { getSessionSecret } from "./lib/session-secret.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -85,17 +86,18 @@ app.use(express.json({ limit: '10mb' }));
 // Cross-origin auth: Set CROSS_ORIGIN_AUTH=true to enable sameSite: "none" for cross-origin cookies
 const crossOriginAuth = process.env.CROSS_ORIGIN_AUTH === "true";
 
-// Validate SESSION_SECRET in production
-const sessionSecret = process.env.SESSION_SECRET;
-if (process.env.NODE_ENV === "production" && !sessionSecret) {
-  console.error("FATAL: SESSION_SECRET environment variable is required in production mode");
-  process.exit(1);
-}
+// Derive data directory from DATABASE_PATH
+const dataDir = path.dirname(
+  process.env.DATABASE_PATH || path.join(__dirname, "../../data/local/polkadot.db")
+);
+
+// Get or generate session secret (auto-persists to data directory)
+const sessionSecret = getSessionSecret(dataDir);
 
 app.use(
   session({
     store: createSessionStore(),
-    secret: sessionSecret || "dev-secret-change-in-production",
+    secret: sessionSecret,
     name: "connect.sid",
     resave: false,
     saveUninitialized: false,

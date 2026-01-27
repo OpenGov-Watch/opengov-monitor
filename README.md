@@ -154,10 +154,10 @@ curl -X POST http://localhost:3001/api/users \
 - Sessions are stored in SQLite (`data/sessions.db`)
 - Session duration: 24 hours (default) or 30 days (remember me checkbox)
 - Sessions use HTTP-only cookies for security
-- Configure `SESSION_SECRET` environment variable in production
+- Session secret is auto-generated and persisted to `data/.session-secret`
 
 ### Environment Variables
-- `SESSION_SECRET`: 32+ character random string (required in production)
+- `SESSION_SECRET`: (Optional) Override the auto-generated session secret
 - `NODE_ENV`: Set to "production" for secure HTTPS-only cookies
 - `CROSS_ORIGIN_AUTH`: Set to "true" for cross-origin auth (development only)
 

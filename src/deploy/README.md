@@ -41,7 +41,7 @@ Deployment guide for the OpenGov Monitor application.
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `SESSION_SECRET` | Production | - | 32+ character secret for session encryption |
+| `SESSION_SECRET` | No | Auto-generated | Override for session encryption (auto-persists to data dir) |
 | `DATABASE_PATH` | No | `/data/polkadot.db` | Path to SQLite database |
 | `PORT` | No | `3001` | API server port |
 
