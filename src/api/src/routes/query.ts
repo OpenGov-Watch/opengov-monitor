@@ -88,9 +88,24 @@ const BLOCKED_PATTERNS: { pattern: RegExp; description: string }[] = [
   { pattern: /\bPRAGMA\b/i, description: "PRAGMA keyword" },
   { pattern: /\bVACUUM\b/i, description: "VACUUM keyword" },
   { pattern: /\bREINDEX\b/i, description: "REINDEX keyword" },
+  { pattern: /\bload_extension\b/i, description: "load_extension function" },
+  { pattern: /\bfts3_tokenizer\b/i, description: "fts3_tokenizer function" },
+  { pattern: /\bTRUNCATE\b/i, description: "TRUNCATE keyword" },
+  { pattern: /\bwritefile\b/i, description: "writefile function" },
 ];
 
+/**
+ * Validate table name format to prevent SQL injection in PRAGMA calls.
+ * Table names must be alphanumeric with underscores/spaces, max 128 chars.
+ */
+function isValidTableName(name: string): boolean {
+  return /^[a-zA-Z_][a-zA-Z0-9_ ]*$/.test(name) && name.length <= 128;
+}
+
 function getTableColumns(tableName: string): string[] {
+  if (!isValidTableName(tableName)) {
+    throw new Error(`Invalid table name format: ${tableName}`);
+  }
   const db = getDatabase();
   const columns = db
     .prepare(`PRAGMA table_info("${tableName}")`)
@@ -104,6 +119,10 @@ const columnTypeCache = new Map<string, Map<string, string>>();
 function getColumnTypes(tableName: string): Map<string, string> {
   if (columnTypeCache.has(tableName)) {
     return columnTypeCache.get(tableName)!;
+  }
+
+  if (!isValidTableName(tableName)) {
+    throw new Error(`Invalid table name format: ${tableName}`);
   }
 
   const db = getDatabase();
@@ -810,6 +829,11 @@ queryRouter.get("/schema", (_req, res) => {
       const isAllowedView = ALLOWED_VIEWS.includes(item.name);
 
       if (!isAllowedTable && !isAllowedView) {
+        continue;
+      }
+
+      // Validate table name format before PRAGMA call
+      if (!isValidTableName(item.name)) {
         continue;
       }
 

@@ -1,3 +1,13 @@
+"""
+LEGACY: Google Sheets sync endpoint.
+
+WARNING: This Flask app is deprecated and not used in production.
+Production uses scripts/run_sqlite.py for data sync to SQLite.
+
+This file is kept for backward compatibility with legacy Google Sheets workflows.
+An API key is required for all operations.
+"""
+
 from data_providers.subsquare import SubsquareProvider
 from data_providers.price_service import PriceService
 from data_providers.network_info import NetworkInfo
@@ -5,9 +15,10 @@ from data_sinks import SpreadsheetSink
 import json
 import yaml
 import os
-from flask import Flask
+from flask import Flask, request, abort
 from utils.custom_logging import setup_logging
 from datetime import datetime
+from functools import wraps
 
 
 # Setup logging before creating the Flask app
@@ -16,7 +27,28 @@ logger, _ = setup_logging()
 app = Flask(__name__)
 
 
+def require_api_key(f):
+    """Decorator to require API key authentication for legacy endpoints."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Require OPENGOV_SYNC_API_KEY environment variable to be set
+        expected_key = os.environ.get('OPENGOV_SYNC_API_KEY')
+        if not expected_key:
+            logger.error("OPENGOV_SYNC_API_KEY environment variable not set - endpoint disabled")
+            abort(503, description="Endpoint not configured")
+
+        # Check API key from header or query param
+        provided_key = request.headers.get('X-API-Key') or request.args.get('api_key')
+        if not provided_key or provided_key != expected_key:
+            logger.warning("Invalid or missing API key in request")
+            abort(401, description="Invalid or missing API key")
+
+        return f(*args, **kwargs)
+    return decorated_function
+
+
 @app.route("/")
+@require_api_key
 def main():
     try:
         # Preconditions
@@ -39,8 +71,10 @@ def main():
         block_time = config['block_time_projection']['block_time']
 
 
-        env_var_names = list(os.environ.keys())
-        logger.debug(f"Environment variable names: {env_var_names}")
+        # Only log environment variable names in development mode
+        if os.environ.get('FLASK_ENV') == 'development':
+            env_var_names = list(os.environ.keys())
+            logger.debug(f"Environment variable names: {env_var_names}")
 
         spreadsheet_id = os.environ.get('OPENGOV_MONITOR_SPREADSHEET_ID')
         if spreadsheet_id is None:

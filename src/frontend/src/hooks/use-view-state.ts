@@ -1,3 +1,16 @@
+/**
+ * View state management hook for table configurations.
+ *
+ * SECURITY CONSIDERATIONS:
+ * - This hook stores UI state (filters, sorting, pagination) in localStorage
+ * - The stored data is NON-SENSITIVE (table view preferences only)
+ * - No authentication tokens, passwords, or PII are stored
+ * - localStorage is accessible to JavaScript in the same origin
+ * - XSS attacks on this site could read these preferences, but the impact
+ *   is limited to revealing user's table view configurations
+ * - For sensitive data storage, use httpOnly cookies or secure session storage
+ */
+
 import { useState, useCallback, useEffect, useRef, startTransition } from "react";
 import {
   SortingState,
@@ -34,9 +47,74 @@ function encodeViewState(state: ViewState): string {
   }
 }
 
+/**
+ * Validate that a decoded object matches the expected ViewState shape.
+ * This prevents XSS attacks via malicious URL state injection.
+ */
+function isValidViewState(obj: unknown): obj is ViewState {
+  if (typeof obj !== "object" || obj === null) return false;
+  const state = obj as Record<string, unknown>;
+
+  // Validate sorting: must be array of { id: string, desc: boolean }
+  if (state.sorting !== undefined) {
+    if (!Array.isArray(state.sorting)) return false;
+    for (const item of state.sorting) {
+      if (typeof item !== "object" || item === null) return false;
+      if (typeof item.id !== "string") return false;
+      if (typeof item.desc !== "boolean") return false;
+    }
+  }
+
+  // Validate columnFilters: must be array of { id: string, value: unknown }
+  if (state.columnFilters !== undefined) {
+    if (!Array.isArray(state.columnFilters)) return false;
+    for (const item of state.columnFilters) {
+      if (typeof item !== "object" || item === null) return false;
+      if (typeof item.id !== "string") return false;
+    }
+  }
+
+  // Validate columnVisibility: must be object with string keys and boolean values
+  if (state.columnVisibility !== undefined) {
+    if (typeof state.columnVisibility !== "object" || state.columnVisibility === null) return false;
+    for (const value of Object.values(state.columnVisibility)) {
+      if (typeof value !== "boolean") return false;
+    }
+  }
+
+  // Validate pagination: must be { pageIndex: number, pageSize: number }
+  if (state.pagination !== undefined) {
+    if (typeof state.pagination !== "object" || state.pagination === null) return false;
+    const pag = state.pagination as Record<string, unknown>;
+    if (typeof pag.pageIndex !== "number" || pag.pageIndex < 0) return false;
+    if (typeof pag.pageSize !== "number" || pag.pageSize < 1 || pag.pageSize > 10000) return false;
+  }
+
+  // Validate filterGroup if present: basic structure check
+  if (state.filterGroup !== undefined) {
+    if (typeof state.filterGroup !== "object" || state.filterGroup === null) return false;
+    const fg = state.filterGroup as Record<string, unknown>;
+    if (fg.operator !== "AND" && fg.operator !== "OR") return false;
+    if (!Array.isArray(fg.conditions)) return false;
+  }
+
+  // Validate groupBy: must be string if present
+  if (state.groupBy !== undefined && typeof state.groupBy !== "string") {
+    return false;
+  }
+
+  return true;
+}
+
 function decodeViewState(encoded: string): ViewState | null {
   try {
-    return JSON.parse(atob(encoded));
+    const decoded = JSON.parse(atob(encoded));
+    // Validate the decoded state matches expected shape
+    if (!isValidViewState(decoded)) {
+      console.warn("Invalid view state in URL, ignoring");
+      return null;
+    }
+    return decoded;
   } catch {
     return null;
   }

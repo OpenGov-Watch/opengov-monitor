@@ -4,11 +4,15 @@ Deployment guide for the OpenGov Monitor application.
 
 ## Infrastructure
 
+| Environment | Branch | Image Tag | Service Name | Domain |
+|-------------|--------|-----------|--------------|--------|
+| Staging | `main` | `staging` | `opengov-monitor-staging` | `polkadot-treasury-monitor.cypherpunk.agency` |
+| Production | `production` | `prod` | `opengov-monitor-prod` | `monitor.opengov.watch` |
+
+**Common Configuration:**
 | Field | Value |
 |-------|-------|
-| Image | `ghcr.io/opengov-watch/opengov-monitor:prod` |
 | Port | `80` |
-| Domain | `polkadot-treasury-monitor.cypherpunk.agency` |
 | Storage | `/data` (SQLite) |
 | Platform | GCP Compute Engine |
 | Instance | `web-server` (us-central1-a) |
@@ -41,7 +45,7 @@ Deployment guide for the OpenGov Monitor application.
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `SESSION_SECRET` | Production | - | 32+ character secret for session encryption |
+| `SESSION_SECRET` | No | Auto-generated | Override for session encryption (auto-persists to data dir) |
 | `DATABASE_PATH` | No | `/data/polkadot.db` | Path to SQLite database |
 | `PORT` | No | `3001` | API server port |
 
@@ -67,12 +71,20 @@ docker compose exec opengov-monitor supervisorctl status
 
 Expected: Health returns 200, all processes RUNNING (nginx, api, cron)
 
+### Staging Deployment
+
+1. Complete [Pre-Deployment Checklist](../../docs/03_design/deployment/pre-deployment-checklist.md)
+2. Push to `main` branch
+3. GitHub Actions builds image with `staging` tag → GHCR
+4. Server pulls and restarts `opengov-monitor-staging`
+5. Run [Post-Deployment Verification](../../docs/03_design/deployment/post-deployment-verification.md)
+
 ### Production Deployment
 
 1. Complete [Pre-Deployment Checklist](../../docs/03_design/deployment/pre-deployment-checklist.md)
 2. Push to `production` branch
-3. GitHub Actions builds image → GHCR
-4. Server pulls and restarts
+3. GitHub Actions builds image with `prod` tag → GHCR
+4. Server pulls and restarts `opengov-monitor-prod`
 5. Run [Post-Deployment Verification](../../docs/03_design/deployment/post-deployment-verification.md)
 
 ## Pre-Deployment Checklist
@@ -91,23 +103,29 @@ See [full checklist](../../docs/03_design/deployment/pre-deployment-checklist.md
 
 ## Post-Deployment Verification
 
-**After deployment:**
+**After deployment** (replace `SERVICE_NAME` and `DOMAIN` with environment values):
 
 ```bash
 # 1. Container status
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo /usr/local/bin/service-status opengov-monitor"
+  --command="sudo /usr/local/bin/service-status SERVICE_NAME"
 
 # 2. Supervisor processes
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo docker exec opengov-monitor supervisorctl status"
+  --command="sudo docker exec SERVICE_NAME supervisorctl status"
 
 # 3. Health endpoint
-curl -f https://polkadot-treasury-monitor.cypherpunk.agency/api/health
+curl -f https://DOMAIN/api/health
 
 # 4. Data endpoint
-curl -f https://polkadot-treasury-monitor.cypherpunk.agency/api/categories
+curl -f https://DOMAIN/api/categories
 ```
+
+**Environment values:**
+| Environment | SERVICE_NAME | DOMAIN |
+|-------------|--------------|--------|
+| Staging | `opengov-monitor-staging` | `polkadot-treasury-monitor.cypherpunk.agency` |
+| Production | `opengov-monitor-prod` | `monitor.opengov.watch` |
 
 Expected: Container healthy, all processes RUNNING, endpoints return 200.
 

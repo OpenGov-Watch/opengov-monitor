@@ -136,6 +136,20 @@ interface LinkCellProps {
   showIcon?: boolean;
 }
 
+/**
+ * Validate URL to prevent javascript: and other potentially dangerous schemes.
+ * Only allows http://, https://, and relative URLs starting with /.
+ */
+function isValidUrl(url: string): boolean {
+  if (!url) return false;
+  // Allow relative URLs starting with /
+  if (url.startsWith("/")) return true;
+  // Allow http and https URLs
+  if (url.startsWith("http://") || url.startsWith("https://")) return true;
+  // Block all other schemes (javascript:, data:, etc.)
+  return false;
+}
+
 export const LinkCell = React.memo(function LinkCell({
   value,
   urlTemplate,
@@ -155,7 +169,8 @@ export const LinkCell = React.memo(function LinkCell({
     url = urlTemplate.replace("{value}", String(value));
   }
 
-  if (!url) {
+  // Validate URL to prevent XSS via javascript: or other dangerous schemes
+  if (!url || !isValidUrl(url)) {
     return <span>{String(value)}</span>;
   }
 

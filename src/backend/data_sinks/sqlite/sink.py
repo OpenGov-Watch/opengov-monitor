@@ -294,10 +294,15 @@ class SQLiteSink(DataSink):
             DataFrame with table contents.
         """
         sql = f'SELECT * FROM "{table_name}"'
-        if limit:
-            sql += f" LIMIT {limit}"
+        params = []
+        if limit is not None:
+            # Validate limit is a positive integer to prevent injection
+            if not isinstance(limit, int) or limit < 0:
+                raise ValueError("limit must be a non-negative integer")
+            sql += " LIMIT ?"
+            params.append(limit)
 
-        return pd.read_sql_query(sql, self.connection)
+        return pd.read_sql_query(sql, self.connection, params=params if params else None)
 
     def table_exists(self, table_name: str) -> bool:
         """Check if a table exists in the database.

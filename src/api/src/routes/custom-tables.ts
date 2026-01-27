@@ -19,9 +19,93 @@ import {
   sanitizeColumnName,
   MAX_COLUMNS,
 } from "../lib/schema-inference.js";
-import type { CustomTableSchema } from "../db/types.js";
+import type { CustomTableSchema, CustomTableColumnDef } from "../db/types.js";
 
 export const customTablesRouter: Router = Router();
+
+// SECURITY: Limits to prevent DoS via memory exhaustion
+const MAX_IMPORT_ROWS = 100000;
+const MAX_SCHEMA_INFERENCE_ROWS = 1000;
+
+/**
+ * Validate row data against the table schema.
+ * Returns null if valid, or an error message string if invalid.
+ */
+function validateRowData(
+  data: Record<string, unknown>,
+  schema: CustomTableSchema
+): string | null {
+  // Build a set of valid column names
+  const validColumns = new Set(schema.columns.map((c) => c.name));
+  const columnMap = new Map<string, CustomTableColumnDef>(
+    schema.columns.map((c) => [c.name, c])
+  );
+
+  // Check for unknown fields
+  for (const key of Object.keys(data)) {
+    if (!validColumns.has(key)) {
+      return `Unknown field: ${key}`;
+    }
+  }
+
+  // Validate each column
+  for (const col of schema.columns) {
+    const value = data[col.name];
+
+    // Check required fields (non-nullable columns)
+    if ((value === undefined || value === null || value === "") && !col.nullable) {
+      return `Missing required field: ${col.name}`;
+    }
+
+    // Skip further validation for null/empty values
+    if (value === undefined || value === null || value === "") {
+      continue;
+    }
+
+    // Type validation
+    switch (col.type) {
+      case "integer":
+        if (typeof value !== "number" && (typeof value !== "string" || isNaN(Number(value)))) {
+          return `Field "${col.name}" must be an integer`;
+        }
+        // Check it's actually an integer, not a float
+        const intVal = typeof value === "number" ? value : Number(value);
+        if (!Number.isInteger(intVal)) {
+          return `Field "${col.name}" must be an integer, not a decimal`;
+        }
+        break;
+
+      case "real":
+        if (typeof value !== "number" && (typeof value !== "string" || isNaN(Number(value)))) {
+          return `Field "${col.name}" must be a number`;
+        }
+        break;
+
+      case "boolean":
+        const validBooleans = ["true", "false", "yes", "no", "0", "1", 0, 1, true, false];
+        if (!validBooleans.includes(value as string | number | boolean) &&
+            (typeof value === "string" && !validBooleans.includes(value.toLowerCase()))) {
+          return `Field "${col.name}" must be a boolean (true/false, yes/no, 0/1)`;
+        }
+        break;
+
+      case "date":
+        if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+          return `Field "${col.name}" must be a date in YYYY-MM-DD format`;
+        }
+        break;
+
+      case "text":
+        // Text can be anything that can be converted to string
+        if (typeof value !== "string" && typeof value !== "number") {
+          return `Field "${col.name}" must be a text value`;
+        }
+        break;
+    }
+  }
+
+  return null;
+}
 
 // ============================================================================
 // Table Management Endpoints
@@ -190,6 +274,14 @@ customTablesRouter.post("/:id/data", requireAuth, (req, res) => {
       return;
     }
 
+    // Validate row data against schema
+    const schema: CustomTableSchema = JSON.parse(table.schema_json);
+    const validationError = validateRowData(data, schema);
+    if (validationError) {
+      res.status(400).json({ error: validationError });
+      return;
+    }
+
     const result = insertCustomTableRow(table.table_name, data);
     res.status(201).json(result);
   } catch (error) {
@@ -225,6 +317,18 @@ customTablesRouter.put("/:id/data/:rowId", requireAuth, (req, res) => {
     const { data } = req.body;
     if (!data || typeof data !== "object") {
       res.status(400).json({ error: "data object is required" });
+      return;
+    }
+
+    // Validate row data against schema (for updates, only validate provided fields)
+    const schema: CustomTableSchema = JSON.parse(table.schema_json);
+    // For updates, make all columns nullable since we only validate provided fields
+    const updateSchema: CustomTableSchema = {
+      columns: schema.columns.map((col) => ({ ...col, nullable: true })),
+    };
+    const validationError = validateRowData(data, updateSchema);
+    if (validationError) {
+      res.status(400).json({ error: validationError });
       return;
     }
 
@@ -301,6 +405,35 @@ customTablesRouter.post("/:id/import", requireAuth, (req, res) => {
       return;
     }
 
+    // SECURITY: Limit row count to prevent memory exhaustion
+    if (rows.length > MAX_IMPORT_ROWS) {
+      res.status(400).json({
+        error: `Import limit exceeded. Maximum ${MAX_IMPORT_ROWS.toLocaleString()} rows per import.`,
+      });
+      return;
+    }
+
+    // Validate all rows against schema before importing
+    const schema: CustomTableSchema = JSON.parse(table.schema_json);
+    const validationErrors: { row: number; error: string }[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const error = validateRowData(rows[i], schema);
+      if (error) {
+        validationErrors.push({ row: i + 1, error });
+        // Stop after collecting first 10 errors to avoid overwhelming response
+        if (validationErrors.length >= 10) break;
+      }
+    }
+
+    if (validationErrors.length > 0) {
+      res.status(400).json({
+        error: `Validation failed for ${validationErrors.length}${validationErrors.length >= 10 ? '+' : ''} rows`,
+        details: validationErrors,
+      });
+      return;
+    }
+
     if (wipe) {
       // Wipe and reimport
       const count = wipeAndImportCustomTable(table.table_name, rows);
@@ -342,7 +475,9 @@ customTablesRouter.post("/infer-schema", (req, res) => {
       return;
     }
 
-    const { schema, errors } = inferSchema(headers, rows);
+    // SECURITY: Limit rows used for schema inference to prevent memory exhaustion
+    const sampleRows = rows.slice(0, MAX_SCHEMA_INFERENCE_ROWS);
+    const { schema, errors } = inferSchema(headers, sampleRows);
 
     res.json({
       schema,

@@ -342,6 +342,22 @@ export function coerceValue(
  * Generate CREATE TABLE SQL for a custom table schema
  */
 export function generateCreateTableSQL(tableName: string, schema: CustomTableSchema): string {
+  // Validate column names don't contain characters that could break SQL
+  for (const col of schema.columns) {
+    if (col.name.includes('"') || col.name.includes('\\')) {
+      throw new Error(`Column name "${col.name}" contains invalid characters (double quotes or backslashes not allowed)`);
+    }
+    // Additional validation: ensure column names match safe pattern
+    if (!/^[a-z_][a-z0-9_]*$/.test(col.name)) {
+      throw new Error(`Column name "${col.name}" must be lowercase, start with letter or underscore, and contain only alphanumeric characters and underscores`);
+    }
+  }
+
+  // Validate table name doesn't contain dangerous characters
+  if (tableName.includes('"') || tableName.includes('\\')) {
+    throw new Error(`Table name "${tableName}" contains invalid characters`);
+  }
+
   const columnDefs = [
     '"_id" INTEGER PRIMARY KEY AUTOINCREMENT',
     ...schema.columns.map((col) => {

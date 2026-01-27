@@ -15,6 +15,8 @@ async function fetchJSON<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${apiBase}${path}`, {
     headers: {
       "Content-Type": "application/json",
+      // X-Requested-With header for CSRF protection when cross-origin auth is enabled
+      "X-Requested-With": "XMLHttpRequest",
     },
     credentials: "include", // Include cookies for session auth
     ...options,

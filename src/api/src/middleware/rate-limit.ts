@@ -8,6 +8,28 @@
  */
 
 import rateLimit from "express-rate-limit";
+import type { Request } from "express";
+
+/**
+ * Custom key generator that validates IP format to prevent spoofing.
+ * Falls back to socket address if req.ip looks suspicious.
+ *
+ * SECURITY: req.ip is derived from X-Forwarded-For when trust proxy is set.
+ * Validate it looks like a valid IP to prevent malformed header injection.
+ */
+function getValidatedIp(req: Request): string {
+  const ip = req.ip || "unknown";
+  // Basic IP format validation (IPv4 or IPv6 characters only)
+  // IPv4: digits and dots, IPv6: hex digits, colons, and dots (for mapped addresses)
+  if (/^[\d.:a-fA-F]+$/.test(ip)) {
+    return ip;
+  }
+  // Fallback to socket address if IP looks suspicious
+  return req.socket.remoteAddress || "unknown";
+}
+
+// Shared validation config - disable keyGeneratorIpFallback since we do our own IP validation
+const validateConfig = { keyGeneratorIpFallback: false };
 
 /**
  * General rate limiter for all API requests.
@@ -19,6 +41,8 @@ export const generalLimiter = rateLimit({
   message: { error: "Too many requests, please try again later" },
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: getValidatedIp,
+  validate: validateConfig,
 });
 
 /**
@@ -31,6 +55,8 @@ export const writeLimiter = rateLimit({
   message: { error: "Too many write operations, please try again later" },
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: getValidatedIp,
+  validate: validateConfig,
 });
 
 /**
@@ -45,4 +71,6 @@ export const authLimiter = rateLimit({
   message: { error: "Too many login attempts, please try again later" },
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: getValidatedIp,
+  validate: validateConfig,
 });

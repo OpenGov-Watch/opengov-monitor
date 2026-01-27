@@ -21,6 +21,34 @@ export interface PublicUser {
 }
 
 /**
+ * Username validation: 3-32 alphanumeric characters, underscores, or hyphens.
+ * Must start with a letter or underscore.
+ */
+const USERNAME_REGEX = /^[a-zA-Z_][a-zA-Z0-9_-]{2,31}$/;
+
+/**
+ * Validate username format.
+ */
+export function validateUsername(username: string): { valid: boolean; error?: string } {
+  if (!username || typeof username !== "string") {
+    return { valid: false, error: "Username is required" };
+  }
+  if (username.length < 3) {
+    return { valid: false, error: "Username must be at least 3 characters" };
+  }
+  if (username.length > 32) {
+    return { valid: false, error: "Username cannot exceed 32 characters" };
+  }
+  if (!USERNAME_REGEX.test(username)) {
+    return {
+      valid: false,
+      error: "Username must start with a letter or underscore, and contain only alphanumeric characters, underscores, or hyphens",
+    };
+  }
+  return { valid: true };
+}
+
+/**
  * Ensures the Users table exists. Called on startup.
  */
 export function ensureUsersTable(): void {
@@ -68,8 +96,15 @@ export function getAllUsers(): PublicUser[] {
 
 /**
  * Create a new user.
+ * Validates username format before creating.
  */
 export function createUser(username: string, passwordHash: string): User {
+  // Validate username format
+  const validation = validateUsername(username);
+  if (!validation.valid) {
+    throw new Error(validation.error);
+  }
+
   const db = getWritableDatabase();
   const result = db
     .prepare("INSERT INTO Users (username, password_hash) VALUES (?, ?)")

@@ -60,6 +60,7 @@ data/local/*          # Ignore all contents
 credentials.json
 *.env
 .env.*
+!.env.example
 
 # Exploration / scratch files
 exploration/

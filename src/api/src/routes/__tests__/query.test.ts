@@ -101,7 +101,7 @@ beforeAll(() => {
         SELECT id, url, status FROM "Treasury" WHERE status = 'Approved';
 
       CREATE VIEW IF NOT EXISTS "all_spending" AS
-        SELECT id, url, year, DOT_latest FROM "Referenda";
+        SELECT id, url, year, DOT_latest, DOT_component, year || '-Q1' as year_quarter FROM "Referenda";
 
       INSERT INTO "Categories" (id, category, subcategory)
       VALUES (1, 'Development', 'Infrastructure'),

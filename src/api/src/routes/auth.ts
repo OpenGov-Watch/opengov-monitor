@@ -38,30 +38,40 @@ authRouter.post("/login", async (req, res) => {
       return;
     }
 
-    // Set session data
-    req.session.userId = user.id;
-    req.session.username = user.username;
-
-    // Extend session if "remember me" is checked
-    if (rememberMe) {
-      req.session.cookie.maxAge = SESSION_REMEMBER;
-    } else {
-      req.session.cookie.maxAge = SESSION_DEFAULT;
-    }
-
-    // Explicitly save session before responding to ensure persistence
-    req.session.save((err) => {
-      if (err) {
-        console.error("Failed to save session:", err);
-        res.status(500).json({ error: "Failed to create session" });
+    // SECURITY: Regenerate session ID to prevent session fixation attacks
+    // This ensures any pre-existing session ID (potentially set by attacker) is replaced
+    req.session.regenerate((regenerateErr) => {
+      if (regenerateErr) {
+        console.error("Failed to regenerate session:", regenerateErr);
+        res.status(500).json({ error: "Session error" });
         return;
       }
-      res.json({
-        success: true,
-        user: {
-          id: user.id,
-          username: user.username,
-        },
+
+      // Set session data on the new session
+      req.session.userId = user.id;
+      req.session.username = user.username;
+
+      // Extend session if "remember me" is checked
+      if (rememberMe) {
+        req.session.cookie.maxAge = SESSION_REMEMBER;
+      } else {
+        req.session.cookie.maxAge = SESSION_DEFAULT;
+      }
+
+      // Explicitly save session before responding to ensure persistence
+      req.session.save((saveErr) => {
+        if (saveErr) {
+          console.error("Failed to save session:", saveErr);
+          res.status(500).json({ error: "Failed to create session" });
+          return;
+        }
+        res.json({
+          success: true,
+          user: {
+            id: user.id,
+            username: user.username,
+          },
+        });
       });
     });
   } catch (error) {

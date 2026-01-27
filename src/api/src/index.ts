@@ -10,6 +10,7 @@ import { createSessionStore, closeSessionStore } from "./db/session-store.js";
 import { ensureUsersTable } from "./db/auth-queries.js";
 import { generalLimiter, writeLimiter, authLimiter } from "./middleware/rate-limit.js";
 import { getDatabase, closeDatabase, stopPeriodicCheckpoint } from "./db/index.js";
+import { getSessionSecret } from "./lib/session-secret.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -48,12 +49,38 @@ ensureUsersTable();
 // Trust proxy for secure cookies behind nginx/reverse proxy
 app.set("trust proxy", 1);
 
-// CORS configuration - allow all origins
+// CORS configuration
 // In production, nginx proxies make requests same-origin from browser perspective
-// CSRF protection should be used instead of CORS for cookie-based auth security
+// For development and cross-origin deployments, we whitelist allowed origins
+const ALLOWED_ORIGINS = process.env.CORS_ALLOWED_ORIGINS
+  ? process.env.CORS_ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+  : null;
+
 app.use(
   cors({
-    origin: true, // Allow all origins
+    origin: (origin, callback) => {
+      // Allow requests with no origin (same-origin, mobile apps, curl, etc.)
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      // If whitelist is configured, enforce it
+      if (ALLOWED_ORIGINS) {
+        if (ALLOWED_ORIGINS.includes(origin)) {
+          callback(null, true);
+        } else {
+          console.warn(`CORS blocked request from origin: ${origin}`);
+          callback(new Error("Not allowed by CORS"));
+        }
+      } else if (process.env.NODE_ENV === "production") {
+        // SECURITY: In production, deny cross-origin requests when no whitelist configured
+        console.warn(`CORS: Blocked request from ${origin} (no whitelist configured in production)`);
+        callback(new Error("CORS not configured for production"));
+      } else {
+        // In development, allow all origins for convenience
+        callback(null, true);
+      }
+    },
     credentials: true, // Required for cookies
   })
 );
@@ -62,10 +89,19 @@ app.use(express.json({ limit: '10mb' }));
 // Session middleware
 // Cross-origin auth: Set CROSS_ORIGIN_AUTH=true to enable sameSite: "none" for cross-origin cookies
 const crossOriginAuth = process.env.CROSS_ORIGIN_AUTH === "true";
+
+// Derive data directory from DATABASE_PATH
+const dataDir = path.dirname(
+  process.env.DATABASE_PATH || path.join(__dirname, "../../data/local/polkadot.db")
+);
+
+// Get or generate session secret (auto-persists to data directory)
+const sessionSecret = getSessionSecret(dataDir);
+
 app.use(
   session({
     store: createSessionStore(),
-    secret: process.env.SESSION_SECRET || "dev-secret-change-in-production",
+    secret: sessionSecret,
     name: "connect.sid",
     resave: false,
     saveUninitialized: false,
@@ -79,6 +115,28 @@ app.use(
     },
   })
 );
+
+// CSRF protection via X-Requested-With header
+// Require custom header on state-changing requests to prevent CSRF attacks
+// Browsers don't include custom headers in cross-origin requests triggered by forms/scripts
+// SECURITY: Enabled by default for defense-in-depth (complements SameSite=Lax cookie)
+app.use("/api", (req, res, next) => {
+  // Only check state-changing methods
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+    // Skip CSRF check for login endpoint (no session to protect yet)
+    if (req.path === "/auth/login") {
+      return next();
+    }
+
+    const csrfHeader = req.headers["x-requested-with"];
+    if (csrfHeader !== "XMLHttpRequest") {
+      return res.status(403).json({
+        error: "CSRF validation failed. Include 'X-Requested-With: XMLHttpRequest' header.",
+      });
+    }
+  }
+  next();
+});
 
 // Rate limiting
 app.use("/api", generalLimiter);
@@ -161,6 +219,7 @@ function sanitizeRequestBody(body: any): any {
 
 // Error handling
 app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  // Always log full error details to server console
   console.error("Error:", err.message);
   console.error("Stack:", err.stack);
   console.error("Request:", {
@@ -169,7 +228,13 @@ app.use((err: Error, req: express.Request, res: express.Response, _next: express
     body: sanitizeRequestBody(req.body),
     query: req.query,
   });
-  res.status(500).json({ error: err.message });
+
+  // In production, return generic error message to avoid leaking implementation details
+  // In development, return the actual error message for debugging
+  const clientMessage = process.env.NODE_ENV === "production"
+    ? "Internal server error"
+    : err.message;
+  res.status(500).json({ error: clientMessage });
 });
 
 let server: http.Server;
