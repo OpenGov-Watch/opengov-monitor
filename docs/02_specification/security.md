@@ -100,14 +100,18 @@ When `CORS_ALLOWED_ORIGINS` is set, only listed origins can make cross-origin re
 
 ### Session Secret
 
-The session secret **must** be set in production:
+The session secret is **auto-generated** on first run and persisted to the data directory:
+
+- **Location:** `<data-dir>/.session-secret` (same directory as the database)
+- **Permissions:** `0600` (owner read/write only)
+- **Override:** Set `SESSION_SECRET` environment variable to use a custom secret
 
 ```bash
-# Required in production (NODE_ENV=production)
+# Optional: Override with custom secret
 SESSION_SECRET=your-32-character-minimum-secret-here
 ```
 
-The server will refuse to start in production mode without this variable.
+The auto-generated secret persists across container restarts (as long as the data volume is preserved).
 
 ### SQL Injection Protection
 
@@ -218,22 +222,17 @@ The container creates a dedicated user (`appuser`, UID 1000):
 
 ### Log Rotation
 
-Sync logs are automatically truncated when exceeding 10MB to prevent disk fill.
+Sync logs (`/data/opengov-sync.log`) are automatically truncated when exceeding 10MB to prevent disk fill.
 
 ---
 
 ## Environment Variables
 
-### Required in Production
-
-| Variable | Description |
-|----------|-------------|
-| `SESSION_SECRET` | 32+ character session encryption key |
-
 ### Security Configuration
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `SESSION_SECRET` | (auto-generated) | Override for session encryption (auto-persists to `.session-secret`) |
 | `CORS_ALLOWED_ORIGINS` | (allow all) | Comma-separated allowed origins |
 | `ADMIN_USERNAMES` | (all users) | Comma-separated admin usernames |
 | `NODE_ENV` | development | Set to `production` for secure defaults |
@@ -306,7 +305,7 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 
 Before deploying to production:
 
-- [ ] Set `SESSION_SECRET` environment variable (32+ characters)
+- [ ] Verify `SESSION_SECRET` auto-generated in data dir (or set custom via env var)
 - [ ] Set `NODE_ENV=production`
 - [ ] Configure `CORS_ALLOWED_ORIGINS` if cross-origin access needed
 - [ ] Configure `ADMIN_USERNAMES` if role-based access needed
