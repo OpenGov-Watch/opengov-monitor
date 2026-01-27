@@ -115,7 +115,8 @@ function decodeViewState(encoded: string): ViewState | null {
       return null;
     }
     return decoded;
-  } catch {
+  } catch (error) {
+    console.error("[view-state] Failed to parse URL view state:", error);
     return null;
   }
 }
@@ -159,7 +160,8 @@ export function useViewState(tableName: string, options: UseViewStateOptions = {
     if (stored) {
       try {
         return JSON.parse(stored) as SavedView[];
-      } catch {
+      } catch (error) {
+        console.error("[view-state] Failed to parse saved views from localStorage:", error);
         return [];
       }
     }

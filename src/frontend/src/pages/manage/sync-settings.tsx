@@ -52,7 +52,9 @@ function SyncSettingsPageContent() {
     fetch("/api/backup/info", { credentials: "include" })
       .then((res) => res.json())
       .then((data) => setBackupInfo(data))
-      .catch(() => {}); // Silently fail if backup info unavailable
+      .catch((error) => {
+        console.error("[sync-settings] Failed to fetch backup info:", error);
+      });
   }, []);
 
   async function handleDownloadBackup() {

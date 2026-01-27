@@ -26,6 +26,7 @@ customSpendingRouter.get("/", (_req, res) => {
     const data = getCustomSpending();
     res.json(data);
   } catch (error) {
+    console.error("[custom-spending:get] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -40,6 +41,7 @@ customSpendingRouter.get("/:id", (req, res) => {
     }
     res.json(data);
   } catch (error) {
+    console.error("[custom-spending:getById] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -70,6 +72,7 @@ customSpendingRouter.post("/", requireAuth, (req, res) => {
     const result = createCustomSpending(req.body);
     res.status(201).json(result);
   } catch (error) {
+    console.error("[custom-spending:create] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -107,6 +110,7 @@ customSpendingRouter.put("/:id", requireAuth, (req, res) => {
     updateCustomSpending({ ...req.body, id: urlId });
     res.json({ success: true });
   } catch (error) {
+    console.error("[custom-spending:update] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -122,6 +126,7 @@ customSpendingRouter.delete("/:id", requireAuth, (req, res) => {
     deleteCustomSpending(id);
     res.json({ success: true });
   } catch (error) {
+    console.error("[custom-spending:delete] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -151,6 +156,7 @@ customSpendingRouter.post("/import", requireAuth, (req, res) => {
     const count = bulkImportCustomSpending(items);
     res.json({ success: true, count });
   } catch (error) {
+    console.error("[custom-spending:import] Error:", error);
     res.status(400).json({ error: (error as Error).message });
   }
 });

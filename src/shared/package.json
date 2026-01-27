@@ -1,0 +1,13 @@
+{
+  "name": "@opengov-monitor/shared",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./types.ts",
+  "types": "./types.ts",
+  "exports": {
+    ".": {
+      "import": "./types.ts",
+      "types": "./types.ts"
+    }
+  }
+}

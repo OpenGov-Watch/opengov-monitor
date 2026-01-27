@@ -1,3 +1,4 @@
 packages:
+  - 'src/shared'
   - 'src/api'
   - 'src/frontend'

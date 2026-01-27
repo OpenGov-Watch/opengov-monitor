@@ -29,6 +29,7 @@ syncRouter.get("/defaults/referenda", (_req, res) => {
     const content = readFileSync(filePath, "utf-8");
     res.json({ content });
   } catch (error) {
+    console.error("[sync:defaults:referenda] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -43,6 +44,7 @@ syncRouter.get("/defaults/child-bounties", (_req, res) => {
     const content = readFileSync(filePath, "utf-8");
     res.json({ content });
   } catch (error) {
+    console.error("[sync:defaults:child-bounties] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -57,6 +59,7 @@ syncRouter.get("/defaults/bounties", (_req, res) => {
     const content = readFileSync(filePath, "utf-8");
     res.json({ content });
   } catch (error) {
+    console.error("[sync:defaults:bounties] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -71,6 +74,7 @@ syncRouter.get("/defaults/treasury-netflows", (_req, res) => {
     const content = readFileSync(filePath, "utf-8");
     res.json({ content });
   } catch (error) {
+    console.error("[sync:defaults:treasury-netflows] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -85,6 +89,7 @@ syncRouter.get("/defaults/categories", (_req, res) => {
     const content = readFileSync(filePath, "utf-8");
     res.json({ content });
   } catch (error) {
+    console.error("[sync:defaults:categories] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -99,6 +104,7 @@ syncRouter.get("/defaults/cross-chain-flows", (_req, res) => {
     const content = readFileSync(filePath, "utf-8");
     res.json({ content });
   } catch (error) {
+    console.error("[sync:defaults:cross-chain-flows] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -113,6 +119,7 @@ syncRouter.get("/defaults/local-flows", (_req, res) => {
     const content = readFileSync(filePath, "utf-8");
     res.json({ content });
   } catch (error) {
+    console.error("[sync:defaults:local-flows] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -127,6 +134,7 @@ syncRouter.get("/defaults/custom-spending", (_req, res) => {
     const content = readFileSync(filePath, "utf-8");
     res.json({ content });
   } catch (error) {
+    console.error("[sync:defaults:custom-spending] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });

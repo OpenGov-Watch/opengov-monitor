@@ -178,7 +178,11 @@ export function ComponentEditor({
     try {
       const response = await fetch("/api/query/execute", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        credentials: "include",
         body: JSON.stringify({ ...queryConfig, limit: 100 }),
       });
 
@@ -240,7 +244,7 @@ export function ComponentEditor({
     }
 
     // Build chart config, handling metric mode
-    let chartConfigToSave = { ...chartConfig };
+    const chartConfigToSave = { ...chartConfig };
     if (type === "metric") {
       if (metricMode === "manual") {
         // Keep metricValue, it should already be set

@@ -72,6 +72,7 @@ backupRouter.get("/info", requireAuth, (req, res) => {
       lastWrite: lastWrite ? new Date(lastWrite).toISOString() : null,
     });
   } catch (error) {
+    console.error("[backup:info] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });

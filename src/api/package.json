@@ -12,6 +12,7 @@
     "users": "tsx scripts/manage-users.ts"
   },
   "dependencies": {
+    "@opengov-monitor/shared": "workspace:*",
     "bcrypt": "^6.0.0",
     "better-sqlite3": "^11.7.0",
     "cors": "^2.8.5",

@@ -227,7 +227,10 @@ export function DataTableToolbar<TData>({
 
         const response = await fetch("/api/query/execute", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+          },
           credentials: "include",
           body: JSON.stringify(exportConfig),
         });
@@ -267,7 +270,10 @@ export function DataTableToolbar<TData>({
 
         const response = await fetch("/api/query/execute", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+          },
           credentials: "include",
           body: JSON.stringify(exportConfig),
         });

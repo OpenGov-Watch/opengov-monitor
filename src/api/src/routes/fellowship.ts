@@ -10,6 +10,7 @@ fellowshipRouter.get("/subtreasury", (_req, res) => {
     const data = getFellowshipSubtreasury();
     res.json(data);
   } catch (error) {
+    console.error("[fellowship:getSubtreasury] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });

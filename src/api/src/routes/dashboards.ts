@@ -33,6 +33,7 @@ dashboardsRouter.get("/", (req, res) => {
     const dashboards = getDashboards();
     res.json(dashboards);
   } catch (error) {
+    console.error("[dashboards:get] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -47,6 +48,7 @@ dashboardsRouter.post("/", requireAuth, (req, res) => {
     const newDashboard = createDashboard(name, description ?? null);
     res.status(201).json(newDashboard);
   } catch (error) {
+    console.error("[dashboards:create] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -65,6 +67,7 @@ dashboardsRouter.put("/", requireAuth, (req, res) => {
     updateDashboard(id, name, description ?? null);
     res.json({ success: true });
   } catch (error) {
+    console.error("[dashboards:update] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -79,6 +82,7 @@ dashboardsRouter.delete("/", requireAuth, (req, res) => {
     deleteDashboard(parseInt(id as string, 10));
     res.json({ success: true });
   } catch (error) {
+    console.error("[dashboards:delete] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -107,6 +111,7 @@ dashboardsRouter.get("/components", (req, res) => {
 
     res.status(400).json({ error: "dashboard_id or id is required" });
   } catch (error) {
+    console.error("[dashboards:components:get] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -151,6 +156,7 @@ dashboardsRouter.post("/components", requireAuth, (req, res) => {
 
     res.status(201).json(newComponent);
   } catch (error) {
+    console.error("[dashboards:components:create] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -243,6 +249,7 @@ dashboardsRouter.put("/components", requireAuth, (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
+    console.error("[dashboards:components:update] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -257,6 +264,7 @@ dashboardsRouter.delete("/components", requireAuth, (req, res) => {
     deleteDashboardComponent(parseInt(id as string, 10));
     res.json({ success: true });
   } catch (error) {
+    console.error("[dashboards:components:delete] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });

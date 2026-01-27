@@ -9,6 +9,7 @@ subtreasuryRouter.get("/", (_req, res) => {
     const data = getSubtreasury();
     res.json(data);
   } catch (error) {
+    console.error("[subtreasury:get] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -23,6 +24,7 @@ subtreasuryRouter.get("/:id", (req, res) => {
     }
     res.json(data);
   } catch (error) {
+    console.error("[subtreasury:getById] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -39,6 +41,7 @@ subtreasuryRouter.post("/", requireAuth, (req, res) => {
     const result = createSubtreasury(req.body);
     res.status(201).json(result);
   } catch (error) {
+    console.error("[subtreasury:create] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -61,6 +64,7 @@ subtreasuryRouter.put("/:id", requireAuth, (req, res) => {
     updateSubtreasury({ ...req.body, id: urlId });
     res.json({ success: true });
   } catch (error) {
+    console.error("[subtreasury:update] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -76,6 +80,7 @@ subtreasuryRouter.delete("/:id", requireAuth, (req, res) => {
     deleteSubtreasury(id);
     res.json({ success: true });
   } catch (error) {
+    console.error("[subtreasury:delete] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });

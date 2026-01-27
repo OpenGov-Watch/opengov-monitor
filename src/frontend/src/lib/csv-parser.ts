@@ -156,7 +156,7 @@ export function parseReferendaCSV(content: string): ReferendaCsvRow[] {
       const notes = row.notes || row.Notes || row.NOTE || "";
 
       // Handle hide_in_spends with multiple possible column names
-      let hideValue =
+      const hideValue =
         row.hide_in_spends ||
         row["hide from income statement (represented via child bounties and/or via the balance sheet)"] ||
         row["hide from income statement"] ||
@@ -201,7 +201,7 @@ export function parseChildBountiesCSV(content: string): ChildBountyCsvRow[] {
       const notes = row.notes || row.Notes || row.NOTE || "";
 
       // Handle hide_in_spends with multiple possible column names
-      let hideValue =
+      const hideValue =
         row.hide_in_spends || row["hide from income statement"] || "";
       const hide_in_spends =
         hideValue === "1" ||

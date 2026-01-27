@@ -9,6 +9,7 @@ bountiesRouter.get("/", (_req, res) => {
     const data = getBounties();
     res.json(data);
   } catch (error) {
+    console.error("[bounties:get] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -23,6 +24,7 @@ bountiesRouter.get("/:id", (req, res) => {
     }
     res.json(data);
   } catch (error) {
+    console.error("[bounties:getById] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -45,6 +47,7 @@ bountiesRouter.post("/", requireAuth, (req, res) => {
     upsertBounty(req.body);
     res.status(201).json({ success: true });
   } catch (error) {
+    console.error("[bounties:create] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -67,6 +70,7 @@ bountiesRouter.put("/:id", requireAuth, (req, res) => {
     upsertBounty({ ...req.body, id: urlId });
     res.json({ success: true });
   } catch (error) {
+    console.error("[bounties:update] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -83,6 +87,7 @@ bountiesRouter.patch("/:id/category", requireAuth, (req, res) => {
     updateBountyCategory(id, category_id);
     res.json({ success: true });
   } catch (error) {
+    console.error("[bounties:patchCategory] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -98,6 +103,7 @@ bountiesRouter.delete("/:id", requireAuth, (req, res) => {
     deleteBounty(id);
     res.json({ success: true });
   } catch (error) {
+    console.error("[bounties:delete] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -112,6 +118,7 @@ bountiesRouter.post("/import", requireAuth, (req, res) => {
     const count = bulkUpdateBounties(items);
     res.json({ success: true, count });
   } catch (error) {
+    console.error("[bounties:import] Error:", error);
     const errorMessage = (error as Error).message;
     // Validation errors (e.g., "Import rejected: ...") are client errors (400)
     // Other errors are server errors (500)

@@ -8,7 +8,7 @@ Express REST API serving governance data to the frontend. Reads from SQLite, han
 |------|---------|
 | `src/index.ts` | Express server entry, middleware setup |
 | `src/db/queries.ts` | All SQL query functions |
-| `src/db/types.ts` | TypeScript types matching SQLite schema |
+| `src/db/types.ts` | TypeScript types (re-exports from `@opengov-monitor/shared` + API-specific import types) |
 | `src/db/index.ts` | Database connections (readonly + writable) |
 | `src/routes/` | Route handlers by resource |
 

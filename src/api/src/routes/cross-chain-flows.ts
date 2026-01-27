@@ -16,6 +16,7 @@ crossChainFlowsRouter.post("/import", requireAuth, (req, res) => {
     const count = replaceAllCrossChainFlows(items);
     res.json({ success: true, count });
   } catch (error) {
+    console.error("[cross-chain-flows:import] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });

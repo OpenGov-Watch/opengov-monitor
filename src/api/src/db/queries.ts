@@ -74,7 +74,8 @@ export function isDatabaseAccessible(): boolean {
     const db = getDatabase();
     db.prepare("SELECT 1").get();
     return true;
-  } catch {
+  } catch (error) {
+    console.error("[db] Database accessibility check failed:", error);
     return false;
   }
 }

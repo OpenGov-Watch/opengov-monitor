@@ -501,7 +501,7 @@ describe("useViewState", () => {
     it("should not cause excessive navigate calls when searchParams changes reference", async () => {
       // Reset the mock to simulate React Router's behavior:
       // useSearchParams returns a NEW object reference after navigate() is called
-      let callCount = 0;
+      let _callCount = 0;
       const navigateCalls: string[] = [];
 
       // Create a mock that returns a new URLSearchParams each time
@@ -511,7 +511,7 @@ describe("useViewState", () => {
           navigateCalls.push(url);
         },
         useSearchParams: () => {
-          callCount++;
+          _callCount++;
           // Return a fresh object each time to simulate React Router behavior
           return [new URLSearchParams()];
         },

@@ -8,6 +8,7 @@ spendingRouter.get("/", (_req, res) => {
     const data = getAllSpending();
     res.json(data);
   } catch (error) {
+    console.error("[spending:get] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });

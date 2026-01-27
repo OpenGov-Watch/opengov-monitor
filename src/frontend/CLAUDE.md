@@ -11,6 +11,7 @@ Vite + React dashboard with TanStack Table and shadcn/ui. Client-side data fetch
 | `src/components/data-table/` | Reusable DataTable component |
 | `src/components/tables/*-columns.tsx` | Column definitions per table |
 | `src/hooks/use-view-state.ts` | Table state persistence (localStorage + URL) |
+| `src/lib/db/types.ts` | TypeScript types (re-exports from `@opengov-monitor/shared` + frontend-specific edit config types) |
 | `src/components/dashboard/` | Dashboard builder components |
 | `src/components/query-builder/` | Visual query builder with auto-JOIN detection |
 

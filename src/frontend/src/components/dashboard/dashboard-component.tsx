@@ -300,7 +300,11 @@ export const DashboardComponent = memo(
     try {
       const response = await fetch("/api/query/execute", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        credentials: "include",
         body: component.query_config,
       });
 
@@ -557,7 +561,11 @@ export const DashboardComponent = memo(
 
       const response = await fetch("/api/query/execute", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        credentials: "include",
         body: JSON.stringify(exportQueryConfig),
       });
 
@@ -646,7 +654,11 @@ export const DashboardComponent = memo(
           };
           const res = await fetch("/api/query/execute", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              "X-Requested-With": "XMLHttpRequest",
+            },
+            credentials: "include",
             body: JSON.stringify(aggregateConfig),
           });
           const result = await res.json();
@@ -780,7 +792,11 @@ export const DashboardComponent = memo(
           };
           const res = await fetch("/api/query/execute", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              "X-Requested-With": "XMLHttpRequest",
+            },
+            credentials: "include",
             body: JSON.stringify(aggregateConfig),
           });
           const result = await res.json();

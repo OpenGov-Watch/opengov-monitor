@@ -75,6 +75,7 @@ authRouter.post("/login", async (req, res) => {
       });
     });
   } catch (error) {
+    console.error("[auth:login] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -86,6 +87,7 @@ authRouter.post("/login", async (req, res) => {
 authRouter.post("/logout", (req, res) => {
   req.session.destroy((err) => {
     if (err) {
+      console.error("[auth:logout] Error:", err);
       res.status(500).json({ error: "Logout failed" });
       return;
     }

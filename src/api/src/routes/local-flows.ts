@@ -16,6 +16,7 @@ localFlowsRouter.post("/import", requireAuth, (req, res) => {
     const count = replaceAllLocalFlows(items);
     res.json({ success: true, count });
   } catch (error) {
+    console.error("[local-flows:import] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });

@@ -44,7 +44,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setUser(null);
         }
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error("[auth] Failed to check authentication status:", error);
         setUser(null);
       })
       .finally(() => {

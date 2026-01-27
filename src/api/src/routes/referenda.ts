@@ -14,6 +14,7 @@ referendaRouter.patch("/:id", requireAuth, (req, res) => {
     updateReferendum(id, { category_id, notes, hide_in_spends });
     res.json({ success: true });
   } catch (error) {
+    console.error("[referenda:patch] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -28,6 +29,7 @@ referendaRouter.post("/import", requireAuth, (req, res) => {
     const count = bulkUpdateReferenda(items);
     res.json({ success: true, count });
   } catch (error) {
+    console.error("[referenda:import] Error:", error);
     const errorMessage = (error as Error).message;
     // Validation errors (e.g., "Import rejected: ...") are client errors (400)
     // Other errors are server errors (500)

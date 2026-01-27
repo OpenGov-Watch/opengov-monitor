@@ -860,6 +860,7 @@ queryRouter.get("/schema", (_req, res) => {
 
     res.json(result);
   } catch (error) {
+    console.error("[query:schema] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -895,6 +896,7 @@ queryRouter.post("/execute", (req, res) => {
       sql: sql,
     });
   } catch (error) {
+    console.error("[query:execute] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -965,6 +967,7 @@ queryRouter.post("/facets", (req, res) => {
     const response: FacetQueryResponse = { facets };
     res.json(response);
   } catch (error) {
+    console.error("[query:facets] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });

@@ -40,6 +40,19 @@ Auth         ───────────▶  /api/auth/*         ──▶
 
 **Queries** (`src/db/queries.ts`): All SQL in one file. Query functions return typed results.
 
+## Error Logging
+
+All route handlers log errors with context before responding:
+
+```typescript
+} catch (error) {
+  console.error("[categories:create] Error:", error);
+  res.status(500).json({ error: (error as Error).message });
+}
+```
+
+Pattern: `[route:operation]` prefix enables filtering and correlation.
+
 ## Key Files
 
 ```

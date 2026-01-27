@@ -256,7 +256,10 @@ export function DataTable<TData>({
         // Create data fetch promise
         const dataPromise = fetch("/api/query/execute", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+          },
           credentials: "include",
           body: JSON.stringify(queryConfig),
           signal: controller.signal,
@@ -290,7 +293,10 @@ export function DataTable<TData>({
           };
           facetPromise = fetch("/api/query/facets", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              "X-Requested-With": "XMLHttpRequest",
+            },
             credentials: "include",
             body: JSON.stringify(facetConfig),
             signal: controller.signal,
@@ -467,7 +473,10 @@ export function DataTable<TData>({
 
     fetch("/api/query/execute", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
       credentials: "include",
       body: JSON.stringify(aggregateConfig),
       signal: controller.signal,

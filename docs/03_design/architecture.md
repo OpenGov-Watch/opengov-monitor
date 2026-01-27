@@ -24,6 +24,7 @@ Overview of how the three main components work together.
 
 | Component | Role | Key Files |
 |-----------|------|-----------|
+| Shared | TypeScript types shared between API and Frontend | `src/shared/types.ts` |
 | Backend | Fetch governance data, enrich with USD prices, store to SQLite | `src/backend/scripts/run_sqlite.py` |
 | API | Serve REST endpoints, handle auth, CRUD for manual tables | `src/api/src/index.ts` |
 | Frontend | Render data tables, dashboards, query builder | `src/frontend/src/router.tsx` |

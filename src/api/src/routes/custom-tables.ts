@@ -120,6 +120,7 @@ customTablesRouter.get("/", (_req, res) => {
     const tables = getCustomTables();
     res.json(tables);
   } catch (error) {
+    console.error("[custom-tables:get] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -146,6 +147,7 @@ customTablesRouter.get("/:id", (req, res) => {
     const schema = JSON.parse(table.schema_json);
     res.json({ ...table, schema });
   } catch (error) {
+    console.error("[custom-tables:getById] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -188,6 +190,7 @@ customTablesRouter.post("/", requireAuth, (req, res) => {
       res.status(409).json({ error: "A table with this name already exists" });
       return;
     }
+    console.error("[custom-tables:create] Error:", error);
     res.status(500).json({ error: message });
   }
 });
@@ -212,6 +215,7 @@ customTablesRouter.delete("/:id", requireAuth, (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
+    console.error("[custom-tables:delete] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -245,6 +249,7 @@ customTablesRouter.get("/:id/data", (req, res) => {
     const result = getCustomTableData(table.table_name, limit, offset);
     res.json(result);
   } catch (error) {
+    console.error("[custom-tables:getData] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -285,6 +290,7 @@ customTablesRouter.post("/:id/data", requireAuth, (req, res) => {
     const result = insertCustomTableRow(table.table_name, data);
     res.status(201).json(result);
   } catch (error) {
+    console.error("[custom-tables:insertRow] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -340,6 +346,7 @@ customTablesRouter.put("/:id/data/:rowId", requireAuth, (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
+    console.error("[custom-tables:updateRow] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -376,6 +383,7 @@ customTablesRouter.delete("/:id/data/:rowId", requireAuth, (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
+    console.error("[custom-tables:deleteRow] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -448,6 +456,7 @@ customTablesRouter.post("/:id/import", requireAuth, (req, res) => {
       res.json({ success: true, count, wiped: false });
     }
   } catch (error) {
+    console.error("[custom-tables:import] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -486,6 +495,7 @@ customTablesRouter.post("/infer-schema", (req, res) => {
       sanitizedHeaders: schema.columns.map((c) => c.name),
     });
   } catch (error) {
+    console.error("[custom-tables:inferSchema] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });

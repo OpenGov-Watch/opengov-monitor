@@ -19,6 +19,7 @@ categoriesRouter.post("/lookup", requireAuth, (req, res) => {
     const result = findOrCreateCategory(category.trim(), (subcategory || "").trim());
     res.json(result);
   } catch (error) {
+    console.error("[categories:lookup] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -28,6 +29,7 @@ categoriesRouter.get("/", (_req, res) => {
     const data = getCategories();
     res.json(data);
   } catch (error) {
+    console.error("[categories:get] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -44,6 +46,7 @@ categoriesRouter.post("/", requireAuth, (req, res) => {
     const result = createCategory(category, subcategory);
     res.status(201).json(result);
   } catch (error) {
+    console.error("[categories:create] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -66,6 +69,7 @@ categoriesRouter.put("/:id", requireAuth, (req, res) => {
     updateCategory(id, category, subcategory);
     res.json({ success: true });
   } catch (error) {
+    console.error("[categories:update] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -85,6 +89,7 @@ categoriesRouter.delete("/:id", requireAuth, (req, res) => {
     }
     res.json({ success: true });
   } catch (error) {
+    console.error("[categories:delete] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
@@ -139,6 +144,7 @@ categoriesRouter.post("/import", requireAuth, (req, res) => {
 
     res.json({ success: true, count: items.length });
   } catch (error) {
+    console.error("[categories:import] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });

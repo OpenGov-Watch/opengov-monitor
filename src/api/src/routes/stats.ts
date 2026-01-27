@@ -73,6 +73,7 @@ statsRouter.get("/", (_req, res) => {
 
     res.json(stats);
   } catch (error) {
+    console.error("[stats:get] Error:", error);
     res.status(500).json({ error: (error as Error).message });
   }
 });
