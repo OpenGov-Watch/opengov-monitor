@@ -323,6 +323,7 @@ export interface JoinConfig {
   table: string;          // Table name to join (e.g., "Categories")
   alias?: string;         // Optional alias (e.g., "c")
   on: JoinCondition;      // Join condition
+  isManual?: boolean;     // True if user manually configured the join condition
 }
 
 export interface QueryConfig {

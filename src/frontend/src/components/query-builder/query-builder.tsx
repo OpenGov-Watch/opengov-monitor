@@ -16,6 +16,9 @@ import {
 } from "@/components/ui/select";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import Trash2 from "lucide-react/dist/esm/icons/trash-2";
+import Pencil from "lucide-react/dist/esm/icons/pencil";
+import Check from "lucide-react/dist/esm/icons/check";
+import Link2 from "lucide-react/dist/esm/icons/link-2";
 import { SortableColumnItem } from "./sortable-column-item";
 import {
   loadColumnConfig,
@@ -163,6 +166,18 @@ function detectJoinCondition(
     // Exact match
     if (colNorm === `${tableNorm}id` || colNorm === `${tableNorm}index`) return true;
 
+    // Try removing trailing 'ies' → 'y' (e.g., "Categories" → "category")
+    if (tableNorm.endsWith('ies')) {
+      const singular = tableNorm.slice(0, -3) + 'y';
+      if (colNorm === `${singular}id` || colNorm === `${singular}index`) return true;
+    }
+
+    // Try removing trailing 's' for simple plurals (e.g., "Bounties" → "bountie" won't work, but "Items" → "item" will)
+    if (tableNorm.endsWith('s') && !tableNorm.endsWith('ies')) {
+      const singular = tableNorm.slice(0, -1);
+      if (colNorm === `${singular}id` || colNorm === `${singular}index`) return true;
+    }
+
     // Try removing trailing 'a' for singular (e.g., "referenda" → "referend")
     if (tableNorm.endsWith('a')) {
       const singular = tableNorm.slice(0, -1);
@@ -206,6 +221,7 @@ export function QueryBuilder({
   const [schema, setSchema] = useState<SchemaInfo>([]);
   const [config, setConfig] = useState<QueryConfig>(initialConfig || defaultConfig);
   const [loading, setLoading] = useState(true);
+  const [editingJoinIndices, setEditingJoinIndices] = useState<Set<number>>(new Set());
 
   // Unified column state for drag-and-drop reordering
   const [unifiedColumns, setUnifiedColumns] = useState<UnifiedColumn[]>(() =>
@@ -492,6 +508,8 @@ export function QueryBuilder({
       targetColumns
     );
 
+    const newJoinIndex = config.joins?.length || 0;
+
     updateConfig({
       joins: [
         ...(config.joins || []),
@@ -499,16 +517,22 @@ export function QueryBuilder({
           type: "LEFT",
           table: firstTable.name,
           on: detectedCondition || { left: "", right: "" }, // fallback to empty if no FK found
+          isManual: !detectedCondition, // Mark as manual if auto-detection failed
         },
       ],
     });
+
+    // Auto-enter edit mode if detection failed
+    if (!detectedCondition) {
+      setEditingJoinIndices(prev => new Set([...prev, newJoinIndex]));
+    }
   }
 
   function updateJoin(index: number, updates: Partial<JoinConfig>) {
     const updatedJoins = [...(config.joins || [])];
     const currentJoin = updatedJoins[index];
 
-    // If table is being changed, auto-detect join condition
+    // If table is being changed, auto-detect join condition and reset isManual
     if (updates.table && updates.table !== currentJoin.table) {
       const sourceColumns = selectedTable?.columns || [];
       const targetTable = schema.find(t => t.name === updates.table);
@@ -522,8 +546,40 @@ export function QueryBuilder({
 
         if (detectedCondition) {
           updates.on = detectedCondition; // auto-fill the condition
+          updates.isManual = false; // reset manual flag since we auto-detected
+          // Exit edit mode since we auto-detected
+          setEditingJoinIndices(prev => {
+            const next = new Set(prev);
+            next.delete(index);
+            return next;
+          });
+        } else {
+          // No auto-detection, enter edit mode
+          updates.on = { left: "", right: "" };
+          updates.isManual = true;
+          setEditingJoinIndices(prev => new Set([...prev, index]));
         }
       }
+      // Clear alias when table changes
+      updates.alias = undefined;
+    }
+
+    // If alias is being changed, update right side of condition if it referenced old alias
+    if (updates.alias !== undefined && updates.alias !== currentJoin.alias) {
+      const oldRef = currentJoin.alias || currentJoin.table;
+      const newRef = updates.alias || currentJoin.table;
+      if (currentJoin.on.right.startsWith(`${oldRef}.`)) {
+        const columnName = currentJoin.on.right.substring(oldRef.length + 1);
+        updates.on = {
+          left: currentJoin.on.left,
+          right: `${newRef}.${columnName}`,
+        };
+      }
+    }
+
+    // If condition is being manually updated, set isManual flag
+    if (updates.on && !updates.hasOwnProperty('isManual')) {
+      updates.isManual = true;
     }
 
     updatedJoins[index] = { ...currentJoin, ...updates };
@@ -726,10 +782,100 @@ export function QueryBuilder({
                       onChange={(e) => updateJoin(index, { alias: e.target.value || undefined })}
                     />
 
-                    {/* Auto-detected join condition (read-only) */}
-                    <span className="text-xs text-muted-foreground flex-1">
-                      ON {join.on.left || '?'} = {join.on.right || '?'}
-                    </span>
+                    {/* Join condition - editable */}
+                    {editingJoinIndices.has(index) ? (
+                      // Edit mode: two dropdowns
+                      <div className="flex items-center gap-1 flex-1">
+                        <span className="text-xs text-muted-foreground">ON</span>
+                        <Select
+                          value={join.on.left || ""}
+                          onValueChange={(v) => {
+                            updateJoin(index, {
+                              on: { left: v, right: join.on.right },
+                              isManual: true,
+                            });
+                          }}
+                        >
+                          <SelectTrigger className="h-7 text-xs flex-1 min-w-0">
+                            <SelectValue placeholder="left column" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {/* Source table columns */}
+                            {selectedTable?.columns.map((col) => (
+                              <SelectItem key={`${config.sourceTable}.${col.name}`} value={`${config.sourceTable}.${col.name}`}>
+                                {col.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <span className="text-xs text-muted-foreground">=</span>
+                        <Select
+                          value={join.on.right || ""}
+                          onValueChange={(v) => {
+                            updateJoin(index, {
+                              on: { left: join.on.left, right: v },
+                              isManual: true,
+                            });
+                          }}
+                        >
+                          <SelectTrigger className="h-7 text-xs flex-1 min-w-0">
+                            <SelectValue placeholder="right column" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {/* Target table columns (use alias if set) */}
+                            {(() => {
+                              const targetTable = schema.find(t => t.name === join.table);
+                              const tableRef = join.alias || join.table;
+                              return targetTable?.columns.map((col) => (
+                                <SelectItem key={`${tableRef}.${col.name}`} value={`${tableRef}.${col.name}`}>
+                                  {col.name}
+                                </SelectItem>
+                              ));
+                            })()}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => {
+                            setEditingJoinIndices(prev => {
+                              const next = new Set(prev);
+                              next.delete(index);
+                              return next;
+                            });
+                          }}
+                          title="Done editing"
+                        >
+                          <Check className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      // Compact mode: show condition with edit button
+                      <div className="flex items-center gap-1 flex-1">
+                        <span title={join.isManual ? "Manually configured" : "Auto-detected"}>
+                          {join.isManual ? (
+                            <Pencil className="h-3 w-3 text-muted-foreground" />
+                          ) : (
+                            <Link2 className="h-3 w-3 text-muted-foreground" />
+                          )}
+                        </span>
+                        <span className={`text-xs flex-1 ${(!join.on.left || !join.on.right) ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                          ON {join.on.left || '?'} = {join.on.right || '?'}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => {
+                            setEditingJoinIndices(prev => new Set([...prev, index]));
+                          }}
+                          title="Edit join condition"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
 
                     <Button
                       variant="ghost"
