@@ -52,7 +52,10 @@ describe("API Client", () => {
       expect(mockFetch).toHaveBeenCalledWith(
         "/api/referenda",
         expect.objectContaining({
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+          },
         })
       );
     });
@@ -67,7 +70,10 @@ describe("API Client", () => {
         expect.objectContaining({
           method: "POST",
           body: JSON.stringify({ category: "Test", subcategory: "Sub" }),
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+          },
         })
       );
     });

@@ -35,18 +35,24 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 /**
  * Attempt to authenticate a user with username and password.
  * Returns the user if successful, null otherwise.
+ *
+ * Uses constant-time comparison to prevent timing attacks that could
+ * be used for user enumeration.
  */
 export async function authenticateUser(
   username: string,
   password: string
 ): Promise<User | null> {
   const user = getUserByUsername(username);
-  if (!user) {
-    return null;
-  }
 
-  const valid = await verifyPassword(password, user.password_hash);
-  return valid ? user : null;
+  // Always run bcrypt comparison to prevent timing-based user enumeration.
+  // Use a dummy hash when user doesn't exist to maintain constant time.
+  // This hash is valid bcrypt format but will never match any real password.
+  const DUMMY_HASH = "$2b$12$K4G./.Xk5Y/hzj6kNnp5ru1GvZ8xJ1Qpz9NhXvX3w6H3QKv6hXZ3S";
+  const hashToCompare = user?.password_hash ?? DUMMY_HASH;
+
+  const valid = await verifyPassword(password, hashToCompare);
+  return user && valid ? user : null;
 }
 
 /**
@@ -84,6 +90,9 @@ function getAdminUsernames(): Set<string> {
   );
 }
 
+// Track if we've already warned about missing admin config (to avoid log spam)
+let hasWarnedAboutMissingAdmins = false;
+
 /**
  * Middleware that requires admin privileges.
  * Returns 401 if not authenticated, 403 if not admin.
@@ -97,7 +106,16 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
   const adminUsernames = getAdminUsernames();
 
   // If no admins configured, all authenticated users can access (backwards compatibility)
+  // Log a warning once to alert operators
   if (adminUsernames.size === 0) {
+    if (!hasWarnedAboutMissingAdmins) {
+      console.warn(
+        "WARNING: ADMIN_USERNAMES environment variable not configured. " +
+        "All authenticated users have admin access. " +
+        "Set ADMIN_USERNAMES to a comma-separated list of admin usernames to restrict access."
+      );
+      hasWarnedAboutMissingAdmins = true;
+    }
     next();
     return;
   }

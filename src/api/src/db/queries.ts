@@ -1318,6 +1318,14 @@ export function createCustomTable(
 }
 
 /**
+ * Validate custom table name format to prevent SQL injection.
+ * Custom table names must start with 'custom_' and contain only safe characters.
+ */
+function isValidCustomTableName(name: string): boolean {
+  return /^custom_[a-zA-Z0-9_]+$/.test(name) && name.length <= 128;
+}
+
+/**
  * Delete a custom table (drops the table and removes metadata)
  */
 export function deleteCustomTable(id: number): boolean {
@@ -1326,6 +1334,11 @@ export function deleteCustomTable(id: number): boolean {
   const metadata = getCustomTableById(id);
   if (!metadata) {
     return false;
+  }
+
+  // Validate table name matches custom table pattern before DROP
+  if (!isValidCustomTableName(metadata.table_name)) {
+    throw new Error(`Invalid custom table name: ${metadata.table_name}`);
   }
 
   const transaction = db.transaction(() => {
@@ -1492,8 +1505,8 @@ export function wipeAndImportCustomTable(
     // 1. Delete all existing data
     db.exec(`DELETE FROM "${tableName}"`);
 
-    // 2. Reset autoincrement
-    db.exec(`DELETE FROM sqlite_sequence WHERE name = '${tableName}'`);
+    // 2. Reset autoincrement (parameterized to prevent SQL injection)
+    db.prepare("DELETE FROM sqlite_sequence WHERE name = ?").run(tableName);
 
     // 3. Insert new data
     let count = 0;

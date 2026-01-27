@@ -34,7 +34,19 @@ Users are managed via the `pnpm users` CLI command. Admin privileges are control
 ADMIN_USERNAMES=alice,bob
 ```
 
-If `ADMIN_USERNAMES` is not set, all authenticated users have full access (backwards compatibility).
+If `ADMIN_USERNAMES` is not set, all authenticated users have full access (backwards compatibility). A warning is logged at startup when this occurs.
+
+### Username Validation
+
+Usernames must match: `^[a-zA-Z_][a-zA-Z0-9_-]{2,31}$`
+
+- 3-32 characters
+- Start with letter or underscore
+- Only alphanumeric, underscores, and hyphens
+
+### Authentication Timing Safety
+
+Authentication uses constant-time comparison to prevent user enumeration via timing attacks. A dummy bcrypt comparison runs even when the user doesn't exist.
 
 ### Protected Endpoints
 
@@ -98,6 +110,14 @@ CORS_ALLOWED_ORIGINS=https://example.com,https://app.example.com
 
 When `CORS_ALLOWED_ORIGINS` is set, only listed origins can make cross-origin requests. Requests without an origin header (same-origin, curl, etc.) are always allowed.
 
+A warning is logged at startup if `CORS_ALLOWED_ORIGINS` is not set in production.
+
+### CSRF Protection
+
+When `CROSS_ORIGIN_AUTH=true`, state-changing requests (POST, PUT, PATCH, DELETE) require the `X-Requested-With: XMLHttpRequest` header. This prevents CSRF attacks since browsers don't include custom headers in cross-origin requests triggered by forms.
+
+The frontend API client automatically includes this header on all requests.
+
 ### Session Secret
 
 The session secret is **auto-generated** on first run and persisted to the data directory:
@@ -116,9 +136,11 @@ The auto-generated secret persists across container restarts (as long as the dat
 ### SQL Injection Protection
 
 - **Query routes**: Column/table names validated against whitelist
-- **PRAGMA queries**: Table names quoted, validated against allowed sources
+- **PRAGMA queries**: Table names validated with `isValidTableName()` regex before interpolation
 - **LIMIT clauses**: Parameterized with type validation
-- **Expression columns**: Blocked patterns for dangerous SQL keywords
+- **Expression columns**: Blocked patterns for dangerous SQL keywords (`UNION`, `SELECT`, `INSERT`, `DELETE`, `DROP`, `CREATE`, `ALTER`, `EXEC`, `ATTACH`, `DETACH`, `PRAGMA`, `VACUUM`, `REINDEX`, `load_extension`, `fts3_tokenizer`, `TRUNCATE`, `writefile`)
+- **Custom tables**: Table names must match `^custom_[a-zA-Z0-9_]+$` before DROP; column names validated before CREATE
+- **sqlite_sequence**: Parameterized queries (not string interpolation)
 
 ### Input Validation
 
@@ -126,6 +148,7 @@ The auto-generated secret persists across container restarts (as long as the dat
 - Column names validated against schema
 - Filter operators validated against whitelist
 - Expression length limited to 500 characters
+- **Custom table row data**: Validated against schema on insert/update/import (type checking, unknown field rejection)
 
 ---
 
@@ -190,6 +213,18 @@ localStorage stores **non-sensitive** data only:
 
 No authentication tokens, passwords, or PII are stored in localStorage.
 
+### URL State Validation
+
+View state embedded in URLs (`?view=...`) is validated against expected schema before deserialization:
+
+- `sorting`: array of `{ id: string, desc: boolean }`
+- `columnFilters`: array of `{ id: string, value: unknown }`
+- `columnVisibility`: object with boolean values
+- `pagination`: `{ pageIndex: number, pageSize: number }` with bounds checking
+- `filterGroup`: validated operator and conditions structure
+
+Invalid state is silently ignored to prevent XSS via malicious URL parameters.
+
 ### Open Redirect Prevention
 
 Post-login redirects are validated:
@@ -236,6 +271,7 @@ Sync logs (`/data/opengov-sync.log`) are automatically truncated when exceeding 
 | `CORS_ALLOWED_ORIGINS` | (allow all) | Comma-separated allowed origins |
 | `ADMIN_USERNAMES` | (all users) | Comma-separated admin usernames |
 | `NODE_ENV` | development | Set to `production` for secure defaults |
+| `CROSS_ORIGIN_AUTH` | false | Enable cross-origin cookies + CSRF protection |
 
 ### Legacy (Flask endpoint)
 

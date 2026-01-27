@@ -56,6 +56,14 @@ const ALLOWED_ORIGINS = process.env.CORS_ALLOWED_ORIGINS
   ? process.env.CORS_ALLOWED_ORIGINS.split(",").map((o) => o.trim())
   : null;
 
+// Warn about permissive CORS in production (once at startup)
+if (!ALLOWED_ORIGINS && process.env.NODE_ENV === "production") {
+  console.warn(
+    "WARNING: CORS_ALLOWED_ORIGINS not set in production. " +
+    "All origins will be allowed. Set CORS_ALLOWED_ORIGINS to a comma-separated list of allowed origins."
+  );
+}
+
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -111,6 +119,30 @@ app.use(
     },
   })
 );
+
+// CSRF protection for cross-origin auth
+// When CROSS_ORIGIN_AUTH=true, require X-Requested-With header on state-changing requests
+// This prevents CSRF attacks since browsers don't include custom headers in cross-origin requests
+// triggered by forms or simple scripts
+if (crossOriginAuth) {
+  app.use("/api", (req, res, next) => {
+    // Only check state-changing methods
+    if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+      // Skip CSRF check for login endpoint (no session to protect yet)
+      if (req.path === "/auth/login") {
+        return next();
+      }
+
+      const csrfHeader = req.headers["x-requested-with"];
+      if (csrfHeader !== "XMLHttpRequest") {
+        return res.status(403).json({
+          error: "CSRF validation failed. Include 'X-Requested-With: XMLHttpRequest' header.",
+        });
+      }
+    }
+    next();
+  });
+}
 
 // Rate limiting
 app.use("/api", generalLimiter);
