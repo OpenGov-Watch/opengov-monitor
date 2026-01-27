@@ -27,6 +27,22 @@ pd.to_datetime(blockTime, unit='ms', utc=True)
 | `createdAt`, `lastActivityAt` | ISO string | `pd.to_datetime(value, utc=True)` |
 | `startIndexer.blockTime` | Unix seconds | `blockTime * 1e6` |
 
+### Runtime Upgrade Call Index Changes
+
+Polkadot runtime upgrade at **ref 1782** changed pallet indices. Code must select correct indices based on `ref_id`:
+
+| Call Type | Before 1782 (relay) | From 1782 (assethub) |
+|-----------|---------------------|----------------------|
+| utility.batch | `0x1a00` | `0x2800` |
+| utility.batchAll | `0x1a02` | `0x2802` |
+| utility.dispatchAs | `0x1a03` | `0x2803` |
+| utility.forceBatch | `0x1a04` | `0x2804` |
+| treasury.spend | `0x1305` | `0x3c05` |
+| bounties.closeBounty | `0x2207` | `0x4107` |
+| whitelist.dispatchWhitelistedCallWithPreimage | `0x1703` | `0x4003` |
+
+See `POLKADOT_CALL_INDICES`, `POLKADOT_ASSETHUB_CUTOFF`, and `get_call_index()` in `subsquare.py`.
+
 ### XCM Asset Versions
 
 v3 uses nested objects, v4/v5 use arrays:
@@ -44,18 +60,6 @@ Both must be handled. See `business-rules.md` for index mappings.
 ---
 
 ## Frontend
-
-### Dot-Notation Columns Need `accessorFn`
-
-TanStack Table can't use `accessorKey` for nested fields like `tally.ayes`:
-
-```typescript
-// Wrong - won't work
-{ accessorKey: "tally.ayes" }
-
-// Correct
-{ accessorFn: (row) => row["tally.ayes"], id: "tally.ayes" }
-```
 
 ### Joined Columns Need Alias Resolution for Sorting and Filtering
 
@@ -162,3 +166,23 @@ app.listen(port, '127.0.0.1', () => { ... });
 ### Port File Coordination
 
 API writes port to `data/.api-port`. Frontend reads it for proxy config. Start API before frontend.
+
+---
+
+## Chart Export (html2canvas)
+
+### Text Baseline Rendering Bug
+
+html2canvas renders text ~10px lower than browsers do. For chart legend export, we compensate with `marginTop: "-8px"` on text elements. Without this, legend text appears below the colored squares in exported images.
+
+```typescript
+// In export mode only - compensates for html2canvas text offset
+style={exportMode ? {
+  marginTop: "-8px",
+  verticalAlign: "top",
+  lineHeight: 1,
+  // ... other styles
+} : undefined}
+```
+
+Also: html2canvas doesn't handle CSS `gap` or flexbox alignment reliably. Use inline styles with explicit margins for export mode.

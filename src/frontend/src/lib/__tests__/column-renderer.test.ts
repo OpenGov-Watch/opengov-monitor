@@ -2,7 +2,7 @@
  * Column Renderer Tests
  *
  * Tests for pattern-based column configuration system that auto-detects
- * currency, date, badge, and address columns based on naming patterns.
+ * currency, date, categorical, and address columns based on naming patterns.
  */
 
 import { describe, it, expect, beforeAll } from "vitest";
@@ -21,12 +21,12 @@ describe("Column Renderer with Pattern Detection", () => {
       columns: {
         DOT_latest: {
           displayName: "DOT Value",
-          render: "currency",
+          type: "currency",
           currency: "DOT",
           decimals: 0,
         },
         status: {
-          render: "badge",
+          type: "categorical",
           variants: {
             Executed: "success",
             Approved: "success",
@@ -42,7 +42,7 @@ describe("Column Renderer with Pattern Detection", () => {
         all_spending: {
           type: {
             displayName: "Spending Type",
-            render: "badge",
+            type: "categorical",
             variants: {
               "Direct Spend": "default",
               "Bounty Child": "secondary",
@@ -57,54 +57,54 @@ describe("Column Renderer with Pattern Detection", () => {
         {
           match: "prefix",
           pattern: "DOT_",
-          config: { render: "currency", currency: "DOT", decimals: 0 },
+          config: { type: "currency", currency: "DOT", decimals: 0 },
         },
         {
           match: "prefix",
           pattern: "USD_",
-          config: { render: "currency", currency: "USD", decimals: 0 },
+          config: { type: "currency", currency: "USD", decimals: 0 },
         },
         {
           match: "prefix",
           pattern: "USDC_",
-          config: { render: "currency", currency: "USDC", decimals: 0 },
+          config: { type: "currency", currency: "USDC", decimals: 0 },
         },
         {
           match: "prefix",
           pattern: "USDT_",
-          config: { render: "currency", currency: "USDT", decimals: 0 },
+          config: { type: "currency", currency: "USDT", decimals: 0 },
         },
         // Tally patterns
         {
           match: "suffix",
-          pattern: ".ayes",
+          pattern: "_ayes",
           caseInsensitive: true,
-          config: { render: "number", color: "green", decimals: 0 },
+          config: { type: "numeric", color: "green", decimals: 0 },
         },
         {
           match: "suffix",
-          pattern: ".nays",
+          pattern: "_nays",
           caseInsensitive: true,
-          config: { render: "number", color: "red", decimals: 0 },
+          config: { type: "numeric", color: "red", decimals: 0 },
         },
         // Date patterns
         {
           match: "substring",
           pattern: "_time",
           caseInsensitive: true,
-          config: { render: "date", format: "date" },
+          config: { type: "date", format: "date" },
         },
         {
           match: "substring",
           pattern: "_date",
           caseInsensitive: true,
-          config: { render: "date", format: "date" },
+          config: { type: "date", format: "date" },
         },
         {
           match: "exact",
           pattern: "createdat",
           caseInsensitive: true,
-          config: { render: "date", format: "date" },
+          config: { type: "date", format: "date" },
         },
         // Status patterns
         {
@@ -112,7 +112,7 @@ describe("Column Renderer with Pattern Detection", () => {
           pattern: "status",
           caseInsensitive: true,
           config: {
-            render: "badge",
+            type: "categorical",
             variants: {
               Executed: "success",
               Approved: "success",
@@ -129,7 +129,7 @@ describe("Column Renderer with Pattern Detection", () => {
           pattern: "_status",
           caseInsensitive: true,
           config: {
-            render: "badge",
+            type: "categorical",
             variants: {
               Executed: "success",
               Approved: "success",
@@ -146,25 +146,25 @@ describe("Column Renderer with Pattern Detection", () => {
           match: "exact",
           pattern: "beneficiary",
           caseInsensitive: true,
-          config: { render: "address", truncate: true },
+          config: { type: "address", truncate: true },
         },
         {
           match: "exact",
           pattern: "address",
           caseInsensitive: true,
-          config: { render: "address", truncate: true },
+          config: { type: "address", truncate: true },
         },
         {
           match: "exact",
           pattern: "who",
           caseInsensitive: true,
-          config: { render: "address", truncate: true },
+          config: { type: "address", truncate: true },
         },
         {
           match: "suffix",
           pattern: "_address",
           caseInsensitive: true,
-          config: { render: "address", truncate: true },
+          config: { type: "address", truncate: true },
         },
       ],
     };
@@ -175,7 +175,7 @@ describe("Column Renderer with Pattern Detection", () => {
   describe("getColumnConfig precedence", () => {
     it("prioritizes table-specific config over patterns", () => {
       const config = getColumnConfig("all_spending", "type");
-      expect(config.render).toBe("badge");
+      expect(config.type).toBe("categorical");
       // This is defined in tables.all_spending.type in YAML
     });
 
@@ -187,82 +187,82 @@ describe("Column Renderer with Pattern Detection", () => {
 
     it("uses pattern when no explicit config exists", () => {
       const config = getColumnConfig("", "DOT_something_new");
-      expect(config.render).toBe("currency");
+      expect(config.type).toBe("currency");
       expect(config.currency).toBe("DOT");
       expect(config.decimals).toBe(0);
     });
 
     it("uses default text when no pattern matches", () => {
       const config = getColumnConfig("", "unknown_field_name");
-      expect(config.render).toBe("text");
+      expect(config.type).toBe("text");
     });
   });
 
   describe("Currency patterns - prefix matching", () => {
     it("detects DOT_ columns", () => {
       const config = getColumnConfig("", "DOT_new_field");
-      expect(config.render).toBe("currency");
+      expect(config.type).toBe("currency");
       expect(config.currency).toBe("DOT");
       expect(config.decimals).toBe(0);
     });
 
     it("detects USD_ columns", () => {
       const config = getColumnConfig("", "USD_value");
-      expect(config.render).toBe("currency");
+      expect(config.type).toBe("currency");
       expect(config.currency).toBe("USD");
       expect(config.decimals).toBe(0);
     });
 
     it("detects USDC_ columns", () => {
       const config = getColumnConfig("", "USDC_amount");
-      expect(config.render).toBe("currency");
+      expect(config.type).toBe("currency");
       expect(config.currency).toBe("USDC");
       expect(config.decimals).toBe(0);
     });
 
     it("detects USDT_ columns", () => {
       const config = getColumnConfig("", "USDT_total");
-      expect(config.render).toBe("currency");
+      expect(config.type).toBe("currency");
       expect(config.currency).toBe("USDT");
       expect(config.decimals).toBe(0);
     });
 
     it("does not match columns without currency prefix", () => {
       const config = getColumnConfig("", "total_amount");
-      expect(config.render).not.toBe("currency");
+      expect(config.type).not.toBe("currency");
     });
 
     it("is case-sensitive by default", () => {
       // dot_value should NOT match DOT_ pattern (case-sensitive)
       const config = getColumnConfig("", "dot_value");
-      expect(config.render).toBe("text");
+      expect(config.type).toBe("text");
     });
   });
 
   describe("Tally patterns - suffix matching", () => {
-    it("detects .ayes suffix with green color", () => {
-      const config = getColumnConfig("", "tally.ayes");
-      expect(config.render).toBe("number");
+    it("detects _ayes suffix with green color", () => {
+      const config = getColumnConfig("", "tally_ayes");
+      expect(config.type).toBe("numeric");
       expect(config.color).toBe("green");
       expect(config.decimals).toBe(0);
     });
 
-    it("detects .nays suffix with red color", () => {
-      const config = getColumnConfig("", "tally.nays");
-      expect(config.render).toBe("number");
+    it("detects _nays suffix with red color", () => {
+      const config = getColumnConfig("", "tally_nays");
+      expect(config.type).toBe("numeric");
       expect(config.color).toBe("red");
       expect(config.decimals).toBe(0);
     });
 
     it("matches suffix pattern regardless of prefix", () => {
-      const config = getColumnConfig("", "something.ayes");
-      expect(config.render).toBe("number");
+      const config = getColumnConfig("", "something_ayes");
+      expect(config.type).toBe("numeric");
       expect(config.color).toBe("green");
     });
 
     it("is case-insensitive for tally patterns", () => {
-      const config = getColumnConfig("", "tally.AYES");
-      expect(config.render).toBe("number");
+      const config = getColumnConfig("", "tally_AYES");
+      expect(config.type).toBe("numeric");
       expect(config.color).toBe("green");
     });
   });
@@ -270,41 +270,41 @@ describe("Column Renderer with Pattern Detection", () => {
   describe("Date patterns - substring matching", () => {
     it("detects _time substring", () => {
       const config = getColumnConfig("", "proposal_time");
-      expect(config.render).toBe("date");
+      expect(config.type).toBe("date");
       expect(config.format).toBe("date");
     });
 
     it("detects _date substring", () => {
       const config = getColumnConfig("", "start_date");
-      expect(config.render).toBe("date");
+      expect(config.type).toBe("date");
     });
 
     it("detects createdat exact match", () => {
       const config = getColumnConfig("", "createdat");
-      expect(config.render).toBe("date");
+      expect(config.type).toBe("date");
     });
 
     it("matches substring anywhere in column name", () => {
       const config = getColumnConfig("", "latest_time_value");
-      expect(config.render).toBe("date");
+      expect(config.type).toBe("date");
     });
 
     it("is case-insensitive for date patterns", () => {
       const config = getColumnConfig("", "proposal_TIME");
-      expect(config.render).toBe("date");
+      expect(config.type).toBe("date");
     });
 
     it("does not match partial words", () => {
       // "timer" contains "time" but not "_time"
       const config = getColumnConfig("", "timer");
-      expect(config.render).toBe("text");
+      expect(config.type).toBe("text");
     });
   });
 
   describe("Status patterns - exact and suffix matching", () => {
     it("detects exact status column", () => {
       const config = getColumnConfig("", "status");
-      expect(config.render).toBe("badge");
+      expect(config.type).toBe("categorical");
       expect(config.variants).toBeDefined();
       expect(config.variants?.["Executed"]).toBe("success");
       expect(config.variants?.["Rejected"]).toBe("destructive");
@@ -312,48 +312,48 @@ describe("Column Renderer with Pattern Detection", () => {
 
     it("detects _status suffix columns", () => {
       const config = getColumnConfig("", "proposal_status");
-      expect(config.render).toBe("badge");
+      expect(config.type).toBe("categorical");
     });
 
     it("is case-insensitive for status patterns", () => {
       const config = getColumnConfig("", "STATUS");
-      expect(config.render).toBe("badge");
+      expect(config.type).toBe("categorical");
     });
 
     it("matches _status suffix", () => {
       const config = getColumnConfig("", "latest_status");
-      expect(config.render).toBe("badge");
+      expect(config.type).toBe("categorical");
     });
   });
 
   describe("Address patterns - exact and suffix matching", () => {
     it("detects beneficiary column", () => {
       const config = getColumnConfig("", "beneficiary");
-      expect(config.render).toBe("address");
+      expect(config.type).toBe("address");
       expect(config.truncate).toBe(true);
     });
 
     it("detects address column", () => {
       const config = getColumnConfig("", "address");
-      expect(config.render).toBe("address");
+      expect(config.type).toBe("address");
       expect(config.truncate).toBe(true);
     });
 
     it("detects who column", () => {
       const config = getColumnConfig("", "who");
-      expect(config.render).toBe("address");
+      expect(config.type).toBe("address");
       expect(config.truncate).toBe(true);
     });
 
     it("detects _address suffix columns", () => {
       const config = getColumnConfig("", "wallet_address");
-      expect(config.render).toBe("address");
+      expect(config.type).toBe("address");
       expect(config.truncate).toBe(true);
     });
 
     it("is case-insensitive for address patterns", () => {
       const config = getColumnConfig("", "BENEFICIARY");
-      expect(config.render).toBe("address");
+      expect(config.type).toBe("address");
     });
   });
 
@@ -383,7 +383,7 @@ describe("Column Renderer with Pattern Detection", () => {
     });
 
     it("formats number values with commas", () => {
-      const config = getColumnConfig("", "tally.ayes");
+      const config = getColumnConfig("", "tally_ayes");
       const result = formatValue(1234, config);
       expect(result).toBe("1,234");
     });
@@ -426,13 +426,13 @@ describe("Column Renderer with Pattern Detection", () => {
       // "status" could match both exact "status" and potentially other patterns
       // but exact should come first in YAML order
       const config = getColumnConfig("", "status");
-      expect(config.render).toBe("badge");
+      expect(config.type).toBe("categorical");
     });
 
     it("prefix patterns are evaluated in order", () => {
       // All DOT_ patterns should match before other patterns
       const config = getColumnConfig("", "DOT_test");
-      expect(config.render).toBe("currency");
+      expect(config.type).toBe("currency");
       expect(config.currency).toBe("DOT");
     });
   });
@@ -440,22 +440,22 @@ describe("Column Renderer with Pattern Detection", () => {
   describe("Edge cases", () => {
     it("handles empty string column name", () => {
       const config = getColumnConfig("", "");
-      expect(config.render).toBe("text");
+      expect(config.type).toBe("text");
     });
 
     it("handles special characters in column names", () => {
       const config = getColumnConfig("", "column-with-dashes");
-      expect(config.render).toBe("text");
+      expect(config.type).toBe("text");
     });
 
     it("handles very long column names", () => {
       const config = getColumnConfig("", "DOT_" + "a".repeat(100));
-      expect(config.render).toBe("currency");
+      expect(config.type).toBe("currency");
     });
 
-    it("handles column names with dots (dot-notation)", () => {
-      const config = getColumnConfig("", "tally.ayes");
-      expect(config.render).toBe("number");
+    it("handles tally column names with underscore suffix", () => {
+      const config = getColumnConfig("", "tally_ayes");
+      expect(config.type).toBe("numeric");
       expect(config.color).toBe("green");
     });
   });
@@ -465,36 +465,36 @@ describe("Column Renderer with Pattern Detection", () => {
       const config = getColumnConfig("", "DOT_latest");
       // YAML has explicit config with displayName
       expect(config.displayName).toBe("DOT Value");
-      expect(config.render).toBe("currency");
+      expect(config.type).toBe("currency");
     });
 
     it("explicit status config takes precedence over pattern", () => {
       const config = getColumnConfig("", "status");
       // YAML has explicit config in columns.status
-      expect(config.render).toBe("badge");
+      expect(config.type).toBe("categorical");
     });
 
     it("new DOT columns still use pattern", () => {
       const config = getColumnConfig("", "DOT_future_field");
-      expect(config.render).toBe("currency");
+      expect(config.type).toBe("currency");
       expect(config.currency).toBe("DOT");
     });
   });
 
   describe("Fallback behavior", () => {
-    it("defaults to text render for unknown patterns", () => {
+    it("defaults to text type for unknown patterns", () => {
       const config = getColumnConfig("", "completely_random_name");
-      expect(config.render).toBe("text");
+      expect(config.type).toBe("text");
     });
 
     it("handles columns with numbers", () => {
       const config = getColumnConfig("", "DOT_123");
-      expect(config.render).toBe("currency");
+      expect(config.type).toBe("currency");
     });
 
     it("handles columns with mixed case", () => {
       const config = getColumnConfig("", "DOT_MixedCase");
-      expect(config.render).toBe("currency");
+      expect(config.type).toBe("currency");
     });
   });
 });

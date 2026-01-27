@@ -173,7 +173,7 @@ Auto-formatting applies based on column naming patterns (configured in `public/c
 | `USD_*` | Currency (USD) | `USD_latest` → "$1,234" |
 | `*_time`, `*_date` | Date | `proposal_time` → "Jan 15, 2025" |
 | `status`, `*_status` | Badge | `status` → Colored badge |
-| `.ayes`, `.nays` | Number (colored) | `tally.ayes` → "1,234" (green) |
+| `_ayes`, `_nays` | Number (colored) | `tally_ayes` → "1,234" (green) |
 | `beneficiary`, `*address*` | Address | Truncated address |
 
 **Precedence**: `columnOverrides` → `editConfig` → Auto-formatting

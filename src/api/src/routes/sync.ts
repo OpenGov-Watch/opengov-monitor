@@ -116,3 +116,17 @@ syncRouter.get("/defaults/local-flows", (_req, res) => {
     res.status(500).json({ error: (error as Error).message });
   }
 });
+
+// GET /api/sync/defaults/custom-spending - Read default custom spending CSV
+syncRouter.get("/defaults/custom-spending", (_req, res) => {
+  try {
+    const filePath = join(getDataPath(), "custom-spending.csv");
+    if (!existsSync(filePath)) {
+      return res.status(404).json({ error: "Default file not found" });
+    }
+    const content = readFileSync(filePath, "utf-8");
+    res.json({ content });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});

@@ -24,6 +24,7 @@ import {
   parseCategoriesCSV,
   parseCrossChainFlowsCSV,
   parseLocalFlowsCSV,
+  parseCustomSpendingCSV,
 } from "@/lib/csv-parser";
 import { RequireAuth } from "@/components/auth/require-auth";
 
@@ -37,6 +38,7 @@ function SyncSettingsPageContent() {
   const [netflowsFile, setNetflowsFile] = useState<File | null>(null);
   const [crossChainFlowsFile, setCrossChainFlowsFile] = useState<File | null>(null);
   const [localFlowsFile, setLocalFlowsFile] = useState<File | null>(null);
+  const [customSpendingFile, setCustomSpendingFile] = useState<File | null>(null);
   const [status, setStatus] = useState<StatusType>(null);
   const [importing, setImporting] = useState(false);
   const [backupInfo, setBackupInfo] = useState<{
@@ -439,6 +441,88 @@ function SyncSettingsPageContent() {
     }
   }
 
+  async function handleCustomSpendingUpload() {
+    if (!customSpendingFile) return;
+    setImporting(true);
+    setStatus(null);
+    try {
+      const content = await customSpendingFile.text();
+      const rawItems = parseCustomSpendingCSV(content);
+      if (rawItems.length === 0) {
+        setStatus({ type: "error", message: "No valid rows found in CSV" });
+        return;
+      }
+
+      // Map to import format
+      const items = rawItems.map((item) => ({
+        id: item.id ?? undefined,
+        type: item.type,
+        title: item.title,
+        description: item.description,
+        latest_status_change: item.latest_status_change,
+        DOT_latest: item.DOT_latest,
+        USD_latest: item.USD_latest,
+        DOT_component: item.DOT_component,
+        USDC_component: item.USDC_component,
+        USDT_component: item.USDT_component,
+        category: item.category,
+        subcategory: item.subcategory,
+      }));
+
+      const result = await api.customSpending.import(items);
+      setStatus({
+        type: "success",
+        message: `Imported ${result.count} custom spending entries`,
+      });
+      setCustomSpendingFile(null);
+      const input = document.getElementById("custom-spending-csv") as HTMLInputElement;
+      if (input) input.value = "";
+    } catch (error) {
+      setStatus({ type: "error", message: (error as Error).message });
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function applyDefaultCustomSpending() {
+    setImporting(true);
+    setStatus(null);
+    try {
+      const { content } = await api.sync.getDefaultCustomSpending();
+      const rawItems = parseCustomSpendingCSV(content);
+      if (rawItems.length === 0) {
+        setStatus({ type: "error", message: "No valid rows in default file" });
+        return;
+      }
+
+      // Map to import format
+      const items = rawItems.map((item) => ({
+        id: item.id ?? undefined,
+        type: item.type,
+        title: item.title,
+        description: item.description,
+        latest_status_change: item.latest_status_change,
+        DOT_latest: item.DOT_latest,
+        USD_latest: item.USD_latest,
+        DOT_component: item.DOT_component,
+        USDC_component: item.USDC_component,
+        USDT_component: item.USDT_component,
+        category: item.category,
+        subcategory: item.subcategory,
+      }));
+
+      const result = await api.customSpending.import(items);
+      setStatus({
+        type: "success",
+        message: `Applied ${result.count} default custom spending entries`,
+      });
+    } catch (error) {
+      setStatus({ type: "error", message: (error as Error).message });
+    } finally {
+      setImporting(false);
+    }
+  }
+
   async function handleCategoriesUpload() {
     if (!categoriesFile) return;
     setImporting(true);
@@ -493,7 +577,7 @@ function SyncSettingsPageContent() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Sync Settings</h1>
+        <h1 className="text-4xl font-bold tracking-tight">Sync Settings</h1>
         <p className="text-muted-foreground">
           Import category mappings from CSV files or apply default mappings
         </p>
@@ -847,6 +931,52 @@ function SyncSettingsPageContent() {
 
         <Card>
           <CardHeader>
+            <CardTitle>Custom Spending</CardTitle>
+            <CardDescription>
+              Import custom spending entries (creates new or updates existing)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="custom-spending-csv">Upload CSV File</Label>
+              <Input
+                id="custom-spending-csv"
+                type="file"
+                accept=".csv"
+                onChange={(e) => setCustomSpendingFile(e.target.files?.[0] || null)}
+                disabled={importing}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleCustomSpendingUpload}
+                disabled={!customSpendingFile || importing}
+              >
+                {importing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="mr-2 h-4 w-4" />
+                )}
+                Import CSV
+              </Button>
+              <Button
+                variant="outline"
+                onClick={applyDefaultCustomSpending}
+                disabled={importing}
+              >
+                {importing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <FileText className="mr-2 h-4 w-4" />
+                )}
+                Apply Defaults
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>Database Backup</CardTitle>
             <CardDescription>
               Download a complete copy of the database
@@ -913,6 +1043,12 @@ function SyncSettingsPageContent() {
             <strong>Local Flows CSV:</strong>{" "}
             <code className="bg-muted px-1 rounded">
               Extrinsic ID, Date, Block, Hash, Symbol, From, To, Value, Result, year-month, quarter
+            </code>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            <strong>Custom Spending CSV:</strong>{" "}
+            <code className="bg-muted px-1 rounded">
+              id, type, title, description, latest_status_change, DOT_latest, USD_latest, DOT_component, USDC_component, USDT_component, category, subcategory
             </code>
           </p>
           <p className="text-sm text-muted-foreground mt-4">

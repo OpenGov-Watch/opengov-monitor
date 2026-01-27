@@ -26,11 +26,13 @@ import LayoutDashboard from "lucide-react/dist/esm/icons/layout-dashboard";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import TrendingUp from "lucide-react/dist/esm/icons/trending-up";
 import AlertTriangle from "lucide-react/dist/esm/icons/alert-triangle";
+import Table2 from "lucide-react/dist/esm/icons/table-2";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { useApi } from "@/contexts/api-context";
 import { useDashboards } from "@/hooks/use-dashboards";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -100,6 +102,7 @@ const authenticatedNavigation: NavSection[] = [
       { name: "Bounties", href: "/manage/bounties", icon: Coins },
       { name: "Subtreasury", href: "/manage/subtreasury", icon: FileBox },
       { name: "Custom Spending", href: "/manage/custom-spending", icon: Database },
+      { name: "Custom Tables", href: "/manage/custom-tables", icon: Table2 },
       { name: "Sync Settings", href: "/manage/sync", icon: RefreshCw },
       { name: "Data Errors", href: "/manage/data-errors", icon: AlertTriangle },
     ],
@@ -296,6 +299,18 @@ export function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps = 
             {(!collapsed || isMobileOpen) && "Sign in"}
           </Link>
         )}
+        {/* Theme toggle */}
+        <div
+          className={cn(
+            "flex items-center",
+            (collapsed && !isMobileOpen) ? "justify-center" : "justify-between"
+          )}
+        >
+          {(!collapsed || isMobileOpen) && (
+            <span className="text-sm text-muted-foreground">Theme</span>
+          )}
+          <ThemeToggle collapsed={collapsed && !isMobileOpen} />
+        </div>
         {/* API selector - only visible in development */}
         {import.meta.env.DEV && (
           <DropdownMenu>

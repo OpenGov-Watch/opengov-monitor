@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { DashboardGrid, ComponentEditor, MoveComponentModal } from "@/components/dashboard";
+import { useDashboards } from "@/hooks/use-dashboards";
 import Plus from "lucide-react/dist/esm/icons/plus";
-import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
 import Eye from "lucide-react/dist/esm/icons/eye";
 import Check from "lucide-react/dist/esm/icons/check";
 import type {
@@ -18,6 +18,7 @@ import type {
 export default function DashboardEditPage() {
   const params = useParams();
   const dashboardId = parseInt(params.id as string, 10);
+  const { mutate: mutateDashboards } = useDashboards();
 
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [components, setComponents] = useState<DashboardComponent[]>([]);
@@ -108,6 +109,8 @@ export default function DashboardEditPage() {
         }),
       });
       setMetadataDirty(false);
+      // Refresh the sidebar dashboard list
+      mutateDashboards();
     } catch (err) {
       console.error("Failed to update dashboard:", err);
     } finally {
@@ -319,31 +322,24 @@ export default function DashboardEditPage() {
 
   return (
     <div className="flex-1 min-h-0 flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link to="/dashboards">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <div className="flex-1 space-y-1">
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => handleNameChange(e.target.value)}
-              className="w-full text-3xl font-bold tracking-tight py-0 px-1 border border-transparent rounded hover:border-input focus:border-input focus:outline-none bg-transparent"
-              placeholder="Dashboard name"
-            />
-            <textarea
-              value={description}
-              onChange={(e) => handleDescriptionChange(e.target.value)}
-              className="w-full text-muted-foreground resize-none border border-transparent rounded hover:border-input focus:border-input focus:outline-none bg-transparent py-0 px-1"
-              placeholder="Add a description..."
-              rows={1}
-            />
-          </div>
+      <div className="flex items-center justify-center px-[10px] relative pt-12 pb-8">
+        <div className="text-center space-y-1">
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => handleNameChange(e.target.value)}
+            className="w-full text-3xl font-bold tracking-tight py-0 px-1 border border-transparent rounded hover:border-input focus:border-input focus:outline-none bg-transparent text-center"
+            placeholder="Dashboard name"
+          />
+          <textarea
+            value={description}
+            onChange={(e) => handleDescriptionChange(e.target.value)}
+            className="w-full text-muted-foreground resize-none border border-transparent rounded hover:border-input focus:border-input focus:outline-none bg-transparent py-0 px-1 text-center"
+            placeholder="Add a description..."
+            rows={1}
+          />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 absolute right-[10px]">
           {metadataDirty && (
             <Button onClick={handleSaveMetadata} disabled={savingMetadata}>
               <Check className="mr-2 h-4 w-4" />
@@ -363,7 +359,7 @@ export default function DashboardEditPage() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 rounded-lg border-2 border-dashed p-4">
+      <div className="flex-1 min-h-0 rounded-lg border-2 border-dashed">
         <DashboardGrid
           components={components}
           editable={true}

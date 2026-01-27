@@ -2,6 +2,89 @@ import type { SortingState, ColumnFiltersState } from "@tanstack/react-table";
 import type { FilterGroup, FacetQueryConfig, QueryConfig } from "@/lib/db/types";
 
 /**
+ * Validation result for QueryConfig groupBy and orderBy entries.
+ * Returns lists of invalid entries that reference columns no longer in the query.
+ */
+export interface QueryConfigValidation {
+  invalidGroupBy: string[];
+  invalidOrderBy: { column: string; direction: string }[];
+  /** GROUP BY is configured but no columns have aggregate functions */
+  groupByWithoutAggregates: boolean;
+}
+
+/**
+ * Validate QueryConfig groupBy and orderBy entries against selected columns.
+ *
+ * Returns lists of invalid entries that reference columns no longer in the query.
+ * This can happen when columns are removed but groupBy/orderBy entries remain.
+ *
+ * @param queryConfig - The QueryConfig to validate
+ * @returns Validation result with lists of invalid entries
+ *
+ * @example
+ * const validation = validateQueryConfig(config);
+ * if (hasInvalidQueryConfig(validation)) {
+ *   // Show error or clean up invalid entries
+ * }
+ */
+export function validateQueryConfig(queryConfig: QueryConfig): QueryConfigValidation {
+  const result: QueryConfigValidation = {
+    invalidGroupBy: [],
+    invalidOrderBy: [],
+    groupByWithoutAggregates: false,
+  };
+
+  // Build set of valid column keys from current query config (selected columns + expressions)
+  const validColumns = new Set<string>();
+  let hasAggregates = false;
+  for (const col of queryConfig.columns || []) {
+    validColumns.add(getColumnKey(col));  // alias or derived key
+    validColumns.add(col.column);          // original column reference
+    if (col.aggregateFunction) {
+      hasAggregates = true;
+    }
+  }
+  for (const expr of queryConfig.expressionColumns || []) {
+    validColumns.add(expr.alias);
+    if (expr.aggregateFunction) {
+      hasAggregates = true;
+    }
+  }
+
+  // Check groupBy - must be in selected columns
+  for (const gb of queryConfig.groupBy || []) {
+    if (!validColumns.has(gb)) {
+      result.invalidGroupBy.push(gb);
+    }
+  }
+
+  // Check for GROUP BY without aggregate functions
+  const hasGroupBy = (queryConfig.groupBy?.length ?? 0) > 0;
+  if (hasGroupBy && !hasAggregates) {
+    result.groupByWithoutAggregates = true;
+  }
+
+  // Check orderBy - must be in selected columns
+  for (const ob of queryConfig.orderBy || []) {
+    if (!validColumns.has(ob.column)) {
+      result.invalidOrderBy.push(ob);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Check if a QueryConfigValidation has any invalid entries.
+ *
+ * @param validation - The validation result from validateQueryConfig
+ * @returns true if there are invalid groupBy or orderBy entries, or groupBy without aggregates
+ */
+export function hasInvalidQueryConfig(validation: QueryConfigValidation): boolean {
+  return validation.invalidGroupBy.length > 0 || validation.invalidOrderBy.length > 0 || validation.groupByWithoutAggregates;
+}
+
+/**
  * OrderBy configuration for QueryConfig
  */
 export interface OrderByConfig {
@@ -19,6 +102,21 @@ export interface FilterCondition {
 }
 
 /**
+ * Sanitize an alias to a valid SQL identifier.
+ * Matches the backend's sanitizeAlias function in query.ts.
+ *
+ * @param alias - The alias to sanitize
+ * @returns A valid SQL identifier (alphanumeric + underscore)
+ */
+export function sanitizeAlias(alias: string): string {
+  let sanitized = alias.replace(/[^a-zA-Z0-9_]/g, "_");
+  if (!/^[a-zA-Z_]/.test(sanitized)) {
+    sanitized = "_" + sanitized;
+  }
+  return sanitized;
+}
+
+/**
  * Get the key name used in query results for a column definition.
  *
  * @param col - Column definition from QueryConfig
@@ -33,9 +131,12 @@ export interface FilterCondition {
  *
  * getColumnKey({ column: "id" })
  * // Returns: "id"
+ *
+ * getColumnKey({ column: "amount", alias: "DOT Component" })
+ * // Returns: "DOT_Component" (sanitized to match backend)
  */
 export function getColumnKey(col: { column: string; alias?: string; aggregateFunction?: string }): string {
-  if (col.alias) return col.alias;
+  if (col.alias) return sanitizeAlias(col.alias);
   if (col.aggregateFunction) {
     return `${col.aggregateFunction.toLowerCase()}_${col.column.replace(/[.\s]/g, "_")}`;
   }
@@ -143,6 +244,46 @@ export function filterStateToQueryFilters(
 }
 
 /**
+ * Map display column names to filter column names in a FilterGroup.
+ * Used when display columns use a different column for filtering
+ * (e.g., parentBountyId → parentBountyName for showing names instead of IDs).
+ *
+ * This is the first step of the two-step column resolution:
+ * 1. Display → Filter column (this function)
+ * 2. Filter → DB reference (resolveFilterGroupAliases)
+ *
+ * @param filterGroup - FilterGroup with display column names
+ * @param columnMap - Mapping from display columns to filter columns
+ * @returns FilterGroup with filter column names
+ *
+ * @example
+ * // parentBountyId shows in UI but filters by parentBountyName
+ * mapFilterGroupColumns(
+ *   { operator: "AND", conditions: [{ column: "parentBountyId", operator: "IN", value: ["Marketing"] }] },
+ *   new Map([["parentBountyId", "parentBountyName"]])
+ * )
+ * // Returns: { operator: "AND", conditions: [{ column: "parentBountyName", operator: "IN", value: ["Marketing"] }] }
+ */
+export function mapFilterGroupColumns(
+  filterGroup: FilterGroup,
+  columnMap: Map<string, string>
+): FilterGroup {
+  return {
+    operator: filterGroup.operator,
+    conditions: filterGroup.conditions.map(condition => {
+      // Nested group - recurse
+      if ('operator' in condition && 'conditions' in condition) {
+        return mapFilterGroupColumns(condition as FilterGroup, columnMap);
+      }
+      // Single condition - map column name
+      const filterCondition = condition as FilterCondition;
+      const mappedColumn = columnMap.get(filterCondition.column) || filterCondition.column;
+      return { ...filterCondition, column: mappedColumn };
+    })
+  };
+}
+
+/**
  * Recursively resolve column aliases in a FilterGroup to actual DB references.
  * Mirrors the alias resolution pattern used in sortingStateToOrderBy().
  *
@@ -186,20 +327,28 @@ export function resolveFilterGroupAliases(
  * @param columnFilters - Legacy TanStack Table column filters (backward compatibility)
  * @param filterGroup - Primary unified filter state with AND/OR logic
  * @param columnIdToRef - Mapping from column IDs to original references (for resolving joined column aliases)
+ * @param filterColumnMap - Mapping from display columns to filter columns (for filterColumn feature)
  * @returns Filters in QueryConfig format (FilterCondition[] or FilterGroup)
  */
 export function convertFiltersToQueryConfig(
   columnFilters: ColumnFiltersState,
   filterGroup?: FilterGroup,
-  columnIdToRef?: Record<string, string>
+  columnIdToRef?: Record<string, string>,
+  filterColumnMap?: Map<string, string>
 ): FilterCondition[] | FilterGroup {
   // PRIMARY: Use filterGroup as the single source of truth
   if (filterGroup && filterGroup.conditions.length > 0) {
-    // Resolve aliases if mapping provided
-    if (columnIdToRef) {
-      return resolveFilterGroupAliases(filterGroup, columnIdToRef);
+    // Step 1: Map display columns to filter columns (e.g., parentBountyId → parentBountyName)
+    let mappedGroup = filterGroup;
+    if (filterColumnMap && filterColumnMap.size > 0) {
+      mappedGroup = mapFilterGroupColumns(filterGroup, filterColumnMap);
     }
-    return filterGroup;
+
+    // Step 2: Resolve filter columns to DB references (e.g., parentBountyName → b.name)
+    if (columnIdToRef) {
+      return resolveFilterGroupAliases(mappedGroup, columnIdToRef);
+    }
+    return mappedGroup;
   }
 
   // FALLBACK: Support legacy columnFilters for backward compatibility
@@ -308,6 +457,66 @@ export interface BuildFacetQueryConfigParams {
  * // config.columns will be ["c.category", "c.subcategory"]
  * // config.filters will have resolved column references
  */
+/**
+ * Normalize data keys from SQLite result format to expected frontend keys.
+ *
+ * SQLite returns keys differently based on alias presence:
+ * - With alias: returns the alias
+ * - Without alias for "Table.column": returns just "column"
+ *
+ * This normalizes keys to match getColumnKey() output, ensuring charts
+ * can access data using the same key format the frontend expects.
+ *
+ * @param data - Array of row objects from API response
+ * @param columns - Column definitions from QueryConfig
+ * @returns Data with normalized keys matching getColumnKey() output
+ *
+ * @example
+ * // SQLite returns { name: "Treasury", value: 100 } for "Categories.name" column
+ * // normalizeDataKeys transforms to { "Categories.name": "Treasury", value: 100 }
+ */
+export function normalizeDataKeys(
+  data: Record<string, unknown>[] | undefined,
+  columns: { column: string; alias?: string; aggregateFunction?: string }[] | undefined
+): Record<string, unknown>[] {
+  if (!data || !columns || columns.length === 0 || data.length === 0) {
+    return data ?? [];
+  }
+
+  // Build mapping: SQLite returned key -> expected key
+  const keyMap = new Map<string, string>();
+
+  for (const col of columns) {
+    const expectedKey = getColumnKey(col);
+
+    // Determine what SQLite actually returns
+    let sqliteKey: string;
+    if (col.alias) {
+      sqliteKey = col.alias;
+    } else if (col.aggregateFunction) {
+      sqliteKey = expectedKey; // Aggregates match
+    } else {
+      // No alias: SQLite returns last part after dot
+      const lastDot = col.column.lastIndexOf('.');
+      sqliteKey = lastDot > 0 ? col.column.substring(lastDot + 1) : col.column;
+    }
+
+    if (sqliteKey !== expectedKey) {
+      keyMap.set(sqliteKey, expectedKey);
+    }
+  }
+
+  if (keyMap.size === 0) return data;
+
+  return data.map(row => {
+    const normalized: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(row)) {
+      normalized[keyMap.get(key) ?? key] = value;
+    }
+    return normalized;
+  });
+}
+
 export function buildFacetQueryConfig({
   sourceTable,
   columns,

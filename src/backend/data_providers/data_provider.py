@@ -12,7 +12,7 @@ class DataProvider(ABC):
 
         Returns:
         list: A list of referenda.
-        ['title', 'Status', 'DOT', 'USD_proposal_time', 'Track', 'tally.ayes', 'tally.nays', 'created', 'last_status_change', 'USD_latest']
+        ['title', 'Status', 'DOT', 'USD_proposal_time', 'Track', 'tally_ayes', 'tally_nays', 'created', 'last_status_change', 'USD_latest']
         """
         pass
 

@@ -7,6 +7,7 @@ import {
   getColumnDisplayName,
   getBadgeVariant,
   formatValue,
+  getUrlFromFunction,
   type ColumnRenderConfig
 } from "@/lib/column-renderer";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +24,7 @@ import {
   ReadOnlySubcategoryCell,
   findCategoryId,
 } from "@/components/data-table/editable-cells";
+import { TextLongCell } from "@/components/renderers/cell-renderers";
 
 interface GenerateColumnsOptions<TData> {
   data: TData[];
@@ -35,6 +37,7 @@ interface GenerateColumnsOptions<TData> {
   dashboardMode?: boolean;
   filterGroup?: FilterGroup;
   onFilterGroupChange?: (group: FilterGroup) => void;
+  hiddenColumns?: Set<string>;
 }
 
 export function generateColumns<TData>(
@@ -51,12 +54,18 @@ export function generateColumns<TData>(
     dashboardMode = false,
     filterGroup,
     onFilterGroupChange,
+    hiddenColumns,
   } = options;
 
   if (data.length === 0) return [];
 
-  const columns = Object.keys(data[0] as object);
+  const allColumns = Object.keys(data[0] as object);
   const idField = editConfig?.idField || "id";
+
+  // Filter out hidden columns entirely - they should not render at all
+  const columns = hiddenColumns
+    ? allColumns.filter(col => !hiddenColumns.has(col))
+    : allColumns;
 
   // Auto-detect category system: if all three columns exist, use split decoration
   const hasCategorySystem = columns.includes('category_id')
@@ -66,7 +75,13 @@ export function generateColumns<TData>(
   return columns.map((columnName) => {
     // Get source column name for config lookup
     const sourceColumn = columnMapping[columnName] || columnName;
-    const renderConfig: ColumnRenderConfig = getColumnConfig(tableName, sourceColumn);
+    // Try stripping table prefix if initial config lookup returns "text" (default)
+    // This handles columns like "all_spending.DOT_latest" -> "DOT_latest" for pattern matching
+    const colWithoutTable = sourceColumn.includes('.') ? sourceColumn.split('.').pop()! : sourceColumn;
+    let renderConfig: ColumnRenderConfig = getColumnConfig(tableName, sourceColumn);
+    if (renderConfig.type === "text" && colWithoutTable !== sourceColumn) {
+      renderConfig = getColumnConfig(tableName, colWithoutTable);
+    }
 
     // Handle category system columns when auto-detected
     // Skip if page provides a custom columnOverride for category_id
@@ -76,14 +91,9 @@ export function generateColumns<TData>(
 
       // Hide category_id column
       if (columnName === 'category_id') {
-        const hasDotNotation = columnName.includes(".");
-        const columnId = hasDotNotation ? columnName.replace(/\./g, "_") : columnName;
-
         return {
-          id: columnId,
-          ...(hasDotNotation
-            ? { accessorFn: (row: any) => row[columnName] }
-            : { accessorKey: columnName }),
+          id: columnName,
+          accessorKey: columnName,
           header: () => null,
           cell: () => null,
           enableHiding: true,
@@ -96,16 +106,12 @@ export function generateColumns<TData>(
 
       // Handle category column with split dropdown
       if (columnName === 'category') {
-        const hasDotNotation = columnName.includes(".");
-        const columnId = hasDotNotation ? columnName.replace(/\./g, "_") : columnName;
         const parentCatCol = categoryEditConfig?.parentCategoryColumn;
         const isFacetedFilter = facetedFilters?.includes(columnName) || false;
 
         return {
-          id: columnId,
-          ...(hasDotNotation
-            ? { accessorFn: (row: any) => row[columnName] }
-            : { accessorKey: columnName }),
+          id: columnName,
+          accessorKey: columnName,
           header: ({ column }) => (
             <div className="flex items-center space-x-2">
               {isFacetedFilter && (
@@ -130,7 +136,7 @@ export function generateColumns<TData>(
             enableSorting: false,
           }),
           cell: ({ row }) => {
-            const value = hasDotNotation ? (row.original as any)[columnName] : row.getValue(columnId);
+            const value = row.getValue(columnName);
             const rowId = (row.original as any)[idField];
             const parentCategory = parentCatCol ? (row.original as any)[parentCatCol] : null;
 
@@ -156,17 +162,13 @@ export function generateColumns<TData>(
 
       // Handle subcategory column with split dropdown
       if (columnName === 'subcategory') {
-        const hasDotNotation = columnName.includes(".");
-        const columnId = hasDotNotation ? columnName.replace(/\./g, "_") : columnName;
         const parentCatCol = categoryEditConfig?.parentCategoryColumn;
         const parentSubcatCol = categoryEditConfig?.parentSubcategoryColumn;
         const isFacetedFilter = facetedFilters?.includes(columnName) || false;
 
         return {
-          id: columnId,
-          ...(hasDotNotation
-            ? { accessorFn: (row: any) => row[columnName] }
-            : { accessorKey: columnName }),
+          id: columnName,
+          accessorKey: columnName,
           header: ({ column }) => (
             <div className="flex items-center space-x-2">
               {isFacetedFilter && (
@@ -191,7 +193,7 @@ export function generateColumns<TData>(
             enableSorting: false,
           }),
           cell: ({ row }) => {
-            const value = hasDotNotation ? (row.original as any)[columnName] : row.getValue(columnId);
+            const value = row.getValue(columnName);
             const rowId = (row.original as any)[idField];
             const category = (row.original as any)['category'];
             const parentCategory = parentCatCol ? (row.original as any)[parentCatCol] : null;
@@ -228,11 +230,6 @@ export function generateColumns<TData>(
     // Check if this column should have a faceted filter
     const isFacetedFilter = facetedFilters?.includes(columnName) || false;
 
-    // Handle dot-notation columns (e.g., "tally.ayes")
-    // TanStack Table doesn't support dots in accessorKey, so use accessorFn instead
-    const hasDotNotation = columnName.includes(".");
-    const columnId = hasDotNotation ? columnName.replace(/\./g, "_") : columnName;
-
     // Check for filterColumn in columnOverrides (used for faceted filtering)
     const override = columnOverrides[columnName] as any;
     const filterColumnName = override?.filterColumn || columnName;
@@ -240,10 +237,8 @@ export function generateColumns<TData>(
 
     // Base column definition
     const columnDef: ColumnDef<TData> = {
-      id: columnId,
-      ...(hasDotNotation
-        ? { accessorFn: (row: any) => row[columnName] }
-        : { accessorKey: columnName }),
+      id: columnName,
+      accessorKey: columnName,
       header: ({ column }) => (
         <div className="flex items-center space-x-2">
           {isFacetedFilter && (
@@ -256,7 +251,7 @@ export function generateColumns<TData>(
             />
           )}
           {!isFacetedFilter && (
-            <DataTableColumnHeader column={column} title={getColumnDisplayName(tableName, columnName)} />
+            <DataTableColumnHeader column={column} title={headerTitle} />
           )}
           {isFacetedFilter && column.getCanSort() && (
             <DataTableColumnHeader column={column} title="" />
@@ -264,8 +259,7 @@ export function generateColumns<TData>(
         </div>
       ),
       cell: ({ row }) => {
-        // For dot-notation columns, get value directly from original
-        const value = hasDotNotation ? (row.original as any)[columnName] : row.getValue(columnId);
+        const value = row.getValue(columnName);
         const rowId = (row.original as any)[idField];
 
         // Editable cell rendering
@@ -329,10 +323,13 @@ export function generateColumns<TData>(
     // Apply column overrides
     if (columnOverrides[columnName]) {
       const overridesCopy = { ...columnOverrides[columnName] };
-      // If this is a faceted filter column, don't override the header function
-      // (we already handled filterColumn and header title above)
-      if (isFacetedFilter && ('header' in overridesCopy || 'filterColumn' in overridesCopy)) {
+      // Don't override the header function - we already extracted the title from it
+      // and use it in our DataTableColumnHeader component
+      if ('header' in overridesCopy && typeof overridesCopy.header === 'string') {
         delete (overridesCopy as any).header;
+      }
+      // Also remove filterColumn as it's already been processed
+      if ('filterColumn' in overridesCopy) {
         delete (overridesCopy as any).filterColumn;
       }
       Object.assign(columnDef, overridesCopy);
@@ -344,6 +341,9 @@ export function generateColumns<TData>(
 
 
 function renderCellValue(value: any, config: ColumnRenderConfig, row: any, dashboardMode: boolean = false) {
+  // Use renderAs for visual rendering, fall back to type
+  const renderType = config.renderAs ?? config.type;
+
   // Helper to get text content for title attribute
   const getTextContent = (val: any): string => {
     if (val === null || val === undefined) return "-";
@@ -364,12 +364,12 @@ function renderCellValue(value: any, config: ColumnRenderConfig, row: any, dashb
     );
   };
 
-  // Handle null/undefined based on column type
+  // Handle null/undefined based on column type (alignment is a visual concern)
   if (value === null || value === undefined) {
     const nullDisplay = <span className="text-muted-foreground">-</span>;
 
-    // Right-align null values for currency and number columns
-    if (config.render === "currency" || config.render === "number") {
+    // Right-align null values for currency and numeric columns
+    if (renderType === "currency" || renderType === "numeric") {
       return wrapWithOverflow(
         <div className="text-right">{nullDisplay}</div>,
         "-"
@@ -379,23 +379,38 @@ function renderCellValue(value: any, config: ColumnRenderConfig, row: any, dashb
     return wrapWithOverflow(nullDisplay, "-");
   }
 
-  switch (config.render) {
-    case "badge":
+  switch (renderType) {
+    case "chip":
+      // Badge/chip rendering (use with type: categorical for IN/NOT IN filtering)
       if (typeof value === "string") {
         const variant = getBadgeVariant(value, config);
         return wrapWithOverflow(<Badge variant={variant}>{value}</Badge>, value);
       }
       return wrapWithOverflow(value);
 
+    case "categorical":
+      // Categorical now renders as text by default (use renderAs: chip for Badge)
+      const categoricalValue = formatValue(value, config);
+      return wrapWithOverflow(categoricalValue, categoricalValue);
+
     case "link":
       if (typeof value === "string" || typeof value === "number") {
-        let url: string;
-        if (config.urlField && row[config.urlField]) {
-          url = row[config.urlField];
+        let url: string | null = null;
+
+        // Priority: urlFunction > urlField > urlTemplate > value as URL
+        if (config.urlFunction) {
+          url = getUrlFromFunction(config.urlFunction, row);
+        } else if (config.urlField && row[config.urlField]) {
+          url = row[config.urlField] as string;
         } else if (config.urlTemplate) {
           url = config.urlTemplate.replace("{value}", String(value));
         } else {
           url = String(value);
+        }
+
+        // If urlFunction returned null, render as plain text (not a broken link)
+        if (url === null) {
+          return wrapWithOverflow(String(value), String(value));
         }
 
         return wrapWithOverflow(
@@ -412,7 +427,7 @@ function renderCellValue(value: any, config: ColumnRenderConfig, row: any, dashb
       }
       return wrapWithOverflow(value);
 
-    case "number":
+    case "numeric":
       const formattedNumber = formatValue(value, config);
       if (config.color === "green") {
         return wrapWithOverflow(
@@ -436,6 +451,15 @@ function renderCellValue(value: any, config: ColumnRenderConfig, row: any, dashb
       return wrapWithOverflow(
         <div className="text-right">{formattedCurrency}</div>,
         formattedCurrency
+      );
+
+    case "text_long":
+      return (
+        <TextLongCell
+          value={value as string | null}
+          modalTitle={config.modalTitle}
+          isJson={config.isJson}
+        />
       );
 
     case "date":

@@ -58,7 +58,7 @@ export default function TreasuryPage() {
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4">
       <div className="flex-shrink-0">
-        <h1 className="text-2xl font-bold tracking-tight">Treasury</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Treasury</h1>
         <p className="text-muted-foreground text-sm">
           Browse and filter treasury spend proposals
         </p>

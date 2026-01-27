@@ -6,6 +6,8 @@
 
 The column configuration system provides automatic formatting for table columns based on naming patterns and explicit configuration.
 
+**Note**: Formatting defined here applies to both interactive display and PNG export rendering. The shared logic in `column-renderer.ts` is used by `SimpleTable` (with `exportMode` prop) to ensure consistent formatting across both modes.
+
 ## Configuration File
 
 **Location**: `frontend/public/config/column-config.yaml`
@@ -85,9 +87,18 @@ truncate: true
 
 ### Link
 ```yaml
-render: link
-external: true
+type: link
+urlTemplate: "https://example.com/{value}"  # URL with {value} placeholder
+urlField: url                                # Field in row containing URL
+urlFunction: spending                        # Named function to generate URL
 ```
+
+Link priority: `urlFunction` > `urlField` > `urlTemplate` > value as URL.
+
+If `urlFunction` returns null, renders as plain text (no broken link).
+
+Available URL functions:
+- `spending`: Parses `all_spending.id` prefix to generate Subsquare URLs
 
 ## Priority Order
 
@@ -131,7 +142,7 @@ patterns:
 # Table-specific config
 tables:
   referenda:
-    "tally.ayes":
+    tally_ayes:
       render: number
       color: green
 ```
@@ -182,8 +193,8 @@ const columnOverrides = {
 | `*_time` | date | `proposal_time` → "Jan 15, 2025" |
 | `*_date` | date | `start_date` → "Jan 15, 2025" |
 | `status` | badge | `status` → Colored badge |
-| `*.ayes` | number (green) | `tally.ayes` → "1,234" |
-| `*.nays` | number (red) | `tally.nays` → "567" |
+| `*_ayes` | number (green) | `tally_ayes` → "1,234" |
+| `*_nays` | number (red) | `tally_nays` → "567" |
 | `beneficiary` | address | `beneficiary` → "0x1234...5678" |
 
 ## Adding New Patterns

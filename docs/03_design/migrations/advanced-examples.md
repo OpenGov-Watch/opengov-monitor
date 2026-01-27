@@ -171,7 +171,7 @@ import sqlite3
 import json
 
 def up(conn: sqlite3.Connection) -> None:
-    """Extract tally.ayes and tally.nays from JSON field."""
+    """Extract tally_ayes and tally_nays from JSON field."""
     cursor = conn.cursor()
 
     # Add new columns

@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { WidthProvider, Responsive, type Layout, type LayoutItem } from "react-grid-layout/legacy";
 import { DashboardComponent } from "./dashboard-component";
 import type {
   DashboardComponent as DashboardComponentType,
   GridConfig,
+  ChartConfig,
 } from "@/lib/db/types";
 
 import "react-grid-layout/css/styles.css";
@@ -42,10 +43,11 @@ interface DashboardGridProps {
 }
 
 // Responsive breakpoints and column counts
-// lg breakpoint lowered to 800 to work with typical dashboard container widths (~1000-1200px)
-const BREAKPOINTS = { lg: 800, md: 600, sm: 480, xs: 320, xxs: 0 };
+// lg is 1200 for dashboard; others aligned with Tailwind breakpoints
+const BREAKPOINTS = { lg: 1200, md: 768, sm: 640, xs: 480, xxs: 0 };
 const COLS = { lg: 12, md: 8, sm: 4, xs: 2, xxs: 1 };
 const ROW_HEIGHT = 80;
+const GRID_MARGIN: [number, number] = [10, 10]; // [horizontal, vertical] margin between items
 
 export function DashboardGrid({
   components,
@@ -58,6 +60,39 @@ export function DashboardGrid({
   onDeleteComponent,
 }: DashboardGridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
+
+  // Track container width for grid overlay
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  // Track auto-calculated heights for unconstrained text components
+  const [autoHeights, setAutoHeights] = useState<Record<number, number>>({});
+
+  // Calculate required grid height from content height
+  const calculateGridHeight = useCallback((contentHeight: number): number => {
+    // Add padding for header (~48px) and content padding (~24px)
+    const totalHeight = contentHeight + 72;
+    return Math.max(2, Math.ceil(totalHeight / ROW_HEIGHT));
+  }, []);
+
+  // Handle height changes from unconstrained text components
+  const handleComponentHeightChange = useCallback((componentId: number, contentHeight: number) => {
+    const newGridH = calculateGridHeight(contentHeight);
+    setAutoHeights(prev => {
+      if (prev[componentId] === newGridH) return prev;
+      return { ...prev, [componentId]: newGridH };
+    });
+  }, [calculateGridHeight]);
+
+  // Track container width for grid overlay using ResizeObserver
+  useEffect(() => {
+    if (!gridRef.current) return;
+    const resizeObserver = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width || 0;
+      setContainerWidth(width);
+    });
+    resizeObserver.observe(gridRef.current);
+    return () => resizeObserver.disconnect();
+  }, []);
 
   // Scroll to bottom when new component is added
   useEffect(() => {
@@ -74,10 +109,11 @@ export function DashboardGrid({
   }, [highlightComponentId, components]);
 
   // Create a stable signature of components to prevent unnecessary re-renders
-  // This only changes when component IDs, grid_config, or query_config values actually change,
-  // not when the components array reference changes
+  // This changes when any component property that affects rendering changes
   const componentSignature = useMemo(
-    () => components.map((c) => `${c.id}:${c.grid_config}:${c.query_config}`).join("|"),
+    () => components.map((c) =>
+      `${c.id}:${c.name}:${c.type}:${c.grid_config}:${c.query_config}:${c.chart_config || ''}`
+    ).join("|"),
     [components]
   );
 
@@ -104,12 +140,19 @@ export function DashboardGrid({
   const layouts = useMemo((): Layouts => {
     const baseLayout: LayoutItem[] = sortedComponents.map((comp) => {
       const gridConfig: GridConfig = JSON.parse(comp.grid_config);
+      const chartConfig: ChartConfig = comp.chart_config ? JSON.parse(comp.chart_config) : {};
+
+      // Check if this is an unconstrained text component with measured height
+      const isUnconstrained = comp.type === "text" && chartConfig.constrainHeight === false;
+      const autoHeight = autoHeights[comp.id];
+      const height = isUnconstrained && autoHeight ? autoHeight : gridConfig.h;
+
       return {
         i: String(comp.id),
         x: gridConfig.x,
         y: gridConfig.y,
         w: gridConfig.w,
-        h: gridConfig.h,
+        h: height,
         minW: 2,
         minH: 2,
         static: !editable, // Static in view mode prevents movement, dynamic in edit mode allows dragging
@@ -117,23 +160,15 @@ export function DashboardGrid({
     });
 
     // Generate responsive layouts
-    // For smaller screens, adjust width to fit within column constraints
-    const adjustLayout = (layout: LayoutItem[], maxCols: number): LayoutItem[] => {
-      return layout.map(item => ({
-        ...item,
-        w: Math.min(item.w, maxCols),
-        x: Math.min(item.x, Math.max(0, maxCols - item.w)),
-      }));
-    };
-
+    // For smaller screens (md and below), make components full-width to avoid awkward margins
     return {
       lg: baseLayout,
-      md: adjustLayout(baseLayout, COLS.md),
-      sm: adjustLayout(baseLayout, COLS.sm),
-      xs: adjustLayout(baseLayout, COLS.xs),
-      xxs: baseLayout.map(item => ({ ...item, w: 1, x: 0 })), // Stack everything on mobile
+      md: baseLayout.map(item => ({ ...item, w: COLS.md, x: 0 })),
+      sm: baseLayout.map(item => ({ ...item, w: COLS.sm, x: 0 })),
+      xs: baseLayout.map(item => ({ ...item, w: COLS.xs, x: 0 })),
+      xxs: baseLayout.map(item => ({ ...item, w: 1, x: 0 })),
     };
-  }, [componentSignature, editable]);
+  }, [componentSignature, editable, autoHeights]);
 
   // Use ref to store debounced handler so it persists across renders
   const debouncedHandleLayoutChangeRef = useRef<((currentLayout: Layout, allLayouts: Partial<Record<string, Layout>>) => void) | null>(null);
@@ -196,19 +231,73 @@ export function DashboardGrid({
   }
 
   return (
-    <div ref={gridRef} className="w-full h-full overflow-auto">
+    <div ref={gridRef} className="w-full relative pb-24">
+      {/* Grid overlay showing column and row boundaries in edit mode */}
+      {editable && containerWidth > 0 && (() => {
+        const colWidth = (containerWidth - GRID_MARGIN[0] * 2) / 12;
+        const rowHeight = ROW_HEIGHT + GRID_MARGIN[1];
+        return (
+          <div
+            className="absolute pointer-events-none z-0"
+            style={{
+              top: GRID_MARGIN[1],
+              left: GRID_MARGIN[0],
+              right: GRID_MARGIN[0],
+              bottom: 0,
+            }}
+          >
+            {/* Vertical dashed lines */}
+            {Array.from({ length: 13 }).map((_, i) => (
+              <div
+                key={`v-${i}`}
+                className="absolute top-0 bottom-0"
+                style={{
+                  left: i * colWidth - 1,
+                  width: 2,
+                  backgroundImage: `repeating-linear-gradient(
+                    to bottom,
+                    hsl(var(--primary) / 0.4) 0px,
+                    hsl(var(--primary) / 0.4) 6px,
+                    transparent 6px,
+                    transparent 12px
+                  )`,
+                }}
+              />
+            ))}
+            {/* Horizontal dashed lines */}
+            {Array.from({ length: 50 }).map((_, i) => (
+              <div
+                key={`h-${i}`}
+                className="absolute left-0 right-0"
+                style={{
+                  top: (i + 1) * rowHeight - 1,
+                  height: 2,
+                  backgroundImage: `repeating-linear-gradient(
+                    to right,
+                    hsl(var(--primary) / 0.25) 0px,
+                    hsl(var(--primary) / 0.25) 6px,
+                    transparent 6px,
+                    transparent 12px
+                  )`,
+                }}
+              />
+            ))}
+          </div>
+        );
+      })()}
       <ResponsiveGridLayout
         className="layout"
         layouts={layouts}
         breakpoints={BREAKPOINTS}
         cols={COLS}
         rowHeight={ROW_HEIGHT}
+        margin={GRID_MARGIN}
         isDraggable={editable}
         isResizable={editable}
         onLayoutChange={handleLayoutChange}
         draggableHandle=".drag-handle"
-        compactType={editable ? "vertical" : null}
-        preventCollision={false}
+        compactType={null}
+        preventCollision={true}
       >
         {sortedComponents.map((component) => (
           <div
@@ -225,6 +314,7 @@ export function DashboardGrid({
               onDuplicate={() => onDuplicateComponent?.(component)}
               onMove={() => onMoveComponent?.(component)}
               onDelete={() => onDeleteComponent?.(component.id)}
+              onHeightChange={handleComponentHeightChange}
             />
           </div>
         ))}

@@ -93,13 +93,6 @@ source .venv/bin/activate    # Windows: .venv\Scripts\activate
 python scripts/run_sqlite.py --db ../data/local/polkadot.db
 ```
 
-**Existing developers:** If you have databases in `data/`, move them to `data/local/`:
-```bash
-mkdir -p data/local
-mv data/polkadot.db* data/local/
-mv data/sessions.db* data/local/
-```
-
 ### Database Migrations
 ```bash
 pnpm migrate                              # Run pending migrations
@@ -119,7 +112,6 @@ Verifies that ID sequences in key tables are continuous with no gaps. See [docs/
 
 ## Gotchas
 
-- **Dot-notation columns**: Use `accessorFn` not `accessorKey` for columns like `tally.ayes`
 - **Windows dual-stack**: API binds to `127.0.0.1` explicitly
 
 ## Documentation

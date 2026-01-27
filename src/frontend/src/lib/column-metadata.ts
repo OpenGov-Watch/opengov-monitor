@@ -1,67 +1,73 @@
 /**
- * Column type definitions for filtering behavior
+ * Column Metadata
+ *
+ * Provides column type information for filtering behavior.
+ * Uses the unified column configuration from column-renderer.ts.
  */
-export type ColumnType = 'categorical' | 'numeric' | 'text' | 'date';
+import { getColumnConfig, ColumnType } from "./column-renderer";
+
+// Re-export ColumnType for consumers
+export type { ColumnType };
 
 /**
- * Determine the type of a column based on its name
+ * Check if a string looks like a table name.
+ * Table names are either PascalCase (Referenda) or snake_case (all_spending).
  */
-export function getColumnType(columnName: string): ColumnType {
-  // Categorical columns - finite value sets
-  if (isCategoricalColumn(columnName)) {
-    return 'categorical';
-  }
-
-  // Numeric columns - amounts, counts, IDs
-  if (
-    columnName.includes('DOT') ||
-    columnName.includes('USD') ||
-    columnName.includes('USDC') ||
-    columnName.includes('USDT') ||
-    columnName.includes('amount') ||
-    columnName.includes('count') ||
-    columnName.includes('Count') ||
-    columnName === 'id' ||
-    columnName.endsWith('_id') ||
-    columnName.endsWith('Id') ||
-    columnName.endsWith('Index') ||
-    columnName === 'cycle' ||
-    columnName === 'rank' ||
-    columnName === 'payment_id'
-  ) {
-    return 'numeric';
-  }
-
-  // Date columns - timestamps
-  if (
-    columnName.endsWith('_time') ||
-    columnName.endsWith('_at') ||
-    columnName.includes('date') ||
-    columnName.includes('Date')
-  ) {
-    return 'date';
-  }
-
-  // Default to text for all other columns
-  return 'text';
+function looksLikeTableName(name: string): boolean {
+  if (!name) return false;
+  // Table names start with uppercase (Referenda) or contain underscore (all_spending)
+  return name[0] === name[0].toUpperCase() || name.includes("_");
 }
 
 /**
- * Categorical columns that should use multiselect dropdowns in filter builder.
- * All categorical columns use the facets API to fetch available values.
+ * Extract bare column name from table-prefixed name
+ * e.g., "Referenda.track" → "track"
+ */
+export function extractColumnName(fullColumnName: string): string {
+  const dotIndex = fullColumnName.indexOf(".");
+  if (dotIndex < 0) return fullColumnName;
+
+  const firstPart = fullColumnName.substring(0, dotIndex);
+  // Only split if first part looks like a table name
+  if (looksLikeTableName(firstPart)) {
+    return fullColumnName.substring(dotIndex + 1);
+  }
+  return fullColumnName;
+}
+
+/**
+ * Extract table name from table-prefixed column name
+ * e.g., "Referenda.track" → "Referenda"
+ */
+export function extractTableName(fullColumnName: string): string {
+  const dotIndex = fullColumnName.indexOf(".");
+  if (dotIndex < 0) return "";
+
+  const firstPart = fullColumnName.substring(0, dotIndex);
+  // Only extract if first part looks like a table name
+  if (looksLikeTableName(firstPart)) {
+    return firstPart;
+  }
+  return "";
+}
+
+/**
+ * Get the column type from config.
+ * Handles table-prefixed columns (e.g., "Referenda.track").
+ */
+export function getColumnType(columnName: string): ColumnType {
+  const bareColumn = extractColumnName(columnName);
+  const tableName = extractTableName(columnName);
+  const config = getColumnConfig(tableName, bareColumn);
+  return config.type || "text";
+}
+
+/**
+ * Check if column is categorical (for filter UI decisions).
+ * Categorical columns use multiselect dropdowns and IN/NOT IN operators.
  */
 export function isCategoricalColumn(columnName: string): boolean {
-  const categoricalColumns = [
-    'status',
-    'status_type',
-    'track',
-    'type',
-    'category',
-    'subcategory',
-    'parentBountyName',  // parent bounty name for child bounties
-  ];
-
-  return categoricalColumns.includes(columnName);
+  return getColumnType(columnName) === "categorical";
 }
 
 /**
@@ -69,16 +75,20 @@ export function isCategoricalColumn(columnName: string): boolean {
  */
 export function getOperatorsForColumnType(columnType: ColumnType): string[] {
   switch (columnType) {
-    case 'categorical':
-      return ['IN', 'NOT IN', 'IS NULL', 'IS NOT NULL'];
-    case 'numeric':
-      return ['=', '!=', '>', '<', '>=', '<=', 'IS NULL', 'IS NOT NULL'];
-    case 'text':
-      return ['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'IS NULL', 'IS NOT NULL'];
-    case 'date':
-      return ['=', '!=', '>', '<', '>=', '<=', 'IS NULL', 'IS NOT NULL'];
+    case "categorical":
+      return ["IN", "NOT IN", "IS NULL", "IS NOT NULL"];
+    case "currency":
+    case "numeric":
+      return ["=", "!=", ">", "<", ">=", "<=", "IS NULL", "IS NOT NULL"];
+    case "date":
+      return ["=", "!=", ">", "<", ">=", "<=", "IS NULL", "IS NOT NULL"];
+    case "link":
+    case "address":
+      return ["=", "!=", "LIKE", "IS NULL", "IS NOT NULL"];
+    case "text_long":
+      return ["IS NULL", "IS NOT NULL"];
+    case "text":
     default:
-      // Fallback to all operators
-      return ['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'IN', 'NOT IN', 'IS NULL', 'IS NOT NULL'];
+      return ["=", "!=", ">", "<", ">=", "<=", "LIKE", "IS NULL", "IS NOT NULL"];
   }
 }

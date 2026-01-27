@@ -1,52 +1,32 @@
 import { Router } from "express";
 import { getDatabase } from "../db/index.js";
+import { getCustomTableNames } from "../db/queries.js";
 import type { QueryConfig, FilterCondition, FilterGroup, ExpressionColumn, JoinConfig, FacetQueryConfig, FacetValue, FacetQueryResponse } from "../db/types.js";
+import { QUERYABLE_TABLE_NAMES, QUERYABLE_VIEW_NAMES } from "../db/types.js";
 
 export const queryRouter: Router = Router();
 
-// Whitelist of tables/views that can be queried
-const ALLOWED_SOURCES = new Set([
-  "Referenda",
-  "Treasury",
-  "Child Bounties",
-  "Fellowship",
-  "Fellowship Salary Cycles",
-  "Fellowship Salary Claimants",
-  "Fellowship Salary Payments",
-  "categories",
-  "Categories",  // For JOINs
-  "bounties",
-  "Bounties",    // For JOINs
-  "subtreasury",
-  "Fellowship Subtreasury",
-  "Treasury Netflows",
-  "outstanding_claims",
-  "expired_claims",
-  "all_spending",
-  "treasury_netflows_view",
-]);
+// Derive allowlists from constants - no hardcoded table names
+const BASE_ALLOWED_TABLES = [...QUERYABLE_TABLE_NAMES];
+const ALLOWED_VIEWS = [...QUERYABLE_VIEW_NAMES];
+const BASE_ALLOWED_SOURCES = [...BASE_ALLOWED_TABLES, ...ALLOWED_VIEWS];
 
-const ALLOWED_TABLES = [
-  "Referenda",
-  "Treasury",
-  "Child Bounties",
-  "Fellowship",
-  "Fellowship Salary Cycles",
-  "Fellowship Salary Claimants",
-  "Fellowship Salary Payments",
-  "categories",
-  "bounties",
-  "subtreasury",
-  "Fellowship Subtreasury",
-  "Treasury Netflows",
-];
+// Dynamic function to get all allowed sources including custom tables
+function getAllowedSources(): Set<string> {
+  const customTables = getCustomTableNames();
+  return new Set([...BASE_ALLOWED_SOURCES, ...customTables]);
+}
 
-const ALLOWED_VIEWS = [
-  "outstanding_claims",
-  "expired_claims",
-  "all_spending",
-  "treasury_netflows_view",
-];
+// Dynamic function to get all allowed tables including custom tables
+function getAllowedTables(): string[] {
+  const customTables = getCustomTableNames();
+  return [...BASE_ALLOWED_TABLES, ...customTables];
+}
+
+// Helper to check if a source is allowed
+function isSourceAllowed(source: string): boolean {
+  return getAllowedSources().has(source);
+}
 
 const MAX_ROWS = 10000;
 const ALLOWED_OPERATORS = new Set([
@@ -211,15 +191,18 @@ function validateExpression(
 }
 
 function sanitizeAlias(alias: string): string {
-  // Aliases must be simple identifiers (alphanumeric + underscore, starting with letter/underscore)
-  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(alias)) {
-    throw new Error(`Invalid alias: ${alias}. Use only letters, numbers, and underscores.`);
+  // Auto-sanitize aliases to valid SQL identifiers
+  // Replace any invalid characters (spaces, special chars) with underscores
+  let sanitized = alias.replace(/[^a-zA-Z0-9_]/g, "_");
+  // Ensure it starts with a letter or underscore
+  if (!/^[a-zA-Z_]/.test(sanitized)) {
+    sanitized = "_" + sanitized;
   }
-  return alias;
+  return sanitized;
 }
 
 function validateQueryConfig(config: QueryConfig): string | null {
-  if (!config.sourceTable || !ALLOWED_SOURCES.has(config.sourceTable)) {
+  if (!config.sourceTable || !isSourceAllowed(config.sourceTable)) {
     return `Invalid source table: ${config.sourceTable}`;
   }
 
@@ -252,11 +235,7 @@ function validateQueryConfig(config: QueryConfig): string | null {
     if (!expr.expression || !expr.expression.trim()) {
       return "Expression cannot be empty";
     }
-    try {
-      sanitizeAlias(expr.alias);
-    } catch {
-      return `Invalid expression alias: ${expr.alias}. Use only letters, numbers, and underscores.`;
-    }
+    // Note: sanitizeAlias now auto-sanitizes, so no validation error needed
   }
 
   // Validate joins
@@ -276,7 +255,6 @@ function sanitizeColumnName(name: string, sourceTable?: string): string {
   }
 
   // Handle table.column format (e.g., "Referenda.id" or "c.category")
-  // But NOT columns with dots in their names (e.g., "tally.ayes")
   const lastDotIndex = name.lastIndexOf('.');
   if (lastDotIndex > 0 && lastDotIndex < name.length - 1) {
     // Check if this might be a column-with-dots by seeing if it exists in source table
@@ -305,13 +283,21 @@ function buildSelectClause(config: QueryConfig, availableColumns: string[]): str
   const parts: string[] = [];
   const hasJoins = config.joins && config.joins.length > 0;
 
-  // Regular columns
+  // Build lookup maps for quick access
+  const columnsMap = new Map<string, typeof config.columns[number]>();
   for (const col of config.columns || []) {
-    // If column doesn't have a table prefix (no dot before last segment) and we have JOINs,
-    // prefix with source table to avoid ambiguity
+    columnsMap.set(`col:${col.column}`, col);
+  }
+
+  const expressionsMap = new Map<string, typeof config.expressionColumns extends (infer T)[] | undefined ? T : never>();
+  for (const expr of config.expressionColumns || []) {
+    expressionsMap.set(`expr:${expr.alias}`, expr);
+  }
+
+  // Helper to build a regular column SQL part
+  const buildRegularColumnPart = (col: typeof config.columns[number]): string => {
     let columnRef = col.column;
     if (hasJoins && !columnRef.includes('.')) {
-      // Column from source table without prefix - add table name
       columnRef = `${config.sourceTable}.${columnRef}`;
     }
 
@@ -319,15 +305,15 @@ function buildSelectClause(config: QueryConfig, availableColumns: string[]): str
     if (col.aggregateFunction) {
       const alias = col.alias || `${col.aggregateFunction.toLowerCase()}_${col.column.replace(/[.\s]/g, "_")}`;
       const safeAlias = sanitizeAlias(alias);
-      parts.push(`${col.aggregateFunction}(${colName}) AS "${safeAlias}"`);
+      return `${col.aggregateFunction}(${colName}) AS "${safeAlias}"`;
     } else {
       const safeAlias = col.alias ? sanitizeAlias(col.alias) : null;
-      parts.push(safeAlias ? `${colName} AS "${safeAlias}"` : colName);
+      return safeAlias ? `${colName} AS "${safeAlias}"` : colName;
     }
-  }
+  };
 
-  // Expression columns
-  for (const expr of config.expressionColumns || []) {
+  // Helper to build an expression column SQL part
+  const buildExpressionColumnPart = (expr: NonNullable<typeof config.expressionColumns>[number]): string => {
     const validation = validateExpression(expr.expression, availableColumns);
     if (!validation.valid) {
       throw new Error(`Invalid expression "${expr.alias}": ${validation.error}`);
@@ -337,9 +323,50 @@ function buildSelectClause(config: QueryConfig, availableColumns: string[]): str
       if (!ALLOWED_AGGREGATES.has(expr.aggregateFunction)) {
         throw new Error(`Invalid aggregate function: ${expr.aggregateFunction}`);
       }
-      parts.push(`${expr.aggregateFunction}((${expr.expression})) AS "${safeAlias}"`);
+      return `${expr.aggregateFunction}((${expr.expression})) AS "${safeAlias}"`;
     } else {
-      parts.push(`(${expr.expression}) AS "${safeAlias}"`);
+      return `(${expr.expression}) AS "${safeAlias}"`;
+    }
+  };
+
+  // If columnOrder exists, use it to determine column ordering
+  if (config.columnOrder && config.columnOrder.length > 0) {
+    const processedIds = new Set<string>();
+
+    for (const id of config.columnOrder) {
+      if (id.startsWith('col:')) {
+        const col = columnsMap.get(id);
+        if (col) {
+          parts.push(buildRegularColumnPart(col));
+          processedIds.add(id);
+        }
+      } else if (id.startsWith('expr:')) {
+        const expr = expressionsMap.get(id);
+        if (expr) {
+          parts.push(buildExpressionColumnPart(expr));
+          processedIds.add(id);
+        }
+      }
+    }
+
+    // Add any columns not in columnOrder (backward compatibility)
+    for (const [id, col] of columnsMap) {
+      if (!processedIds.has(id)) {
+        parts.push(buildRegularColumnPart(col));
+      }
+    }
+    for (const [id, expr] of expressionsMap) {
+      if (!processedIds.has(id)) {
+        parts.push(buildExpressionColumnPart(expr));
+      }
+    }
+  } else {
+    // Fallback: regular columns first, then expression columns (original behavior)
+    for (const col of config.columns || []) {
+      parts.push(buildRegularColumnPart(col));
+    }
+    for (const expr of config.expressionColumns || []) {
+      parts.push(buildExpressionColumnPart(expr));
     }
   }
 
@@ -463,6 +490,15 @@ function buildSingleCondition(
         return `${colName} NOT IN (${placeholders})`;
       }
       return "";
+    case "!=":
+      // Skip conditions with empty/null values
+      if (filter.value === null || filter.value === undefined || filter.value === "") {
+        return "";
+      }
+      // != in SQL doesn't match NULL values, so include them explicitly
+      const neCoercedValue = coerceFilterValue(filter.value as string | number, columnType);
+      params.push(neCoercedValue);
+      return `(${colName} != ? OR ${colName} IS NULL)`;
     default:
       // Skip conditions with empty/null values (except IS NULL operators)
       if (filter.value === null || filter.value === undefined || filter.value === "") {
@@ -556,10 +592,43 @@ function buildOrderByClause(
 
   const hasJoins = config?.joins && config.joins.length > 0;
 
+  // Build lookup for columns with aggregate functions
+  const columnLookup = new Map<string, { alias?: string; aggregateFunction?: string; column: string }>();
+  for (const col of config?.columns || []) {
+    // Store by full column name (e.g., "all_spending.DOT_component")
+    columnLookup.set(col.column, col);
+    // Also store by simple column name (e.g., "DOT_component") for backward compatibility
+    if (col.column.includes('.')) {
+      const simpleName = col.column.split('.').pop()!;
+      columnLookup.set(simpleName, col);
+    }
+  }
+
+  // Build lookup for expression columns with aggregate functions
+  const exprLookup = new Map<string, { alias: string; aggregateFunction?: string }>();
+  for (const expr of config?.expressionColumns || []) {
+    exprLookup.set(expr.alias, expr);
+  }
+
   return `ORDER BY ${orderBy
     .map((o) => {
       let columnRef = o.column;
-      // Prefix with source table if no prefix and JOINs present
+
+      // Check if this column has an aggregate function
+      const colDef = columnLookup.get(columnRef);
+      if (colDef?.aggregateFunction) {
+        // Use the alias for aggregated columns (PostgreSQL requires this)
+        const alias = colDef.alias || `${colDef.aggregateFunction.toLowerCase()}_${colDef.column.replace(/[.\s]/g, "_")}`;
+        return `"${sanitizeAlias(alias)}" ${o.direction}`;
+      }
+
+      // Check if this is an expression column with aggregation
+      const exprDef = exprLookup.get(columnRef);
+      if (exprDef?.aggregateFunction) {
+        return `"${sanitizeAlias(exprDef.alias)}" ${o.direction}`;
+      }
+
+      // Non-aggregated column: use the original behavior
       if (hasJoins && config && !columnRef.includes('.')) {
         columnRef = `${config.sourceTable}.${columnRef}`;
       }
@@ -573,7 +642,7 @@ function validateJoinConfig(join: JoinConfig): string | null {
   if (!allowedTypes.has(join.type)) {
     return `Invalid join type: ${join.type}`;
   }
-  if (!ALLOWED_SOURCES.has(join.table)) {
+  if (!isSourceAllowed(join.table)) {
     return `Invalid join table: ${join.table}`;
   }
   if (!join.on || !join.on.left || !join.on.right) {
@@ -633,6 +702,22 @@ function buildCountQuery(config: QueryConfig): { sql: string; params: (string | 
   const joinClause = buildJoinClause(config.joins);
   const hasJoins = !!(config.joins && config.joins.length > 0);
   const { clause: whereClause, params } = buildWhereClause(config.filters || [], config.sourceTable, hasJoins);
+  const groupByClause = buildGroupByClause(config.groupBy, config.sourceTable);
+
+  // When GROUP BY is present, count distinct groups instead of raw rows
+  if (groupByClause) {
+    const innerSql = [
+      `SELECT 1`,
+      `FROM ${tableName}`,
+      joinClause,
+      whereClause,
+      groupByClause,
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    return { sql: `SELECT COUNT(*) as total FROM (${innerSql})`, params };
+  }
 
   const sql = [
     `SELECT COUNT(*) as total`,
@@ -721,7 +806,7 @@ queryRouter.get("/schema", (_req, res) => {
     const result: { name: string; columns: { name: string; type: string; nullable: boolean }[] }[] = [];
 
     for (const item of tablesAndViews) {
-      const isAllowedTable = ALLOWED_TABLES.includes(item.name);
+      const isAllowedTable = getAllowedTables().includes(item.name);
       const isAllowedView = ALLOWED_VIEWS.includes(item.name);
 
       if (!isAllowedTable && !isAllowedView) {
@@ -796,7 +881,7 @@ queryRouter.post("/facets", (req, res) => {
     const config = req.body as FacetQueryConfig;
 
     // Validate source table
-    if (!config.sourceTable || !ALLOWED_SOURCES.has(config.sourceTable)) {
+    if (!config.sourceTable || !isSourceAllowed(config.sourceTable)) {
       res.status(400).json({ error: `Invalid source table: ${config.sourceTable}` });
       return;
     }

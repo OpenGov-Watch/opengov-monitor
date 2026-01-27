@@ -7,8 +7,8 @@ export interface Referendum {
   DOT_proposal_time: number | null;
   USD_proposal_time: number | null;
   track: string;
-  "tally.ayes": number | null;
-  "tally.nays": number | null;
+  tally_ayes: number | null;
+  tally_nays: number | null;
   proposal_time: string | null;
   latest_status_change: string | null;
   DOT_latest: number | null;
@@ -181,6 +181,28 @@ export interface TreasuryNetflow {
   amount_dot_equivalent: number;
 }
 
+// Custom Table Metadata (tracks user-created tables via CSV import)
+export interface CustomTableMetadata {
+  id: number;
+  table_name: string;              // Internal name: "custom_my_data"
+  display_name: string;            // User-friendly: "My Data"
+  schema_json: string;             // JSON string of CustomTableSchema
+  row_count: number;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+// Schema definition for custom tables
+export interface CustomTableColumnDef {
+  name: string;
+  type: "text" | "integer" | "real" | "date" | "boolean";
+  nullable: boolean;
+}
+
+export interface CustomTableSchema {
+  columns: CustomTableColumnDef[];
+}
+
 export interface FellowshipSubtreasury {
   id: number;
   title: string | null;
@@ -302,7 +324,8 @@ export interface GridConfig {
 
 export interface ExpressionColumn {
   expression: string; // SQL expression, e.g., "DOT_latest * 10"
-  alias: string; // Required display name for the result column
+  alias: string; // Required SQL identifier for the result column
+  displayName?: string; // Optional UI display name (can have spaces)
   aggregateFunction?: "COUNT" | "SUM" | "AVG" | "MIN" | "MAX";
 }
 
@@ -316,12 +339,14 @@ export interface JoinConfig {
   table: string;          // Table name to join (e.g., "Categories")
   alias?: string;         // Optional alias (e.g., "c")
   on: JoinCondition;      // Join condition
+  isManual?: boolean;     // True if user manually configured the join condition
 }
 
 export interface QueryConfig {
   sourceTable: string;
   columns: ColumnSelection[];
   expressionColumns?: ExpressionColumn[];
+  columnOrder?: string[];   // Interleaved column order: "col:X" for regular, "expr:Y" for expressions
   joins?: JoinConfig[];     // Array of joins
   filters: FilterCondition[] | FilterGroup;  // Support both old array and new group format
   groupBy?: string[];
@@ -348,7 +373,8 @@ export interface FacetQueryResponse {
 
 export interface ColumnSelection {
   column: string;
-  alias?: string;
+  alias?: string; // SQL identifier (no spaces)
+  displayName?: string; // UI display name (can have spaces)
   aggregateFunction?: "COUNT" | "SUM" | "AVG" | "MIN" | "MAX";
 }
 
@@ -384,7 +410,13 @@ export interface ChartConfig {
   valueColumn?: string;
   showLegend?: boolean;
   showTooltip?: boolean;
+  subtitle?: string;  // Optional subtitle displayed below component name
+  backgroundColor?: string;  // Hex color code for component background (e.g., "#ffffff")
   content?: string; // Markdown content for text components
+  // Text component options
+  showBorder?: boolean;           // Show border around component (default: true)
+  constrainHeight?: boolean;      // Constrain to grid height with scroll (default: true)
+  textAlign?: 'left' | 'center' | 'right' | 'justify';  // Text alignment (default: left)
 }
 
 export interface QueryCache {
@@ -437,6 +469,24 @@ export interface NetflowImportItem {
   amount_dot_equivalent: number;
 }
 
+export interface CustomSpendingImportItem {
+  id?: number;  // If provided, updates existing; if omitted, creates new
+  type: string;
+  title: string;
+  description?: string | null;
+  latest_status_change?: string | null;
+  DOT_latest?: number | null;
+  USD_latest?: number | null;
+  DOT_component?: number | null;
+  USDC_component?: number | null;
+  USDT_component?: number | null;
+  // Option A: Direct category ID (existing)
+  category_id?: number | null;
+  // Option B: Category strings (backend will resolve)
+  category?: string | null;
+  subcategory?: string | null;
+}
+
 // Table names matching SQLite (with spaces)
 export const TABLE_NAMES = {
   referenda: "Referenda",
@@ -455,10 +505,15 @@ export const TABLE_NAMES = {
   treasuryNetflows: "Treasury Netflows",
   crossChainFlows: "Cross Chain Flows",
   localFlows: "Local Flows",
+  dataErrors: "DataErrors",
   // Dashboard tables
   dashboards: "Dashboards",
   dashboardComponents: "Dashboard Components",
   queryCache: "Query Cache",
+  // Custom tables
+  customTableMetadata: "Custom Table Metadata",
+  // Auth tables
+  users: "Users",
 } as const;
 
 // View names (lowercase, no spaces)
@@ -466,7 +521,34 @@ export const VIEW_NAMES = {
   outstandingClaims: "outstanding_claims",
   expiredClaims: "expired_claims",
   allSpending: "all_spending",
+  treasuryNetflowsView: "treasury_netflows_view",
 } as const;
 
 export type TableName = (typeof TABLE_NAMES)[keyof typeof TABLE_NAMES];
 export type ViewName = (typeof VIEW_NAMES)[keyof typeof VIEW_NAMES];
+
+// Tables that can be queried via the dashboard query builder
+export const QUERYABLE_TABLE_NAMES = [
+  TABLE_NAMES.referenda,
+  TABLE_NAMES.treasury,
+  TABLE_NAMES.childBounties,
+  TABLE_NAMES.fellowship,
+  TABLE_NAMES.fellowshipSalaryCycles,
+  TABLE_NAMES.fellowshipSalaryClaimants,
+  TABLE_NAMES.fellowshipSalaryPayments,
+  TABLE_NAMES.categories,
+  TABLE_NAMES.bounties,
+  TABLE_NAMES.subtreasury,
+  TABLE_NAMES.customSpending,
+  TABLE_NAMES.fellowshipSubtreasury,
+  TABLE_NAMES.treasuryNetflows,
+  TABLE_NAMES.dataErrors,
+] as const;
+
+// Views that can be queried via the dashboard query builder
+export const QUERYABLE_VIEW_NAMES = [
+  VIEW_NAMES.outstandingClaims,
+  VIEW_NAMES.expiredClaims,
+  VIEW_NAMES.allSpending,
+  VIEW_NAMES.treasuryNetflowsView,
+] as const;

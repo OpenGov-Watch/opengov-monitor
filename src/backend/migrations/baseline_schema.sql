@@ -33,6 +33,11 @@ INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUE
 INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (18, 'add_salary_payment_dot_column', '55920a140c49c0216cdff7930aa5d467a50076e904e7f305050e99c4db32133d', 0);
 INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (19, 'fellowship_salary_view_from_payments', '94a27a81f2900ad0e9d29d0ad3a0e99ed9b3dfd610a6d54671fd60d5f8dec69c', 0);
 INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (20, 'fix_fellowship_salary_usd_latest', 'a4f3f7ab169f9f0f03bf0e820ba126ac9ff2f6983eda9a1ed3a45188eaa86fee', 0);
+INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (21, 'filter_treasury_by_hidden_referenda', 'PLACEHOLDER', 0);
+INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (22, 'fix_custom_spending_foreign_key', 'PLACEHOLDER', 0);
+INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (23, 'rename_tally_columns', 'PLACEHOLDER', 0);
+INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (24, 'fix_tally_column_refs', 'PLACEHOLDER', 0);
+INSERT INTO schema_migrations (version, name, checksum, execution_time_ms) VALUES (25, 'add_custom_table_metadata', 'PLACEHOLDER', 0);
 
 -- Tables
 -- Table: Bounties
@@ -79,7 +84,7 @@ CREATE TABLE "Custom Spending" (
     "category_id" INTEGER,
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY ("category_id") REFERENCES "Categories_old"("id")
+    FOREIGN KEY ("category_id") REFERENCES "Categories"("id")
 );
 
 -- Table: Dashboard Components
@@ -128,7 +133,7 @@ CREATE TABLE "Local Flows" (
 );
 
 -- Table: Referenda
-CREATE TABLE "Referenda" ("id" INTEGER PRIMARY KEY, "title" TEXT, "status" TEXT, "DOT_proposal_time" REAL, "USD_proposal_time" REAL, "track" TEXT, "tally.ayes" REAL, "tally.nays" REAL, "proposal_time" TIMESTAMP, "latest_status_change" TIMESTAMP, "DOT_latest" REAL, "USD_latest" REAL, "DOT_component" REAL, "USDC_component" REAL, "USDT_component" REAL, "category_id" INTEGER, "notes" TEXT, "hide_in_spends" INTEGER);
+CREATE TABLE "Referenda" ("id" INTEGER PRIMARY KEY, "title" TEXT, "status" TEXT, "DOT_proposal_time" REAL, "USD_proposal_time" REAL, "track" TEXT, "tally_ayes" REAL, "tally_nays" REAL, "proposal_time" TIMESTAMP, "latest_status_change" TIMESTAMP, "DOT_latest" REAL, "USD_latest" REAL, "DOT_component" REAL, "USDC_component" REAL, "USDT_component" REAL, "category_id" INTEGER, "notes" TEXT, "hide_in_spends" INTEGER);
 
 -- Table: Subtreasury
 CREATE TABLE "Subtreasury" ("id" INTEGER PRIMARY KEY, "title" TEXT, "description" TEXT, "DOT_latest" REAL, "USD_latest" REAL, "DOT_component" REAL, "USDC_component" REAL, "USDT_component" REAL, "category_id" INTEGER, "latest_status_change" TIMESTAMP);
@@ -152,6 +157,17 @@ CREATE TABLE Users (
       password_hash TEXT NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
+
+-- Table: Custom Table Metadata
+CREATE TABLE "Custom Table Metadata" (
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "table_name" TEXT NOT NULL UNIQUE,
+    "display_name" TEXT NOT NULL,
+    "schema_json" TEXT NOT NULL,
+    "row_count" INTEGER DEFAULT 0,
+    "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
 -- Indexes
 CREATE INDEX "idx_bounties_category_id" ON "Bounties" ("category_id");
@@ -197,6 +213,7 @@ CREATE INDEX "idx_subtreasury_category_id" ON "Subtreasury" ("category_id");
 CREATE INDEX "idx_treasury_referendum" ON "Treasury" ("referendumIndex");
 CREATE INDEX "idx_treasury_status" ON "Treasury" ("status");
 CREATE INDEX idx_users_username ON Users (username);
+CREATE INDEX "idx_custom_table_metadata_name" ON "Custom Table Metadata" ("table_name");
 
 -- Views
 -- View: all_spending

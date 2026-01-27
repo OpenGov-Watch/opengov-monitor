@@ -17,6 +17,7 @@ import {
   formatValue,
   formatAbbreviated,
 } from "@/lib/column-renderer";
+import { ChartLegend } from "./shared/chart-legend";
 
 interface LineChartData {
   name: string;
@@ -115,7 +116,7 @@ export const DashboardLineChart = memo(
       : null;
     const yAxisConfig = sourceColumn
       ? getColumnConfig(tableName, sourceColumn)
-      : { render: "number" as const };
+      : { type: "numeric" as const };
 
     // Y-axis tick formatter (abbreviated)
     const yAxisFormatter = (value: number) => formatAbbreviated(value, yAxisConfig);
@@ -143,17 +144,14 @@ export const DashboardLineChart = memo(
               verticalAlign={legendPosition === "right" ? "middle" : "bottom"}
               wrapperStyle={legendPosition === "right" ? { paddingLeft: "20px" } : { paddingTop: "10px" }}
               content={() => (
-                <ul className={`flex flex-wrap justify-center ${exportMode ? "gap-x-6 gap-y-2 text-lg" : "gap-x-4 gap-y-1 text-sm"} ${legendPosition === "right" ? "flex-col" : ""}`}>
-                  {lines.map((line, index) => (
-                    <li key={line.dataKey} className={`flex items-center ${exportMode ? "gap-2" : "gap-1.5"}`}>
-                      <span
-                        className={`inline-block rounded-sm ${exportMode ? "w-5 h-5" : "w-3 h-3"}`}
-                        style={{ backgroundColor: line.color || colors[index % colors.length] }}
-                      />
-                      <span className="text-muted-foreground">{line.name || line.dataKey}</span>
-                    </li>
-                  ))}
-                </ul>
+                <ChartLegend
+                  items={lines.map((line, index) => ({
+                    label: line.name || line.dataKey,
+                    color: line.color || colors[index % colors.length],
+                  }))}
+                  exportMode={exportMode}
+                  legendPosition={legendPosition}
+                />
               )}
             />
           )}

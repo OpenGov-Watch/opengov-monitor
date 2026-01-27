@@ -1,0 +1,193 @@
+# Investigating Data Errors
+
+How to investigate validation errors logged in the DataErrors table.
+
+## Quick Reference
+
+```bash
+# Query errors from DB
+sqlite3 data/local/polkadot.db "SELECT * FROM DataErrors WHERE table_name='Referenda' ORDER BY timestamp DESC LIMIT 10"
+
+# Re-fetch all referenda with errors (after fixing bugs)
+cd src/backend
+python scripts/run_sqlite.py --db ../../data/local/polkadot.db --refetch-errors
+
+# Re-fetch specific referenda by ID
+python scripts/run_sqlite.py --db ../../data/local/polkadot.db --referenda-ids 1831,1832,1833
+
+# Fetch current data from Subsquare API
+curl "https://polkadot-api.subsquare.io/gov2/referendums/1784.json" | jq .
+
+# Check record in our DB
+sqlite3 data/local/polkadot.db "SELECT id, title, status, track, DOT_proposal_time, USD_proposal_time FROM Referenda WHERE id=1784"
+```
+
+## Error Categories
+
+### Acceptable Errors (Not Bugs)
+
+NULL values are **acceptable** when referendum status is:
+- `TimedOut` - proposal never reached execution
+- `Rejected` - proposal was voted down
+- `Cancelled` - proposal was cancelled
+- `Killed` - proposal was killed
+
+These referenda have no spending data because they never executed. Spending reports only include executed proposals, so these errors don't affect reports.
+
+### Needs Investigation
+
+NULL values need investigation when:
+- Status is `Executed` or `Approved` - spending should have happened
+- Status is `Confirming` or `Deciding` - may have partial data
+
+## Investigation Workflow
+
+### 1. Get Error Details
+
+```sql
+SELECT
+    id, table_name, record_id, error_type, error_message,
+    json_extract(metadata, '$.status') as status,
+    json_extract(metadata, '$.track') as track,
+    json_extract(metadata, '$.title') as title,
+    json_extract(metadata, '$.null_columns') as null_columns
+FROM DataErrors
+WHERE table_name = 'Referenda'
+ORDER BY timestamp DESC;
+```
+
+### 2. Check if Error is Expected
+
+```sql
+-- Count errors by status
+SELECT
+    json_extract(metadata, '$.status') as status,
+    COUNT(*) as count
+FROM DataErrors
+WHERE table_name = 'Referenda'
+GROUP BY status;
+```
+
+If most errors are `TimedOut`/`Rejected`, they're expected.
+
+### 3. For Unexpected Errors, Check Source API
+
+```bash
+# Fetch referendum from Subsquare
+curl "https://polkadot-api.subsquare.io/gov2/referendums/{ID}.json" | jq .
+
+# Check these fields:
+# - .state.name (current status)
+# - .allSpends (should have spending breakdown)
+# - .onchainData.proposal.call (what action was proposed)
+```
+
+### 4. Compare with Our Data
+
+```sql
+-- Check what we stored
+SELECT * FROM Referenda WHERE id = {ID};
+
+-- Check the spending values
+SELECT
+    id, title, status, track,
+    DOT_proposal_time, USD_proposal_time,
+    DOT_component, USDC_component, USDT_component
+FROM Referenda WHERE id = {ID};
+```
+
+## Common Causes of NULL Values
+
+| Cause | How to Identify | Resolution |
+|-------|-----------------|------------|
+| Non-executed referendum | status in (TimedOut, Rejected, Cancelled, Killed) | Acceptable - no action needed |
+| Call index mismatch | API callIndex not in code's known lists | Add new indices or use `allSpends` |
+| API missing data | Subsquare API returns null/empty for `allSpends` | Upstream issue - report to Subsquare |
+| Unsupported asset type | Check `allSpends[].assetKind` for unknown assets | Add support in `_build_bag_from_all_spends()` |
+| XCM parsing failure | Check logs for "Unknown asset" warnings | Add asset mapping in `AssetKind` |
+| Price service failure | Check logs for price fetch errors | Check CoinGecko/yfinance availability |
+
+## Diagnosing Call Index Mismatches
+
+Runtime upgrades can change pallet indices, breaking value extraction. Example: ref 1831 uses `0x2800` (utility.batch) and `0x3c05` (treasury.spend), but code expected `0x1a00` and `0x1305`.
+
+### 1. Get the Call Index from API
+
+```bash
+curl "https://polkadot-api.subsquare.io/gov2/referendums/{ID}.json" | jq '.onchainData.proposal.callIndex'
+```
+
+### 2. Check Against Code
+
+```python
+# subsquare.py line ~233 - batch calls
+wrapped_proposals = ["0x1a00", "0x1a02", "0x1a03", "0x1a04", ...]
+
+# subsquare.py line ~313 - treasury.spend
+elif call_index == "0x1305":
+```
+
+### 3. Trace the Code Path
+
+```
+_transform_referenda()
+  → _bag_from_referendum_data()
+    → checks treasuryInfo first
+    → else calls _build_bag_from_call_value()
+      → matches call_index against known indices
+      → unmatched = falls through with empty bag → NULL
+```
+
+### 4. Check for Alternative Data
+
+The `allSpends` field bypasses call index parsing:
+```bash
+curl "https://polkadot-api.subsquare.io/gov2/referendums/{ID}.json" | jq '.allSpends'
+```
+
+If populated, using `allSpends` is more resilient than adding new call indices.
+
+## Files for Debugging
+
+| File | Purpose |
+|------|---------|
+| `backend/data_providers/subsquare.py:_transform_referenda()` | Value extraction logic |
+| `backend/data_providers/subsquare.py:_build_bag_from_all_spends()` | Asset parsing from `allSpends` |
+| `backend/data_providers/subsquare.py:_validate_and_log_spender_referenda()` | Validation logic |
+| `backend/data_providers/price_service.py` | USD conversion |
+
+## Bulk Analysis
+
+```sql
+-- Find executed referenda with missing values (these need investigation)
+SELECT r.id, r.title, r.status, r.track, e.error_message
+FROM Referenda r
+JOIN DataErrors e ON e.table_name = 'Referenda' AND e.record_id = CAST(r.id AS TEXT)
+WHERE r.status = 'Executed'
+AND r.track IN ('SmallSpender', 'MediumSpender', 'BigSpender', 'SmallTipper', 'BigTipper', 'Treasurer');
+```
+
+## Re-fetching After Bug Fixes
+
+After fixing parsing bugs (e.g., call index mismatches), re-fetch affected referenda:
+
+```bash
+cd src/backend
+
+# Re-fetch all referenda with logged errors
+python scripts/run_sqlite.py --db ../../data/local/polkadot.db --refetch-errors
+
+# Or re-fetch specific IDs
+python scripts/run_sqlite.py --db ../../data/local/polkadot.db --referenda-ids 1788,1789,1790
+```
+
+The re-fetch process:
+1. Clears existing errors for requested IDs
+2. Fetches fresh data from Subsquare API
+3. Re-validates and re-logs any that still fail
+4. Updates database with new data
+
+Check remaining errors after re-fetch:
+```sql
+SELECT record_id, error_type FROM DataErrors WHERE table_name = 'Referenda';
+```

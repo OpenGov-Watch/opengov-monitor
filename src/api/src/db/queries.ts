@@ -19,6 +19,9 @@ import type {
   ReferendumImportItem,
   ChildBountyImportItem,
   BountyImportItem,
+  CustomSpendingImportItem,
+  CustomTableMetadata,
+  CustomTableSchema,
 } from "./types";
 import { TABLE_NAMES, VIEW_NAMES } from "./types";
 
@@ -365,6 +368,161 @@ export function updateCustomSpending(
 export function deleteCustomSpending(id: number): void {
   const db = getWritableDatabase();
   db.prepare(`DELETE FROM "${TABLE_NAMES.customSpending}" WHERE id = ?`).run(id);
+}
+
+// Valid spending types for custom spending
+const VALID_SPENDING_TYPES = [
+  "Direct Spend",
+  "Claim",
+  "Bounty",
+  "Subtreasury",
+  "Fellowship Salary",
+  "Fellowship Grants",
+];
+
+// Bulk import custom spending entries from CSV
+export function bulkImportCustomSpending(items: CustomSpendingImportItem[]): number {
+  const db = getWritableDatabase();
+
+  // Pre-validation: Check that all types are valid and all referenced categories exist
+  const typeViolations: Array<{row: number, type: string}> = [];
+  const categoryViolations: Array<{row: number, title: string, category: string, subcategory: string}> = [];
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+
+    // Validate type
+    if (!VALID_SPENDING_TYPES.includes(item.type)) {
+      typeViolations.push({
+        row: i + 2, // +2 for header row + 0-index
+        type: item.type
+      });
+    }
+
+    // Validate category if category/subcategory strings are provided
+    if (item.category_id === undefined && (item.category || item.subcategory)) {
+      const category = item.category || "";
+      const subcategory = item.subcategory || "";
+
+      // Skip validation for ("", "") - this represents "no category"
+      if (category === "" && subcategory === "") {
+        continue;
+      }
+
+      // Check if this category/subcategory combination exists
+      if (!categoryExists(db, category, subcategory)) {
+        categoryViolations.push({
+          row: i + 2,
+          title: item.title,
+          category,
+          subcategory
+        });
+      }
+    }
+  }
+
+  // If there are type violations, reject the entire import
+  if (typeViolations.length > 0) {
+    const first10 = typeViolations.slice(0, 10);
+    const errorMessage =
+      `Import rejected: ${typeViolations.length} row(s) have invalid type.\n` +
+      `Valid types: ${VALID_SPENDING_TYPES.join(", ")}\n` +
+      `First 10 violations:\n` +
+      first10.map(v => `  Row ${v.row}: type="${v.type}"`).join('\n');
+    throw new Error(errorMessage);
+  }
+
+  // If there are category violations, reject the entire import
+  if (categoryViolations.length > 0) {
+    const first10 = categoryViolations.slice(0, 10);
+    const errorMessage =
+      `Import rejected: ${categoryViolations.length} row(s) reference non-existent categories.\n` +
+      `First 10 violations:\n` +
+      first10.map(v => `  Row ${v.row}: "${v.title}" → category="${v.category}", subcategory="${v.subcategory}"`).join('\n');
+    throw new Error(errorMessage);
+  }
+
+  // Proceed with transaction only if validation passed
+  // Use UPSERT to create entries if they don't exist, update if they do
+  const upsertStmt = db.prepare(`
+    INSERT INTO "${TABLE_NAMES.customSpending}"
+    (id, type, title, description, latest_status_change, DOT_latest, USD_latest,
+     DOT_component, USDC_component, USDT_component, category_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      type = excluded.type,
+      title = excluded.title,
+      description = excluded.description,
+      latest_status_change = excluded.latest_status_change,
+      DOT_latest = excluded.DOT_latest,
+      USD_latest = excluded.USD_latest,
+      DOT_component = excluded.DOT_component,
+      USDC_component = excluded.USDC_component,
+      USDT_component = excluded.USDT_component,
+      category_id = excluded.category_id,
+      updated_at = CURRENT_TIMESTAMP
+  `);
+
+  const insertStmt = db.prepare(`
+    INSERT INTO "${TABLE_NAMES.customSpending}"
+    (type, title, description, latest_status_change, DOT_latest, USD_latest,
+     DOT_component, USDC_component, USDT_component, category_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  const transaction = db.transaction((items: CustomSpendingImportItem[]) => {
+    let count = 0;
+    for (const item of items) {
+      // Resolve category_id
+      let categoryId: number | null = null;
+
+      if (item.category_id !== undefined) {
+        // Option A: Direct category_id provided
+        categoryId = item.category_id;
+      } else if (item.category || item.subcategory) {
+        // Option B: Category/subcategory strings provided - lookup only (no auto-create)
+        const category = item.category || "";
+        const subcategory = item.subcategory || "";
+        categoryId = lookupCategoryId(db, category, subcategory);
+      }
+
+      if (item.id !== undefined) {
+        // UPSERT: creates entry if not exists, updates if exists
+        const result = upsertStmt.run(
+          item.id,
+          item.type,
+          item.title,
+          item.description || null,
+          item.latest_status_change || null,
+          item.DOT_latest ?? null,
+          item.USD_latest ?? null,
+          item.DOT_component ?? null,
+          item.USDC_component ?? null,
+          item.USDT_component ?? null,
+          categoryId
+        );
+        if (result.changes > 0) count++;
+      } else {
+        // INSERT: creates new entry with auto-generated id
+        const result = insertStmt.run(
+          item.type,
+          item.title,
+          item.description || null,
+          item.latest_status_change || null,
+          item.DOT_latest ?? null,
+          item.USD_latest ?? null,
+          item.DOT_component ?? null,
+          item.USDC_component ?? null,
+          item.USDT_component ?? null,
+          categoryId
+        );
+        if (result.changes > 0) count++;
+      }
+    }
+    return count;
+  });
+
+  return transaction(items);
 }
 
 // Shared Table Replacement Infrastructure
@@ -1034,4 +1192,358 @@ export function moveDashboardComponent(
     .run(now, targetDashboardId);
 
   return { sourceDashboardId };
+}
+
+// ============================================================================
+// Custom Tables - Metadata and Dynamic Table Operations
+// ============================================================================
+
+import {
+  generateTableName,
+  generateCreateTableSQL,
+  coerceValue,
+  schemasMatch,
+} from "../lib/schema-inference.js";
+
+/**
+ * Get all custom tables metadata
+ */
+export function getCustomTables(): CustomTableMetadata[] {
+  const db = getDatabase();
+  return db
+    .prepare(`SELECT * FROM "${TABLE_NAMES.customTableMetadata}" ORDER BY display_name`)
+    .all() as CustomTableMetadata[];
+}
+
+/**
+ * Get custom table metadata by ID
+ */
+export function getCustomTableById(id: number): CustomTableMetadata | undefined {
+  const db = getDatabase();
+  return db
+    .prepare(`SELECT * FROM "${TABLE_NAMES.customTableMetadata}" WHERE id = ?`)
+    .get(id) as CustomTableMetadata | undefined;
+}
+
+/**
+ * Get custom table metadata by table name
+ */
+export function getCustomTableByName(tableName: string): CustomTableMetadata | undefined {
+  const db = getDatabase();
+  return db
+    .prepare(`SELECT * FROM "${TABLE_NAMES.customTableMetadata}" WHERE table_name = ?`)
+    .get(tableName) as CustomTableMetadata | undefined;
+}
+
+/**
+ * Get all custom table names (for query builder integration)
+ */
+export function getCustomTableNames(): string[] {
+  const db = getDatabase();
+  const result = db
+    .prepare(`SELECT table_name FROM "${TABLE_NAMES.customTableMetadata}"`)
+    .all() as { table_name: string }[];
+  return result.map((r) => r.table_name);
+}
+
+/**
+ * Create a new custom table with schema and optional initial data
+ */
+export function createCustomTable(
+  displayName: string,
+  schema: CustomTableSchema,
+  initialData?: Record<string, string | number | null>[]
+): CustomTableMetadata {
+  const db = getWritableDatabase();
+
+  // Generate internal table name
+  let tableName = generateTableName(displayName);
+
+  // Ensure uniqueness by appending number if needed
+  let counter = 1;
+  while (getCustomTableByName(tableName)) {
+    tableName = `${generateTableName(displayName)}_${counter}`;
+    counter++;
+  }
+
+  const schemaJson = JSON.stringify(schema);
+  const now = new Date().toISOString();
+
+  // Use transaction for atomicity
+  const transaction = db.transaction(() => {
+    // 1. Create the actual table
+    const createTableSQL = generateCreateTableSQL(tableName, schema);
+    db.exec(createTableSQL);
+
+    // 2. Insert initial data if provided
+    let rowCount = 0;
+    if (initialData && initialData.length > 0) {
+      const columnNames = schema.columns.map((c) => c.name);
+      const placeholders = columnNames.map(() => "?").join(", ");
+      const insertSQL = `INSERT INTO "${tableName}" (${columnNames.map((c) => `"${c}"`).join(", ")}) VALUES (${placeholders})`;
+      const insertStmt = db.prepare(insertSQL);
+
+      for (const row of initialData) {
+        const values = schema.columns.map((col) => {
+          const rawValue = row[col.name];
+          return coerceValue(
+            rawValue === null || rawValue === undefined ? null : String(rawValue),
+            col.type
+          );
+        });
+        insertStmt.run(...values);
+        rowCount++;
+      }
+    }
+
+    // 3. Create metadata entry
+    const result = db.prepare(`
+      INSERT INTO "${TABLE_NAMES.customTableMetadata}"
+      (table_name, display_name, schema_json, row_count, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(tableName, displayName, schemaJson, rowCount, now, now);
+
+    return {
+      id: result.lastInsertRowid as number,
+      table_name: tableName,
+      display_name: displayName,
+      schema_json: schemaJson,
+      row_count: rowCount,
+      created_at: now,
+      updated_at: now,
+    };
+  });
+
+  return transaction();
+}
+
+/**
+ * Delete a custom table (drops the table and removes metadata)
+ */
+export function deleteCustomTable(id: number): boolean {
+  const db = getWritableDatabase();
+
+  const metadata = getCustomTableById(id);
+  if (!metadata) {
+    return false;
+  }
+
+  const transaction = db.transaction(() => {
+    // 1. Drop the actual table
+    db.exec(`DROP TABLE IF EXISTS "${metadata.table_name}"`);
+
+    // 2. Delete metadata entry
+    db.prepare(`DELETE FROM "${TABLE_NAMES.customTableMetadata}" WHERE id = ?`).run(id);
+  });
+
+  transaction();
+  return true;
+}
+
+/**
+ * Get paginated data from a custom table
+ */
+export function getCustomTableData(
+  tableName: string,
+  limit: number = 100,
+  offset: number = 0
+): { rows: Record<string, unknown>[]; total: number } {
+  const db = getDatabase();
+
+  // Verify table exists in metadata (security check)
+  const metadata = getCustomTableByName(tableName);
+  if (!metadata) {
+    throw new Error(`Custom table "${tableName}" not found`);
+  }
+
+  const rows = db
+    .prepare(`SELECT * FROM "${tableName}" LIMIT ? OFFSET ?`)
+    .all(limit, offset) as Record<string, unknown>[];
+
+  const countResult = db
+    .prepare(`SELECT COUNT(*) as count FROM "${tableName}"`)
+    .get() as { count: number };
+
+  return { rows, total: countResult.count };
+}
+
+/**
+ * Insert a row into a custom table
+ */
+export function insertCustomTableRow(
+  tableName: string,
+  data: Record<string, string | number | null>
+): { _id: number } {
+  const db = getWritableDatabase();
+
+  // Verify table exists and get schema
+  const metadata = getCustomTableByName(tableName);
+  if (!metadata) {
+    throw new Error(`Custom table "${tableName}" not found`);
+  }
+
+  const schema: CustomTableSchema = JSON.parse(metadata.schema_json);
+  const columnNames = schema.columns.map((c) => c.name);
+  const placeholders = columnNames.map(() => "?").join(", ");
+
+  const values = schema.columns.map((col) => {
+    const rawValue = data[col.name];
+    return coerceValue(
+      rawValue === null || rawValue === undefined ? null : String(rawValue),
+      col.type
+    );
+  });
+
+  const result = db.prepare(`
+    INSERT INTO "${tableName}" (${columnNames.map((c) => `"${c}"`).join(", ")})
+    VALUES (${placeholders})
+  `).run(...values);
+
+  // Update row count in metadata
+  updateCustomTableRowCount(tableName);
+
+  return { _id: result.lastInsertRowid as number };
+}
+
+/**
+ * Update a row in a custom table
+ */
+export function updateCustomTableRow(
+  tableName: string,
+  rowId: number,
+  data: Record<string, string | number | null>
+): boolean {
+  const db = getWritableDatabase();
+
+  // Verify table exists and get schema
+  const metadata = getCustomTableByName(tableName);
+  if (!metadata) {
+    throw new Error(`Custom table "${tableName}" not found`);
+  }
+
+  const schema: CustomTableSchema = JSON.parse(metadata.schema_json);
+
+  const setClauses: string[] = [];
+  const values: (string | number | null)[] = [];
+
+  for (const col of schema.columns) {
+    if (col.name in data) {
+      setClauses.push(`"${col.name}" = ?`);
+      const rawValue = data[col.name];
+      values.push(
+        coerceValue(
+          rawValue === null || rawValue === undefined ? null : String(rawValue),
+          col.type
+        )
+      );
+    }
+  }
+
+  if (setClauses.length === 0) {
+    return false;
+  }
+
+  values.push(rowId);
+  const result = db.prepare(`
+    UPDATE "${tableName}" SET ${setClauses.join(", ")} WHERE _id = ?
+  `).run(...values);
+
+  return result.changes > 0;
+}
+
+/**
+ * Delete a row from a custom table
+ */
+export function deleteCustomTableRow(tableName: string, rowId: number): boolean {
+  const db = getWritableDatabase();
+
+  // Verify table exists
+  const metadata = getCustomTableByName(tableName);
+  if (!metadata) {
+    throw new Error(`Custom table "${tableName}" not found`);
+  }
+
+  const result = db.prepare(`DELETE FROM "${tableName}" WHERE _id = ?`).run(rowId);
+
+  // Update row count in metadata
+  updateCustomTableRowCount(tableName);
+
+  return result.changes > 0;
+}
+
+/**
+ * Wipe all data and re-import from new data (schema must match)
+ */
+export function wipeAndImportCustomTable(
+  tableName: string,
+  rows: Record<string, string | number | null>[]
+): number {
+  const db = getWritableDatabase();
+
+  // Verify table exists and get schema
+  const metadata = getCustomTableByName(tableName);
+  if (!metadata) {
+    throw new Error(`Custom table "${tableName}" not found`);
+  }
+
+  const schema: CustomTableSchema = JSON.parse(metadata.schema_json);
+
+  const transaction = db.transaction(() => {
+    // 1. Delete all existing data
+    db.exec(`DELETE FROM "${tableName}"`);
+
+    // 2. Reset autoincrement
+    db.exec(`DELETE FROM sqlite_sequence WHERE name = '${tableName}'`);
+
+    // 3. Insert new data
+    let count = 0;
+    if (rows.length > 0) {
+      const columnNames = schema.columns.map((c) => c.name);
+      const placeholders = columnNames.map(() => "?").join(", ");
+      const insertSQL = `INSERT INTO "${tableName}" (${columnNames.map((c) => `"${c}"`).join(", ")}) VALUES (${placeholders})`;
+      const insertStmt = db.prepare(insertSQL);
+
+      for (const row of rows) {
+        const values = schema.columns.map((col) => {
+          const rawValue = row[col.name];
+          return coerceValue(
+            rawValue === null || rawValue === undefined ? null : String(rawValue),
+            col.type
+          );
+        });
+        insertStmt.run(...values);
+        count++;
+      }
+    }
+
+    // 4. Update metadata
+    const now = new Date().toISOString();
+    db.prepare(`
+      UPDATE "${TABLE_NAMES.customTableMetadata}"
+      SET row_count = ?, updated_at = ?
+      WHERE table_name = ?
+    `).run(count, now, tableName);
+
+    return count;
+  });
+
+  return transaction();
+}
+
+/**
+ * Update the row count in metadata for a custom table
+ */
+function updateCustomTableRowCount(tableName: string): void {
+  const db = getWritableDatabase();
+
+  const countResult = db
+    .prepare(`SELECT COUNT(*) as count FROM "${tableName}"`)
+    .get() as { count: number };
+
+  const now = new Date().toISOString();
+  db.prepare(`
+    UPDATE "${TABLE_NAMES.customTableMetadata}"
+    SET row_count = ?, updated_at = ?
+    WHERE table_name = ?
+  `).run(countResult.count, now, tableName);
 }

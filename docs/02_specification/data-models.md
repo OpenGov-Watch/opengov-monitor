@@ -23,7 +23,7 @@ Core fields: `title`, `status`, `track`, `proposal_time`, `latest_status_change`
 
 Value fields: `{ASSET}_proposal_time`, `{ASSET}_latest`, `USD_*`, `{ASSET}_component`
 
-Tally fields: `tally.ayes`, `tally.nays`
+Tally fields: `tally_ayes`, `tally_nays`
 
 Manual fields: `category_id` (FK), `notes`, `hide_in_spends`
 
@@ -138,6 +138,27 @@ Fields: `type`, `title`, `description`, `latest_status_change`, `DOT_latest`, `U
 Type values: Must be one of: "Direct Spend", "Claim", "Bounty", "Subtreasury", "Fellowship Salary", "Fellowship Grants"
 
 ID format in views: `custom-{id}` (e.g., custom-1, custom-2)
+
+### Custom Table Metadata
+
+Tracks user-created tables via CSV import.
+
+Primary key: `id` (auto-increment)
+
+Fields: `table_name` (unique), `display_name`, `schema_json`, `row_count`, `created_at`, `updated_at`
+
+**Schema JSON format:**
+```json
+{
+  "columns": [
+    { "name": "col_name", "type": "text|integer|real|date|boolean", "nullable": true }
+  ]
+}
+```
+
+**Table naming:** Internal tables prefixed with `custom_` (e.g., `custom_my_data`)
+
+**Query integration:** Custom tables automatically added to ALLOWED_SOURCES for query builder
 
 ### Users
 

@@ -25,13 +25,14 @@ The DataErrors table provides centralized error tracking for data validation and
 ```
 Subsquare API → SubsquareProvider
                      ↓
-            _validate_and_log_treasury_spends()
+            _validate_and_log_treasury_spends()   (Treasury)
+            _validate_and_log_spender_referenda() (Referenda)
                      ↓
             sink.log_data_error()
                      ↓
             INSERT INTO DataErrors
                      ↓
-            Treasury table (still writes invalid rows)
+            Data table (still writes invalid rows)
 ```
 
 ## Implementation
@@ -68,6 +69,19 @@ Checks required columns: `DOT_proposal_time`, `USD_proposal_time`, `DOT_componen
 - Does NOT filter invalid rows from insertion
 - Treasury table schema allows NULLs intentionally
 
+### Referenda Validation
+
+**Validator:** `SubsquareProvider._validate_and_log_spender_referenda()` (`backend/data_providers/subsquare.py:579`)
+
+Only validates referenda from spender tracks: `SmallSpender`, `MediumSpender`, `BigSpender`, `SmallTipper`, `BigTipper`, `Treasurer`
+
+Checks required columns: `DOT_proposal_time`, `USD_proposal_time`, `DOT_component`, `USDC_component`, `USDT_component`
+
+**Behavior:**
+- Logs errors for spender track referenda with NULL/NaN in required columns
+- Non-spender tracks (Root, FellowshipAdmin, etc.) are ignored
+- Does NOT filter invalid rows from insertion
+
 ### Migration Backfill
 
 **Migration 004:** Logs pre-existing Treasury NULLs with `error_type: "historical_null"`
@@ -78,7 +92,7 @@ Source: `backend/migrations/versions/004_log_historical_treasury_nulls.py`
 
 **Route:** `/manage/data-errors` (authenticated)
 **API:** `GET /api/data-errors?table_name=Treasury&error_type=missing_value`
-**Component:** `frontend/src/routes/manage/data-errors.tsx`
+**Component:** `frontend/src/pages/manage/data-errors.tsx`
 
 ## Error Types
 
@@ -99,3 +113,7 @@ Treasury spends with incomplete asset breakdowns still provide value (status, de
 
 **No unique constraint:**
 Same record can generate multiple errors over time if repeatedly fetched with issues.
+
+## Investigating Errors
+
+See [howtos/investigate-data-errors.md](../howtos/investigate-data-errors.md) for debugging workflow.

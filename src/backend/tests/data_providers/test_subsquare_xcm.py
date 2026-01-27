@@ -346,3 +346,250 @@ class TestXCMEdgeCases:
         }
         result = subsquare_provider._get_XCM_asset_kind(asset_kind)
         assert result == AssetKind.INVALID
+
+
+class TestXCMv3ChainContext:
+    """
+    Test v3 XCM chain context awareness.
+
+    These tests verify that v3 parsing correctly interprets XCM based on
+    chain context (Relay Chain vs AssetHub) after the governance migration
+    at ref 1782.
+
+    Key insight: `location.interior.here` means different things:
+    - On Relay Chain: "native asset (DOT)"
+    - On AssetHub: "current location" - must check assetId.concrete for actual asset
+    """
+
+    def test_v3_here_location_with_native_dot_assetid(self, subsquare_provider):
+        """
+        Test v3 with here location but assetId.concrete indicates DOT.
+
+        This pattern appears when governance is on AssetHub but spending DOT.
+        location.interior.here = "we're on AssetHub"
+        assetId.concrete.interior.here = "native asset of this chain" = DOT
+        """
+        asset_kind = {
+            "v3": {
+                "location": {
+                    "parents": 0,
+                    "interior": {"here": None}
+                },
+                "assetId": {
+                    "concrete": {
+                        "parents": 0,
+                        "interior": {"here": None}
+                    }
+                }
+            }
+        }
+        result = subsquare_provider._get_XCM_asset_kind(asset_kind)
+        assert result == AssetKind.DOT
+
+    def test_v3_here_location_with_usdc_assetid(self, subsquare_provider):
+        """
+        Test v3 with here location but assetId.concrete indicates USDC.
+
+        This is the Treasury spend #203 pattern:
+        location.interior.here = "we're on AssetHub"
+        assetId.concrete with x2 = "USDC on pallet 50, index 1337"
+
+        Previously this was incorrectly returning DOT because the old code
+        only checked location.interior.here and immediately returned native.
+        """
+        asset_kind = {
+            "v3": {
+                "location": {
+                    "parents": 0,
+                    "interior": {"here": None}
+                },
+                "assetId": {
+                    "concrete": {
+                        "parents": 0,
+                        "interior": {
+                            "x2": [
+                                {"palletInstance": 50},
+                                {"generalIndex": 1337}
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+        result = subsquare_provider._get_XCM_asset_kind(asset_kind)
+        assert result == AssetKind.USDC
+
+    def test_v3_here_location_with_usdt_assetid(self, subsquare_provider):
+        """Test v3 with here location but assetId.concrete indicates USDT."""
+        asset_kind = {
+            "v3": {
+                "location": {
+                    "parents": 0,
+                    "interior": {"here": None}
+                },
+                "assetId": {
+                    "concrete": {
+                        "parents": 0,
+                        "interior": {
+                            "x2": [
+                                {"palletInstance": 50},
+                                {"generalIndex": 1984}
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+        result = subsquare_provider._get_XCM_asset_kind(asset_kind)
+        assert result == AssetKind.USDT
+
+    def test_v3_here_location_with_relay_reference(self, subsquare_provider):
+        """
+        Test v3 with here location but assetId.concrete references relay chain.
+
+        parents=1 in assetId.concrete means "go up to relay chain"
+        interior.here means "native asset there" = DOT
+        """
+        asset_kind = {
+            "v3": {
+                "location": {
+                    "parents": 0,
+                    "interior": {"here": None}
+                },
+                "assetId": {
+                    "concrete": {
+                        "parents": 1,
+                        "interior": {"here": None}
+                    }
+                }
+            }
+        }
+        result = subsquare_provider._get_XCM_asset_kind(asset_kind)
+        assert result == AssetKind.DOT
+
+    def test_v3_x1_parachain_with_usdc(self, subsquare_provider):
+        """Test v3 with x1 parachain location and USDC asset."""
+        asset_kind = {
+            "v3": {
+                "location": {
+                    "parents": 0,
+                    "interior": {
+                        "x1": {"parachain": 1000}
+                    }
+                },
+                "assetId": {
+                    "concrete": {
+                        "parents": 0,
+                        "interior": {
+                            "x2": [
+                                {"palletInstance": 50},
+                                {"generalIndex": 1337}
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+        result = subsquare_provider._get_XCM_asset_kind(asset_kind)
+        assert result == AssetKind.USDC
+
+    def test_v3_x1_parachain_with_native_dot(self, subsquare_provider):
+        """Test v3 with x1 parachain location and native DOT asset."""
+        asset_kind = {
+            "v3": {
+                "location": {
+                    "parents": 0,
+                    "interior": {
+                        "x1": {"parachain": 1000}
+                    }
+                },
+                "assetId": {
+                    "concrete": {
+                        "parents": 0,
+                        "interior": {"here": None}
+                    }
+                }
+            }
+        }
+        result = subsquare_provider._get_XCM_asset_kind(asset_kind)
+        assert result == AssetKind.DOT
+
+    def test_v3_x1_parachain_with_ded(self, subsquare_provider):
+        """Test v3 with DED token (generalIndex 30)."""
+        asset_kind = {
+            "v3": {
+                "location": {
+                    "parents": 0,
+                    "interior": {
+                        "x1": {"parachain": 1000}
+                    }
+                },
+                "assetId": {
+                    "concrete": {
+                        "parents": 0,
+                        "interior": {
+                            "x2": [
+                                {"palletInstance": 50},
+                                {"generalIndex": 30}
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+        result = subsquare_provider._get_XCM_asset_kind(asset_kind)
+        assert result == AssetKind.DED
+
+
+class TestXCMSharedUtilities:
+    """Test the shared utility functions for XCM parsing."""
+
+    def test_general_index_to_asset_kind_usdc(self, subsquare_provider):
+        """Test USDC mapping."""
+        assert subsquare_provider._general_index_to_asset_kind(1337) == AssetKind.USDC
+
+    def test_general_index_to_asset_kind_usdt(self, subsquare_provider):
+        """Test USDT mapping."""
+        assert subsquare_provider._general_index_to_asset_kind(1984) == AssetKind.USDT
+
+    def test_general_index_to_asset_kind_ded(self, subsquare_provider):
+        """Test DED mapping."""
+        assert subsquare_provider._general_index_to_asset_kind(30) == AssetKind.DED
+
+    def test_general_index_to_asset_kind_invalid(self, subsquare_provider):
+        """Test invalid mapping for known bad value."""
+        assert subsquare_provider._general_index_to_asset_kind(19840000000000) == AssetKind.INVALID
+
+    def test_general_index_to_asset_kind_unknown(self, subsquare_provider):
+        """Test unknown index returns INVALID."""
+        assert subsquare_provider._general_index_to_asset_kind(9999) == AssetKind.INVALID
+
+    def test_parse_asset_interior_x2_usdc(self, subsquare_provider):
+        """Test x2 parsing for USDC."""
+        x2 = [{"palletInstance": 50}, {"generalIndex": 1337}]
+        assert subsquare_provider._parse_asset_interior_x2(x2) == AssetKind.USDC
+
+    def test_parse_asset_interior_x2_wrong_pallet(self, subsquare_provider):
+        """Test x2 parsing with wrong pallet instance."""
+        x2 = [{"palletInstance": 99}, {"generalIndex": 1337}]
+        assert subsquare_provider._parse_asset_interior_x2(x2) == AssetKind.INVALID
+
+    def test_parse_asset_interior_x2_too_short(self, subsquare_provider):
+        """Test x2 parsing with too few elements."""
+        x2 = [{"palletInstance": 50}]
+        assert subsquare_provider._parse_asset_interior_x2(x2) == AssetKind.INVALID
+
+    def test_resolve_asset_from_interior_relay(self, subsquare_provider):
+        """Test resolving relay chain native asset."""
+        interior = {"here": None}
+        assert subsquare_provider._resolve_asset_from_interior(interior, parents=1) == AssetKind.DOT
+
+    def test_resolve_asset_from_interior_local_native(self, subsquare_provider):
+        """Test resolving local native asset."""
+        interior = {"here": None}
+        assert subsquare_provider._resolve_asset_from_interior(interior, parents=0) == AssetKind.DOT
+
+    def test_resolve_asset_from_interior_usdc(self, subsquare_provider):
+        """Test resolving USDC from x2 interior."""
+        interior = {"x2": [{"palletInstance": 50}, {"generalIndex": 1337}]}
+        assert subsquare_provider._resolve_asset_from_interior(interior, parents=0) == AssetKind.USDC

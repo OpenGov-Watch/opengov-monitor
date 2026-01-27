@@ -19,10 +19,16 @@ Python data pipeline: fetches governance data from Subsquare, enriches with USD 
 source .venv/bin/activate
 
 # Auto-detect mode (backfill empty tables, incremental for populated)
-python scripts/run_sqlite.py --db ../data/local/polkadot.db
+python scripts/run_sqlite.py --db ../../data/local/polkadot.db
 
 # Force full backfill
-python scripts/run_sqlite.py --db ../data/local/polkadot.db --backfill
+python scripts/run_sqlite.py --db ../../data/local/polkadot.db --backfill
+
+# Re-fetch referenda with errors (after bug fixes)
+python scripts/run_sqlite.py --db ../../data/local/polkadot.db --refetch-errors
+
+# Re-fetch specific referenda by ID
+python scripts/run_sqlite.py --db ../../data/local/polkadot.db --referenda-ids 1831,1832,1833
 
 # Fetch fellowship salary data
 python scripts/fetch_salaries.py --cycle 17
@@ -49,10 +55,13 @@ fetch_limits:
 
 `fellowship_salary_cycles`: `0` = fetch all, `-1` = skip entirely
 
-## Views
+## Tables and Views
 
-Database views are managed exclusively by migrations. The sink validates
-that required views exist at startup but does not create them.
+Database tables and views are managed exclusively by migrations:
+- Migration 000 creates all base tables from SCHEMA_REGISTRY
+- Subsequent migrations modify schema and create views
+- Server startup runs `pnpm migrate` to ensure database is initialized
+- The sink only reads/writes data, never modifies schema
 
 ## Fellowship Salary API
 

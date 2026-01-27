@@ -5,31 +5,33 @@
  * regardless of sort order or data changes.
  */
 
+// Sophisticated palette - balanced saturation for light and dark backgrounds
 export const DEFAULT_CHART_COLORS = [
-  "#8884d8",
-  "#82ca9d",
-  "#ffc658",
-  "#ff8042",
-  "#0088fe",
-  "#00c49f",
-  "#ffbb28",
-  "#ff8080",
-  "#a4de6c",
-  "#d0ed57",
+  "#9D8CD6", // soft purple
+  "#5BAD7A", // balanced green
+  "#D4A54A", // warm gold
+  "#D4756A", // coral
+  "#5A8FC4", // medium blue
+  "#4AADA8", // teal
+  "#C49A5A", // amber
+  "#C4707A", // rose
+  "#6DB56D", // fresh green
+  "#A8A052", // golden olive
 ];
 
 /**
  * Fixed color mappings for specific categories.
  * These override the hash-based color assignment for semantic consistency.
  */
+// Semantic category colors - balanced saturation
 export const CATEGORY_COLOR_OVERRIDES: Record<string, string> = {
-  Outreach: "#2563eb", // Blue (Tailwind blue-600)
-  Development: "#dc2626", // Red (Tailwind red-600)
-  Economy: "#16a34a", // Green (Tailwind green-600)
-  "Business Development": "#eab308", // Yellow (Tailwind yellow-500)
-  "Talent & Education": "#9333ea", // Purple (Tailwind purple-600)
-  Operations: "#ea580c", // Orange (Tailwind orange-600)
-  Research: "#38bdf8", // Light Blue (Tailwind sky-400)
+  Outreach: "#5A8FC4", // medium blue
+  Development: "#C95D5D", // balanced red
+  Economy: "#5BAD7A", // balanced green
+  "Business Development": "#D4A54A", // warm gold
+  "Talent & Education": "#9D8CD6", // soft purple
+  Operations: "#D4756A", // coral
+  Research: "#5AADC4", // sky blue
 };
 
 /**

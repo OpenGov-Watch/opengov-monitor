@@ -96,7 +96,14 @@ pnpm-debug.log*
 .claude/settings.local.json
 tmpclaude-*-cwd
 
+# Root markdown files (security audits, notes, etc.) - except tracked docs
+/*.md
+!README.md
+!CLAUDE.md
+
 # Exploration / scratch file
 nul
 
 deploy-opengov-monitor-key.json
+# XCM regression test fixtures (too large)
+src/backend/tests/fixtures/api_responses/

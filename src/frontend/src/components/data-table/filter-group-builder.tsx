@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { FilterCondition, FilterGroup, FacetValue, FacetQueryResponse, QueryConfig } from "@/lib/db/types";
 import { FilterMultiselect } from "./filter-multiselect";
 import { isCategoricalColumn, getColumnType, getOperatorsForColumnType } from "@/lib/column-metadata";
-import { buildFacetQueryConfig } from "@/lib/query-config-utils";
+import { buildFacetQueryConfig, mapFilterGroupColumns } from "@/lib/query-config-utils";
 
 interface FilterGroupBuilderProps {
   group: FilterGroup;
@@ -259,12 +259,18 @@ export const FilterGroupBuilder = React.memo(function FilterGroupBuilder({
       filterColumnMap?.get(col) || col
     );
 
+    // Map display columns to filter columns in the filter group
+    // e.g., parentBountyId → parentBountyName so filters work correctly
+    const mappedFilters = filterColumnMap && filterColumnMap.size > 0
+      ? mapFilterGroupColumns(group, filterColumnMap)
+      : group;
+
     // Build facet config with proper alias resolution for joined columns
     const facetConfig = buildFacetQueryConfig({
       sourceTable,
       columns: filterColumns,
       joins,
-      filters: group, // Use current filter group for accurate counts
+      filters: mappedFilters,
       columnIdToRef,
     });
 

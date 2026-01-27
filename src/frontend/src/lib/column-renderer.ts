@@ -1,18 +1,36 @@
 import yaml from "yaml";
 import { formatDate } from "@/lib/utils";
+import { getSpendingUrl } from "@/lib/urls";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export type RenderType =
+/**
+ * Unified column type that determines both rendering AND filtering behavior.
+ *
+ * | Type        | Rendering               | Filter Operators                    |
+ * |-------------|-------------------------|-------------------------------------|
+ * | text        | Plain text              | =, !=, >, <, >=, <=, LIKE           |
+ * | numeric     | Number format           | =, !=, >, <, >=, <=                 |
+ * | currency    | Formatted with symbol   | =, !=, >, <, >=, <=                 |
+ * | date        | Date format             | =, !=, >, <, >=, <=                 |
+ * | categorical | Plain text              | IN, NOT IN                          |
+ * | link        | Clickable link          | =, !=, LIKE                         |
+ * | address     | Truncated address       | =, !=, LIKE                         |
+ * | text_long   | Modal viewer button     | IS NULL, IS NOT NULL                |
+ *
+ * Note: Use `renderAs: "chip"` with `type: categorical` to get Badge rendering.
+ */
+export type ColumnType =
   | "text"
-  | "number"
+  | "numeric"
   | "currency"
   | "date"
-  | "badge"
+  | "categorical"
   | "link"
-  | "address";
+  | "address"
+  | "text_long";
 
 export type CurrencyType = "DOT" | "USD" | "USDC" | "USDT";
 
@@ -26,21 +44,31 @@ export type BadgeVariant =
 
 export interface ColumnRenderConfig {
   displayName?: string;
-  render: RenderType;
+  type?: ColumnType;
+  /**
+   * Overrides visual rendering while preserving `type` for semantic behavior (filtering).
+   * - "chip": Renders as Badge (use with type: categorical for chips with IN/NOT IN filtering)
+   * - Any ColumnType: Renders using that type's visual style
+   */
+  renderAs?: ColumnType | "chip";
   // Currency options
   currency?: CurrencyType;
   decimals?: number;
   // Date options
   format?: "date" | "datetime";
-  // Badge options
+  // Badge/categorical options
   variants?: Record<string, BadgeVariant>;
   // Link options
   urlTemplate?: string;
   urlField?: string; // Field in row that contains the URL
+  urlFunction?: string; // Named function to generate URL from row data (e.g., "spending")
   // Address options
   truncate?: boolean;
   // Number options
   color?: "green" | "red";
+  // text_long options (for modal display)
+  modalTitle?: string;
+  isJson?: boolean;
 }
 
 export type PatternMatchType = "exact" | "prefix" | "suffix" | "substring";
@@ -88,13 +116,13 @@ export async function loadColumnConfig(): Promise<void> {
       {
         match: "prefix",
         pattern: "DOT_",
-        config: { render: "currency", currency: "DOT", decimals: 0 },
+        config: { type: "currency", currency: "DOT", decimals: 0 },
       },
       {
         match: "exact",
         pattern: "status",
         caseInsensitive: true,
-        config: { render: "badge", variants: { default: "outline" } },
+        config: { type: "categorical", variants: { default: "outline" } },
       },
     ];
   }
@@ -106,7 +134,7 @@ export async function loadColumnConfig(): Promise<void> {
 // Config Lookup
 // ============================================================================
 
-const defaultConfig: ColumnRenderConfig = { render: "text" };
+const defaultConfig: ColumnRenderConfig = { type: "text" };
 
 export function getColumnConfig(
   tableName: string,
@@ -201,10 +229,10 @@ export function formatValue(
 ): string {
   if (value === null || value === undefined) return "-";
 
-  switch (config.render) {
+  switch (config.type) {
     case "currency":
       return formatCurrencyValue(value as number, config);
-    case "number":
+    case "numeric":
       return formatNumberValue(value as number, config);
     case "date":
       return formatDate(value as string);
@@ -323,6 +351,47 @@ export function getLinkUrl(
   }
 
   return null;
+}
+
+// ============================================================================
+// URL Function Registry
+// ============================================================================
+
+/**
+ * Registry of named URL functions that can generate URLs from row data.
+ * Functions receive the row and return a URL string or null.
+ */
+type UrlFunction = (row: Record<string, unknown>) => string | null;
+
+const urlFunctionRegistry: Record<string, UrlFunction> = {
+  /**
+   * Generate URL for all_spending rows based on the id field.
+   * Uses getSpendingUrl to parse the ID prefix and generate the appropriate URL.
+   */
+  spending: (row) => {
+    const id = row.id;
+    if (!id || typeof id !== "string") return null;
+    return getSpendingUrl(id);
+  },
+};
+
+/**
+ * Get URL using a named function from the registry.
+ *
+ * @param functionName Name of the registered URL function
+ * @param row Row data to pass to the function
+ * @returns Generated URL or null
+ */
+export function getUrlFromFunction(
+  functionName: string,
+  row: Record<string, unknown>
+): string | null {
+  const fn = urlFunctionRegistry[functionName];
+  if (!fn) {
+    console.warn(`Unknown URL function: ${functionName}`);
+    return null;
+  }
+  return fn(row);
 }
 
 // ============================================================================

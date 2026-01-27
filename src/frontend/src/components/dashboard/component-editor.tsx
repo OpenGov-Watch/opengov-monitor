@@ -1,10 +1,18 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import Markdown from "react-markdown";
+import Play from "lucide-react/dist/esm/icons/play";
+import AlertTriangle from "lucide-react/dist/esm/icons/alert-triangle";
+import AlignLeft from "lucide-react/dist/esm/icons/align-left";
+import AlignCenter from "lucide-react/dist/esm/icons/align-center";
+import AlignRight from "lucide-react/dist/esm/icons/align-right";
+import AlignJustify from "lucide-react/dist/esm/icons/align-justify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { validateQueryConfig, hasInvalidQueryConfig } from "@/lib/query-config-utils";
 import {
   Dialog,
   DialogContent,
@@ -19,12 +27,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { QueryBuilder } from "@/components/query-builder";
 import {
   DashboardDataTable,
   DashboardPieChart,
   DashboardBarChart,
   DashboardLineChart,
+  MetricDisplay,
   transformToPieData,
   transformToBarData,
   transformToLineData,
@@ -59,6 +69,7 @@ const COMPONENT_TYPES: { value: DashboardComponentType; label: string }[] = [
   { value: "bar_grouped", label: "Bar Chart (Grouped)" },
   { value: "bar_stacked", label: "Bar Chart (Stacked)" },
   { value: "line", label: "Line Chart" },
+  { value: "metric", label: "Single Metric" },
   { value: "text", label: "Text (Markdown)" },
 ];
 
@@ -106,6 +117,24 @@ export function ComponentEditor({
     component ? JSON.parse(component.grid_config) : defaultGridConfig
   );
   const [previewData, setPreviewData] = useState<Record<string, unknown>[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  // Metric mode: "manual" for static value, "query" for query-based value
+  const [metricMode, setMetricMode] = useState<"manual" | "query">(
+    component?.chart_config
+      ? JSON.parse(component.chart_config).metricValue !== undefined
+        ? "manual"
+        : "query"
+      : "query"
+  );
+
+  // Detect invalid query configuration entries using shared validation
+  const queryConfigValidation = useMemo(
+    () => validateQueryConfig(queryConfig),
+    [queryConfig.columns, queryConfig.expressionColumns, queryConfig.groupBy, queryConfig.orderBy]
+  );
+
+  const hasInvalidConfig = hasInvalidQueryConfig(queryConfigValidation);
 
   // Reset state when dialog opens or component changes
   useEffect(() => {
@@ -117,17 +146,19 @@ export function ComponentEditor({
           ? JSON.parse(component.query_config)
           : defaultQueryConfig
       );
-      setChartConfig(
-        component?.chart_config
-          ? JSON.parse(component.chart_config)
-          : defaultChartConfig
-      );
+      const parsedChartConfig = component?.chart_config
+        ? JSON.parse(component.chart_config)
+        : defaultChartConfig;
+      setChartConfig(parsedChartConfig);
       setGridConfig(
         component?.grid_config
           ? JSON.parse(component.grid_config)
           : defaultGridConfig
       );
       setPreviewData([]);
+      setPreviewError(null);
+      // Reset metric mode based on whether metricValue exists
+      setMetricMode(parsedChartConfig.metricValue !== undefined ? "manual" : "query");
     }
   }, [open, component]);
 
@@ -135,21 +166,88 @@ export function ComponentEditor({
     setQueryConfig(config);
   }, []);
 
-  const handlePreview = useCallback(
-    (data: unknown[]) => {
-      setPreviewData(data as Record<string, unknown>[]);
-    },
-    []
-  );
+  const fetchPreview = useCallback(async () => {
+    if (!queryConfig.sourceTable || queryConfig.columns.length === 0) {
+      setPreviewError("Please select a table and at least one column");
+      return;
+    }
+
+    setPreviewLoading(true);
+    setPreviewError(null);
+
+    try {
+      const response = await fetch("/api/query/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...queryConfig, limit: 100 }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setPreviewError(data.error || "Query failed");
+        return;
+      }
+
+      setPreviewData(data.data);
+    } catch (error) {
+      setPreviewError("Failed to execute query");
+      console.error(error);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, [queryConfig]);
 
   function handleSave() {
     if (!name.trim()) {
       return;
     }
 
-    // Text components don't need query validation
-    if (type !== "text" && (!queryConfig.sourceTable || queryConfig.columns.length === 0)) {
+    // Determine if query is required
+    const isManualMetric = type === "metric" && metricMode === "manual";
+    const skipQueryValidation = type === "text" || isManualMetric;
+
+    // Text and manual metric components don't need query validation
+    if (!skipQueryValidation && (!queryConfig.sourceTable || queryConfig.columns.length === 0)) {
       return;
+    }
+
+    // Build the query config to save, removing invalid entries
+    let queryConfigToSave = queryConfig;
+    if (!skipQueryValidation && hasInvalidConfig) {
+      const invalidGroupBySet = new Set(queryConfigValidation.invalidGroupBy);
+      const invalidOrderBySet = new Set(queryConfigValidation.invalidOrderBy.map(e => e.column));
+
+      // Clean groupBy - remove invalid entries, or clear entirely if no aggregates
+      let cleanedGroupBy: string[];
+      if (queryConfigValidation.groupByWithoutAggregates) {
+        // GROUP BY without aggregates is invalid, clear it
+        cleanedGroupBy = [];
+      } else {
+        cleanedGroupBy = (queryConfigToSave.groupBy || [])
+          .filter(gb => !invalidGroupBySet.has(gb));
+      }
+
+      // Clean orderBy
+      const cleanedOrderBy = (queryConfigToSave.orderBy || [])
+        .filter(ob => !invalidOrderBySet.has(ob.column));
+
+      queryConfigToSave = {
+        ...queryConfigToSave,
+        groupBy: cleanedGroupBy,
+        orderBy: cleanedOrderBy,
+      };
+    }
+
+    // Build chart config, handling metric mode
+    let chartConfigToSave = { ...chartConfig };
+    if (type === "metric") {
+      if (metricMode === "manual") {
+        // Keep metricValue, it should already be set
+      } else {
+        // Query mode: remove metricValue if present
+        delete chartConfigToSave.metricValue;
+      }
     }
 
     onSave({
@@ -157,9 +255,9 @@ export function ComponentEditor({
       dashboard_id: dashboardId,
       name: name.trim(),
       type,
-      query_config: type === "text" ? defaultQueryConfig : queryConfig,
+      query_config: skipQueryValidation ? defaultQueryConfig : queryConfigToSave,
       grid_config: gridConfig,
-      chart_config: chartConfig,
+      chart_config: chartConfigToSave,
     });
 
     onOpenChange(false);
@@ -168,13 +266,40 @@ export function ComponentEditor({
   function renderPreview() {
     // Text components show markdown preview
     if (type === "text") {
+      const alignmentClass = {
+        left: 'text-left',
+        center: 'text-center',
+        right: 'text-right',
+        justify: 'text-justify',
+      }[chartConfig.textAlign ?? 'left'];
+
+      const sizeClass = {
+        small: 'prose-sm',
+        medium: 'prose-lg',
+        large: 'prose-xl',
+      }[chartConfig.textSize ?? 'medium'];
+
       return (
-        <div className="h-64 overflow-auto border rounded p-4 prose prose-sm max-w-none dark:prose-invert">
+        <div className={`h-64 overflow-auto border rounded p-4 prose ${sizeClass} max-w-none dark:prose-invert ${alignmentClass}`}>
           {chartConfig.content ? (
             <Markdown>{chartConfig.content}</Markdown>
           ) : (
             <span className="text-muted-foreground">No content to preview</span>
           )}
+        </div>
+      );
+    }
+
+    // Metric manual mode: display the manual value directly (no data fetch needed)
+    if (type === "metric" && metricMode === "manual") {
+      return (
+        <div className="h-64 border rounded">
+          <MetricDisplay
+            value={chartConfig.metricValue ?? null}
+            label={chartConfig.metricLabel}
+            prefix={chartConfig.metricPrefix}
+            suffix={chartConfig.metricSuffix}
+          />
         </div>
       );
     }
@@ -250,6 +375,36 @@ export function ComponentEditor({
         );
       }
 
+      case "metric": {
+        // Query mode: validate and display query result (manual mode handled above)
+        if (queryConfig.columns.length !== 1) {
+          return (
+            <div className="h-64 flex items-center justify-center text-muted-foreground">
+              Select exactly 1 column for metric display
+            </div>
+          );
+        }
+        if (previewData.length !== 1) {
+          return (
+            <div className="h-64 flex items-center justify-center text-muted-foreground">
+              Query must return exactly 1 row (found {previewData.length})
+            </div>
+          );
+        }
+        const metricColumnKey = queryConfig.columns[0]?.alias || queryConfig.columns[0]?.column;
+        const metricValue = metricColumnKey ? previewData[0][metricColumnKey] : null;
+        return (
+          <div className="h-64 border rounded">
+            <MetricDisplay
+              value={metricValue as number | string | null}
+              label={chartConfig.metricLabel}
+              prefix={chartConfig.metricPrefix}
+              suffix={chartConfig.metricSuffix}
+            />
+          </div>
+        );
+      }
+
       default:
         return null;
     }
@@ -265,6 +420,57 @@ export function ComponentEditor({
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Invalid Configuration Warning */}
+          {hasInvalidConfig && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Invalid query configuration detected</AlertTitle>
+              <AlertDescription>
+                <p className="mb-2">
+                  The following query elements reference columns that no longer exist in this component's query:
+                </p>
+
+                {queryConfigValidation.invalidGroupBy.length > 0 && (
+                  <div className="mb-2">
+                    <span className="font-medium">GROUP BY:</span>
+                    <ul className="list-disc list-inside ml-2">
+                      {queryConfigValidation.invalidGroupBy.map((entry, idx) => (
+                        <li key={idx}><code className="bg-muted px-1 rounded">{entry}</code></li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {queryConfigValidation.invalidOrderBy.length > 0 && (
+                  <div className="mb-2">
+                    <span className="font-medium">ORDER BY:</span>
+                    <ul className="list-disc list-inside ml-2">
+                      {queryConfigValidation.invalidOrderBy.map((entry, idx) => (
+                        <li key={idx}>
+                          <code className="bg-muted px-1 rounded">{entry.column}</code> ({entry.direction})
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {queryConfigValidation.groupByWithoutAggregates && (
+                  <div className="mb-2">
+                    <span className="font-medium">GROUP BY without aggregates:</span>
+                    <p className="ml-2 text-sm">
+                      GROUP BY is configured but no columns have aggregate functions (SUM, COUNT, etc.).
+                      Either add an aggregate function to a column, or the GROUP BY will be removed on save.
+                    </p>
+                  </div>
+                )}
+
+                <p className="text-sm mt-2">
+                  These invalid entries will be automatically removed when you save this component.
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Basic Info */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -296,6 +502,17 @@ export function ComponentEditor({
             </div>
           </div>
 
+          {/* Subtitle */}
+          <div className="space-y-2">
+            <Label htmlFor="subtitle">Subtitle (optional)</Label>
+            <Input
+              id="subtitle"
+              value={chartConfig.subtitle || ""}
+              onChange={(e) => setChartConfig({ ...chartConfig, subtitle: e.target.value })}
+              placeholder="Optional subtitle displayed below the component name"
+            />
+          </div>
+
           {/* Text Editor for text type */}
           {type === "text" && (
             <div className="space-y-4">
@@ -310,6 +527,80 @@ export function ComponentEditor({
                   placeholder="# Heading&#10;&#10;Write your **markdown** content here..."
                 />
               </div>
+
+              {/* Display Options */}
+              <div className="space-y-3">
+                <Label>Display Options</Label>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="show-border"
+                    checked={chartConfig.showBorder !== false}
+                    onCheckedChange={(checked) =>
+                      setChartConfig({ ...chartConfig, showBorder: checked as boolean })
+                    }
+                  />
+                  <Label htmlFor="show-border" className="font-normal cursor-pointer">
+                    Show border
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="constrain-height"
+                    checked={chartConfig.constrainHeight !== false}
+                    onCheckedChange={(checked) =>
+                      setChartConfig({ ...chartConfig, constrainHeight: checked as boolean })
+                    }
+                  />
+                  <Label htmlFor="constrain-height" className="font-normal cursor-pointer">
+                    Fixed height (scroll if content overflows)
+                  </Label>
+                </div>
+                <div className="flex items-center gap-3 pt-2">
+                  <Label className="font-normal">Text alignment</Label>
+                  <div className="flex border rounded-md">
+                    {([
+                      { value: 'left', icon: AlignLeft, label: 'Left' },
+                      { value: 'center', icon: AlignCenter, label: 'Center' },
+                      { value: 'right', icon: AlignRight, label: 'Right' },
+                      { value: 'justify', icon: AlignJustify, label: 'Justify' },
+                    ] as const).map(({ value, icon: Icon, label }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setChartConfig({ ...chartConfig, textAlign: value })}
+                        className={`p-2 transition-colors ${
+                          (chartConfig.textAlign ?? 'left') === value
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-muted'
+                        } ${value === 'left' ? 'rounded-l-md' : ''} ${value === 'justify' ? 'rounded-r-md' : ''}`}
+                        title={label}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Label className="font-normal">Font size</Label>
+                  <div className="flex border rounded-md">
+                    {(['small', 'medium', 'large'] as const).map((size) => (
+                      <button
+                        key={size}
+                        type="button"
+                        onClick={() => setChartConfig({ ...chartConfig, textSize: size })}
+                        className={`px-3 py-1.5 text-sm transition-colors ${
+                          (chartConfig.textSize ?? 'medium') === size
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-muted'
+                        } ${size === 'small' ? 'rounded-l-md' : ''} ${size === 'large' ? 'rounded-r-md' : ''}`}
+                      >
+                        {size.charAt(0).toUpperCase() + size.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label>Preview</Label>
                 {renderPreview()}
@@ -317,8 +608,162 @@ export function ComponentEditor({
             </div>
           )}
 
-          {/* Query Builder for data types */}
-          {type !== "text" && (
+          {/* Metric component editor */}
+          {type === "metric" && (
+            <div className="space-y-4">
+              {/* Mode selector */}
+              <div className="space-y-2">
+                <Label>Value Source</Label>
+                <RadioGroup
+                  value={metricMode}
+                  onValueChange={(v: string) => setMetricMode(v as "manual" | "query")}
+                  className="flex gap-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="manual" id="metric-manual" />
+                    <Label htmlFor="metric-manual" className="font-normal cursor-pointer">Manual</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="query" id="metric-query" />
+                    <Label htmlFor="metric-query" className="font-normal cursor-pointer">Query</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {/* Manual mode: value input and options */}
+              {metricMode === "manual" && (
+                <div className="space-y-4 p-4 border rounded-md bg-muted/50">
+                  <div className="space-y-2">
+                    <Label className="text-sm">Value</Label>
+                    <Input
+                      value={chartConfig.metricValue || ""}
+                      onChange={(e) =>
+                        setChartConfig({ ...chartConfig, metricValue: e.target.value })
+                      }
+                      placeholder='e.g., "1,234" or "42.5"'
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Enter a static value. Use formatting as you want it displayed (e.g., &quot;1,234&quot;).
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm">Prefix</Label>
+                      <Input
+                        value={chartConfig.metricPrefix || ""}
+                        onChange={(e) =>
+                          setChartConfig({ ...chartConfig, metricPrefix: e.target.value })
+                        }
+                        placeholder='e.g., "$"'
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm">Suffix</Label>
+                      <Input
+                        value={chartConfig.metricSuffix || ""}
+                        onChange={(e) =>
+                          setChartConfig({ ...chartConfig, metricSuffix: e.target.value })
+                        }
+                        placeholder='e.g., "%"'
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm">Label</Label>
+                      <Input
+                        value={chartConfig.metricLabel || ""}
+                        onChange={(e) =>
+                          setChartConfig({ ...chartConfig, metricLabel: e.target.value })
+                        }
+                        placeholder="Label below number"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Query mode: query builder and options */}
+              {metricMode === "query" && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Data Query</Label>
+                    <div className="rounded-md border p-4">
+                      <QueryBuilder
+                        initialConfig={queryConfig}
+                        onChange={handleQueryChange}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Metric Options - show when columns are configured */}
+                  {queryConfig.columns.length > 0 && (
+                    <div className="space-y-4 p-4 border rounded-md bg-muted/50">
+                      <Label>Metric Options</Label>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm">Prefix</Label>
+                          <Input
+                            value={chartConfig.metricPrefix || ""}
+                            onChange={(e) =>
+                              setChartConfig({ ...chartConfig, metricPrefix: e.target.value })
+                            }
+                            placeholder='e.g., "$"'
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm">Suffix</Label>
+                          <Input
+                            value={chartConfig.metricSuffix || ""}
+                            onChange={(e) =>
+                              setChartConfig({ ...chartConfig, metricSuffix: e.target.value })
+                            }
+                            placeholder='e.g., "%"'
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm">Label</Label>
+                          <Input
+                            value={chartConfig.metricLabel || ""}
+                            onChange={(e) =>
+                              setChartConfig({ ...chartConfig, metricLabel: e.target.value })
+                            }
+                            placeholder="Label below number"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Metric components require exactly 1 column (with an aggregate function) and must return exactly 1 row.
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Preview */}
+              <div className="space-y-2">
+                <Label>Preview</Label>
+                {metricMode === "manual" ? (
+                  renderPreview()
+                ) : (
+                  <>
+                    {previewError && (
+                      <div className="text-sm text-red-500">{previewError}</div>
+                    )}
+                    <Button
+                      onClick={fetchPreview}
+                      disabled={previewLoading || !queryConfig.sourceTable || queryConfig.columns.length === 0}
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      {previewLoading ? "Loading..." : "Preview Results"}
+                    </Button>
+                    {previewData.length > 0 && renderPreview()}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Query Builder for non-text, non-metric data types */}
+          {type !== "text" && type !== "metric" && (
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Data Query</Label>
@@ -326,13 +771,12 @@ export function ComponentEditor({
                   <QueryBuilder
                     initialConfig={queryConfig}
                     onChange={handleQueryChange}
-                    onPreview={handlePreview}
                   />
                 </div>
               </div>
 
-              {/* Chart Config - show when we have preview data and it's a chart type */}
-              {previewData.length > 0 && type !== "table" && (
+              {/* Chart Config - show for chart types (not table) when columns are configured */}
+              {type !== "table" && queryConfig.columns.length > 0 && (
                 <div className="space-y-4 p-4 border rounded-md bg-muted/50">
                   <Label>Chart Options</Label>
                   <div className="grid grid-cols-2 gap-4">
@@ -420,15 +864,154 @@ export function ComponentEditor({
                 </div>
               )}
 
-              {/* Preview - show when we have data */}
-              {previewData.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Preview ({previewData.length} rows)</Label>
-                  {renderPreview()}
+              {/* Table Options - show for table type when columns are configured */}
+              {type === "table" && queryConfig.columns.length > 0 && (
+                <div className="space-y-4 p-4 border rounded-md bg-muted/50">
+                  <Label>Table Options</Label>
+                  <div className="flex flex-col gap-2">
+                    {/* Page totals - hidden when groupBy is active */}
+                    {!(queryConfig.groupBy && queryConfig.groupBy.length > 0) && (
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="showPageTotals"
+                          checked={chartConfig.showPageTotals ?? false}
+                          onCheckedChange={(checked) =>
+                            setChartConfig({ ...chartConfig, showPageTotals: checked === true })
+                          }
+                        />
+                        <label htmlFor="showPageTotals" className="text-sm">
+                          Show page totals (sums currency columns on current page)
+                        </label>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="showGrandTotals"
+                        checked={chartConfig.showGrandTotals ?? false}
+                        onCheckedChange={(checked) =>
+                          setChartConfig({ ...chartConfig, showGrandTotals: checked === true })
+                        }
+                      />
+                      <label htmlFor="showGrandTotals" className="text-sm">
+                        Show grand totals (sums currency columns across all data)
+                      </label>
+                    </div>
+                    {/* Hierarchical display - only when 2+ groupBy columns */}
+                    {queryConfig.groupBy && queryConfig.groupBy.length >= 2 && (
+                      <>
+                        <div className="flex items-center gap-2 pt-2 border-t">
+                          <Checkbox
+                            id="hierarchicalDisplay"
+                            checked={chartConfig.hierarchicalDisplay ?? false}
+                            onCheckedChange={(checked) =>
+                              setChartConfig({
+                                ...chartConfig,
+                                hierarchicalDisplay: checked === true,
+                                // Reset showGroupTotals when disabling hierarchical display
+                                showGroupTotals: checked === true ? chartConfig.showGroupTotals : false,
+                              })
+                            }
+                          />
+                          <label htmlFor="hierarchicalDisplay" className="text-sm">
+                            Hierarchical display (collapse repeated group values)
+                          </label>
+                        </div>
+                        {/* Show group totals - only when hierarchical display is enabled */}
+                        {chartConfig.hierarchicalDisplay && (
+                          <div className="flex items-center gap-2 ml-6">
+                            <Checkbox
+                              id="showGroupTotals"
+                              checked={chartConfig.showGroupTotals ?? false}
+                              onCheckedChange={(checked) =>
+                                setChartConfig({ ...chartConfig, showGroupTotals: checked === true })
+                              }
+                            />
+                            <label htmlFor="showGroupTotals" className="text-sm">
+                              Show group totals (subtotals for each group level)
+                            </label>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    <div className="flex items-center gap-2 pt-2 border-t">
+                      <Checkbox
+                        id="disableSorting"
+                        checked={chartConfig.disableSorting ?? false}
+                        onCheckedChange={(checked) =>
+                          setChartConfig({ ...chartConfig, disableSorting: checked === true })
+                        }
+                      />
+                      <label htmlFor="disableSorting" className="text-sm">
+                        Disable sorting (preserve ORDER BY from query)
+                      </label>
+                    </div>
+                  </div>
                 </div>
               )}
+
+              {/* Preview Button and Results */}
+              <div className="space-y-4 pt-4 border-t">
+                {previewError && (
+                  <div className="text-sm text-red-500">{previewError}</div>
+                )}
+                <Button
+                  onClick={fetchPreview}
+                  disabled={previewLoading || !queryConfig.sourceTable || queryConfig.columns.length === 0}
+                >
+                  <Play className="h-4 w-4 mr-2" />
+                  {previewLoading ? "Loading..." : "Preview Results"}
+                </Button>
+
+                {previewData.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Preview ({previewData.length} rows)</Label>
+                    {renderPreview()}
+                  </div>
+                )}
+              </div>
             </div>
           )}
+
+          {/* Render Options - available for all component types */}
+          <div className="space-y-4 p-4 border rounded-md bg-muted/50">
+            <Label>Render Options</Label>
+            <div className="space-y-2">
+              <Label htmlFor="backgroundColor" className="text-sm font-normal">Background Color</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  id="backgroundColorPicker"
+                  value={chartConfig.backgroundColor || "#ffffff"}
+                  onChange={(e) => setChartConfig({ ...chartConfig, backgroundColor: e.target.value })}
+                  className="h-9 w-12 cursor-pointer rounded border border-input p-1"
+                />
+                <Input
+                  id="backgroundColor"
+                  value={chartConfig.backgroundColor || ""}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Allow empty value to clear the color
+                    if (value === "" || /^#[0-9A-Fa-f]{0,6}$/.test(value)) {
+                      setChartConfig({ ...chartConfig, backgroundColor: value || undefined });
+                    }
+                  }}
+                  placeholder="#ffffff"
+                  className="w-28 font-mono"
+                  maxLength={7}
+                />
+                {chartConfig.backgroundColor && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setChartConfig({ ...chartConfig, backgroundColor: undefined })}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
 
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-4 border-t">
@@ -439,7 +1022,9 @@ export function ComponentEditor({
               onClick={handleSave}
               disabled={
                 !name.trim() ||
-                (type !== "text" && (!queryConfig.sourceTable || queryConfig.columns.length === 0))
+                (type !== "text" &&
+                 !(type === "metric" && metricMode === "manual") &&
+                 (!queryConfig.sourceTable || queryConfig.columns.length === 0))
               }
             >
               {component ? "Update" : "Add"} Component

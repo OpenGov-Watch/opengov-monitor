@@ -59,8 +59,8 @@ beforeAll(() => {
         "track" TEXT,
         "DOT_latest" REAL,
         "USD_latest" REAL,
-        "tally.ayes" REAL,
-        "tally.nays" REAL,
+        "tally_ayes" REAL,
+        "tally_nays" REAL,
         "proposal_time" TIMESTAMP,
         "latest_status_change" TIMESTAMP,
         "DOT_component" REAL,
@@ -131,6 +131,16 @@ beforeAll(() => {
 
     INSERT OR IGNORE INTO "secret_data" (id, password)
     VALUES (1, 'supersecret123');
+
+    CREATE TABLE IF NOT EXISTS "Custom Table Metadata" (
+      "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+      "table_name" TEXT NOT NULL UNIQUE,
+      "display_name" TEXT NOT NULL,
+      "schema_json" TEXT NOT NULL,
+      "row_count" INTEGER DEFAULT 0,
+      "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   app = createApp();
@@ -295,12 +305,12 @@ describe("Query Builder Security Tests", () => {
       expect(response.status).toBe(200);
     });
 
-    it("accepts column with dot: tally.ayes", async () => {
+    it("accepts column with underscore: DOT_proposal_time", async () => {
       const response = await request(app)
         .post("/api/query/execute")
         .send({
           sourceTable: "Referenda",
-          columns: [{ column: "tally.ayes" }],
+          columns: [{ column: "DOT_proposal_time" }],
           filters: [],
         });
 
@@ -426,6 +436,25 @@ describe("Query Builder Security Tests", () => {
         });
 
       expect(response.status).toBe(200);
+    });
+
+    it("!= operator includes NULL values in results", async () => {
+      // The != operator should include rows where the column is NULL
+      // SQL's != does not match NULLs by default, so we generate (col != ? OR col IS NULL)
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "id" }, { column: "notes" }],
+          filters: [{ column: "notes", operator: "!=", value: "some_value" }],
+        });
+
+      expect(response.status).toBe(200);
+      // Should include rows where notes is NULL (all test rows have NULL notes)
+      expect(response.body.data.length).toBeGreaterThan(0);
+      // Verify the SQL includes the NULL handling pattern
+      expect(response.body.sql).toContain("IS NULL");
+      expect(response.body.sql).toMatch(/\(.*!=.*OR.*IS NULL\)/);
     });
 
     it("accepts operator: >", async () => {
@@ -813,6 +842,37 @@ describe("Query Builder Security Tests", () => {
         expect(response.body.error).toContain("Invalid column name");
       }
     });
+
+    it("totalCount reflects grouped row count, not raw row count", async () => {
+      // When using GROUP BY with pagination (offset), totalCount should reflect
+      // the number of groups, not the number of raw rows before grouping
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [
+            { column: "status" },
+            { column: "id", aggregateFunction: "COUNT" },
+          ],
+          filters: [],
+          groupBy: ["status"],
+          offset: 0,  // Enable server-side pagination to get totalCount
+          limit: 100,
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.totalCount).toBeDefined();
+      // totalCount should equal the number of distinct status values (groups),
+      // not the total number of Referenda rows
+      expect(response.body.totalCount).toBe(response.body.data.length);
+      // The total count should be less than or equal to the sum of all group counts
+      // (proving we're counting groups, not raw rows)
+      const sumOfCounts = response.body.data.reduce(
+        (sum: number, row: { count_id: number }) => sum + row.count_id,
+        0
+      );
+      expect(response.body.totalCount).toBeLessThanOrEqual(sumOfCounts);
+    });
   });
 
   // ===========================================================================
@@ -863,6 +923,48 @@ describe("Query Builder Security Tests", () => {
       if (response.status === 500) {
         expect(response.body.error).toContain("Invalid column name");
       }
+    });
+
+    it("uses alias in ORDER BY for aggregated columns", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "all_spending",
+          columns: [
+            { column: "year_quarter" },
+            { column: "DOT_component", alias: "Total_DOT", aggregateFunction: "SUM" },
+          ],
+          filters: [],
+          groupBy: ["year_quarter"],
+          orderBy: [{ column: "DOT_component", direction: "DESC" }],
+          limit: 5,
+        });
+
+      expect(response.status).toBe(200);
+      // The ORDER BY should use the alias "Total_DOT" instead of raw column "DOT_component"
+      expect(response.body.sql).toContain('ORDER BY "Total_DOT" DESC');
+      expect(response.body.sql).not.toMatch(/ORDER BY.*"DOT_component"/);
+    });
+
+    it("uses generated alias in ORDER BY for aggregated columns without explicit alias", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "all_spending",
+          columns: [
+            { column: "year_quarter" },
+            { column: "DOT_component", aggregateFunction: "SUM" },
+          ],
+          filters: [],
+          groupBy: ["year_quarter"],
+          orderBy: [{ column: "DOT_component", direction: "ASC" }],
+          limit: 5,
+        });
+
+      expect(response.status).toBe(200);
+      // Without explicit alias, the generated alias should be "sum_DOT_component"
+      expect(response.body.sql).toContain('ORDER BY "sum_DOT_component" ASC');
+      expect(response.body.sql).not.toMatch(/ORDER BY.*"DOT_component" ASC/);
     });
   });
 
@@ -1279,7 +1381,7 @@ describe("Expression Column Security Tests", () => {
       expect(response.body.error).toContain("alias");
     });
 
-    it("rejects alias with special characters", async () => {
+    it("sanitizes alias with special characters", async () => {
       const response = await request(app)
         .post("/api/query/execute")
         .send({
@@ -1289,11 +1391,12 @@ describe("Expression Column Security Tests", () => {
           filters: [],
         });
 
-      expect(response.status).toBe(400);
-      expect(response.body.error).toContain("alias");
+      expect(response.status).toBe(200);
+      // Special chars sanitized
+      expect(response.body.sql).toContain('"bad__DROP_TABLE"');
     });
 
-    it("rejects alias starting with number", async () => {
+    it("sanitizes alias starting with number", async () => {
       const response = await request(app)
         .post("/api/query/execute")
         .send({
@@ -1303,8 +1406,9 @@ describe("Expression Column Security Tests", () => {
           filters: [],
         });
 
-      expect(response.status).toBe(400);
-      expect(response.body.error).toContain("alias");
+      expect(response.status).toBe(200);
+      // Prepends underscore when starting with number
+      expect(response.body.sql).toContain('"_123bad"');
     });
 
     it("accepts alias with underscore", async () => {
@@ -1424,7 +1528,7 @@ describe("Regular Column Alias Security Tests", () => {
       expect(response.status).toBe(200);
     });
 
-    it("rejects SQL injection: quote and FROM clause", async () => {
+    it("sanitizes SQL injection attempt: quote and FROM clause", async () => {
       const response = await request(app)
         .post("/api/query/execute")
         .send({
@@ -1433,11 +1537,12 @@ describe("Regular Column Alias Security Tests", () => {
           filters: [],
         });
 
-      expect(response.status).toBe(500);
-      expect(response.body.error).toContain("Invalid alias");
+      expect(response.status).toBe(200);
+      // SQL injection neutralized via sanitization
+      expect(response.body.sql).toContain('"foo__FROM_secret_data___"');
     });
 
-    it("rejects alias with semicolon", async () => {
+    it("sanitizes alias with semicolon", async () => {
       const response = await request(app)
         .post("/api/query/execute")
         .send({
@@ -1446,11 +1551,12 @@ describe("Regular Column Alias Security Tests", () => {
           filters: [],
         });
 
-      expect(response.status).toBe(500);
-      expect(response.body.error).toContain("Invalid alias");
+      expect(response.status).toBe(200);
+      // SQL injection neutralized via sanitization
+      expect(response.body.sql).toContain('"id__DROP_TABLE_secret_data"');
     });
 
-    it("rejects alias with SQL comment", async () => {
+    it("sanitizes alias with SQL comment", async () => {
       const response = await request(app)
         .post("/api/query/execute")
         .send({
@@ -1459,11 +1565,12 @@ describe("Regular Column Alias Security Tests", () => {
           filters: [],
         });
 
-      expect(response.status).toBe(500);
-      expect(response.body.error).toContain("Invalid alias");
+      expect(response.status).toBe(200);
+      // Dashes replaced with underscores
+      expect(response.body.sql).toContain('"id__comment"');
     });
 
-    it("rejects alias with spaces", async () => {
+    it("sanitizes alias with spaces", async () => {
       const response = await request(app)
         .post("/api/query/execute")
         .send({
@@ -1472,11 +1579,12 @@ describe("Regular Column Alias Security Tests", () => {
           filters: [],
         });
 
-      expect(response.status).toBe(500);
-      expect(response.body.error).toContain("Invalid alias");
+      expect(response.status).toBe(200);
+      // Space replaced with underscore
+      expect(response.body.sql).toContain('"bad_alias"');
     });
 
-    it("rejects alias with parentheses", async () => {
+    it("sanitizes alias with parentheses", async () => {
       const response = await request(app)
         .post("/api/query/execute")
         .send({
@@ -1485,11 +1593,12 @@ describe("Regular Column Alias Security Tests", () => {
           filters: [],
         });
 
-      expect(response.status).toBe(500);
-      expect(response.body.error).toContain("Invalid alias");
+      expect(response.status).toBe(200);
+      // Parentheses replaced with underscores
+      expect(response.body.sql).toContain('"func__"');
     });
 
-    it("rejects alias starting with number", async () => {
+    it("sanitizes alias starting with number", async () => {
       const response = await request(app)
         .post("/api/query/execute")
         .send({
@@ -1498,11 +1607,12 @@ describe("Regular Column Alias Security Tests", () => {
           filters: [],
         });
 
-      expect(response.status).toBe(500);
-      expect(response.body.error).toContain("Invalid alias");
+      expect(response.status).toBe(200);
+      // Prepends underscore when starting with number
+      expect(response.body.sql).toContain('"_123invalid"');
     });
 
-    it("rejects alias with single quote", async () => {
+    it("sanitizes alias with single quote", async () => {
       const response = await request(app)
         .post("/api/query/execute")
         .send({
@@ -1511,11 +1621,12 @@ describe("Regular Column Alias Security Tests", () => {
           filters: [],
         });
 
-      expect(response.status).toBe(500);
-      expect(response.body.error).toContain("Invalid alias");
+      expect(response.status).toBe(200);
+      // Single quote replaced with underscore
+      expect(response.body.sql).toContain('"id_malicious"');
     });
 
-    it("rejects alias with double quote", async () => {
+    it("sanitizes alias with double quote", async () => {
       const response = await request(app)
         .post("/api/query/execute")
         .send({
@@ -1524,8 +1635,9 @@ describe("Regular Column Alias Security Tests", () => {
           filters: [],
         });
 
-      expect(response.status).toBe(500);
-      expect(response.body.error).toContain("Invalid alias");
+      expect(response.status).toBe(200);
+      // Double quote replaced with underscore
+      expect(response.body.sql).toContain('"id_malicious"');
     });
   });
 
@@ -1555,7 +1667,7 @@ describe("Regular Column Alias Security Tests", () => {
       expect(response.body.sql).toContain("sum_DOT_latest");
     });
 
-    it("rejects SQL injection in aggregate alias", async () => {
+    it("sanitizes SQL injection attempt in aggregate alias", async () => {
       const response = await request(app)
         .post("/api/query/execute")
         .send({
@@ -1564,11 +1676,12 @@ describe("Regular Column Alias Security Tests", () => {
           filters: [],
         });
 
-      expect(response.status).toBe(500);
-      expect(response.body.error).toContain("Invalid alias");
+      expect(response.status).toBe(200);
+      // Special chars sanitized - SQL injection neutralized
+      expect(response.body.sql).toContain('"total__FROM_secret_data___"');
     });
 
-    it("rejects semicolon in aggregate alias", async () => {
+    it("sanitizes semicolon in aggregate alias", async () => {
       const response = await request(app)
         .post("/api/query/execute")
         .send({
@@ -1577,8 +1690,9 @@ describe("Regular Column Alias Security Tests", () => {
           filters: [],
         });
 
-      expect(response.status).toBe(500);
-      expect(response.body.error).toContain("Invalid alias");
+      expect(response.status).toBe(200);
+      // Special chars sanitized - SQL injection neutralized
+      expect(response.body.sql).toContain('"cnt__DROP_TABLE_secret_data"');
     });
   });
 });

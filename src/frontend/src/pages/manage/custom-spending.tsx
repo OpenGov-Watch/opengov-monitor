@@ -197,21 +197,18 @@ function CustomSpendingPageContent() {
     });
 
   function handleCategoryChange(category: string) {
-    const subs = categories.filter((c) => c.category === category);
-    // Auto-select if only one subcategory
-    if (subs.length === 1) {
-      setFormData({
-        ...formData,
-        selectedCategory: category,
-        category_id: subs[0].id,
-      });
-    } else {
-      setFormData({
-        ...formData,
+    setFormData((prev) => {
+      // Early return if same category is selected
+      if (category === prev.selectedCategory) return prev;
+
+      // When category changes, reset subcategory selection
+      // User must select subcategory from the second dropdown
+      return {
+        ...prev,
         selectedCategory: category,
         category_id: null,
-      });
-    }
+      };
+    });
   }
 
   if (loading) {
@@ -222,7 +219,7 @@ function CustomSpendingPageContent() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Custom Spending</h1>
+          <h1 className="text-4xl font-bold tracking-tight">Custom Spending</h1>
           <p className="text-muted-foreground">
             Manage user-created spending entries
           </p>
@@ -403,10 +400,10 @@ function CustomSpendingPageContent() {
                   <Select
                     value={formData.category_id?.toString() || "__none__"}
                     onValueChange={(value) =>
-                      setFormData({
-                        ...formData,
+                      setFormData((prev) => ({
+                        ...prev,
                         category_id: value === "__none__" ? null : parseInt(value),
-                      })
+                      }))
                     }
                     disabled={!formData.selectedCategory}
                   >

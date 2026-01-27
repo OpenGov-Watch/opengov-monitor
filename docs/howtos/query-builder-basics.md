@@ -137,7 +137,7 @@ When using aggregates, sort by the alias:
 
 **Performance**: Always use LIMIT, add filters to reduce dataset, avoid joining unnecessary tables
 
-**Column Aliases**: Click on a column name to edit its alias. Useful for computed columns and avoiding conflicts. The original column reference shows in gray below the alias.
+**Column Display Names**: Click on a column's display name to customize the header text shown in tables. Display names can include spaces (e.g., "DOT Component"). The underlying alias remains a valid SQL identifier.
 
 **Expression Columns**: Add calculated columns via "Add Expression". Expression columns are first-class citizens - they can be reordered with regular columns via drag-and-drop, and used in filters, GROUP BY, and ORDER BY.
 

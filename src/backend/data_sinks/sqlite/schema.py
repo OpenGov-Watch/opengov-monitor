@@ -31,8 +31,8 @@ REFERENDA_SCHEMA = TableSchema(
         "DOT_proposal_time": "REAL",
         "USD_proposal_time": "REAL",
         "track": "TEXT",
-        "tally.ayes": "REAL",
-        "tally.nays": "REAL",
+        "tally_ayes": "REAL",
+        "tally_nays": "REAL",
         "proposal_time": "TIMESTAMP",
         "latest_status_change": "TIMESTAMP",
         "DOT_latest": "REAL",
@@ -380,6 +380,24 @@ USERS_SCHEMA = TableSchema(
     ]
 )
 
+# Schema for Custom Table Metadata (stores info about user-created tables)
+CUSTOM_TABLE_METADATA_SCHEMA = TableSchema(
+    name="Custom Table Metadata",
+    columns={
+        "id": "INTEGER",
+        "table_name": "TEXT NOT NULL UNIQUE",
+        "display_name": "TEXT NOT NULL",
+        "schema_json": "TEXT NOT NULL",
+        "row_count": "INTEGER DEFAULT 0",
+        "created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+        "updated_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+    },
+    primary_key="id",
+    indexes=[
+        ("idx_custom_table_metadata_name", ["table_name"]),
+    ]
+)
+
 # Schema for Data Errors (generic error logging for all tables)
 DATA_ERRORS_SCHEMA = TableSchema(
     name="DataErrors",
@@ -421,6 +439,7 @@ SCHEMA_REGISTRY: Dict[str, TableSchema] = {
     "Dashboard Components": DASHBOARD_COMPONENTS_SCHEMA,
     "Query Cache": QUERY_CACHE_SCHEMA,
     "Users": USERS_SCHEMA,
+    "Custom Table Metadata": CUSTOM_TABLE_METADATA_SCHEMA,
     "DataErrors": DATA_ERRORS_SCHEMA,
 }
 

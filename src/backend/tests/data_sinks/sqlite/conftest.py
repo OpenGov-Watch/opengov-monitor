@@ -121,6 +121,7 @@ def setup_test_database(db_path: str) -> None:
                 LEFT JOIN Referenda r ON t.referendumIndex = r.id
                 LEFT JOIN Categories cat ON r.category_id = cat.id
                 WHERE t.status IN ('Paid', 'Processed')
+                  AND (r.hide_in_spends IS NULL OR r.hide_in_spends = 0)
 
                 UNION ALL
 
@@ -335,8 +336,8 @@ def sample_referenda_df():
         'DOT_proposal_time': [1000.0, 2000.0],
         'USD_proposal_time': [5000.0, 10000.0],
         'track': ['Treasurer', 'SmallSpender'],
-        'tally.ayes': [100000.0, 50000.0],
-        'tally.nays': [10000.0, 5000.0],
+        'tally_ayes': [100000.0, 50000.0],
+        'tally_nays': [10000.0, 5000.0],
         'proposal_time': [datetime(2024, 1, 1), datetime(2024, 2, 1)],
         'latest_status_change': [datetime(2024, 1, 15), datetime(2024, 2, 10)],
         'DOT_latest': [1100.0, 2100.0],
@@ -419,8 +420,8 @@ def sample_df_with_nan():
         'proposal_time': [datetime(2024, 1, 1), pd.NaT, datetime(2024, 3, 1)],
         'status': ['Executed', 'Ongoing', 'Rejected'],
         'track': ['Treasurer', 'SmallSpender', 'Root'],
-        'tally.ayes': [np.nan, 50000.0, np.nan],
-        'tally.nays': [10000.0, np.nan, 30000.0],
+        'tally_ayes': [np.nan, 50000.0, np.nan],
+        'tally_nays': [10000.0, np.nan, 30000.0],
     }, index=pd.Index([1, 2, 3], name='id'))
 
 

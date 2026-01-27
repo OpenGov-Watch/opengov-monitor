@@ -35,14 +35,155 @@ const DashboardLineChart = lazy(() => import("@/components/charts/line-chart").t
 import { DashboardPieChart as PieChartExport } from "@/components/charts/pie-chart";
 import { DashboardBarChart as BarChartExport } from "@/components/charts/bar-chart";
 import { DashboardLineChart as LineChartExport } from "@/components/charts/line-chart";
+import { MetricDisplay } from "@/components/charts/metric-display";
 import { DataTable } from "@/components/data-table/data-table";
-import { loadColumnConfig } from "@/lib/column-renderer";
-import { getColumnKey } from "@/lib/query-config-utils";
+import { ExportTable } from "@/components/data-table/export-table";
+import { loadColumnConfig, getColumnConfig, formatValue } from "@/lib/column-renderer";
+import { processHierarchicalData } from "@/components/data-table/hierarchical-utils";
+import { calculateTableExportDimensions } from "@/lib/export-styles";
+import Image from "lucide-react/dist/esm/icons/image";
+import { getColumnKey, normalizeDataKeys, validateQueryConfig, hasInvalidQueryConfig } from "@/lib/query-config-utils";
 import type {
   DashboardComponent as DashboardComponentType,
   QueryConfig,
   ChartConfig,
 } from "@/lib/db/types";
+
+interface ChartValidationResult {
+  valid: boolean;
+  error?: string;
+  hint?: string;
+}
+
+function validatePieChartData(
+  data: Record<string, unknown>[],
+  labelColumn: string | undefined,
+  valueColumn: string | undefined,
+  queryColumns: QueryConfig["columns"]
+): ChartValidationResult {
+  // Check: Need at least 2 columns selected
+  if (!queryColumns || queryColumns.length < 2) {
+    return {
+      valid: false,
+      error: "Pie chart requires at least 2 columns",
+      hint: "Select a category column (for labels) and a numeric column (for values). Use GROUP BY to aggregate values by category.",
+    };
+  }
+
+  // Check: Label and value columns must be configured
+  if (!labelColumn || !valueColumn) {
+    return {
+      valid: false,
+      error: "Missing column configuration",
+      hint: "Configure which column provides slice labels and which provides values.",
+    };
+  }
+
+  // Check: Label and value columns must be different
+  if (labelColumn === valueColumn) {
+    return {
+      valid: false,
+      error: "Label and value columns cannot be the same",
+      hint: "Select different columns: one for category labels and one for numeric values.",
+    };
+  }
+
+  // Check: Too many unique values (pie chart becomes unreadable)
+  const uniqueLabels = new Set(data.map((row) => row[labelColumn]));
+  if (uniqueLabels.size > 50) {
+    return {
+      valid: false,
+      error: `Too many categories (${uniqueLabels.size})`,
+      hint: "Pie charts work best with fewer than 20 categories. Add a GROUP BY clause or filter your data.",
+    };
+  }
+
+  return { valid: true };
+}
+
+function validateBarChartData(
+  data: Record<string, unknown>[],
+  labelColumn: string | undefined,
+  valueColumns: string[],
+  queryColumns: QueryConfig["columns"]
+): ChartValidationResult {
+  // Check: Need at least 2 columns
+  if (!queryColumns || queryColumns.length < 2) {
+    return {
+      valid: false,
+      error: "Bar chart requires at least 2 columns",
+      hint: "Select one column for X-axis labels and at least one numeric column for bar values.",
+    };
+  }
+
+  // Check: Need a label column
+  if (!labelColumn) {
+    return {
+      valid: false,
+      error: "Missing X-axis column",
+      hint: "The first column will be used as X-axis labels. Ensure you have at least one column selected.",
+    };
+  }
+
+  // Check: Need at least one value column
+  if (!valueColumns || valueColumns.length === 0) {
+    return {
+      valid: false,
+      error: "No value columns for bars",
+      hint: "Select at least one numeric column in addition to the label column to create bars.",
+    };
+  }
+
+  // Check: Too many data points (bar chart becomes unreadable)
+  if (data.length > 100) {
+    return {
+      valid: false,
+      error: `Too many data points (${data.length})`,
+      hint: "Bar charts work best with fewer than 50 items. Add filters, GROUP BY, or increase aggregation.",
+    };
+  }
+
+  return { valid: true };
+}
+
+function validateMetricData(
+  data: Record<string, unknown>[],
+  queryColumns: QueryConfig["columns"]
+): ChartValidationResult {
+  // Check: Need exactly 1 column
+  if (!queryColumns || queryColumns.length !== 1) {
+    return {
+      valid: false,
+      error: `Metric requires exactly 1 column (found ${queryColumns?.length || 0})`,
+      hint: "Select a single column with an aggregate function (COUNT, SUM, AVG, etc.) to display as a metric.",
+    };
+  }
+
+  // Check: Query must return exactly 1 row
+  if (data.length !== 1) {
+    return {
+      valid: false,
+      error: `Metric requires exactly 1 row (found ${data.length})`,
+      hint: "Use an aggregate function (COUNT, SUM, AVG) without GROUP BY to produce a single value.",
+    };
+  }
+
+  return { valid: true };
+}
+
+function ChartValidationError({ error, hint }: { error: string; hint?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-full text-center p-4 gap-3">
+      <AlertCircle className="h-8 w-8 text-amber-500" />
+      <div>
+        <p className="text-sm font-medium text-foreground">{error}</p>
+        {hint && (
+          <p className="text-xs text-muted-foreground mt-1 max-w-md">{hint}</p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 interface DashboardComponentProps {
   component: DashboardComponentType;
@@ -51,6 +192,7 @@ interface DashboardComponentProps {
   onDuplicate?: () => void;
   onMove?: () => void;
   onDelete?: () => void;
+  onHeightChange?: (componentId: number, contentHeight: number) => void;
 }
 
 export const DashboardComponent = memo(
@@ -61,6 +203,7 @@ export const DashboardComponent = memo(
     onDuplicate,
     onMove,
     onDelete,
+    onHeightChange,
   }: DashboardComponentProps) {
   const [data, setData] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,6 +211,7 @@ export const DashboardComponent = memo(
   const [, setConfigLoaded] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const chartContentRef = useRef<HTMLDivElement>(null);
+  const textContentRef = useRef<HTMLDivElement>(null);
 
   // Table export handlers (set by DataTable component)
   const tableExportCSVRef = useRef<(() => void) | null>(null);
@@ -123,12 +267,32 @@ export const DashboardComponent = memo(
 
   useEffect(() => {
     // Text and table components don't need data fetching (DataTable handles it internally)
-    if (component.type === "text" || component.type === "table") {
+    // Metric components in manual mode also don't need data fetching
+    if (component.type === "text" || component.type === "table" ||
+        (component.type === "metric" && chartConfig.metricValue !== undefined)) {
       setLoading(false);
       return;
     }
     fetchData();
-  }, [queryConfigString, component.type, component.id]);
+  }, [queryConfigString, component.type, component.id, chartConfig.metricValue]);
+
+  // Measure and report height for unconstrained text components
+  const constrainHeight = chartConfig.constrainHeight !== false;
+  useEffect(() => {
+    if (component.type !== "text" || constrainHeight || !onHeightChange || !textContentRef.current) {
+      return;
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      const height = entries[0]?.contentRect.height;
+      if (height) {
+        onHeightChange(component.id, height);
+      }
+    });
+
+    observer.observe(textContentRef.current);
+    return () => observer.disconnect();
+  }, [component.id, component.type, constrainHeight, onHeightChange]);
 
   async function fetchData() {
     setLoading(true);
@@ -147,7 +311,10 @@ export const DashboardComponent = memo(
         return;
       }
 
-      setData(result.data);
+      // Normalize data keys to match frontend expectations
+      // SQLite returns "name" for "Categories.name" without alias, but frontend expects "Categories.name"
+      const normalizedData = normalizeDataKeys(result.data, queryConfig.columns);
+      setData(normalizedData);
     } catch (err) {
       setError("Failed to fetch data");
       console.error(err);
@@ -159,14 +326,72 @@ export const DashboardComponent = memo(
   // Memoize column mapping computation
   const columnMapping: Record<string, string> = useMemo(() => {
     const mapping: Record<string, string> = {};
+    // Regular columns
     if (queryConfig.columns && Array.isArray(queryConfig.columns)) {
       for (const col of queryConfig.columns) {
         const key = getColumnKey(col);
         mapping[key] = col.column;
       }
     }
+    // Expression columns with sourceColumn (for proper formatting lookup)
+    if (queryConfig.expressionColumns && Array.isArray(queryConfig.expressionColumns)) {
+      for (const expr of queryConfig.expressionColumns) {
+        if (expr.sourceColumn) {
+          mapping[expr.alias] = expr.sourceColumn;
+        }
+      }
+    }
     return mapping;
-  }, [queryConfig.columns]);
+  }, [queryConfig.columns, queryConfig.expressionColumns]);
+
+  // Memoize column overrides for displayName support
+  // This allows columns to have custom header text from displayName field
+  // Also supports legacy alias with spaces (auto-sanitized by backend)
+  const columnOverrides = useMemo(() => {
+    const overrides: Record<string, { header: string }> = {};
+    // Regular columns with displayName or alias containing spaces
+    if (queryConfig.columns && Array.isArray(queryConfig.columns)) {
+      for (const col of queryConfig.columns) {
+        const key = getColumnKey(col);
+        // Priority: displayName > alias (if it has spaces)
+        if (col.displayName) {
+          overrides[key] = { header: col.displayName };
+        } else if (col.alias && /[^a-zA-Z0-9_]/.test(col.alias)) {
+          // Alias has spaces or special chars - use it as display name
+          // Backend will auto-sanitize for SQL, but we show original in UI
+          overrides[key] = { header: col.alias };
+        }
+      }
+    }
+    // Expression columns with displayName or alias containing spaces
+    if (queryConfig.expressionColumns && Array.isArray(queryConfig.expressionColumns)) {
+      for (const expr of queryConfig.expressionColumns) {
+        // For expressions, the key used by the table will be the sanitized alias
+        const sanitizedAlias = expr.alias.replace(/[^a-zA-Z0-9_]/g, "_");
+        if (expr.displayName) {
+          overrides[sanitizedAlias] = { header: expr.displayName };
+        } else if (/[^a-zA-Z0-9_]/.test(expr.alias)) {
+          // Alias has spaces or special chars - use it as display name
+          overrides[sanitizedAlias] = { header: expr.alias };
+        }
+      }
+    }
+    return overrides;
+  }, [queryConfig.columns, queryConfig.expressionColumns]);
+
+  // Compute hidden expression aliases
+  const hiddenExpressionAliases = useMemo(() => {
+    const hidden = new Set<string>();
+    if (queryConfig.expressionColumns && Array.isArray(queryConfig.expressionColumns)) {
+      for (const expr of queryConfig.expressionColumns) {
+        if (expr.hidden) {
+          const sanitizedAlias = expr.alias.replace(/[^a-zA-Z0-9_]/g, "_");
+          hidden.add(sanitizedAlias);
+        }
+      }
+    }
+    return hidden;
+  }, [queryConfig.expressionColumns]);
 
   // Memoize column identifiers
   const labelColumn = useMemo(
@@ -320,6 +545,301 @@ export const DashboardComponent = memo(
     }
   }
 
+  // Fetch table data for PNG export (with row limit)
+  async function fetchTableDataForExport(maxRows = 50): Promise<Record<string, unknown>[]> {
+    try {
+      // Create a modified query config with pagination limit
+      const exportQueryConfig = {
+        ...queryConfig,
+        limit: maxRows,
+        offset: 0,
+      };
+
+      const response = await fetch("/api/query/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(exportQueryConfig),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Query failed");
+      }
+
+      return normalizeDataKeys(result.data, queryConfig.columns);
+    } catch (err) {
+      console.error("Failed to fetch table data for export:", err);
+      return [];
+    }
+  }
+
+  async function handleDownloadTablePNG() {
+    setIsExporting(true);
+    try {
+      const tableData = await fetchTableDataForExport(50);
+      if (tableData.length === 0) {
+        alert("No data available to export.");
+        return;
+      }
+
+      // Calculate visible columns for dimension calculation
+      const allColumns = Object.keys(tableData[0] || {});
+      const visibleColumns = hiddenExpressionAliases
+        ? allColumns.filter((col) => !hiddenExpressionAliases.has(col))
+        : allColumns;
+
+      // Identify currency columns for subtotals/totals
+      const currencyColumnIds: string[] = [];
+      for (const col of allColumns) {
+        const sourceCol = columnMapping?.[col] || col;
+        const colWithoutTable = sourceCol.includes(".")
+          ? sourceCol.split(".").pop()!
+          : sourceCol;
+        let config = getColumnConfig(tableName, sourceCol);
+        if (config.type !== "currency" && colWithoutTable !== sourceCol) {
+          config = getColumnConfig(tableName, colWithoutTable);
+        }
+        if (config.type === "currency") {
+          currencyColumnIds.push(col);
+        }
+      }
+
+      // Normalize groupBy columns to match data keys
+      const normalizedGroupBy = queryConfig.groupBy?.map((col) => {
+        if (allColumns.includes(col)) return col;
+        const lastPart = col.split(".").pop() || col;
+        if (allColumns.includes(lastPart)) return lastPart;
+        return col;
+      });
+
+      // Calculate subtotal count for dimension calculation
+      let subtotalRowCount = 0;
+      if (
+        chartConfig.hierarchicalDisplay &&
+        chartConfig.showGroupTotals &&
+        normalizedGroupBy &&
+        normalizedGroupBy.length >= 2
+      ) {
+        const hierarchicalData = processHierarchicalData(
+          tableData,
+          normalizedGroupBy,
+          currencyColumnIds
+        );
+        // Count subtotals with rowCount > 1 (redundant ones are filtered out)
+        subtotalRowCount = hierarchicalData.subtotals.filter((st) => st.rowCount > 1).length;
+      }
+
+      // Fetch grand totals if enabled
+      let grandTotalsCells: { columnId: string; value: string }[] | undefined;
+      if (chartConfig.showGrandTotals && currencyColumnIds.length > 0) {
+        try {
+          const aggregateConfig = {
+            sourceTable: queryConfig.sourceTable,
+            columns: currencyColumnIds.map((col) => ({
+              column: columnMapping?.[col] || col,
+              alias: col,
+              aggregateFunction: "SUM" as const,
+            })),
+            joins: queryConfig.joins,
+            filters: queryConfig.filters,
+            limit: 1,
+          };
+          const res = await fetch("/api/query/execute", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(aggregateConfig),
+          });
+          const result = await res.json();
+          if (result.data?.[0]) {
+            grandTotalsCells = currencyColumnIds.map((col) => {
+              const sourceCol = columnMapping?.[col] || col;
+              const config = getColumnConfig(tableName, sourceCol);
+              return {
+                columnId: col,
+                value: formatValue(result.data[0][col], config),
+              };
+            });
+          }
+        } catch (err) {
+          console.warn("Failed to fetch grand totals for export:", err);
+        }
+      }
+
+      const renderTable = () => (
+        <ExportTable
+          data={tableData}
+          tableName={tableName}
+          columnMapping={columnMapping}
+          columnOverrides={columnOverrides}
+          hiddenColumns={hiddenExpressionAliases}
+          maxRows={50}
+          hierarchicalDisplay={chartConfig.hierarchicalDisplay}
+          groupByColumns={normalizedGroupBy}
+          showGroupTotals={chartConfig.showGroupTotals}
+          currencyColumns={currencyColumnIds}
+          showPageTotals={chartConfig.showPageTotals}
+          grandTotalsCells={grandTotalsCells}
+        />
+      );
+
+      // Calculate dynamic dimensions based on actual content
+      const { width, height } = calculateTableExportDimensions(
+        tableData,
+        visibleColumns,
+        50,
+        {
+          tableName,
+          columnMapping,
+          columnOverrides,
+          subtotalRowCount,
+          hasPageTotals: chartConfig.showPageTotals && currencyColumnIds.length > 0,
+          hasGrandTotals: chartConfig.showGrandTotals && grandTotalsCells && grandTotalsCells.length > 0,
+        }
+      );
+
+      const filename = `${component.name.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.png`;
+      await exportChartAsPNG(renderTable, component.name, filename, width, height);
+    } catch (error) {
+      console.error("Failed to download table as PNG:", error);
+      alert("Failed to download table. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  async function handleCopyTablePNG() {
+    setIsExporting(true);
+    try {
+      const tableData = await fetchTableDataForExport(50);
+      if (tableData.length === 0) {
+        alert("No data available to copy.");
+        return;
+      }
+
+      // Calculate visible columns for dimension calculation
+      const allColumns = Object.keys(tableData[0] || {});
+      const visibleColumns = hiddenExpressionAliases
+        ? allColumns.filter((col) => !hiddenExpressionAliases.has(col))
+        : allColumns;
+
+      // Identify currency columns for subtotals/totals
+      const currencyColumnIds: string[] = [];
+      for (const col of allColumns) {
+        const sourceCol = columnMapping?.[col] || col;
+        const colWithoutTable = sourceCol.includes(".")
+          ? sourceCol.split(".").pop()!
+          : sourceCol;
+        let config = getColumnConfig(tableName, sourceCol);
+        if (config.type !== "currency" && colWithoutTable !== sourceCol) {
+          config = getColumnConfig(tableName, colWithoutTable);
+        }
+        if (config.type === "currency") {
+          currencyColumnIds.push(col);
+        }
+      }
+
+      // Normalize groupBy columns to match data keys
+      const normalizedGroupBy = queryConfig.groupBy?.map((col) => {
+        if (allColumns.includes(col)) return col;
+        const lastPart = col.split(".").pop() || col;
+        if (allColumns.includes(lastPart)) return lastPart;
+        return col;
+      });
+
+      // Calculate subtotal count for dimension calculation
+      let subtotalRowCount = 0;
+      if (
+        chartConfig.hierarchicalDisplay &&
+        chartConfig.showGroupTotals &&
+        normalizedGroupBy &&
+        normalizedGroupBy.length >= 2
+      ) {
+        const hierarchicalData = processHierarchicalData(
+          tableData,
+          normalizedGroupBy,
+          currencyColumnIds
+        );
+        // Count subtotals with rowCount > 1 (redundant ones are filtered out)
+        subtotalRowCount = hierarchicalData.subtotals.filter((st) => st.rowCount > 1).length;
+      }
+
+      // Fetch grand totals if enabled
+      let grandTotalsCells: { columnId: string; value: string }[] | undefined;
+      if (chartConfig.showGrandTotals && currencyColumnIds.length > 0) {
+        try {
+          const aggregateConfig = {
+            sourceTable: queryConfig.sourceTable,
+            columns: currencyColumnIds.map((col) => ({
+              column: columnMapping?.[col] || col,
+              alias: col,
+              aggregateFunction: "SUM" as const,
+            })),
+            joins: queryConfig.joins,
+            filters: queryConfig.filters,
+            limit: 1,
+          };
+          const res = await fetch("/api/query/execute", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(aggregateConfig),
+          });
+          const result = await res.json();
+          if (result.data?.[0]) {
+            grandTotalsCells = currencyColumnIds.map((col) => {
+              const sourceCol = columnMapping?.[col] || col;
+              const config = getColumnConfig(tableName, sourceCol);
+              return {
+                columnId: col,
+                value: formatValue(result.data[0][col], config),
+              };
+            });
+          }
+        } catch (err) {
+          console.warn("Failed to fetch grand totals for export:", err);
+        }
+      }
+
+      const renderTable = () => (
+        <ExportTable
+          data={tableData}
+          tableName={tableName}
+          columnMapping={columnMapping}
+          columnOverrides={columnOverrides}
+          hiddenColumns={hiddenExpressionAliases}
+          maxRows={50}
+          hierarchicalDisplay={chartConfig.hierarchicalDisplay}
+          groupByColumns={normalizedGroupBy}
+          showGroupTotals={chartConfig.showGroupTotals}
+          currencyColumns={currencyColumnIds}
+          showPageTotals={chartConfig.showPageTotals}
+          grandTotalsCells={grandTotalsCells}
+        />
+      );
+
+      // Calculate dynamic dimensions based on actual content
+      const { width, height } = calculateTableExportDimensions(
+        tableData,
+        visibleColumns,
+        50,
+        {
+          tableName,
+          columnMapping,
+          columnOverrides,
+          subtotalRowCount,
+          hasPageTotals: chartConfig.showPageTotals && currencyColumnIds.length > 0,
+          hasGrandTotals: chartConfig.showGrandTotals && grandTotalsCells && grandTotalsCells.length > 0,
+        }
+      );
+
+      await copyChartToClipboard(renderTable, component.name, width, height);
+    } catch (error) {
+      console.error("Failed to copy table to clipboard:", error);
+      alert("Failed to copy table to clipboard. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   function renderChart() {
     if (loading) {
       return (
@@ -340,19 +860,57 @@ export const DashboardComponent = memo(
 
     // Text components don't need data
     if (component.type === "text") {
+      const alignmentClass = {
+        left: 'text-left',
+        center: 'text-center',
+        right: 'text-right',
+        justify: 'text-justify',
+      }[chartConfig.textAlign ?? 'left'];
+
+      const sizeClass = {
+        small: 'prose-sm',
+        medium: 'prose-lg',
+        large: 'prose-xl',
+      }[chartConfig.textSize ?? 'medium'];
+
       return (
-        <div className="prose prose-sm max-w-none dark:prose-invert h-full overflow-auto">
-          {chartConfig.content ? (
-            <Markdown>{chartConfig.content}</Markdown>
-          ) : (
-            <span className="text-muted-foreground">No content</span>
-          )}
+        <div
+          ref={textContentRef}
+          className={`prose ${sizeClass} max-w-none dark:prose-invert ${alignmentClass} ${constrainHeight ? "h-full overflow-auto" : ""}`}
+        >
+          {chartConfig.content && <Markdown>{chartConfig.content}</Markdown>}
         </div>
       );
     }
 
+    // Validate query config - show error if groupBy/orderBy reference missing columns
+    const queryValidation = validateQueryConfig(queryConfig);
+    if (hasInvalidQueryConfig(queryValidation)) {
+      const parts: string[] = [];
+      if (queryValidation.invalidGroupBy.length > 0) {
+        parts.push(`GROUP BY: ${queryValidation.invalidGroupBy.join(", ")}`);
+      }
+      if (queryValidation.invalidOrderBy.length > 0) {
+        parts.push(`ORDER BY: ${queryValidation.invalidOrderBy.map(o => o.column).join(", ")}`);
+      }
+      if (queryValidation.groupByWithoutAggregates) {
+        parts.push("GROUP BY configured without aggregate functions");
+      }
+      const hint = queryValidation.groupByWithoutAggregates
+        ? "GROUP BY requires at least one column with an aggregate function (SUM, COUNT, etc.). Edit to fix."
+        : `References columns not in query: ${parts.join("; ")}. Edit to fix.`;
+      return (
+        <ChartValidationError
+          error="Invalid query configuration"
+          hint={hint}
+        />
+      );
+    }
+
     // Table components fetch their own data, so skip the empty data check
-    if (component.type !== "table" && (!data || !Array.isArray(data) || data.length === 0)) {
+    // Manual metric components also don't need data (value is in chartConfig)
+    const isManualMetric = component.type === "metric" && chartConfig.metricValue !== undefined;
+    if (component.type !== "table" && !isManualMetric && (!data || !Array.isArray(data) || data.length === 0)) {
       return (
         <div className="flex items-center justify-center h-full text-muted-foreground">
           No data available
@@ -368,6 +926,8 @@ export const DashboardComponent = memo(
             queryConfig={queryConfig}
             tableName={tableName}
             columnMapping={columnMapping}
+            columnOverrides={columnOverrides}
+            hiddenColumns={hiddenExpressionAliases}
             dashboardMode={true}
             dashboardComponentId={String(component.id)}
             defaultFilters={queryConfig.filters}
@@ -376,16 +936,19 @@ export const DashboardComponent = memo(
             onToolbarCollapseChange={setIsToolbarCollapsed}
             onExportCSV={(handler) => { tableExportCSVRef.current = handler; }}
             onExportJSON={(handler) => { tableExportJSONRef.current = handler; }}
+            showPageTotals={chartConfig.showPageTotals}
+            showGrandTotals={chartConfig.showGrandTotals}
+            hierarchicalDisplay={chartConfig.hierarchicalDisplay}
+            showGroupTotals={chartConfig.showGroupTotals}
+            groupByColumns={queryConfig.groupBy}
+            disableSorting={chartConfig.disableSorting}
           />
         );
 
-      case "pie":
-        if (!labelColumn || !valueColumn) {
-          return (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              Configure label and value columns
-            </div>
-          );
+      case "pie": {
+        const pieValidation = validatePieChartData(data, labelColumn, valueColumn, queryConfig.columns);
+        if (!pieValidation.valid) {
+          return <ChartValidationError error={pieValidation.error!} hint={pieValidation.hint} />;
         }
         return (
           <Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground">Loading chart...</div>}>
@@ -400,9 +963,14 @@ export const DashboardComponent = memo(
             />
           </Suspense>
         );
+      }
 
       case "bar_stacked":
       case "bar_grouped": {
+        const barValidation = validateBarChartData(data, labelColumn, valueColumns, queryConfig.columns);
+        if (!barValidation.valid) {
+          return <ChartValidationError error={barValidation.error!} hint={barValidation.hint} />;
+        }
         return (
           <Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground">Loading chart...</div>}>
             <DashboardBarChart
@@ -436,6 +1004,39 @@ export const DashboardComponent = memo(
         );
       }
 
+      case "metric": {
+        // Manual mode: display the manual value directly
+        if (chartConfig.metricValue !== undefined) {
+          return (
+            <MetricDisplay
+              value={chartConfig.metricValue}
+              label={chartConfig.metricLabel}
+              prefix={chartConfig.metricPrefix}
+              suffix={chartConfig.metricSuffix}
+            />
+          );
+        }
+        // Query mode: validate and display query result
+        const metricValidation = validateMetricData(data, queryConfig.columns);
+        if (!metricValidation.valid) {
+          return <ChartValidationError error={metricValidation.error!} hint={metricValidation.hint} />;
+        }
+        // Get the single value from the first (and only) row and column
+        const firstColumnKey = queryConfig.columns[0] && getColumnKey(queryConfig.columns[0]);
+        const metricValue = firstColumnKey ? data[0][firstColumnKey] : null;
+        return (
+          <MetricDisplay
+            value={metricValue as number | string | null}
+            label={chartConfig.metricLabel}
+            prefix={chartConfig.metricPrefix}
+            suffix={chartConfig.metricSuffix}
+            tableName={tableName}
+            valueColumn={firstColumnKey}
+            columnMapping={columnMapping}
+          />
+        );
+      }
+
       default:
         return (
           <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -445,26 +1046,61 @@ export const DashboardComponent = memo(
     }
   }
 
+  // Border toggle only applies to text components in view mode (default: true)
+  // Always show border in edit mode for visual clarity
+  const showBorder = editable || component.type !== "text" || chartConfig.showBorder !== false;
+
+  // Hide header for text and metric components in view mode
+  const showHeader = editable || (component.type !== "text" && component.type !== "metric");
+
+  // Background color from chart config (only if valid hex color)
+  const backgroundColor = chartConfig.backgroundColor && /^#[0-9A-Fa-f]{6}$/.test(chartConfig.backgroundColor)
+    ? chartConfig.backgroundColor
+    : undefined;
+
   return (
-    <div className="h-full flex flex-col bg-background border rounded-lg overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b bg-muted/30">
-        <h3 className="font-medium text-sm truncate">{component.name}</h3>
+    <div
+      className={`h-full flex flex-col ${!backgroundColor ? "bg-background" : ""} ${showBorder ? "border" : ""} overflow-hidden`}
+      style={backgroundColor ? { backgroundColor } : undefined}
+    >
+      {/* Header - hidden for text components in view mode */}
+      {showHeader && (
+      <div className="flex items-center justify-between p-3">
+        <div className="flex-1 min-w-0">
+          <h3 className="font-medium text-base truncate">{component.name}</h3>
+          {chartConfig?.subtitle && (
+            <p className="text-sm text-muted-foreground truncate">{chartConfig.subtitle}</p>
+          )}
+        </div>
         <div className="flex items-center gap-1">
           {component.type === "table" && (
             <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={handleCopyTablePNG}
+                disabled={isExporting}
+                title="Copy table as image"
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7"
-                    title="Download table data"
+                    title="Download table"
                   >
                     <Download className="h-3.5 w-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleDownloadTablePNG} disabled={isExporting}>
+                    <Image className="mr-2 h-4 w-4" />
+                    Download as PNG
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleTableExport("csv")}>
                     <FileDown className="mr-2 h-4 w-4" />
                     Download as CSV
@@ -490,7 +1126,8 @@ export const DashboardComponent = memo(
               </Button>
             </>
           )}
-          {component.type !== "text" && component.type !== "table" && (
+          {component.type !== "text" && component.type !== "table" &&
+           !(component.type === "metric" && chartConfig.metricValue !== undefined) && (
             <Button
               variant="ghost"
               size="icon"
@@ -567,9 +1204,10 @@ export const DashboardComponent = memo(
           )}
         </div>
       </div>
+      )}
 
       {/* Content */}
-      <div ref={chartContentRef} className="flex-1 p-3 min-h-0 overflow-auto">{renderChart()}</div>
+      <div ref={chartContentRef} className={`flex-1 min-h-0 ${component.type === "table" ? "p-0 flex flex-col" : "p-3 overflow-auto"}`}>{renderChart()}</div>
     </div>
   );
   },

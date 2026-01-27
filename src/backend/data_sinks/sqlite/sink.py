@@ -149,7 +149,11 @@ class SQLiteSink(DataSink):
         schema: TableSchema,
         columns: List[str]
     ) -> str:
-        """Generate INSERT OR REPLACE SQL statement.
+        """Generate INSERT ... ON CONFLICT DO UPDATE SQL statement.
+
+        Uses ON CONFLICT DO UPDATE to preserve existing values in columns
+        not present in the incoming data (e.g., user-assigned fields like
+        category_id, notes, hide_in_spends).
 
         Args:
             schema: Table schema.
@@ -166,7 +170,22 @@ class SQLiteSink(DataSink):
         cols_quoted = ", ".join(f'"{c}"' for c in all_columns)
         placeholders = ", ".join("?" for _ in all_columns)
 
-        return f'INSERT OR REPLACE INTO "{schema.name}" ({cols_quoted}) VALUES ({placeholders})'
+        # Build UPDATE clause for non-primary-key columns only
+        update_columns = [c for c in all_columns if c != schema.primary_key]
+        if update_columns:
+            update_clause = ", ".join(
+                f'"{c}" = excluded."{c}"' for c in update_columns
+            )
+            return (
+                f'INSERT INTO "{schema.name}" ({cols_quoted}) VALUES ({placeholders}) '
+                f'ON CONFLICT("{schema.primary_key}") DO UPDATE SET {update_clause}'
+            )
+        else:
+            # Only primary key - use DO NOTHING
+            return (
+                f'INSERT INTO "{schema.name}" ({cols_quoted}) VALUES ({placeholders}) '
+                f'ON CONFLICT("{schema.primary_key}") DO NOTHING'
+            )
 
     def update_table(
         self,
@@ -176,7 +195,9 @@ class SQLiteSink(DataSink):
     ) -> None:
         """Update a SQLite table with UPSERT semantics.
 
-        Uses INSERT OR REPLACE for atomic upsert operations.
+        Uses INSERT ... ON CONFLICT DO UPDATE for atomic upsert operations.
+        Only updates columns present in the incoming DataFrame, preserving
+        existing values in other columns (e.g., user-assigned category_id).
 
         Args:
             name: Table name to update.
@@ -394,6 +415,44 @@ class SQLiteSink(DataSink):
             self._logger.info(f"Logged error for {table_name} record {record_id}: {error_type}")
         except Exception as e:
             self._logger.error(f"Failed to log error to DataErrors: {e}")
+
+    def get_error_record_ids(self, table_name: str) -> List[str]:
+        """Get all record IDs from DataErrors for a specific table.
+
+        Args:
+            table_name: Name of the table to get error records for.
+
+        Returns:
+            List of record IDs that have errors logged.
+        """
+        cursor = self.connection.cursor()
+        cursor.execute(
+            "SELECT DISTINCT record_id FROM DataErrors WHERE table_name = ?",
+            (table_name,)
+        )
+        return [row[0] for row in cursor.fetchall()]
+
+    def clear_errors_for_records(self, table_name: str, record_ids: List[str]) -> int:
+        """Remove errors for specific records that were successfully re-processed.
+
+        Args:
+            table_name: Name of the table.
+            record_ids: List of record IDs to clear errors for.
+
+        Returns:
+            Number of error records deleted.
+        """
+        if not record_ids:
+            return 0
+
+        cursor = self.connection.cursor()
+        placeholders = ','.join('?' * len(record_ids))
+        cursor.execute(
+            f"DELETE FROM DataErrors WHERE table_name = ? AND record_id IN ({placeholders})",
+            [table_name] + list(record_ids)
+        )
+        self.connection.commit()
+        return cursor.rowcount
 
     def close(self) -> None:
         """Close the database connection."""

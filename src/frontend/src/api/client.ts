@@ -183,6 +183,29 @@ export const api = {
       fetchJSON(`/subtreasury/${id}`, { method: "DELETE" }),
   },
 
+  customSpending: {
+    import: (
+      items: Array<{
+        id?: number;
+        type: string;
+        title: string;
+        description?: string | null;
+        latest_status_change?: string | null;
+        DOT_latest?: number | null;
+        USD_latest?: number | null;
+        DOT_component?: number | null;
+        USDC_component?: number | null;
+        USDT_component?: number | null;
+        category?: string | null;
+        subcategory?: string | null;
+      }>
+    ) =>
+      fetchJSON<{ success: boolean; count: number }>("/custom-spending/import", {
+        method: "POST",
+        body: JSON.stringify({ items }),
+      }),
+  },
+
   treasuryNetflows: {
     import: (
       items: Array<{
@@ -303,5 +326,6 @@ export const api = {
     getDefaultCategories: () => fetchJSON<{ content: string }>("/sync/defaults/categories"),
     getDefaultCrossChainFlows: () => fetchJSON<{ content: string }>("/sync/defaults/cross-chain-flows"),
     getDefaultLocalFlows: () => fetchJSON<{ content: string }>("/sync/defaults/local-flows"),
+    getDefaultCustomSpending: () => fetchJSON<{ content: string }>("/sync/defaults/custom-spending"),
   },
 };

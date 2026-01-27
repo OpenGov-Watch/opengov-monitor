@@ -3,7 +3,6 @@ import { useParams, Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { DashboardGrid } from "@/components/dashboard";
 import Pencil from "lucide-react/dist/esm/icons/pencil";
-import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
 import { useAuth } from "@/contexts/auth-context";
 import type { Dashboard, DashboardComponent } from "@/lib/db/types";
 
@@ -63,24 +62,17 @@ export default function DashboardViewPage() {
 
   return (
     <div className="flex-1 min-h-0 flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link to="/dashboards">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">
-              {dashboard.name}
-            </h1>
-            {dashboard.description && (
-              <p className="text-muted-foreground">{dashboard.description}</p>
-            )}
-          </div>
+      <div className="flex items-center justify-center px-[10px] relative pt-12 pb-8">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold tracking-tight">
+            {dashboard.name}
+          </h1>
+          {dashboard.description && (
+            <p className="text-muted-foreground">{dashboard.description}</p>
+          )}
         </div>
         {isAuthenticated && (
-          <Button asChild>
+          <Button asChild className="absolute right-[10px]">
             <Link to={`/dashboards/${dashboardId}/edit`}>
               <Pencil className="mr-2 h-4 w-4" />
               Edit Dashboard

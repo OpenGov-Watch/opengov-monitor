@@ -39,6 +39,18 @@ pnpm users        # User management (list/add/set-password/delete)
 ### Manual Table CRUD
 - Categories, Bounties, Subtreasury: Standard CRUD with auth
 
+### Custom Tables (`/api/custom-tables`)
+- `GET /` - List all custom tables
+- `GET /:id` - Get table metadata + schema
+- `POST /` - Create table with schema and optional data (auth)
+- `DELETE /:id` - Delete table (auth)
+- `GET /:id/data` - Get paginated rows
+- `POST /:id/data` - Insert row (auth)
+- `PUT /:id/data/:rowId` - Update row (auth)
+- `DELETE /:id/data/:rowId` - Delete row (auth)
+- `POST /:id/import` - Bulk import with optional wipe (auth)
+- `POST /infer-schema` - Infer column types from CSV data
+
 ### Auth (`/api/auth`)
 - `/me`, `/login`, `/logout` - Session management
 - User management: `pnpm users` command (see Commands section)

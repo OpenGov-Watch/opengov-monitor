@@ -112,7 +112,17 @@ interface QueryConfig {
 
 interface ColumnSelection {
   column: string;
-  alias?: string;
+  alias?: string;           // SQL identifier (auto-sanitized: letters, numbers, underscores)
+  displayName?: string;     // UI header text (can include spaces)
+  aggregateFunction?: "COUNT" | "SUM" | "AVG" | "MIN" | "MAX";
+}
+
+interface ExpressionColumn {
+  expression: string;       // SQL expression, e.g., "DOT_latest * 10"
+  alias: string;            // SQL identifier (auto-sanitized)
+  displayName?: string;     // UI header text (can include spaces)
+  aggregateFunction?: "COUNT" | "SUM" | "AVG" | "MIN" | "MAX";
+  sourceColumn?: string;    // Source column for formatting lookup
 }
 
 interface JoinConfig {

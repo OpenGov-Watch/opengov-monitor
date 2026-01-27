@@ -25,7 +25,9 @@ export function Layout() {
 
         {/* Main content - with padding for bottom nav on mobile */}
         <main className="flex-1 flex flex-col overflow-auto p-4 md:p-6 pb-20 lg:pb-6">
-          <Outlet />
+          <div className="w-full max-w-[1600px] mx-auto flex-1 flex flex-col min-h-0">
+            <Outlet />
+          </div>
         </main>
 
         {/* Bottom Navigation - only visible on mobile */}

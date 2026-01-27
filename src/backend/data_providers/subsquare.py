@@ -114,6 +114,182 @@ from .assets_bag import AssetsBag
 from datetime import datetime, timedelta
 import os
 
+# Tracks that should have USD/DOT values (spending-related tracks)
+SPENDER_TRACKS = ['SmallSpender', 'MediumSpender', 'BigSpender', 'SmallTipper', 'BigTipper', 'Treasurer']
+
+# Call index mapping for different Polkadot runtime eras
+# Runtime upgrade at ref 1782 changed pallet indices (AssetHub migration)
+POLKADOT_CALL_INDICES = {
+    "relay": {  # Before ref 1782
+        # Utility (0x1a = 26)
+        "utility.batch": "0x1a00",
+        "utility.batchAll": "0x1a02",
+        "utility.dispatchAs": "0x1a03",
+        "utility.forceBatch": "0x1a04",
+        # Treasury (0x13 = 19)
+        "treasury.proposeSpend": "0x1300",
+        "treasury.approveProposal": "0x1302",
+        "treasury.spend": "0x1305",
+        # Whitelist (0x17 = 23)
+        "whitelist.dispatchWhitelistedCallWithPreimage": "0x1703",
+        # Bounties (0x22 = 34)
+        "bounties.proposeBounty": "0x2200",
+        "bounties.approveBounty": "0x2201",
+        "bounties.proposeCurator": "0x2202",
+        "bounties.unassignCurator": "0x2203",
+        "bounties.acceptCurator": "0x2204",
+        "bounties.closeBounty": "0x2207",
+        "bounties.approveBountyWithCurator": "0x2209",
+        # AssetRate (0x65 = 101)
+        "assetRate.create": "0x6500",
+        "assetRate.update": "0x6501",
+        "assetRate.remove": "0x6502",
+        # Balances (0x05 = 5)
+        "balances.forceSetBalance": "0x0508",
+        "balances.forceAdjustTotalIssuance": "0x0509",
+        # Preimage (0x0a = 10)
+        "preimage.notePreimage": "0x0a00",
+        "preimage.requestPreimage": "0x0a02",
+        # NominationPools (0x27 = 39)
+        "nominationPools.setConfigs": "0x270b",
+        # XcmPallet (0x63 = 99)
+        "xcmPallet.send": "0x6300",
+    },
+    "assethub": {  # From ref 1782 onwards
+        # Utility (0x28 = 40)
+        "utility.batch": "0x2800",
+        "utility.batchAll": "0x2802",
+        "utility.dispatchAs": "0x2803",
+        "utility.forceBatch": "0x2804",
+        # Treasury (0x3c = 60)
+        "treasury.proposeSpend": "0x3c00",
+        "treasury.approveProposal": "0x3c02",
+        "treasury.spend": "0x3c05",
+        # Whitelist (0x40 = 64)
+        "whitelist.dispatchWhitelistedCallWithPreimage": "0x4003",
+        # Bounties (0x41 = 65)
+        "bounties.proposeBounty": "0x4100",
+        "bounties.approveBounty": "0x4101",
+        "bounties.proposeCurator": "0x4102",
+        "bounties.unassignCurator": "0x4103",
+        "bounties.acceptCurator": "0x4104",
+        "bounties.closeBounty": "0x4107",
+        "bounties.approveBountyWithCurator": "0x4109",
+        # AssetRate (0x43 = 67)
+        "assetRate.create": "0x4300",
+        "assetRate.update": "0x4301",
+        "assetRate.remove": "0x4302",
+        # Balances (0x0a = 10)
+        "balances.forceSetBalance": "0x0a08",
+        "balances.forceAdjustTotalIssuance": "0x0a09",
+        # Preimage (0x05 = 5)
+        "preimage.notePreimage": "0x0500",
+        "preimage.requestPreimage": "0x0502",
+        # NominationPools (0x50 = 80)
+        "nominationPools.setConfigs": "0x500b",
+        # PolkadotXcm (0x1f = 31)
+        "xcmPallet.send": "0x1f00",
+    },
+}
+
+# Relay-only pallets (don't exist on AssetHub, indices never change)
+RELAY_ONLY_CALL_INDICES = {
+    "configuration.setMaxCodeSize": "0x3303",
+    "configuration.setHrmpChannelMaxCapacity": "0x3320",
+    "paras.forceSetCurrentCode": "0x3800",
+    "paras.forceSetCurrentHead": "0x3801",
+    "hrmp.forceOpenHrmpChannel": "0x3c07",
+    "registrar.deregister": "0x4602",
+    "registrar.swap": "0x4603",
+    "registrar.removeLock": "0x4604",
+    "slots.forceLease": "0x4700",
+    "slots.clearAllLeases": "0x4701",
+    "auctions.newAuction": "0x4800",
+    "identity.addRegistrar": "0x1c00",
+}
+
+# Unchanged across both chains (system, scheduler, referenda have same indices)
+STATIC_CALL_INDICES = {
+    "system.remark": "0x0000",
+    "system.remarkWithEvent": "0x0007",
+    "system.setCode": "0x0002",
+    "scheduler.scheduleNamed": "0x0102",
+    "scheduler.scheduleAfter": "0x0104",
+    "referenda.submit": "0x1500",
+    "referenda.cancel": "0x1503",
+    "referenda.kill": "0x1504",
+}
+
+# Methods that are known to be zero-value (not Treasury-related)
+ZERO_VALUE_METHODS = [
+    "system.remark",
+    "system.remarkWithEvent",
+    "system.setCode",
+    "balances.forceSetBalance",
+    "balances.forceAdjustTotalIssuance",
+    "preimage.notePreimage",
+    "preimage.requestPreimage",
+    "treasury.proposeSpend",
+    "treasury.approveProposal",
+    "referenda.submit",
+    "referenda.cancel",
+    "referenda.kill",
+    "whitelist.dispatchWhitelistedCallWithPreimage",
+    "identity.addRegistrar",
+    "bounties.proposeBounty",
+    "bounties.approveBounty",
+    "bounties.approveBountyWithCurator",
+    "bounties.proposeCurator",
+    "bounties.unassignCurator",
+    "bounties.acceptCurator",
+    "bounties.closeBounty",
+    "nominationPools.setConfigs",
+    "configuration.setMaxCodeSize",
+    "configuration.setHrmpChannelMaxCapacity",
+    "paras.forceSetCurrentCode",
+    "hrmp.forceOpenHrmpChannel",
+    "paras.forceSetCurrentHead",
+    "registrar.deregister",
+    "registrar.swap",
+    "registrar.removeLock",
+    "slots.forceLease",
+    "slots.clearAllLeases",
+    "auctions.newAuction",
+    "xcmPallet.send",
+    "assetRate.create",
+    "assetRate.update",
+    "assetRate.remove",
+]
+
+# First referendum using AssetHub call indices
+POLKADOT_ASSETHUB_CUTOFF = 1782
+
+
+def get_call_index(method_name: str, ref_id: int) -> str | None:
+    """Get call index for a method, handling runtime version differences.
+
+    Args:
+        method_name: The pallet.method name (e.g., "bounties.closeBounty")
+        ref_id: The referendum ID to determine which runtime era to use
+
+    Returns:
+        The call index hex string, or None if method not found
+    """
+    # Check relay-only pallets first (they don't exist on AssetHub)
+    if method_name in RELAY_ONLY_CALL_INDICES:
+        return RELAY_ONLY_CALL_INDICES[method_name]
+
+    # Check static indices (same on both chains)
+    if method_name in STATIC_CALL_INDICES:
+        return STATIC_CALL_INDICES[method_name]
+
+    # Select era-specific indices
+    if ref_id >= POLKADOT_ASSETHUB_CUTOFF:
+        return POLKADOT_CALL_INDICES["assethub"].get(method_name)
+    else:
+        return POLKADOT_CALL_INDICES["relay"].get(method_name)
+
+
 class SubsquareProvider(DataProvider):
     """
     Subsquare API data provider.
@@ -145,14 +321,26 @@ class SubsquareProvider(DataProvider):
         # load details
 
         # for batch referenda, we need to fetch the individual referenda to inspect the proposal
-        needs_detail_call_indices = [
-            "0x1a00", # utility.batch
-            "0x1a02", # utility.batchAll
-            "0x1a03", # utility.dispatchAs
-            "0x1a04", # utility.forceBatch
-            "0x1305", # treasury.spend
-            "0x6300", # xcmPallet.send
+        # Include both relay (pre-1782) and assethub (post-1782) call indices
+        # Methods that require detail fetching due to nested/complex call data
+        needs_detail_methods = [
+            "utility.batch",
+            "utility.batchAll",
+            "utility.dispatchAs",
+            "utility.forceBatch",
+            "treasury.spend",
+            "xcmPallet.send",
+            "whitelist.dispatchWhitelistedCallWithPreimage",
         ]
+        # Build list of indices for both runtime eras
+        needs_detail_call_indices = []
+        for method in needs_detail_methods:
+            relay_idx = POLKADOT_CALL_INDICES["relay"].get(method)
+            assethub_idx = POLKADOT_CALL_INDICES["assethub"].get(method)
+            if relay_idx:
+                needs_detail_call_indices.append(relay_idx)
+            if assethub_idx and assethub_idx != relay_idx:
+                needs_detail_call_indices.append(assethub_idx)
 
         logging.debug("Fetching referenda details")
         replacements = []
@@ -173,74 +361,79 @@ class SubsquareProvider(DataProvider):
 
         logging.debug("Transforming referenda")
         df_updates = self._transform_referenda(df_updates)
-        
+
+        # Build dict mapping referendum ID to raw data for error logging
+        raw_data_by_id = {item.get('referendumIndex'): item for item in replacements}
+
+        # Validate spender track referenda and log errors
+        self._validate_and_log_spender_referenda(df_updates, raw_data_by_id)
+
         # Add continuity check
         self._log_continuity_check(df_updates, "referenda")
-        
+
         return df_updates
 
-    # Out: ['title', 'Status', 'DOT', 'USD_proposal_time', 'Track', 'tally.ayes', 'tally.nays', 'propose_time', 'last_status_change', 'USD_latest']
+    def fetch_referenda_by_ids(self, ref_ids: list[int]):
+        """Fetch specific referenda by their IDs.
+
+        This is used for re-fetching referenda that had errors during previous processing.
+
+        Args:
+            ref_ids: List of referendum IDs to fetch.
+
+        Returns:
+            DataFrame with transformed referendum data.
+        """
+        base_url = f"https://{self.network_info.name}-api.subsquare.io/gov2/referendums"
+
+        items = []
+        for ref_id in ref_ids:
+            url = f"{base_url}/{ref_id}.json"
+            self._logger.info(f"Fetching referendum {ref_id}")
+            try:
+                item = self._fetchItem(url)
+                items.append(item)
+            except SystemExit as e:
+                self._logger.warning(f"Failed to fetch referendum {ref_id}: {e}")
+                continue
+
+        if not items:
+            self._logger.warning("No referenda could be fetched")
+            return pd.DataFrame()
+
+        df = pd.DataFrame(items)
+        df = self._transform_referenda(df)
+
+        # Build raw_data dict for validation
+        raw_data_by_id = {item.get('referendumIndex'): item for item in items}
+        self._validate_and_log_spender_referenda(df, raw_data_by_id)
+
+        return df
+
+    # Out: ['title', 'Status', 'DOT', 'USD_proposal_time', 'Track', 'tally_ayes', 'tally_nays', 'propose_time', 'last_status_change', 'USD_latest']
     def _transform_referenda(self, df):
         df = df.copy()
 
         # return the value of the proposal denominated in the network's token
         def _build_bag_from_call_value(bag: AssetsBag, call, timestamp, ref_id):
-            
-            if ref_id == 1587:
-                pi = 3
-            
-            # we use this map to emit warnings of proposals we haven't seen on OpenGov before. Those that are known to be zero-value (because they are not Treasury-related) are excluded
+            # Build list of known zero-value call indices dynamically based on ref_id
+            # These are proposals we know don't have a direct treasury value
             known_zero_value_call_indices = [
-                "0x0000", # system.remark
-                "0x0007", # system.remarkWithEvent
-                "0x0002", # system.setCode
-                "0x0508", # balances.forceSetBalance <- 1042 burn the treasury
-                "0x0509", # balances.forceAdjustTotalIssuance
-                "0x0a00", # preimage.notePreimage <- lol 828
-                "0x0a02", # preimage.requestPreimage <- eh 74
-                "0x1300", # treasury.proposeSpend <- omg 1108
-                "0x1302", # treasury.approveProposal <- wtf 351
-                "0x1500", # referenda.submit
-                "0x1503", # referenda.cancel
-                "0x1504", # referenda.kill
-                "0x1703", # whitelist.dispatchWhitelistedCallWithPreimage
-                "0x1c00", # identity.addRegistrar
-                "0x2200", # bounties.proposeBounty
-                "0x2201", # bounties.approveBounty <-- the amount to be given to the bounty is not part of the call data at proposal time
-                "0x2209", # bounties.approveBountyWithCurator
-                "0x2202", # bounties.proposeCurator
-                "0x2203", # bounties.unassignCurator
-                "0x2204", # bounties.acceptCurator
-                "0x2207", # bounties.closeBounty
-                "0x270b", # nominationPools.setConfigs
-                "0x3303", # configuration.setMaxCodeSize
-                "0x3320", # configuration.setHrmpChannelMaxCapacity
-                "0x3800", # paras.forceSetCurrentCode
-                "0x3c07", # hrmp.forceOpenHrmpChannel
-                "0x3801", # paras.forceSetCurrentHead
-                "0x4602", # registrar.deregister
-                "0x4603", # registrar.swap
-                "0x4604", # registrar.removeLock
-                "0x4700", # slots.forceLease
-                "0x4701", # slots.clearAllLeases
-                "0x4800", # auctions.newAuction
-                "0x6300", # xcmPallet.send
-                "0x6500", # assetRate.create
-                "0x6501", # assetRate.update
-                "0x6502", # assetRate.remove
+                idx for idx in (get_call_index(m, ref_id) for m in ZERO_VALUE_METHODS) if idx
             ]
 
+            # Build wrapped_proposals from dynamic indices (varies by runtime version)
             wrapped_proposals = [
-                "0x0102", # scheduler.scheduleNamed
-                "0x0104", # scheduler.scheduleAfter
-                "0x1a00", # utility.batch 
-                "0x1a02", # utility.batchAll
-                "0x1a03", # utility.dispatchAs
-                "0x1a04", # utility.forceBatch
+                get_call_index("scheduler.scheduleNamed", ref_id),
+                get_call_index("scheduler.scheduleAfter", ref_id),
+                get_call_index("utility.batch", ref_id),
+                get_call_index("utility.batchAll", ref_id),
+                get_call_index("utility.dispatchAs", ref_id),
+                get_call_index("utility.forceBatch", ref_id),
             ]
 
             should_inspect_proposal = [
-                "0x6300", # xcmPallet.send
+                get_call_index("xcmPallet.send", ref_id),
             ]
 
             # get call index
@@ -259,24 +452,21 @@ class SubsquareProvider(DataProvider):
                 if call_index in known_zero_value_call_indices:
                     return
                 elif call_index in wrapped_proposals:
-                    if call_index == "0x0102": # scheduler.scheduleNamed
+                    if call_index == get_call_index("scheduler.scheduleNamed", ref_id):
                         inner_call = args[4]["value"]
                         _build_bag_from_call_value(bag, inner_call, timestamp, ref_id)
-                    elif call_index == "0x0103": # scheduler.dispatchAs
-                        inner_call = args[1]["value"]
-                        _build_bag_from_call_value(bag, inner_call, timestamp, ref_id)
-                    elif call_index == "0x0104": # scheduler.scheduleAfter
+                    elif call_index == get_call_index("scheduler.scheduleAfter", ref_id):
                         inner_call = args[3]["value"]
                         _build_bag_from_call_value(bag, inner_call, timestamp, ref_id)
-                    elif call_index == "0x1a03": # utility.dispatchAs
-                        
+                    elif call_index == get_call_index("utility.dispatchAs", ref_id):
+
                         # let's make sure the caller is the treasury
                         try:
                             dispatch_source = args[0]["value"]["system"]["signed"]
                         except KeyError:
                             self._logger.warning(f"Ref {ref_id}: dispatchAs call does not have a signed source")
                             return
-                        
+
                         if dispatch_source != self.network_info.treasury_address:
                             self._logger.warning(f"Ref {ref_id}: dispatchAs call does not have a treasury source")
                             return
@@ -291,7 +481,7 @@ class SubsquareProvider(DataProvider):
                         if ref_id in income_neutral_dispatches:
                             return
                         """
-                            
+
                         inner_call = args[1]["value"]
                         _build_bag_from_call_value(bag, inner_call, timestamp, ref_id)
                     else: # batch calls
@@ -310,14 +500,14 @@ class SubsquareProvider(DataProvider):
                     amount = args[2]["value"]
                     amount = self.network_info.apply_denomination(amount, self.network_info.native_asset)
                     bag.add_asset(self.network_info.native_asset, amount)
-                elif call_index == "0x1305": # treasury.spend
+                elif call_index == get_call_index("treasury.spend", ref_id):
                     assert args is not None, "we should always have the details of the call"
                     assert args[0]["name"] == "assetKind"
                     assetKind = self._get_XCM_asset_kind(args[0]["value"])
                     if assetKind == AssetKind.INVALID:
                         bag.set_nan()
                         return
-                    
+
                     assert args[1]["name"] == "amount"
                     amount = args[1]["value"]
 
@@ -427,12 +617,12 @@ class SubsquareProvider(DataProvider):
         df[f"{native_asset_name}_component"] = df["bag"].apply(lambda x: x.get_amount(self.network_info.native_asset))
         df[f"USDC_component"] = df["bag"].apply(lambda x: x.get_amount(AssetKind.USDC))
         df[f"USDT_component"] = df["bag"].apply(lambda x: x.get_amount(AssetKind.USDT))
-        df["tally.ayes"] = df.apply(lambda x: self.network_info.apply_denomination(x["onchainData"]["tally"]["ayes"], self.network_info.native_asset), axis=1)
-        df["tally.nays"] = df.apply(lambda x: self.network_info.apply_denomination(x["onchainData"]["tally"]["nays"], self.network_info.native_asset), axis=1)
+        df["tally_ayes"] = df.apply(lambda x: self.network_info.apply_denomination(x["onchainData"]["tally"]["ayes"], self.network_info.native_asset), axis=1)
+        df["tally_nays"] = df.apply(lambda x: self.network_info.apply_denomination(x["onchainData"]["tally"]["nays"], self.network_info.native_asset), axis=1)
         df["track"] = df["onchainData"].apply(_determineTrack)
 
         df.set_index("id", inplace=True)
-        df = df[["title", "status", f"{native_asset_name}_proposal_time", "USD_proposal_time", "track", "tally.ayes", "tally.nays", "proposal_time", "latest_status_change", f"{native_asset_name}_latest", "USD_latest", f"{native_asset_name}_component", "USDC_component", "USDT_component"]]
+        df = df[["title", "status", f"{native_asset_name}_proposal_time", "USD_proposal_time", "track", "tally_ayes", "tally_nays", "proposal_time", "latest_status_change", f"{native_asset_name}_latest", "USD_latest", f"{native_asset_name}_component", "USDC_component", "USDT_component"]]
 
         return df
 
@@ -580,6 +770,60 @@ class SubsquareProvider(DataProvider):
                 else:
                     self._logger.warning(
                         f"Treasury spend {record_id} has NULL values in {null_columns} (sink not available for logging)"
+                    )
+
+    def _validate_and_log_spender_referenda(self, df: pd.DataFrame, raw_data_by_id: dict) -> None:
+        """
+        Validate referenda from spender tracks and log errors for those with missing values.
+
+        NOTE: This does NOT filter out invalid rows - it only logs errors.
+        Referenda table allows NULLs, so invalid rows are still written to DB.
+
+        Args:
+            df: DataFrame of transformed referenda (indexed by referendum ID)
+            raw_data_by_id: Dict mapping referendum ID to raw API response
+        """
+        required_columns = ['DOT_proposal_time', 'USD_proposal_time', 'DOT_component', 'USDC_component', 'USDT_component']
+
+        for record_id, row in df.iterrows():
+            # Only validate spender tracks
+            if row.get('track') not in SPENDER_TRACKS:
+                continue
+
+            # Check for NULL/NaN in critical columns
+            null_columns = []
+            for col in required_columns:
+                value = row.get(col)
+                if pd.isna(value):
+                    null_columns.append(col)
+
+            if null_columns:
+                if self.sink:
+                    # Look up raw data by referendum ID (may not exist if not detail-fetched)
+                    raw_data = raw_data_by_id.get(record_id, {})
+
+                    metadata = {
+                        'status': row.get('status', 'Unknown'),
+                        'track': row.get('track', 'Unknown'),
+                        'title': str(row.get('title', 'Unknown'))[:200],
+                        'null_columns': null_columns
+                    }
+
+                    self.sink.log_data_error(
+                        table_name="Referenda",
+                        record_id=str(record_id),
+                        error_type="missing_value",
+                        error_message=f"NULL/NaN values in columns: {', '.join(null_columns)}",
+                        raw_data=raw_data,
+                        metadata=metadata
+                    )
+
+                    self._logger.warning(
+                        f"Referendum {record_id} (track: {row.get('track')}) has NULL values in {null_columns} - logged to DataErrors"
+                    )
+                else:
+                    self._logger.warning(
+                        f"Referendum {record_id} has NULL values in {null_columns} (sink not available for logging)"
                     )
 
     def fetch_child_bounties(self, child_bounties_to_update=10):
@@ -1171,14 +1415,120 @@ class SubsquareProvider(DataProvider):
 
         return convert_value
     
+    # =========================================================================
+    # XCM Parsing Utilities
+    # =========================================================================
+    #
+    # These shared utilities encapsulate chain-context-aware XCM parsing logic.
+    # XCM has different semantics depending on chain context:
+    #
+    # | Chain Context    | `location.interior.here` means | Asset determined by |
+    # |------------------|-------------------------------|---------------------|
+    # | Relay Chain      | "Native asset (DOT)"          | location alone      |
+    # | AssetHub         | "Current location"            | assetId field       |
+    #
+    # After governance moved to AssetHub (ref 1782), the interpretation of
+    # `here` changed: it no longer implies "native asset", just "current chain".
+    # =========================================================================
+
+    def _general_index_to_asset_kind(self, general_index: int) -> AssetKind:
+        """
+        Maps AssetHub generalIndex to AssetKind.
+
+        Args:
+            general_index: The generalIndex from XCM assetId interior.
+
+        Returns:
+            AssetKind for known indices, or INVALID for unknown.
+        """
+        if general_index == 1337:
+            return AssetKind.USDC
+        elif general_index == 1984:
+            return AssetKind.USDT
+        elif general_index == 30:
+            return AssetKind.DED
+        elif general_index == 19840000000000:
+            # Known invalid value (mistaken entry)
+            return AssetKind.INVALID
+        else:
+            self._logger.warning(f"Unknown general_index: {general_index}")
+            return AssetKind.INVALID
+
+    def _parse_asset_interior_x2(self, x2_interior: list) -> AssetKind:
+        """
+        Parses x2 interior structure with palletInstance + generalIndex.
+
+        Expected format: [{"palletInstance": 50}, {"generalIndex": 1337}]
+
+        Args:
+            x2_interior: List containing palletInstance and generalIndex dicts.
+
+        Returns:
+            AssetKind based on generalIndex, or INVALID if structure is wrong.
+        """
+        try:
+            if len(x2_interior) < 2:
+                self._logger.warning(f"x2 interior too short: {x2_interior}")
+                return AssetKind.INVALID
+
+            pallet_instance = x2_interior[0].get("palletInstance")
+            if pallet_instance != 50:
+                self._logger.warning(f"Expected palletInstance 50, got {pallet_instance}")
+                return AssetKind.INVALID
+
+            if "generalIndex" not in x2_interior[1]:
+                # has been mistakenly the case in ref 1714
+                return AssetKind.INVALID
+
+            general_index = x2_interior[1]["generalIndex"]
+            return self._general_index_to_asset_kind(general_index)
+
+        except (KeyError, IndexError, TypeError) as e:
+            self._logger.warning(f"Invalid x2 structure: {e}")
+            return AssetKind.INVALID
+
+    def _resolve_asset_from_interior(self, interior: dict, parents: int = 0) -> AssetKind:
+        """
+        Resolves asset type from an assetId interior structure.
+
+        This is the core chain-context-aware parsing logic:
+        - parents=1 + here → native relay chain asset (DOT/KSM)
+        - parents=0 + here → native on current chain (still DOT on AssetHub)
+        - parents=0 + x2   → AssetHub fungible (USDC/USDT/DED)
+
+        Args:
+            interior: The interior dict from assetId.
+            parents: The parents value from assetId (0 or 1).
+
+        Returns:
+            AssetKind based on the interior structure.
+        """
+        # parents=1 means we're referencing the relay chain
+        if parents == 1 and "here" in interior:
+            return self.network_info.native_asset
+
+        # parents=0 means we're on the current chain
+        if parents == 0:
+            if "x2" in interior:
+                return self._parse_asset_interior_x2(interior["x2"])
+            elif "here" in interior:
+                # Native asset on current chain (still DOT on AssetHub)
+                return self.network_info.native_asset
+
+        self._logger.warning(f"Unknown interior structure: parents={parents}, keys={list(interior.keys())}")
+        return AssetKind.INVALID
+
     def _get_XCM_asset_kind(self, asset_kind) -> AssetKind:
         """
         Determines the AssetKind from an XCM (Cross-Consensus Message) asset representation.
 
         This method parses different versions of XCM asset formats (v3, v4, v5)
         to identify the type of asset (e.g., DOT, KSM, USDC, USDT, DED).
-        It handles native assets, stablecoins, and DED tokens based on their
-        parachain ID and general index.
+
+        IMPORTANT: Chain context affects XCM semantics:
+        - Pre-1782 (Relay Chain): `location.interior.here` = native DOT
+        - Post-1782 (AssetHub): `location.interior.here` = "current chain",
+          must check `assetId` to determine actual asset type.
 
         Args:
             asset_kind (dict): A dictionary representing the XCM asset.
@@ -1188,125 +1538,117 @@ class SubsquareProvider(DataProvider):
         """
 
         version_key = list(asset_kind.keys())[0]
-        
+
         if version_key == "v3":
-
-            if "here" in asset_kind["v3"]["location"]["interior"]:
-                return self.network_info.native_asset
-
-            parachain = asset_kind["v3"]["location"]["interior"]["x1"]["parachain"]
-            assert parachain >= 1000, "parachain is not a system chain"
-            concrete = asset_kind["v3"]["assetId"]["concrete"]
-            if  "here" in concrete["interior"]:
-                return self.network_info.native_asset
-            
-            assert concrete["interior"]["x2"][0]["palletInstance"] == 50
-            
-            if "generalIndex" not in concrete["interior"]["x2"][1]:
-                # has been mistakenly the case in 1714
-                return AssetKind.INVALID
-
-            general_index = concrete["interior"]["x2"][1]["generalIndex"]
-            if general_index == 1337:
-                return AssetKind.USDC
-            elif general_index == 1984:
-                return AssetKind.USDT
-            elif general_index == 30:
-                return AssetKind.DED
-            elif general_index == 19840000000000:
-                return AssetKind.INVALID # rolleyes emoji
-            else:
-                self._logger.warn(f"Unknown asset kind: {asset_kind}")
-                return AssetKind.INVALID
+            return self._parse_xcm_v3(asset_kind["v3"])
         elif version_key in ["v4", "v5"]:
-            location = asset_kind[version_key]["location"]
-            location_interior = location["interior"]
-            asset_id = asset_kind[version_key]["assetId"]
-
-            # Handle "here" in location - need to check assetId to determine actual asset
-            if "here" in location_interior:
-                asset_id_parents = asset_id.get("parents", 0)
-                asset_id_interior = asset_id["interior"]
-
-                # Case 1: parents=1 means native relay chain asset
-                if asset_id_parents == 1 and "here" in asset_id_interior:
-                    return self.network_info.native_asset
-
-                # Case 2: parents=0 means we're on Asset Hub, parse assetId
-                if asset_id_parents == 0:
-                    if "x2" in asset_id_interior:
-                        try:
-                            pallet_instance = asset_id_interior["x2"][0].get("palletInstance")
-                            if pallet_instance != 50:
-                                self._logger.warning(f"Expected palletInstance 50, got {pallet_instance}")
-                                return AssetKind.INVALID
-                            general_index = asset_id_interior["x2"][1]["generalIndex"]
-                            if general_index == 1337:
-                                return AssetKind.USDC
-                            elif general_index == 1984:
-                                return AssetKind.USDT
-                            else:
-                                self._logger.warning(f"Unknown general_index: {general_index}")
-                                return AssetKind.INVALID
-                        except (KeyError, IndexError, TypeError) as e:
-                            self._logger.warning(f"Invalid x2 structure in assetId: {e}")
-                            return AssetKind.INVALID
-                    elif "here" in asset_id_interior:
-                        # Asset Hub native asset (rare, but handle it)
-                        return self.network_info.native_asset
-                    else:
-                        self._logger.warning(f"Unknown assetId interior for parents=0: {list(asset_id_interior.keys())}")
-                        return AssetKind.INVALID
-
-            # Handle single-hop location (x1) - typically system parachains
-            if "x1" in location_interior:
-                try:
-                    parachain = location_interior["x1"][0]["parachain"]
-                    if parachain < 1000 or parachain >= 2000:
-                        self._logger.warning(f"Parachain {parachain} is not a system chain")
-                        return AssetKind.INVALID
-
-                    # Check if assetId indicates native DOT/KSM
-                    if asset_kind[version_key]["assetId"]["parents"] == 1 and asset_kind[version_key]["assetId"]["interior"].get("here") == None:
-                        return self.network_info.native_asset
-
-                    # Parse assetId interior for specific asset
-                    asset_interior = asset_kind[version_key]["assetId"]["interior"]
-                    if "x2" in asset_interior:
-                        try:
-                            pallet_instance = asset_interior["x2"][0].get("palletInstance")
-                            if pallet_instance != 50:
-                                self._logger.warning(f"Expected palletInstance 50, got {pallet_instance}")
-                                return AssetKind.INVALID
-                            general_index = asset_interior["x2"][1]["generalIndex"]
-                            if general_index == 1337:
-                                return AssetKind.USDC
-                            elif general_index == 1984:
-                                return AssetKind.USDT
-                            else:
-                                self._logger.warning(f"Unknown general_index: {general_index}")
-                                return AssetKind.INVALID
-                        except (KeyError, IndexError, TypeError) as e:
-                            self._logger.warning(f"Invalid x2 structure in assetId for {version_key}: {e}")
-                            return AssetKind.INVALID
-                    else:
-                        self._logger.warning(f"Unknown assetId interior structure for {version_key}: {list(asset_interior.keys())}")
-                        return AssetKind.INVALID
-                except (KeyError, IndexError, TypeError) as e:
-                    self._logger.warning(f"Invalid x1 structure for {version_key}: {e}")
-                    return AssetKind.INVALID
-
-            # Handle multi-hop location (x2, x3, etc.) - not yet implemented
-            if "x2" in location_interior or "x3" in location_interior:
-                self._logger.warning(f"Multi-hop location not yet supported for {version_key}: {list(location_interior.keys())}")
-                return AssetKind.INVALID
-
-            # Unknown interior structure
-            self._logger.warning(f"Unknown interior structure for {version_key}: {list(location_interior.keys())}")
-            return AssetKind.INVALID
+            return self._parse_xcm_v4_v5(asset_kind[version_key], version_key)
         else:
             self._logger.warning(f"Unknown asset kind version: {version_key} in {asset_kind}")
             return AssetKind.INVALID
+
+    def _parse_xcm_v3(self, v3_data: dict) -> AssetKind:
+        """
+        Parse XCM v3 format asset kind.
+
+        v3 format differs from v4/v5:
+        - Uses assetId.concrete instead of assetId directly
+        - location.interior.here doesn't always mean native asset (on AssetHub)
+
+        Args:
+            v3_data: The v3 dict from asset_kind.
+
+        Returns:
+            AssetKind based on parsing.
+        """
+        location_interior = v3_data["location"]["interior"]
+
+        # Case 1: location.interior.here - could be relay chain OR AssetHub
+        # Must check assetId.concrete to determine actual asset
+        if "here" in location_interior:
+            concrete = v3_data["assetId"]["concrete"]
+            concrete_parents = concrete.get("parents", 0)
+            concrete_interior = concrete["interior"]
+            return self._resolve_asset_from_interior(concrete_interior, concrete_parents)
+
+        # Case 2: location has x1 (system parachain reference)
+        if "x1" in location_interior:
+            try:
+                parachain = location_interior["x1"]["parachain"]
+                if parachain < 1000 or parachain >= 2000:
+                    self._logger.warning(f"Parachain {parachain} is not a system chain")
+                    return AssetKind.INVALID
+
+                concrete = v3_data["assetId"]["concrete"]
+                concrete_interior = concrete["interior"]
+
+                if "here" in concrete_interior:
+                    return self.network_info.native_asset
+
+                if "x2" in concrete_interior:
+                    return self._parse_asset_interior_x2(concrete_interior["x2"])
+
+                self._logger.warning(f"Unknown v3 concrete interior: {list(concrete_interior.keys())}")
+                return AssetKind.INVALID
+
+            except (KeyError, TypeError) as e:
+                self._logger.warning(f"Invalid v3 x1 structure: {e}")
+                return AssetKind.INVALID
+
+        self._logger.warning(f"Unknown v3 location interior: {list(location_interior.keys())}")
+        return AssetKind.INVALID
+
+    def _parse_xcm_v4_v5(self, data: dict, version_key: str) -> AssetKind:
+        """
+        Parse XCM v4/v5 format asset kind.
+
+        v4/v5 use a unified assetId structure (no concrete wrapper).
+
+        Args:
+            data: The v4/v5 dict from asset_kind.
+            version_key: "v4" or "v5" for error messages.
+
+        Returns:
+            AssetKind based on parsing.
+        """
+        location_interior = data["location"]["interior"]
+        asset_id = data["assetId"]
+        asset_id_parents = asset_id.get("parents", 0)
+        asset_id_interior = asset_id["interior"]
+
+        # Case 1: location.interior.here - we're on AssetHub, check assetId
+        if "here" in location_interior:
+            return self._resolve_asset_from_interior(asset_id_interior, asset_id_parents)
+
+        # Case 2: location has x1 (system parachain reference)
+        if "x1" in location_interior:
+            try:
+                parachain = location_interior["x1"][0]["parachain"]
+                if parachain < 1000 or parachain >= 2000:
+                    self._logger.warning(f"Parachain {parachain} is not a system chain")
+                    return AssetKind.INVALID
+
+                # Check assetId to determine asset type
+                if asset_id_parents == 1 and "here" in asset_id_interior:
+                    return self.network_info.native_asset
+
+                if "x2" in asset_id_interior:
+                    return self._parse_asset_interior_x2(asset_id_interior["x2"])
+
+                self._logger.warning(f"Unknown {version_key} assetId interior: {list(asset_id_interior.keys())}")
+                return AssetKind.INVALID
+
+            except (KeyError, IndexError, TypeError) as e:
+                self._logger.warning(f"Invalid {version_key} x1 structure: {e}")
+                return AssetKind.INVALID
+
+        # Case 3: Multi-hop location (x2, x3, etc.) - not yet implemented
+        if "x2" in location_interior or "x3" in location_interior:
+            self._logger.warning(f"Multi-hop location not yet supported for {version_key}: {list(location_interior.keys())}")
+            return AssetKind.INVALID
+
+        self._logger.warning(f"Unknown {version_key} location interior: {list(location_interior.keys())}")
+        return AssetKind.INVALID
 
     def _get_XCM_asset_value(self, assets) -> float:
         if "v3" in assets:

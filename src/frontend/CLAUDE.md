@@ -38,14 +38,6 @@ useEffect(() => {
 
 ## Gotchas
 
-### Dot-notation columns
-SQLite columns like `tally.ayes` need `accessorFn`, not `accessorKey`:
-```tsx
-// WRONG: { accessorKey: "tally.ayes" }
-// RIGHT:
-{ id: "tally_ayes", accessorFn: (row) => row["tally.ayes"] }
-```
-
 ### useParams returns strings
 ```tsx
 const { id } = useParams();

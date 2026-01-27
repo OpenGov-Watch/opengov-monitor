@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getColumnKey, sortingStateToOrderBy, filterStateToQueryFilters, filtersToGroup, groupToFilters, convertFiltersToQueryConfig, buildFacetQueryConfig } from "../query-config-utils";
+import { getColumnKey, validateQueryConfig, sortingStateToOrderBy, filterStateToQueryFilters, filtersToGroup, groupToFilters, convertFiltersToQueryConfig, buildFacetQueryConfig, normalizeDataKeys, mapFilterGroupColumns } from "../query-config-utils";
 import type { SortingState, ColumnFiltersState } from "@tanstack/react-table";
 import type { FilterCondition, FilterGroup } from "@/lib/db/types";
 
@@ -36,8 +36,8 @@ describe("getColumnKey", () => {
     expect(result).toBe("id");
   });
 
-  it("handles dots in column names for aggregate functions", () => {
-    const result = getColumnKey({ column: "tally.ayes", aggregateFunction: "SUM" });
+  it("handles underscores in column names for aggregate functions", () => {
+    const result = getColumnKey({ column: "tally_ayes", aggregateFunction: "SUM" });
     expect(result).toBe("sum_tally_ayes");
   });
 
@@ -49,6 +49,85 @@ describe("getColumnKey", () => {
   it("prefers alias over aggregate function", () => {
     const result = getColumnKey({ column: "amount", alias: "total_amount", aggregateFunction: "SUM" });
     expect(result).toBe("total_amount");
+  });
+});
+
+describe("validateQueryConfig - alias handling", () => {
+  it("should NOT flag groupBy as invalid when column has an alias", () => {
+    const config = {
+      sourceTable: "all_spending",
+      columns: [
+        { column: "all_spending.year_quarter", alias: "quarter" },
+        { column: "all_spending.USD_latest", aggregateFunction: "SUM" as const }
+      ],
+      filters: [],
+      groupBy: ["all_spending.year_quarter"],  // References original column
+      orderBy: [],
+    };
+
+    const validation = validateQueryConfig(config);
+    expect(validation.invalidGroupBy).toEqual([]);
+  });
+
+  it("should NOT flag orderBy as invalid when column has an alias", () => {
+    const config = {
+      sourceTable: "all_spending",
+      columns: [
+        { column: "all_spending.year_quarter", alias: "quarter" }
+      ],
+      filters: [],
+      groupBy: [],
+      orderBy: [{ column: "all_spending.year_quarter", direction: "ASC" as const }],
+    };
+
+    const validation = validateQueryConfig(config);
+    expect(validation.invalidOrderBy).toEqual([]);
+  });
+
+  it("should accept both alias and original column reference in groupBy", () => {
+    const config = {
+      sourceTable: "all_spending",
+      columns: [
+        { column: "all_spending.year_quarter", alias: "quarter" }
+      ],
+      filters: [],
+      groupBy: ["quarter"],  // References alias instead of original
+      orderBy: [],
+    };
+
+    const validation = validateQueryConfig(config);
+    expect(validation.invalidGroupBy).toEqual([]);
+  });
+
+  it("should flag truly invalid groupBy entries", () => {
+    const config = {
+      sourceTable: "all_spending",
+      columns: [
+        { column: "all_spending.year_quarter", alias: "quarter" }
+      ],
+      filters: [],
+      groupBy: ["nonexistent_column"],
+      orderBy: [],
+    };
+
+    const validation = validateQueryConfig(config);
+    expect(validation.invalidGroupBy).toEqual(["nonexistent_column"]);
+  });
+
+  it("should validate expression columns by alias", () => {
+    const config = {
+      sourceTable: "all_spending",
+      columns: [],
+      filters: [],
+      expressionColumns: [
+        { expression: "YEAR(created_at)", alias: "year" }
+      ],
+      groupBy: ["year"],
+      orderBy: [],
+    };
+
+    const validation = validateQueryConfig(config);
+    expect(validation.invalidGroupBy).toEqual([]);
   });
 });
 
@@ -585,6 +664,218 @@ describe("filtersToGroup and groupToFilters - Round-trip", () => {
     const result = groupToFilters(group);
 
     expect(result).toEqual(originalFilters);
+  });
+});
+
+describe("mapFilterGroupColumns - Display to Filter Column Mapping", () => {
+  it("maps single column in simple filter group", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "parentBountyId", operator: "IN", value: ["Marketing Bounty"] }
+      ]
+    };
+    const columnMap = new Map([["parentBountyId", "parentBountyName"]]);
+
+    const result = mapFilterGroupColumns(filterGroup, columnMap);
+
+    expect(result).toEqual({
+      operator: "AND",
+      conditions: [
+        { column: "parentBountyName", operator: "IN", value: ["Marketing Bounty"] }
+      ]
+    });
+  });
+
+  it("maps multiple columns in filter group", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "parentBountyId", operator: "IN", value: ["Marketing"] },
+        { column: "categoryId", operator: "=", value: "Treasury" }
+      ]
+    };
+    const columnMap = new Map([
+      ["parentBountyId", "parentBountyName"],
+      ["categoryId", "categoryName"]
+    ]);
+
+    const result = mapFilterGroupColumns(filterGroup, columnMap);
+
+    expect(result).toEqual({
+      operator: "AND",
+      conditions: [
+        { column: "parentBountyName", operator: "IN", value: ["Marketing"] },
+        { column: "categoryName", operator: "=", value: "Treasury" }
+      ]
+    });
+  });
+
+  it("maps columns in nested filter groups (recursive)", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "parentBountyId", operator: "IN", value: ["Marketing"] },
+        {
+          operator: "OR",
+          conditions: [
+            { column: "categoryId", operator: "=", value: "Events" },
+            { column: "parentBountyId", operator: "=", value: "Development" }
+          ]
+        }
+      ]
+    };
+    const columnMap = new Map([
+      ["parentBountyId", "parentBountyName"],
+      ["categoryId", "categoryName"]
+    ]);
+
+    const result = mapFilterGroupColumns(filterGroup, columnMap);
+
+    expect(result).toEqual({
+      operator: "AND",
+      conditions: [
+        { column: "parentBountyName", operator: "IN", value: ["Marketing"] },
+        {
+          operator: "OR",
+          conditions: [
+            { column: "categoryName", operator: "=", value: "Events" },
+            { column: "parentBountyName", operator: "=", value: "Development" }
+          ]
+        }
+      ]
+    });
+  });
+
+  it("leaves unmapped columns unchanged", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "parentBountyId", operator: "IN", value: ["Marketing"] },
+        { column: "status", operator: "=", value: "Active" },
+        { column: "amount", operator: ">", value: 1000 }
+      ]
+    };
+    const columnMap = new Map([["parentBountyId", "parentBountyName"]]);
+
+    const result = mapFilterGroupColumns(filterGroup, columnMap);
+
+    expect(result).toEqual({
+      operator: "AND",
+      conditions: [
+        { column: "parentBountyName", operator: "IN", value: ["Marketing"] },
+        { column: "status", operator: "=", value: "Active" },
+        { column: "amount", operator: ">", value: 1000 }
+      ]
+    });
+  });
+
+  it("handles empty column map", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "parentBountyId", operator: "IN", value: ["Marketing"] }
+      ]
+    };
+    const columnMap = new Map<string, string>();
+
+    const result = mapFilterGroupColumns(filterGroup, columnMap);
+
+    expect(result).toEqual(filterGroup);
+  });
+
+  it("handles empty filter group", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: []
+    };
+    const columnMap = new Map([["parentBountyId", "parentBountyName"]]);
+
+    const result = mapFilterGroupColumns(filterGroup, columnMap);
+
+    expect(result).toEqual({
+      operator: "AND",
+      conditions: []
+    });
+  });
+
+  it("preserves all operator types during mapping", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "parentBountyId", operator: "=", value: "Marketing" },
+        { column: "parentBountyId", operator: "!=", value: "Development" },
+        { column: "parentBountyId", operator: "LIKE", value: "%Marketing%" },
+        { column: "parentBountyId", operator: "IN", value: ["Marketing", "Development"] },
+        { column: "parentBountyId", operator: "NOT IN", value: ["Root"] },
+        { column: "parentBountyId", operator: "IS NULL", value: null },
+        { column: "parentBountyId", operator: "IS NOT NULL", value: null }
+      ]
+    };
+    const columnMap = new Map([["parentBountyId", "parentBountyName"]]);
+
+    const result = mapFilterGroupColumns(filterGroup, columnMap);
+
+    // All conditions should have mapped column
+    (result.conditions as FilterCondition[]).forEach(condition => {
+      expect(condition.column).toBe("parentBountyName");
+    });
+
+    // All operators should be preserved
+    expect((result.conditions[0] as FilterCondition).operator).toBe("=");
+    expect((result.conditions[1] as FilterCondition).operator).toBe("!=");
+    expect((result.conditions[2] as FilterCondition).operator).toBe("LIKE");
+    expect((result.conditions[3] as FilterCondition).operator).toBe("IN");
+    expect((result.conditions[4] as FilterCondition).operator).toBe("NOT IN");
+    expect((result.conditions[5] as FilterCondition).operator).toBe("IS NULL");
+    expect((result.conditions[6] as FilterCondition).operator).toBe("IS NOT NULL");
+  });
+
+  it("preserves values during mapping", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "parentBountyId", operator: "IN", value: ["Marketing Bounty", "Development Bounty"] },
+        { column: "amount", operator: ">", value: 1000 }
+      ]
+    };
+    const columnMap = new Map([["parentBountyId", "parentBountyName"]]);
+
+    const result = mapFilterGroupColumns(filterGroup, columnMap);
+
+    expect((result.conditions[0] as FilterCondition).value).toEqual(["Marketing Bounty", "Development Bounty"]);
+    expect((result.conditions[1] as FilterCondition).value).toBe(1000);
+  });
+
+  it("maps deeply nested filter groups (3+ levels)", () => {
+    const filterGroup: FilterGroup = {
+      operator: "AND",
+      conditions: [
+        { column: "parentBountyId", operator: "=", value: "Level1" },
+        {
+          operator: "OR",
+          conditions: [
+            { column: "parentBountyId", operator: "=", value: "Level2a" },
+            {
+              operator: "AND",
+              conditions: [
+                { column: "parentBountyId", operator: "=", value: "Level3" }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+    const columnMap = new Map([["parentBountyId", "parentBountyName"]]);
+
+    const result = mapFilterGroupColumns(filterGroup, columnMap);
+
+    // Verify all levels are mapped
+    expect((result.conditions[0] as FilterCondition).column).toBe("parentBountyName");
+    const level2 = result.conditions[1] as FilterGroup;
+    expect((level2.conditions[0] as FilterCondition).column).toBe("parentBountyName");
+    const level3 = level2.conditions[1] as FilterGroup;
+    expect((level3.conditions[0] as FilterCondition).column).toBe("parentBountyName");
   });
 });
 
@@ -1236,5 +1527,115 @@ describe("buildFacetQueryConfig - Facet Query Alias Resolution", () => {
       operator: "AND",
       conditions: []
     });
+  });
+});
+
+describe("normalizeDataKeys", () => {
+  it("returns original data when no columns defined", () => {
+    const data = [{ name: "test" }];
+    expect(normalizeDataKeys(data, undefined)).toBe(data);
+  });
+
+  it("returns original data when columns array is empty", () => {
+    const data = [{ name: "test" }];
+    expect(normalizeDataKeys(data, [])).toBe(data);
+  });
+
+  it("returns original data when data array is empty", () => {
+    const data: Record<string, unknown>[] = [];
+    const columns = [{ column: "Categories.name" }];
+    expect(normalizeDataKeys(data, columns)).toBe(data);
+  });
+
+  it("normalizes joined column keys without aliases", () => {
+    const data = [{ name: "Treasury", value: 100 }];
+    const columns = [{ column: "Categories.name" }, { column: "value" }];
+    expect(normalizeDataKeys(data, columns)).toEqual([
+      { "Categories.name": "Treasury", value: 100 }
+    ]);
+  });
+
+  it("normalizes multiple joined columns", () => {
+    const data = [{ name: "Treasury", subcategory: "Bounties", amount: 5000 }];
+    const columns = [
+      { column: "Categories.name" },
+      { column: "Categories.subcategory" },
+      { column: "amount" }
+    ];
+    expect(normalizeDataKeys(data, columns)).toEqual([
+      { "Categories.name": "Treasury", "Categories.subcategory": "Bounties", amount: 5000 }
+    ]);
+  });
+
+  it("preserves aliased columns unchanged", () => {
+    const data = [{ category: "Treasury" }];
+    const columns = [{ column: "c.category", alias: "category" }];
+    expect(normalizeDataKeys(data, columns)).toEqual(data);
+  });
+
+  it("preserves aggregate function keys", () => {
+    const data = [{ sum_amount: 5000 }];
+    const columns = [{ column: "amount", aggregateFunction: "SUM" }];
+    expect(normalizeDataKeys(data, columns)).toEqual(data);
+  });
+
+  it("handles mixed aliased and non-aliased columns", () => {
+    const data = [{ category: "Treasury", name: "Subcategory1", amount: 100 }];
+    const columns = [
+      { column: "c.category", alias: "category" },
+      { column: "Categories.name" },
+      { column: "amount" }
+    ];
+    expect(normalizeDataKeys(data, columns)).toEqual([
+      { category: "Treasury", "Categories.name": "Subcategory1", amount: 100 }
+    ]);
+  });
+
+  it("handles multiple rows", () => {
+    const data = [
+      { name: "Treasury", value: 100 },
+      { name: "Fellowship", value: 200 },
+      { name: "Events", value: 300 }
+    ];
+    const columns = [{ column: "Categories.name" }, { column: "value" }];
+    expect(normalizeDataKeys(data, columns)).toEqual([
+      { "Categories.name": "Treasury", value: 100 },
+      { "Categories.name": "Fellowship", value: 200 },
+      { "Categories.name": "Events", value: 300 }
+    ]);
+  });
+
+  it("returns original data when no key mapping needed", () => {
+    const data = [{ id: 1, status: "Active", amount: 100 }];
+    const columns = [
+      { column: "id" },
+      { column: "status" },
+      { column: "amount" }
+    ];
+    const result = normalizeDataKeys(data, columns);
+    // Should return same reference when no mapping needed
+    expect(result).toBe(data);
+  });
+
+  it("handles deeply nested table references", () => {
+    const data = [{ column: "Value" }];
+    const columns = [{ column: "Schema.Table.column" }];
+    expect(normalizeDataKeys(data, columns)).toEqual([
+      { "Schema.Table.column": "Value" }
+    ]);
+  });
+
+  it("handles aggregate with alias (alias takes precedence)", () => {
+    const data = [{ total: 5000 }];
+    const columns = [{ column: "amount", aggregateFunction: "SUM", alias: "total" }];
+    expect(normalizeDataKeys(data, columns)).toEqual(data);
+  });
+
+  it("preserves extra keys not in column definition", () => {
+    const data = [{ name: "Treasury", extra_field: "extra" }];
+    const columns = [{ column: "Categories.name" }];
+    expect(normalizeDataKeys(data, columns)).toEqual([
+      { "Categories.name": "Treasury", extra_field: "extra" }
+    ]);
   });
 });

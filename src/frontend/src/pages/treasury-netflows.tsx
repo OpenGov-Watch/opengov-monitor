@@ -58,7 +58,7 @@ export default function TreasuryNetflowsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Treasury Netflows</h1>
+        <h1 className="text-4xl font-bold tracking-tight">Treasury Netflows</h1>
         <p className="text-muted-foreground">
           Quarterly treasury flow data tracking inflows and outflows by asset and type
         </p>

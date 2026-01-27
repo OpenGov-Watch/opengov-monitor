@@ -83,7 +83,7 @@ class TestSchemaRegistry:
     """Tests for the schema registry."""
 
     def test_schema_registry_contains_all_predefined_schemas(self):
-        """Verify all 15 schemas are in the registry."""
+        """Verify all 18 schemas are in the registry."""
         expected_tables = [
             "Referenda",
             "Treasury",
@@ -95,14 +95,16 @@ class TestSchemaRegistry:
             "Categories",
             "Bounties",
             "Subtreasury",
+            "Custom Spending",
             "Fellowship Subtreasury",
             "Treasury Netflows",
             "Dashboards",
             "Dashboard Components",
             "Query Cache",
             "Users",
+            "DataErrors",
         ]
-        assert len(SCHEMA_REGISTRY) == 16
+        assert len(SCHEMA_REGISTRY) == 18
         for table in expected_tables:
             assert table in SCHEMA_REGISTRY, f"Missing schema for '{table}'"
 
@@ -201,10 +203,10 @@ class TestGenerateCreateTableSql:
         assert "IF NOT EXISTS" in sql
 
     def test_generate_create_table_sql_column_with_dots(self):
-        """Verify columns with dots (like tally.ayes) are handled."""
+        """Verify columns with dots (like tally_ayes) are handled."""
         sql = generate_create_table_sql(REFERENDA_SCHEMA)
-        assert '"tally.ayes"' in sql
-        assert '"tally.nays"' in sql
+        assert '"tally_ayes"' in sql
+        assert '"tally_nays"' in sql
 
     def test_generate_create_table_sql_text_primary_key(self):
         """Verify TEXT primary key works (Child Bounties uses identifier)."""
@@ -294,8 +296,8 @@ class TestSchemaContentValidation:
         assert "id" in schema.columns
         assert "status" in schema.columns
         assert "track" in schema.columns
-        assert "tally.ayes" in schema.columns
-        assert "tally.nays" in schema.columns
+        assert "tally_ayes" in schema.columns
+        assert "tally_nays" in schema.columns
         assert len(schema.indexes) == 4
 
     def test_treasury_schema_includes_claim_dates(self):
@@ -332,7 +334,7 @@ class TestSchemaContentValidation:
         """Verify TREASURY_NETFLOWS_SCHEMA columns and indexes."""
         schema = TREASURY_NETFLOWS_SCHEMA
         assert schema.name == "Treasury Netflows"
-        assert schema.primary_key == "month"
+        assert schema.primary_key is None  # No primary key - allows multiple rows per month
         assert "month" in schema.columns
         assert "asset_name" in schema.columns
         assert "flow_type" in schema.columns
@@ -351,10 +353,11 @@ class TestSchemaContentValidation:
         assert "idx_netflows_type" in index_names
 
     def test_all_schemas_have_primary_key_in_columns(self):
-        """Verify all schemas have their primary key defined in columns."""
+        """Verify all schemas with primary keys have them defined in columns."""
         for name, schema in SCHEMA_REGISTRY.items():
-            assert schema.primary_key in schema.columns, \
-                f"Schema '{name}' primary key '{schema.primary_key}' not in columns"
+            if schema.primary_key is not None:
+                assert schema.primary_key in schema.columns, \
+                    f"Schema '{name}' primary key '{schema.primary_key}' not in columns"
 
     def test_all_index_columns_exist_in_schema(self):
         """Verify all indexed columns exist in their schema."""

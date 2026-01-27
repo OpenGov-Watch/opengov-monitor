@@ -328,11 +328,19 @@ class TestViewLogic:
             ('100-1', 1, 'Visible Bounty', 'Claimed', 500, 5000, '2024-01-03', 0, NULL),
             ('100-2', 1, 'Hidden Bounty', 'Claimed', 600, 6000, '2024-01-04', 1, NULL)
         ''')
+
+        # Insert treasury linked to hidden referendum (should be filtered out)
+        sqlite_sink.connection.execute('''
+            INSERT INTO Treasury
+            (id, referendumIndex, description, status, DOT_latest, latest_status_change)
+            VALUES
+            (1, 2, 'Treasury for Hidden Ref', 'Paid', 3000, '2024-01-05')
+        ''')
         sqlite_sink.connection.commit()
 
         # Query all_spending view
         cursor = sqlite_sink.connection.execute(
-            "SELECT id, title FROM all_spending WHERE type IN ('Direct Spend', 'Bounty') ORDER BY id"
+            "SELECT id, title FROM all_spending WHERE type IN ('Direct Spend', 'Bounty', 'Claim') ORDER BY id"
         )
         results = cursor.fetchall()
         result_ids = [row[0] for row in results]
@@ -342,6 +350,7 @@ class TestViewLogic:
         assert 'ref-2' not in result_ids, "Hidden referendum should not appear"
         assert 'cb-100-1' in result_ids, "Visible child bounty should appear"
         assert 'cb-100-2' not in result_ids, "Hidden child bounty should not appear"
+        assert 'treasury-1' not in result_ids, "Treasury linked to hidden referendum should not appear"
 
     def test_all_spending_view_includes_all_source_tables(self, sqlite_sink):
         """Verify all_spending view includes all 7 spending types.
@@ -562,8 +571,8 @@ class TestDataFramePreparation:
                 "proposal_time": "TIMESTAMP",
                 "status": "TEXT",
                 "track": "TEXT",
-                "tally.ayes": "REAL",
-                "tally.nays": "REAL",
+                "tally_ayes": "REAL",
+                "tally_nays": "REAL",
             },
             primary_key="id"
         )
@@ -584,8 +593,8 @@ class TestDataFramePreparation:
                 "proposal_time": "TIMESTAMP",
                 "status": "TEXT",
                 "track": "TEXT",
-                "tally.ayes": "REAL",
-                "tally.nays": "REAL",
+                "tally_ayes": "REAL",
+                "tally_nays": "REAL",
             },
             primary_key="id"
         )
@@ -617,12 +626,14 @@ class TestUpsertSqlGeneration:
     """Tests for _generate_upsert_sql."""
 
     def test_generate_upsert_basic(self, sqlite_sink):
-        """Verify INSERT OR REPLACE syntax."""
+        """Verify INSERT ... ON CONFLICT DO UPDATE syntax."""
         sql = sqlite_sink._generate_upsert_sql(
             REFERENDA_SCHEMA,
             ['id', 'url', 'title']
         )
-        assert "INSERT OR REPLACE INTO" in sql
+        assert "INSERT INTO" in sql
+        assert "ON CONFLICT" in sql
+        assert "DO UPDATE SET" in sql
 
     def test_generate_upsert_quoted_table(self, sqlite_sink):
         """Verify table name is quoted."""
@@ -636,10 +647,10 @@ class TestUpsertSqlGeneration:
         """Verify column names are quoted."""
         sql = sqlite_sink._generate_upsert_sql(
             REFERENDA_SCHEMA,
-            ['id', 'tally.ayes']
+            ['id', 'tally_ayes']
         )
         assert '"id"' in sql
-        assert '"tally.ayes"' in sql
+        assert '"tally_ayes"' in sql
 
     def test_generate_upsert_placeholders(self, sqlite_sink):
         """Verify ? placeholders are used."""
@@ -792,7 +803,7 @@ class TestReadQueryUtilities:
         # Should have all columns from schema
         assert 'id' in result.columns
         assert 'title' in result.columns
-        assert 'tally.ayes' in result.columns
+        assert 'tally_ayes' in result.columns
 
     def test_read_table_empty_table(self, populated_sink):
         """Verify empty DataFrame returned for empty table."""
@@ -924,12 +935,12 @@ class TestEdgeCases:
         assert sqlite_sink.get_row_count("Referenda") == 1000
 
     def test_column_dots_in_name(self, sqlite_sink, sample_referenda_df):
-        """Verify tally.ayes column roundtrip works."""
+        """Verify tally_ayes column roundtrip works."""
         sqlite_sink.update_table("Referenda", sample_referenda_df)
         result = sqlite_sink.read_table("Referenda")
 
-        assert 'tally.ayes' in result.columns
-        assert result['tally.ayes'].iloc[0] == 100000.0
+        assert 'tally_ayes' in result.columns
+        assert result['tally_ayes'].iloc[0] == 100000.0
 
     def test_table_name_with_spaces(self, sqlite_sink, sample_child_bounties_df):
         """Verify 'Child Bounties' roundtrip works."""
@@ -954,3 +965,58 @@ class TestEdgeCases:
         # Check NULL values - title is None for row with id=3
         null_title_row = result[result['id'] == 3]
         assert pd.isna(null_title_row['title'].iloc[0]) or null_title_row['title'].iloc[0] is None
+
+    def test_update_table_preserves_unupdated_columns(self, sqlite_sink):
+        """Verify columns not in update DataFrame are preserved (not NULLed).
+
+        This tests the ON CONFLICT DO UPDATE behavior - when updating a row
+        with a subset of columns, columns not in the update should retain
+        their existing values. This is critical for user-assigned fields
+        like category_id, notes, and hide_in_spends that are not present
+        in incoming API data.
+        """
+        # Step 1: Insert a row with all columns populated, including user fields
+        sqlite_sink.connection.execute(generate_create_table_sql(REFERENDA_SCHEMA))
+        for idx_name, idx_cols in REFERENDA_SCHEMA.indexes:
+            for sql in generate_create_indexes_sql(REFERENDA_SCHEMA):
+                sqlite_sink.connection.execute(sql)
+        sqlite_sink.connection.commit()
+
+        # Insert a complete row with user-assigned values
+        sqlite_sink.connection.execute('''
+            INSERT INTO Referenda
+            (id, title, status, DOT_latest, latest_status_change, category_id, notes, hide_in_spends)
+            VALUES
+            (1, 'Original Title', 'Executed', 1000, '2024-01-01 00:00:00', 5, 'User notes here', 1)
+        ''')
+        sqlite_sink.connection.commit()
+
+        # Verify initial data
+        initial = sqlite_sink.read_table("Referenda")
+        assert initial.loc[initial['id'] == 1, 'category_id'].iloc[0] == 5
+        assert initial.loc[initial['id'] == 1, 'notes'].iloc[0] == 'User notes here'
+        assert initial.loc[initial['id'] == 1, 'hide_in_spends'].iloc[0] == 1
+
+        # Step 2: Update with a DataFrame that only contains a subset of columns
+        # (simulating incoming API data that doesn't include user fields)
+        update_df = pd.DataFrame({
+            'title': ['Updated Title'],
+            'status': ['Executed'],
+            'DOT_latest': [2000.0],
+            'latest_status_change': ['2024-02-01 00:00:00'],
+        }, index=pd.Index([1], name='id'))
+
+        sqlite_sink.update_table("Referenda", update_df)
+
+        # Step 3: Verify user-assigned columns are preserved (not NULLed)
+        result = sqlite_sink.read_table("Referenda")
+        row = result[result['id'] == 1].iloc[0]
+
+        # API columns should be updated
+        assert row['title'] == 'Updated Title'
+        assert row['DOT_latest'] == 2000.0
+
+        # User-assigned columns should be preserved
+        assert row['category_id'] == 5, "category_id should be preserved, not NULLed"
+        assert row['notes'] == 'User notes here', "notes should be preserved, not NULLed"
+        assert row['hide_in_spends'] == 1, "hide_in_spends should be preserved, not NULLed"

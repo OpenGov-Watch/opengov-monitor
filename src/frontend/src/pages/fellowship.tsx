@@ -49,7 +49,7 @@ export default function FellowshipPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Fellowship Treasury</h1>
+        <h1 className="text-4xl font-bold tracking-tight">Fellowship Treasury</h1>
         <p className="text-muted-foreground">
           Browse and filter fellowship treasury spends
         </p>

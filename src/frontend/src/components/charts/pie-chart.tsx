@@ -17,6 +17,7 @@ import {
   DEFAULT_CHART_COLORS,
   buildCategoryColorMap,
 } from "@/lib/chart-colors";
+import { ChartLegend } from "./shared/chart-legend";
 
 interface PieChartData {
   name: string;
@@ -105,22 +106,34 @@ export const DashboardPieChart = memo(
             data={data}
             cx="50%"
             cy="50%"
+            startAngle={90}
+            endAngle={-270}
             labelLine={false}
             outerRadius="80%"
             fill="#8884d8"
             dataKey="value"
-            label={({ name, percent, x, y, midAngle = 0 }) => (
-              <text
-                x={x}
-                y={y}
-                textAnchor={midAngle > 90 && midAngle < 270 ? "end" : "start"}
-                dominantBaseline="central"
-                fontSize={exportMode ? 16 : 14}
-                fill="#374151"
-              >
-                {`${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
-              </text>
-            )}
+            label={({ cx, cy, midAngle = 0, innerRadius, outerRadius, percent }) => {
+              const RADIAN = Math.PI / 180;
+              const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+              const x = cx + radius * Math.cos(-midAngle * RADIAN);
+              const y = cy + radius * Math.sin(-midAngle * RADIAN);
+              const percentage = (percent ?? 0) * 100;
+              // Hide label if slice is too small
+              if (percentage < 5) return null;
+              return (
+                <text
+                  x={x}
+                  y={y}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fontSize={exportMode ? 14 : 12}
+                  fontWeight={500}
+                  fill="#ffffff"
+                >
+                  {`${percentage.toFixed(0)}%`}
+                </text>
+              );
+            }}
             isAnimationActive={isAnimationActive}
           >
             {data.map((entry, index) => (
@@ -142,17 +155,14 @@ export const DashboardPieChart = memo(
               verticalAlign={legendPosition === "right" ? "middle" : "bottom"}
               wrapperStyle={legendPosition === "right" ? { paddingLeft: "20px" } : { paddingTop: "10px" }}
               content={() => (
-                <ul className={`flex flex-wrap justify-center ${exportMode ? "gap-x-6 gap-y-2 text-lg" : "gap-x-4 gap-y-1 text-sm"} ${legendPosition === "right" ? "flex-col" : ""}`}>
-                  {data.map((item, index) => (
-                    <li key={item.name} className={`flex items-center ${exportMode ? "gap-2" : "gap-1.5"}`}>
-                      <span
-                        className={`inline-block rounded-sm ${exportMode ? "w-5 h-5" : "w-3 h-3"}`}
-                        style={{ backgroundColor: item.fill || colors[index % colors.length] }}
-                      />
-                      <span className="text-muted-foreground">{item.name}</span>
-                    </li>
-                  ))}
-                </ul>
+                <ChartLegend
+                  items={data.map((item, index) => ({
+                    label: item.name,
+                    color: item.fill || colors[index % colors.length],
+                  }))}
+                  exportMode={exportMode}
+                  legendPosition={legendPosition}
+                />
               )}
             />
           )}
