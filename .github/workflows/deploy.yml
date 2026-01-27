@@ -36,7 +36,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=prod,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production' }}
+            type=raw,value=staging,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=prod,enable=${{ github.ref == 'refs/heads/production' }}
             type=sha,prefix=
 
       - name: Build and push Docker image
@@ -63,10 +64,19 @@ jobs:
       - name: Set up gcloud CLI
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Set deployment variables
+        id: deploy-vars
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "SERVICE_NAME=opengov-monitor-staging" >> $GITHUB_OUTPUT
+          else
+            echo "SERVICE_NAME=opengov-monitor-prod" >> $GITHUB_OUTPUT
+          fi
+
       - name: Deploy to server
         # SECURITY: StrictHostKeyChecking=accept-new accepts key on first connect but fails if it changes
         # This protects against MITM attacks on subsequent deploys while allowing initial connection
         run: |
           gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
             --ssh-flag="-o StrictHostKeyChecking=accept-new" \
-            --command="sudo /usr/local/bin/deploy-service opengov-monitor"
+            --command="sudo /usr/local/bin/deploy-service ${{ steps.deploy-vars.outputs.SERVICE_NAME }}"

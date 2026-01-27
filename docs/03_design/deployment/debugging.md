@@ -2,13 +2,22 @@
 
 Commands and techniques for troubleshooting deployment issues.
 
+## Environments
+
+| Environment | Service Name | Domain |
+|-------------|--------------|--------|
+| Staging | `opengov-monitor-staging` | `polkadot-treasury-monitor.cypherpunk.agency` |
+| Production | `opengov-monitor-prod` | `monitor.opengov.watch` |
+
+Replace `SERVICE_NAME` in commands below with the appropriate service name.
+
 ## Status Commands
 
 ### Container Status
 
 ```bash
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo /usr/local/bin/service-status opengov-monitor"
+  --command="sudo /usr/local/bin/service-status SERVICE_NAME"
 ```
 
 **Shows:** Container running status, health status, uptime, image version
@@ -21,7 +30,7 @@ gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
 
 ```bash
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo docker exec opengov-monitor supervisorctl status"
+  --command="sudo docker exec SERVICE_NAME supervisorctl status"
 ```
 
 **Shows:** Status of all supervised processes (nginx, api, cron)
@@ -43,11 +52,11 @@ gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
 ```bash
 # Last 50 lines (default)
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo /usr/local/bin/service-logs opengov-monitor 50"
+  --command="sudo /usr/local/bin/service-logs SERVICE_NAME 50"
 
 # Last 100 lines
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo /usr/local/bin/service-logs opengov-monitor 100"
+  --command="sudo /usr/local/bin/service-logs SERVICE_NAME 100"
 ```
 
 **Shows:** Combined logs from all processes
@@ -61,25 +70,25 @@ gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
 **API error log:**
 ```bash
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo docker exec opengov-monitor cat /var/log/supervisor/api-error.log"
+  --command="sudo docker exec SERVICE_NAME cat /var/log/supervisor/api-error.log"
 ```
 
 **Migrations error log:**
 ```bash
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo docker exec opengov-monitor cat /var/log/supervisor/migrations-error.log"
+  --command="sudo docker exec SERVICE_NAME cat /var/log/supervisor/migrations-error.log"
 ```
 
 **nginx error log:**
 ```bash
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo docker exec opengov-monitor cat /var/log/supervisor/nginx-error.log"
+  --command="sudo docker exec SERVICE_NAME cat /var/log/supervisor/nginx-error.log"
 ```
 
 **Cron/sync log:**
 ```bash
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo docker exec opengov-monitor cat /var/log/supervisor/sync-cron.log"
+  --command="sudo docker exec SERVICE_NAME cat /var/log/supervisor/sync-cron.log"
 ```
 
 **Use when:** Investigating specific service failures
@@ -92,7 +101,7 @@ gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
 
 ```bash
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo /usr/local/bin/service-shell opengov-monitor"
+  --command="sudo /usr/local/bin/service-shell SERVICE_NAME"
 ```
 
 **Once inside container:**
@@ -127,7 +136,7 @@ supervisorctl restart api
 
 ```bash
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo docker exec opengov-monitor netstat -tlnp | grep 3001"
+  --command="sudo docker exec SERVICE_NAME netstat -tlnp | grep 3001"
 ```
 
 **Expected output:** Shows process listening on port 3001
@@ -140,7 +149,7 @@ gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
 
 ```bash
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo docker exec opengov-monitor curl -f http://localhost/api/health"
+  --command="sudo docker exec SERVICE_NAME curl -f http://localhost/api/health"
 ```
 
 **Expected:** HTTP 200 with `{"status":"ok"}`
@@ -153,7 +162,7 @@ gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
 
 ```bash
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo docker exec opengov-monitor curl -f http://localhost:3001/api/health"
+  --command="sudo docker exec SERVICE_NAME curl -f http://localhost:3001/api/health"
 ```
 
 **Use when:** Determining if issue is with nginx or API

@@ -1,6 +1,15 @@
 # Post-Deployment Verification
 
-Steps to verify deployment success immediately after deploying to production.
+Steps to verify deployment success immediately after deploying.
+
+## Environments
+
+| Environment | Service Name | Domain |
+|-------------|--------------|--------|
+| Staging | `opengov-monitor-staging` | `polkadot-treasury-monitor.cypherpunk.agency` |
+| Production | `opengov-monitor-prod` | `monitor.opengov.watch` |
+
+Replace `SERVICE_NAME` and `DOMAIN` in commands below with the appropriate values.
 
 **Run these commands immediately after deployment:**
 
@@ -8,7 +17,7 @@ Steps to verify deployment success immediately after deploying to production.
 
 ```bash
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo /usr/local/bin/service-status opengov-monitor"
+  --command="sudo /usr/local/bin/service-status SERVICE_NAME"
 ```
 
 **Expected:** Container should be "healthy"
@@ -26,7 +35,7 @@ gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
 
 ```bash
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo docker exec opengov-monitor supervisorctl status"
+  --command="sudo docker exec SERVICE_NAME supervisorctl status"
 ```
 
 **Expected output:**
@@ -52,7 +61,7 @@ nginx   RUNNING   pid X, uptime X:XX:XX
 ## 3. Test Health Endpoint
 
 ```bash
-curl -f https://polkadot-treasury-monitor.cypherpunk.agency/api/health
+curl -f https://DOMAIN/api/health
 ```
 
 **Expected:** HTTP 200 with `{"status":"ok"}`
@@ -72,7 +81,7 @@ curl -f https://polkadot-treasury-monitor.cypherpunk.agency/api/health
 ## 4. Test Data Endpoint
 
 ```bash
-curl -f https://polkadot-treasury-monitor.cypherpunk.agency/api/categories
+curl -f https://DOMAIN/api/categories
 ```
 
 **Expected:** HTTP 200 with JSON array of categories
@@ -98,37 +107,37 @@ If any check fails, investigate immediately:
 ```bash
 # Check supervisor logs
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo docker exec opengov-monitor supervisorctl status"
+  --command="sudo docker exec SERVICE_NAME supervisorctl status"
 
 # Check recent logs
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo /usr/local/bin/service-logs opengov-monitor 50"
+  --command="sudo /usr/local/bin/service-logs SERVICE_NAME 50"
 ```
 
 ### API not RUNNING
 ```bash
 # Check api-error.log
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo docker exec opengov-monitor cat /var/log/supervisor/api-error.log"
+  --command="sudo docker exec SERVICE_NAME cat /var/log/supervisor/api-error.log"
 
 # Check migrations-error.log
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo docker exec opengov-monitor cat /var/log/supervisor/migrations-error.log"
+  --command="sudo docker exec SERVICE_NAME cat /var/log/supervisor/migrations-error.log"
 ```
 
 ### Health endpoint fails
 ```bash
 # Test from inside container
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo docker exec opengov-monitor curl -f http://localhost/api/health"
+  --command="sudo docker exec SERVICE_NAME curl -f http://localhost/api/health"
 
 # Check if API is listening
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo docker exec opengov-monitor netstat -tlnp | grep 3001"
+  --command="sudo docker exec SERVICE_NAME netstat -tlnp | grep 3001"
 
 # Check nginx logs
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo docker exec opengov-monitor cat /var/log/supervisor/nginx-error.log"
+  --command="sudo docker exec SERVICE_NAME cat /var/log/supervisor/nginx-error.log"
 ```
 
 ---

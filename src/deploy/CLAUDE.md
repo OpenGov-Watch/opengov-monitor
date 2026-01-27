@@ -23,19 +23,22 @@ curl http://localhost/api/health
 docker compose exec opengov-monitor supervisorctl status
 ```
 
-### Production Access
+### Remote Access
+
+Replace `SERVICE_NAME` with `opengov-monitor-staging` or `opengov-monitor-prod`.
+
 ```bash
 # Status
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo /usr/local/bin/service-status opengov-monitor"
+  --command="sudo /usr/local/bin/service-status SERVICE_NAME"
 
 # Logs
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo /usr/local/bin/service-logs opengov-monitor 50"
+  --command="sudo /usr/local/bin/service-logs SERVICE_NAME 50"
 
 # Shell
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo /usr/local/bin/service-shell opengov-monitor"
+  --command="sudo /usr/local/bin/service-shell SERVICE_NAME"
 ```
 
 ## Pre-Deployment
@@ -49,11 +52,9 @@ gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
 
 ## Deployment Flow
 
-1. Complete pre-deployment checklist
-2. Push to `production` branch
-3. GitHub Actions builds → GHCR
-4. Server pulls and restarts
-5. Verify deployment (health + supervisor status)
+**Staging:** Push to `main` → builds `staging` tag → deploys `opengov-monitor-staging`
+
+**Production:** Push to `production` → builds `prod` tag → deploys `opengov-monitor-prod`
 
 ## References
 
