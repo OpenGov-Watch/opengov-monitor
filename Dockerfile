@@ -76,18 +76,18 @@ RUN chmod 0644 /etc/cron.d/opengov-sync \
     && chmod +x /app/src/deploy/run-migrations-then-api.sh
 
 # Create non-root user for running services
-# Using UID/GID 1000 which is commonly available
-RUN groupadd -g 1000 appuser && \
-    useradd -u 1000 -g appuser -m -s /bin/bash appuser
+# Using UID/GID 1000 which is commonly available (may already exist in base image)
+RUN (getent group 1000 || groupadd -g 1000 appuser) && \
+    (id -u 1000 || useradd -u 1000 -g 1000 -m -s /bin/bash appuser)
 
 # Create data directory with proper permissions
-RUN mkdir -p /data && chown appuser:appuser /data
+RUN mkdir -p /data && chown 1000:1000 /data
 
 # Copy default CSV files for sync functionality
 COPY data/defaults/ ./data/defaults/
 
 # Set ownership of app directory to non-root user
-RUN chown -R appuser:appuser /app
+RUN chown -R 1000:1000 /app
 
 # Environment variables
 ENV NODE_ENV=production
