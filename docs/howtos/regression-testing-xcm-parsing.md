@@ -4,7 +4,7 @@ How to verify XCM parsing changes don't break existing data processing.
 
 ## Overview
 
-When modifying XCM parsing logic in `subsquare.py`, run regression tests to ensure the refactored code produces the same output as the old code for existing data.
+When modifying XCM parsing logic in `subsquare/xcm_parsing.py`, run regression tests to ensure the refactored code produces the same output as the old code for existing data.
 
 **Test flow:**
 1. Export baseline CSV from database (captures old code's output)

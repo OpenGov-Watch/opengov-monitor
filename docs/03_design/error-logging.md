@@ -60,7 +60,7 @@ sink.log_data_error(
 
 ### Treasury Validation
 
-**Validator:** `SubsquareProvider._validate_and_log_treasury_spends()` (`backend/data_providers/subsquare.py:525`)
+**Validator:** `validate_and_log_treasury_spends()` (`backend/data_providers/subsquare/validation.py`)
 
 Checks required columns: `DOT_proposal_time`, `USD_proposal_time`, `DOT_component`, `USDC_component`, `USDT_component`
 
@@ -71,7 +71,7 @@ Checks required columns: `DOT_proposal_time`, `USD_proposal_time`, `DOT_componen
 
 ### Referenda Validation
 
-**Validator:** `SubsquareProvider._validate_and_log_spender_referenda()` (`backend/data_providers/subsquare.py:579`)
+**Validator:** `validate_and_log_spender_referenda()` (`backend/data_providers/subsquare/validation.py`)
 
 Only validates referenda from spender tracks: `SmallSpender`, `MediumSpender`, `BigSpender`, `SmallTipper`, `BigTipper`, `Treasurer`
 

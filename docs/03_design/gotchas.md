@@ -41,7 +41,7 @@ Polkadot runtime upgrade at **ref 1782** changed pallet indices. Code must selec
 | bounties.closeBounty | `0x2207` | `0x4107` |
 | whitelist.dispatchWhitelistedCallWithPreimage | `0x1703` | `0x4003` |
 
-See `POLKADOT_CALL_INDICES`, `POLKADOT_ASSETHUB_CUTOFF`, and `get_call_index()` in `subsquare.py`.
+See `POLKADOT_CALL_INDICES`, `POLKADOT_ASSETHUB_CUTOFF`, and `get_call_index()` in `subsquare/call_indices.py`.
 
 ### XCM Asset Versions
 

@@ -7,7 +7,7 @@ Python data pipeline: fetches governance data from Subsquare, enriches with USD 
 | File | Purpose |
 |------|---------|
 | `scripts/run_sqlite.py` | Main entry point for data sync |
-| `data_providers/subsquare.py` | Subsquare API fetching + parsing |
+| `data_providers/subsquare/` | Subsquare API fetching + parsing (package) |
 | `data_providers/price_service.py` | USD price conversion (yfinance + CoinGecko) |
 | `data_sinks/sqlite/sink.py` | SQLite storage |
 | `data_sinks/sqlite/schema.py` | Table schemas |

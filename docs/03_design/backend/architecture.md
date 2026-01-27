@@ -23,7 +23,7 @@ CoinGecko      ─────────────▶
 
 ## Data Providers
 
-**SubsquareProvider** (`data_providers/subsquare.py`): Fetches referenda, treasury, child bounties, fellowship from Subsquare API.
+**SubsquareProvider** (`data_providers/subsquare/`): Fetches referenda, treasury, child bounties, fellowship from Subsquare API.
 
 **PriceService** (`data_providers/price_service.py`): Converts DOT/KSM to USD via yfinance (historical) and CoinGecko (current). Caches in `dot_prices` table.
 
@@ -59,7 +59,7 @@ List endpoints return basic proposal info. For certain call types, individual de
 - `treasury.spend` - treasury spends with asset metadata
 - `xcmPallet.send` - cross-chain messages with embedded calls
 
-See `needs_detail_call_indices` in `data_providers/subsquare.py:138` for the complete list.
+See `get_needs_detail_call_indices()` in `data_providers/subsquare/proposal_parser.py`.
 
 ## Configuration
 
@@ -97,4 +97,4 @@ src/backend/
 ## Related Docs
 
 - [Data Models](../../02_specification/data-models.md) - [Migration System](migration-system-design.md) - [Business Rules](../../01_requirements/business-rules.md) - [Error Logging](../error-logging.md)
-- **Subsquare API**: Full endpoint documentation in `data_providers/subsquare.py` module docstring
+- **Subsquare API**: Full endpoint documentation in `data_providers/subsquare/__init__.py` docstring

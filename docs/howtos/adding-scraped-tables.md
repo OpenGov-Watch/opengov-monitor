@@ -15,7 +15,7 @@ How to add a new table that is populated by the Python backend scraper (vs CSV-b
 - [ ] Define `TableSchema` with columns, primary key, and indexes
 - [ ] Add to `ALL_SCHEMAS` list if needed for auto-creation
 
-### 2. Backend Fetch Logic (`src/backend/data_providers/subsquare.py`)
+### 2. Backend Fetch Logic (`src/backend/data_providers/subsquare/`)
 - [ ] Add fetch method: `fetch_<table>()` - calls API, returns raw DataFrame
 - [ ] Add parse method: `_parse_<record>()` - extracts fields from API response
 - [ ] Add transform method: `_transform_<table>()` - applies denominations, converts timestamps

@@ -151,9 +151,9 @@ If populated, using `allSpends` is more resilient than adding new call indices.
 
 | File | Purpose |
 |------|---------|
-| `backend/data_providers/subsquare.py:_transform_referenda()` | Value extraction logic |
-| `backend/data_providers/subsquare.py:_build_bag_from_all_spends()` | Asset parsing from `allSpends` |
-| `backend/data_providers/subsquare.py:_validate_and_log_spender_referenda()` | Validation logic |
+| `backend/data_providers/subsquare/referenda.py` | Value extraction logic |
+| `backend/data_providers/subsquare/proposal_parser.py` | Asset/value parsing |
+| `backend/data_providers/subsquare/validation.py` | Validation logic |
 | `backend/data_providers/price_service.py` | USD conversion |
 
 ## Bulk Analysis
