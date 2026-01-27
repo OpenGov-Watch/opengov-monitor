@@ -90,12 +90,14 @@ function getAdminUsernames(): Set<string> {
   );
 }
 
-// Track if we've already warned about missing admin config (to avoid log spam)
-let hasWarnedAboutMissingAdmins = false;
+// Track if we've already logged about missing admin config (to avoid log spam)
+let hasLoggedAboutMissingAdmins = false;
 
 /**
  * Middleware that requires admin privileges.
- * Returns 401 if not authenticated, 403 if not admin.
+ * Returns 401 if not authenticated, 403 if not admin, 503 if admin not configured.
+ *
+ * SECURITY: Uses fail-closed design - denies access when ADMIN_USERNAMES is not configured.
  */
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
   if (!req.session?.userId || !req.session?.username) {
@@ -105,18 +107,16 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
 
   const adminUsernames = getAdminUsernames();
 
-  // If no admins configured, all authenticated users can access (backwards compatibility)
-  // Log a warning once to alert operators
+  // SECURITY: Fail-closed - deny admin access when no admins are configured
   if (adminUsernames.size === 0) {
-    if (!hasWarnedAboutMissingAdmins) {
-      console.warn(
-        "WARNING: ADMIN_USERNAMES environment variable not configured. " +
-        "All authenticated users have admin access. " +
-        "Set ADMIN_USERNAMES to a comma-separated list of admin usernames to restrict access."
+    if (!hasLoggedAboutMissingAdmins) {
+      console.error(
+        "CRITICAL: ADMIN_USERNAMES not configured. Admin access denied for security. " +
+        "Set ADMIN_USERNAMES to a comma-separated list of admin usernames."
       );
-      hasWarnedAboutMissingAdmins = true;
+      hasLoggedAboutMissingAdmins = true;
     }
-    next();
+    res.status(503).json({ error: "Admin access not configured" });
     return;
   }
 

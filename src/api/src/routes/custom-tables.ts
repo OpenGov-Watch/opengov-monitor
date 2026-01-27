@@ -23,6 +23,10 @@ import type { CustomTableSchema, CustomTableColumnDef } from "../db/types.js";
 
 export const customTablesRouter: Router = Router();
 
+// SECURITY: Limits to prevent DoS via memory exhaustion
+const MAX_IMPORT_ROWS = 100000;
+const MAX_SCHEMA_INFERENCE_ROWS = 1000;
+
 /**
  * Validate row data against the table schema.
  * Returns null if valid, or an error message string if invalid.
@@ -401,6 +405,14 @@ customTablesRouter.post("/:id/import", requireAuth, (req, res) => {
       return;
     }
 
+    // SECURITY: Limit row count to prevent memory exhaustion
+    if (rows.length > MAX_IMPORT_ROWS) {
+      res.status(400).json({
+        error: `Import limit exceeded. Maximum ${MAX_IMPORT_ROWS.toLocaleString()} rows per import.`,
+      });
+      return;
+    }
+
     // Validate all rows against schema before importing
     const schema: CustomTableSchema = JSON.parse(table.schema_json);
     const validationErrors: { row: number; error: string }[] = [];
@@ -463,7 +475,9 @@ customTablesRouter.post("/infer-schema", (req, res) => {
       return;
     }
 
-    const { schema, errors } = inferSchema(headers, rows);
+    // SECURITY: Limit rows used for schema inference to prevent memory exhaustion
+    const sampleRows = rows.slice(0, MAX_SCHEMA_INFERENCE_ROWS);
+    const { schema, errors } = inferSchema(headers, sampleRows);
 
     res.json({
       schema,

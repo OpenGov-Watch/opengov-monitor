@@ -64,7 +64,9 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Deploy to server
+        # SECURITY: StrictHostKeyChecking=accept-new accepts key on first connect but fails if it changes
+        # This protects against MITM attacks on subsequent deploys while allowing initial connection
         run: |
           gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-            --ssh-flag="-o StrictHostKeyChecking=no" \
+            --ssh-flag="-o StrictHostKeyChecking=accept-new" \
             --command="sudo /usr/local/bin/deploy-service opengov-monitor"

@@ -56,14 +56,6 @@ const ALLOWED_ORIGINS = process.env.CORS_ALLOWED_ORIGINS
   ? process.env.CORS_ALLOWED_ORIGINS.split(",").map((o) => o.trim())
   : null;
 
-// Warn about permissive CORS in production (once at startup)
-if (!ALLOWED_ORIGINS && process.env.NODE_ENV === "production") {
-  console.warn(
-    "WARNING: CORS_ALLOWED_ORIGINS not set in production. " +
-    "All origins will be allowed. Set CORS_ALLOWED_ORIGINS to a comma-separated list of allowed origins."
-  );
-}
-
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -72,7 +64,7 @@ app.use(
         callback(null, true);
         return;
       }
-      // In production, only allow whitelisted origins (if configured)
+      // If whitelist is configured, enforce it
       if (ALLOWED_ORIGINS) {
         if (ALLOWED_ORIGINS.includes(origin)) {
           callback(null, true);
@@ -80,8 +72,12 @@ app.use(
           console.warn(`CORS blocked request from origin: ${origin}`);
           callback(new Error("Not allowed by CORS"));
         }
+      } else if (process.env.NODE_ENV === "production") {
+        // SECURITY: In production, deny cross-origin requests when no whitelist configured
+        console.warn(`CORS: Blocked request from ${origin} (no whitelist configured in production)`);
+        callback(new Error("CORS not configured for production"));
       } else {
-        // If no whitelist configured, allow all (development mode behavior)
+        // In development, allow all origins for convenience
         callback(null, true);
       }
     },
@@ -120,29 +116,27 @@ app.use(
   })
 );
 
-// CSRF protection for cross-origin auth
-// When CROSS_ORIGIN_AUTH=true, require X-Requested-With header on state-changing requests
-// This prevents CSRF attacks since browsers don't include custom headers in cross-origin requests
-// triggered by forms or simple scripts
-if (crossOriginAuth) {
-  app.use("/api", (req, res, next) => {
-    // Only check state-changing methods
-    if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
-      // Skip CSRF check for login endpoint (no session to protect yet)
-      if (req.path === "/auth/login") {
-        return next();
-      }
-
-      const csrfHeader = req.headers["x-requested-with"];
-      if (csrfHeader !== "XMLHttpRequest") {
-        return res.status(403).json({
-          error: "CSRF validation failed. Include 'X-Requested-With: XMLHttpRequest' header.",
-        });
-      }
+// CSRF protection via X-Requested-With header
+// Require custom header on state-changing requests to prevent CSRF attacks
+// Browsers don't include custom headers in cross-origin requests triggered by forms/scripts
+// SECURITY: Enabled by default for defense-in-depth (complements SameSite=Lax cookie)
+app.use("/api", (req, res, next) => {
+  // Only check state-changing methods
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+    // Skip CSRF check for login endpoint (no session to protect yet)
+    if (req.path === "/auth/login") {
+      return next();
     }
-    next();
-  });
-}
+
+    const csrfHeader = req.headers["x-requested-with"];
+    if (csrfHeader !== "XMLHttpRequest") {
+      return res.status(403).json({
+        error: "CSRF validation failed. Include 'X-Requested-With: XMLHttpRequest' header.",
+      });
+    }
+  }
+  next();
+});
 
 // Rate limiting
 app.use("/api", generalLimiter);
