@@ -1,8 +1,8 @@
 import { useMemo } from "react";
+import { Row } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/data-table";
 import { Badge } from "@/components/ui/badge";
-import type { QueryConfig } from "@/lib/db/types";
-import type { ExpiredClaim } from "@/lib/db/types";
+import type { QueryConfig, ExpiredClaim } from "@/lib/db/types";
 
 function getExpiryVariant(
   daysSinceExpiry: number | null
@@ -38,7 +38,7 @@ export default function ExpiredClaimsPage() {
   const columnOverrides = useMemo(
     () => ({
       id: {
-        cell: ({ row }: { row: any }) => {
+        cell: ({ row }: { row: Row<ExpiredClaim> }) => {
           const id = row.original.id;
           return (
             <a
@@ -53,7 +53,7 @@ export default function ExpiredClaimsPage() {
         },
       },
       referendumIndex: {
-        cell: ({ row }: { row: any }) => {
+        cell: ({ row }: { row: Row<ExpiredClaim> }) => {
           const refIndex = row.original.referendumIndex;
           return refIndex ? (
             <a
@@ -70,12 +70,12 @@ export default function ExpiredClaimsPage() {
         },
       },
       description: {
-        cell: ({ row }: { row: any }) => {
+        cell: ({ row }: { row: Row<ExpiredClaim> }) => {
           const description = row.original.description;
           return (
             <span
               className="max-w-[350px] truncate block"
-              title={description}
+              title={description ?? undefined}
             >
               {description || "No description"}
             </span>
@@ -83,7 +83,7 @@ export default function ExpiredClaimsPage() {
         },
       },
       days_since_expiry: {
-        cell: ({ row }: { row: any }) => {
+        cell: ({ row }: { row: Row<ExpiredClaim> }) => {
           const days = row.original.days_since_expiry;
           const variant = getExpiryVariant(days);
           return (

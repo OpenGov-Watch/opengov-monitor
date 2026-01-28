@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Row } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/data-table";
 import { Badge } from "@/components/ui/badge";
 import { RequireAuth } from "@/components/auth/require-auth";
@@ -52,7 +53,7 @@ function SpendingPageContent() {
   const columnOverrides = useMemo(
     () => ({
       type: {
-        cell: ({ row }: { row: any }) => {
+        cell: ({ row }: { row: Row<AllSpending> }) => {
           const type = row.original.type as SpendingType;
           return (
             <Badge variant={getTypeVariant(type)} className="whitespace-nowrap">
@@ -62,7 +63,7 @@ function SpendingPageContent() {
         },
       },
       title: {
-        cell: ({ row }: { row: any }) => {
+        cell: ({ row }: { row: Row<AllSpending> }) => {
           const title = row.original.title;
           const id = row.original.id;
           const url = getSpendingUrl(id);
@@ -74,7 +75,7 @@ function SpendingPageContent() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="max-w-[350px] truncate block font-medium hover:underline text-blue-600"
-                title={title}
+                title={title ?? undefined}
               >
                 {title || "No title"}
               </a>
@@ -82,7 +83,7 @@ function SpendingPageContent() {
           }
 
           return (
-            <span className="max-w-[350px] truncate block" title={title}>
+            <span className="max-w-[350px] truncate block" title={title ?? undefined}>
               {title || "No title"}
             </span>
           );
@@ -90,7 +91,7 @@ function SpendingPageContent() {
       },
       id: {
         header: "ID",
-        cell: ({ row }: { row: any }) => {
+        cell: ({ row }: { row: Row<AllSpending> }) => {
           const id = row.original.id;
           return <span className="font-mono text-sm text-muted-foreground">{id}</span>;
         },

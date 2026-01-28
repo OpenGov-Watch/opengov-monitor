@@ -1,8 +1,8 @@
 import { useMemo } from "react";
+import { Row } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/data-table";
 import { Badge } from "@/components/ui/badge";
-import type { QueryConfig } from "@/lib/db/types";
-import type { FellowshipSalaryClaimant } from "@/lib/db/types";
+import type { QueryConfig, FellowshipSalaryClaimant } from "@/lib/db/types";
 
 function getStatusVariant(
   status: string
@@ -57,7 +57,7 @@ export default function FellowshipSalaryClaimantsPage() {
   const columnOverrides = useMemo(
     () => ({
       display_name: {
-        cell: ({ row }: { row: any }) => {
+        cell: ({ row }: { row: Row<FellowshipSalaryClaimant> }) => {
           const displayName = row.original.display_name;
           const address = row.original.address;
           return (
@@ -74,7 +74,7 @@ export default function FellowshipSalaryClaimantsPage() {
         },
       },
       rank: {
-        cell: ({ row }: { row: any }) => {
+        cell: ({ row }: { row: Row<FellowshipSalaryClaimant> }) => {
           const rank = row.original.rank;
           return (
             <Badge variant="outline" className="font-mono">
@@ -82,20 +82,20 @@ export default function FellowshipSalaryClaimantsPage() {
             </Badge>
           );
         },
-        filterFn: (row: any, id: string, value: string[]) => {
+        filterFn: (row: Row<FellowshipSalaryClaimant>, id: string, value: string[]) => {
           const rank = row.getValue(id);
           return value.includes(String(rank));
         },
       },
       status_type: {
-        cell: ({ row }: { row: any }) => {
+        cell: ({ row }: { row: Row<FellowshipSalaryClaimant> }) => {
           const status = row.original.status_type;
-          const variant = getStatusVariant(status);
+          const variant = getStatusVariant(status ?? "");
           return <Badge variant={variant}>{status || "unknown"}</Badge>;
         },
       },
       attempt_id: {
-        cell: ({ row }: { row: any }) => {
+        cell: ({ row }: { row: Row<FellowshipSalaryClaimant> }) => {
           const attemptId = row.original.attempt_id;
           return attemptId !== null ? `#${attemptId}` : "-";
         },

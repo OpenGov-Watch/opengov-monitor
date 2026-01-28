@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Row } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/data-table";
 import type { TreasuryNetflow, QueryConfig } from "@/lib/db/types";
 
@@ -32,7 +33,7 @@ export default function TreasuryNetflowsPage() {
       },
       amount_usd: {
         header: "Amount (USD)",
-        cell: ({ row }: { row: any }) => {
+        cell: ({ row }: { row: Row<TreasuryNetflow> }) => {
           const value = row.original.amount_usd as number;
           const formatted = Math.abs(value).toLocaleString(undefined, {
             minimumFractionDigits: 2,
@@ -43,7 +44,7 @@ export default function TreasuryNetflowsPage() {
       },
       amount_dot_equivalent: {
         header: "Amount (DOT)",
-        cell: ({ row }: { row: any }) => {
+        cell: ({ row }: { row: Row<TreasuryNetflow> }) => {
           const value = row.original.amount_dot_equivalent as number;
           return value.toLocaleString(undefined, {
             minimumFractionDigits: 2,

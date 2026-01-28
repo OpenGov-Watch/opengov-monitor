@@ -10,14 +10,16 @@ interface UseDataTableQueryParams<TData> {
   columnIdToRef: Record<string, string>;
 }
 
+// Facet values can be strings, numbers, or null (for NULL values in DB)
+type FacetValue = string | number | null;
+
 interface UseDataTableQueryResult<TData> {
   data: TData[];
   setData: React.Dispatch<React.SetStateAction<TData[]>>;
   loading: boolean;
   error: string | null;
   totalCount: number | undefined;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  serverFacets: Record<string, Map<any, number>>;
+  serverFacets: Record<string, Map<FacetValue, number>>;
 }
 
 /**
@@ -40,8 +42,7 @@ export function useDataTableQuery<TData>({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState<number | undefined>(undefined);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [serverFacets, setServerFacets] = useState<Record<string, Map<any, number>>>({});
+  const [serverFacets, setServerFacets] = useState<Record<string, Map<FacetValue, number>>>({});
 
   // AbortController ref to cancel in-flight requests
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -81,8 +82,7 @@ export function useDataTableQuery<TData>({
           const filterColumnMap = new Map<string, string>();
           if (columnOverrides && facetedFilters) {
             for (const colId of facetedFilters) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const override = columnOverrides[colId] as any;
+              const override = columnOverrides[colId] as { filterColumn?: string } | undefined;
               if (override?.filterColumn) {
                 filterColumnMap.set(colId, override.filterColumn);
               }
@@ -144,8 +144,7 @@ export function useDataTableQuery<TData>({
             }
             // Convert facet arrays to Map format expected by TanStack Table
             // Map keys back to display column names
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const facetMaps: Record<string, Map<any, number>> = {};
+            const facetMaps: Record<string, Map<FacetValue, number>> = {};
             for (const [column, values] of Object.entries(facetResult.facets)) {
               // Use display column name if this was a remapped filter column
               const displayCol = refToDisplay.get(column) || column;
@@ -158,14 +157,13 @@ export function useDataTableQuery<TData>({
             console.warn("Facet fetch failed, using client-side faceting");
             setServerFacets({});
           }
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (err: any) {
+        } catch (err: unknown) {
           // Ignore abort errors - these are expected when user changes filters rapidly
-          if (err.name === 'AbortError') {
+          if (err instanceof Error && err.name === 'AbortError') {
             console.log('Request cancelled');
             return;
           }
-          setError(err.message);
+          setError(err instanceof Error ? err.message : String(err));
         } finally {
           setLoading(false);
         }

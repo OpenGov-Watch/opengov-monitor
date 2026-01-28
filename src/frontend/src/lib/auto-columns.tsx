@@ -1,4 +1,4 @@
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, Row } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { DataTableFacetedFilter } from "@/components/data-table/faceted-filter";
 import { DataTableEditConfig, FilterGroup } from "@/lib/db/types";
@@ -25,6 +25,9 @@ import {
   findCategoryId,
 } from "@/components/data-table/editable-cells";
 import { TextLongCell } from "@/components/renderers/cell-renderers";
+
+// Type for accessing dynamic properties on row.original
+type RowData = Record<string, unknown>;
 
 interface GenerateColumnsOptions<TData> {
   data: TData[];
@@ -132,13 +135,14 @@ export function generateColumns<TData>(
             </div>
           ),
           ...(isFacetedFilter && {
-            filterFn: (row: any, id: string, value: string[]) => value.includes(row.getValue(id)),
+            filterFn: (row: Row<TData>, id: string, value: string[]) => value.includes(row.getValue(id)),
             enableSorting: false,
           }),
           cell: ({ row }) => {
             const value = row.getValue(columnName);
-            const rowId = (row.original as any)[idField];
-            const parentCategory = parentCatCol ? (row.original as any)[parentCatCol] : null;
+            const rowData = row.original as RowData;
+            const rowId = rowData[idField] as string | number;
+            const parentCategory = parentCatCol ? rowData[parentCatCol] as string | null : null;
 
             if (isAuthenticated && categoryEditConfig) {
               return (
@@ -189,15 +193,16 @@ export function generateColumns<TData>(
             </div>
           ),
           ...(isFacetedFilter && {
-            filterFn: (row: any, id: string, value: string[]) => value.includes(row.getValue(id)),
+            filterFn: (row: Row<TData>, id: string, value: string[]) => value.includes(row.getValue(id)),
             enableSorting: false,
           }),
           cell: ({ row }) => {
             const value = row.getValue(columnName);
-            const rowId = (row.original as any)[idField];
-            const category = (row.original as any)['category'];
-            const parentCategory = parentCatCol ? (row.original as any)[parentCatCol] : null;
-            const parentSubcategory = parentSubcatCol ? (row.original as any)[parentSubcatCol] : null;
+            const rowData = row.original as RowData;
+            const rowId = rowData[idField] as string | number;
+            const category = rowData['category'] as string | null;
+            const parentCategory = parentCatCol ? rowData[parentCatCol] as string | null : null;
+            const parentSubcategory = parentSubcatCol ? rowData[parentSubcatCol] as string | null : null;
 
             if (isAuthenticated && categoryEditConfig) {
               return (
@@ -231,7 +236,7 @@ export function generateColumns<TData>(
     const isFacetedFilter = facetedFilters?.includes(columnName) || false;
 
     // Check for filterColumn in columnOverrides (used for faceted filtering)
-    const override = columnOverrides[columnName] as any;
+    const override = columnOverrides[columnName] as { filterColumn?: string; header?: string | (() => React.ReactNode) } | undefined;
     const filterColumnName = override?.filterColumn || columnName;
     const headerTitle = typeof override?.header === 'string' ? override.header : getColumnDisplayName(tableName, columnName);
 
@@ -260,7 +265,8 @@ export function generateColumns<TData>(
       ),
       cell: ({ row }) => {
         const value = row.getValue(columnName);
-        const rowId = (row.original as any)[idField];
+        const rowData = row.original as RowData;
+        const rowId = rowData[idField] as string | number;
 
         // Editable cell rendering
         if (isEditable && editableConfig) {
@@ -308,7 +314,7 @@ export function generateColumns<TData>(
         }
 
         // Standard rendering via column config
-        return renderCellValue(value, renderConfig, row.original as any, dashboardMode);
+        return renderCellValue(value, renderConfig, rowData, dashboardMode);
       },
     };
 
@@ -322,15 +328,15 @@ export function generateColumns<TData>(
 
     // Apply column overrides
     if (columnOverrides[columnName]) {
-      const overridesCopy = { ...columnOverrides[columnName] };
+      const overridesCopy = { ...columnOverrides[columnName] } as Partial<ColumnDef<TData>> & { filterColumn?: string };
       // Don't override the header function - we already extracted the title from it
       // and use it in our DataTableColumnHeader component
       if ('header' in overridesCopy && typeof overridesCopy.header === 'string') {
-        delete (overridesCopy as any).header;
+        delete overridesCopy.header;
       }
       // Also remove filterColumn as it's already been processed
       if ('filterColumn' in overridesCopy) {
-        delete (overridesCopy as any).filterColumn;
+        delete overridesCopy.filterColumn;
       }
       Object.assign(columnDef, overridesCopy);
     }
@@ -340,12 +346,12 @@ export function generateColumns<TData>(
 }
 
 
-function renderCellValue(value: any, config: ColumnRenderConfig, row: any, dashboardMode: boolean = false) {
+function renderCellValue(value: unknown, config: ColumnRenderConfig, row: RowData, dashboardMode: boolean = false) {
   // Use renderAs for visual rendering, fall back to type
   const renderType = config.renderAs ?? config.type;
 
   // Helper to get text content for title attribute
-  const getTextContent = (val: any): string => {
+  const getTextContent = (val: unknown): string => {
     if (val === null || val === undefined) return "-";
     if (typeof val === "string" || typeof val === "number") return String(val);
     return "";
@@ -386,7 +392,7 @@ function renderCellValue(value: any, config: ColumnRenderConfig, row: any, dashb
         const variant = getBadgeVariant(value, config);
         return wrapWithOverflow(<Badge variant={variant}>{value}</Badge>, value);
       }
-      return wrapWithOverflow(value);
+      return wrapWithOverflow(String(value));
 
     case "categorical":
       // Categorical now renders as text by default (use renderAs: chip for Badge)
@@ -399,9 +405,9 @@ function renderCellValue(value: any, config: ColumnRenderConfig, row: any, dashb
 
         // Priority: urlFunction > urlField > urlTemplate > value as URL
         if (config.urlFunction) {
-          url = getUrlFromFunction(config.urlFunction, row);
+          url = getUrlFromFunction(config.urlFunction, row as Record<string, string | number | null>);
         } else if (config.urlField && row[config.urlField]) {
-          url = row[config.urlField] as string;
+          url = String(row[config.urlField]);
         } else if (config.urlTemplate) {
           url = config.urlTemplate.replace("{value}", String(value));
         } else {
@@ -425,7 +431,7 @@ function renderCellValue(value: any, config: ColumnRenderConfig, row: any, dashb
           String(value)
         );
       }
-      return wrapWithOverflow(value);
+      return wrapWithOverflow(String(value));
 
     case "numeric":
       const formattedNumber = formatValue(value, config);

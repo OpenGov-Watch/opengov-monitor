@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { Row } from "@tanstack/react-table";
 import { api } from "@/api/client";
 import { DataTable } from "@/components/data-table/data-table";
 import { Badge } from "@/components/ui/badge";
@@ -114,7 +115,7 @@ export default function ChildBountiesPage() {
           type: "category-selector",
           categories,
           onUpdate: async (id, val) => {
-            await api.childBounties.update(id, { category_id: val });
+            await api.childBounties.update(String(id), { category_id: val as number });
           },
           // Tell auto-columns which columns have parent category data
           parentCategoryColumn: "parentCategory",
@@ -123,14 +124,14 @@ export default function ChildBountiesPage() {
         notes: {
           type: "text",
           onUpdate: async (id, val) => {
-            await api.childBounties.update(id, { notes: val });
+            await api.childBounties.update(String(id), { notes: val as string });
           },
           placeholder: "Add notes...",
         },
         hide_in_spends: {
           type: "checkbox",
           onUpdate: async (id, val) => {
-            await api.childBounties.update(id, { hide_in_spends: val });
+            await api.childBounties.update(String(id), { hide_in_spends: val as number });
           },
         },
       },
@@ -141,7 +142,7 @@ export default function ChildBountiesPage() {
     () => ({
       identifier: {
         header: "ID",
-        cell: ({ row }: { row: any }) => (
+        cell: ({ row }: { row: Row<ChildBounty> }) => (
           <a
             href={subsquareUrls.childBounty(row.original.identifier)}
             target="_blank"
@@ -155,7 +156,7 @@ export default function ChildBountiesPage() {
       parentBountyId: {
         header: "Parent",
         filterColumn: "parentBountyName",  // Use name column for faceted filtering
-        cell: ({ row }: { row: any }) => {
+        cell: ({ row }: { row: Row<ChildBounty> }) => {
           const name = row.original.parentBountyName;
           const id = row.original.parentBountyId;
           return (
@@ -169,17 +170,17 @@ export default function ChildBountiesPage() {
         },
       },
       description: {
-        cell: ({ row }: { row: any }) => {
+        cell: ({ row }: { row: Row<ChildBounty> }) => {
           const description = row.original.description;
           return (
-            <div className="max-w-[350px] truncate" title={description}>
+            <div className="max-w-[350px] truncate" title={description ?? undefined}>
               {description || "No description"}
             </div>
           );
         },
       },
       status: {
-        cell: ({ row }: { row: any }) => {
+        cell: ({ row }: { row: Row<ChildBounty> }) => {
           const status = row.original.status;
           const variant = getStatusVariant(status);
           return <Badge variant={variant}>{status}</Badge>;

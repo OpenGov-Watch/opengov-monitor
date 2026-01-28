@@ -202,11 +202,11 @@ app.use("/api/backup", backupRouter);
 app.use("/api/custom-tables", customTablesRouter);
 
 // Helper to sanitize request body for logging
-function sanitizeRequestBody(body: any): any {
+function sanitizeRequestBody(body: unknown): unknown {
   if (!body || typeof body !== "object") return body;
 
   const sensitiveFields = ["password", "token", "secret", "apiKey", "api_key", "accessToken", "refreshToken"];
-  const sanitized = { ...body };
+  const sanitized = { ...body as Record<string, unknown> };
 
   for (const field of sensitiveFields) {
     if (field in sanitized) {

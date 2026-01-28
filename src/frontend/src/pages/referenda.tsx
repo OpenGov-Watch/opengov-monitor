@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { Row } from "@tanstack/react-table";
 import { api } from "@/api/client";
 import { DataTable } from "@/components/data-table/data-table";
 import { useAuth } from "@/contexts/auth-context";
@@ -79,21 +80,21 @@ export default function ReferendaPage() {
         category_id: {
           type: "category-selector",
           categories,
-          onUpdate: async (id: number, value: number) => {
-            await api.referenda.update(id, { category_id: value });
+          onUpdate: async (id, value) => {
+            await api.referenda.update(Number(id), { category_id: value as number });
           }
         },
         notes: {
           type: "text",
-          onUpdate: async (id: number, value: string) => {
-            await api.referenda.update(id, { notes: value });
+          onUpdate: async (id, value) => {
+            await api.referenda.update(Number(id), { notes: value as string });
           },
           placeholder: "Add notes..."
         },
         hide_in_spends: {
           type: "checkbox",
-          onUpdate: async (id: number, value: number) => {
-            await api.referenda.update(id, { hide_in_spends: value });
+          onUpdate: async (id, value) => {
+            await api.referenda.update(Number(id), { hide_in_spends: value as number });
           }
         },
       }
@@ -102,7 +103,7 @@ export default function ReferendaPage() {
 
   const columnOverrides = useMemo(() => ({
     title: {
-      cell: ({ row }: { row: any }) => (
+      cell: ({ row }: { row: Row<Referendum> }) => (
         <div
           className="max-w-[400px] truncate"
           title={row.original.title}
@@ -112,7 +113,7 @@ export default function ReferendaPage() {
       ),
     },
     track: {
-      cell: ({ row }: { row: any }) => (
+      cell: ({ row }: { row: Row<Referendum> }) => (
         <div className="max-w-[150px] truncate">{row.original.track}</div>
       ),
     },

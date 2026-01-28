@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Row } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/data-table";
 import { SavedView } from "@/hooks/use-view-state";
 import type { TreasurySpend } from "@/lib/db/types";
@@ -41,7 +42,7 @@ export default function TreasuryPage() {
 
   const columnOverrides = useMemo(() => ({
     description: {
-      cell: ({ row }: { row: any }) => {
+      cell: ({ row }: { row: Row<TreasurySpend> }) => {
         const description = row.original.description as string;
         return (
           <div

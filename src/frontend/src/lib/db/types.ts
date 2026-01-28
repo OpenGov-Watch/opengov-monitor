@@ -12,8 +12,7 @@ export type EditableColumnType = "category-selector" | "text" | "checkbox";
 
 export interface EditableColumnConfig {
   type: EditableColumnType;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  onUpdate: (id: any, value: any) => void | Promise<void>;
+  onUpdate: (id: string | number, value: unknown) => void | Promise<void>;
   categories?: Category[]; // For category-selector
   placeholder?: string; // For text
   // For child bounties: columns containing parent category data

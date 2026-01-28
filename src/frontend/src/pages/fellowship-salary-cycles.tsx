@@ -1,8 +1,8 @@
 import { useMemo } from "react";
+import { Row } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/data-table";
 import { subsquareUrls } from "@/lib/urls";
-import type { QueryConfig } from "@/lib/db/types";
-import type { FellowshipSalaryCycle } from "@/lib/db/types";
+import type { QueryConfig, FellowshipSalaryCycle } from "@/lib/db/types";
 
 export default function FellowshipSalaryCyclesPage() {
   const queryConfig: QueryConfig = useMemo(
@@ -28,7 +28,7 @@ export default function FellowshipSalaryCyclesPage() {
   const columnOverrides = useMemo(
     () => ({
       cycle: {
-        cell: ({ row }: { row: any }) => (
+        cell: ({ row }: { row: Row<FellowshipSalaryCycle> }) => (
           <a
             href={subsquareUrls.salaryCycle(row.original.cycle)}
             target="_blank"

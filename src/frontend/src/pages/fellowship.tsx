@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Row } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/data-table";
 import { subsquareUrls } from "@/lib/urls";
 import type { Fellowship } from "@/lib/db/types";
@@ -20,7 +21,7 @@ export default function FellowshipPage() {
 
   const columnOverrides = useMemo(() => ({
     id: {
-      cell: ({ row }: { row: any }) => (
+      cell: ({ row }: { row: Row<Fellowship> }) => (
         <a
           href={subsquareUrls.fellowship(row.original.id)}
           target="_blank"
@@ -32,7 +33,7 @@ export default function FellowshipPage() {
       ),
     },
     description: {
-      cell: ({ row }: { row: any }) => {
+      cell: ({ row }: { row: Row<Fellowship> }) => {
         const description = row.original.description as string;
         return (
           <div
