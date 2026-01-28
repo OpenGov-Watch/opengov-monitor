@@ -221,9 +221,18 @@ See [Dashboard Howto](../../howtos/dashboard.md) for creating dashboards with Da
 frontend/src/components/
 ├── data-table/
 │   ├── data-table.tsx (unified component: regular + dashboard mode)
+│   ├── components/
+│   │   ├── card-view.tsx (mobile card view)
+│   │   ├── footer-totals.tsx (page/grand totals footer)
+│   │   └── table-view.tsx (desktop table with hierarchical mode)
+│   ├── hooks/
+│   │   ├── use-data-table-query.ts (data fetching with debounce/abort)
+│   │   ├── use-grand-totals-query.ts (aggregate SUM fetching)
+│   │   ├── use-hierarchical-data.ts (hierarchical display processing)
+│   │   └── use-page-totals.ts (page-level totals calculation)
 │   ├── simple-table.tsx (unified table with exportMode prop)
 │   ├── export-table.tsx (thin wrapper for PNG export)
-│   ├── use-view-state.ts (state management)
+│   ├── hierarchical-utils.ts (hierarchical data processing utilities)
 │   ├── toolbar.tsx (search, export, filters)
 │   ├── column-header.tsx (sort UI)
 │   ├── faceted-filter.tsx (filter UI)

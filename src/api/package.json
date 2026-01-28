@@ -9,7 +9,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "users": "tsx scripts/manage-users.ts"
+    "users": "tsx scripts/manage-users.ts",
+    "lint": "eslint src/"
   },
   "dependencies": {
     "@opengov-monitor/shared": "workspace:*",
@@ -22,6 +23,7 @@
     "express-session": "^1.18.2"
   },
   "devDependencies": {
+    "@eslint/js": "^9.18.0",
     "@types/bcrypt": "^6.0.0",
     "@types/better-sqlite3": "^7.6.12",
     "@types/cors": "^2.8.17",
@@ -34,6 +36,7 @@
     "tsup": "^8.3.5",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
+    "typescript-eslint": "^8.22.0",
     "vitest": "^4.0.16"
   }
 }

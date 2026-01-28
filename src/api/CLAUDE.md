@@ -11,6 +11,20 @@ Express REST API serving governance data to the frontend. Reads from SQLite, han
 | `src/db/types.ts` | TypeScript types (re-exports from `@opengov-monitor/shared` + API-specific import types) |
 | `src/db/index.ts` | Database connections (readonly + writable) |
 | `src/routes/` | Route handlers by resource |
+| `src/routes/query/` | Query builder module (see below) |
+
+## Query Module (`src/routes/query/`)
+
+Modular query builder for dynamic SQL generation with security validation.
+
+| File | Purpose |
+|------|---------|
+| `index.ts` | Route handlers (`/schema`, `/execute`, `/facets`) |
+| `authorization.ts` | Table/view allowlists |
+| `security.ts` | SQL injection prevention, expression validation |
+| `column-cache.ts` | Column metadata caching |
+| `filter-builder.ts` | Filter → WHERE clause conversion |
+| `sql-builder.ts` | SELECT/JOIN/ORDER BY clause generation |
 
 ## Commands
 

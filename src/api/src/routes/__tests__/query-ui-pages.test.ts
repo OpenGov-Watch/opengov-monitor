@@ -8,7 +8,7 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import request from "supertest";
 import express from "express";
-import { queryRouter } from "../query.js";
+import { queryRouter } from "../query/index.js";
 import Database from "better-sqlite3";
 import type { QueryConfig } from "../../db/types.js";
 

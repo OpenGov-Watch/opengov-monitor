@@ -32,7 +32,7 @@ import { treasuryNetflowsRouter } from "./routes/treasury-netflows.js";
 import { crossChainFlowsRouter } from "./routes/cross-chain-flows.js";
 import { localFlowsRouter } from "./routes/local-flows.js";
 import { dashboardsRouter } from "./routes/dashboards.js";
-import { queryRouter } from "./routes/query.js";
+import { queryRouter } from "./routes/query/index.js";
 import { statsRouter } from "./routes/stats.js";
 import { syncRouter } from "./routes/sync.js";
 import dataErrorsRouter from "./routes/data-errors.js";
