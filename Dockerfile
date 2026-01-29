@@ -60,6 +60,7 @@ COPY --from=api-build /app/src/api/package.json ./src/api/
 COPY --from=api-build /app/src/api/scripts ./src/api/scripts
 COPY --from=api-build /app/node_modules ./node_modules
 COPY --from=api-build /app/src/api/node_modules ./src/api/node_modules
+COPY --from=api-build /app/src/shared ./src/shared
 
 # Copy Python backend
 COPY src/backend/ ./src/backend/
