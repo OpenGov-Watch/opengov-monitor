@@ -9,13 +9,16 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/__tests__/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
-    // Memory management for large test suites (vitest 4.x config)
+    // Memory management for large test suites
+    // Note: jsdom + React Testing Library can accumulate memory during test runs.
+    // All tests pass, but the worker may crash during teardown with OOM error.
+    // This is a known Vitest/jsdom issue (see vitest-dev/vitest#5516, #8293, #9149).
+    // The test results are valid despite exit code 1.
+    pool: "forks",
     fileParallelism: false, // Run test files sequentially to reduce memory pressure
     testTimeout: 30000,
-    // Pass memory limit to worker processes
-    forks: {
-      execArgv: ["--max-old-space-size=8192"],
-    },
+    // Pass memory limit to forked worker processes (vitest 4.x top-level config)
+    execArgv: ["--max-old-space-size=8192"],
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html", "lcov"],

@@ -5,8 +5,8 @@ import { cleanup } from "@testing-library/react";
 // Cleanup after each test to prevent memory leaks
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
-  vi.clearAllTimers();
+  vi.restoreAllMocks(); // Restore original implementations (not just clear call counts)
+  vi.useRealTimers(); // Ensure fake timers are reset
 });
 
 // Mock window.matchMedia
