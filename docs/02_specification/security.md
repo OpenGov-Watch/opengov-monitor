@@ -239,20 +239,20 @@ Post-login redirects are validated:
 
 ### Non-root Execution
 
-The container creates a dedicated user (`appuser`, UID 1000):
+The container uses the `node` user (UID 1000) provided by the base image:
 
 | Process | User | Notes |
 |---------|------|-------|
 | nginx | root | Required to bind port 80 |
-| API (Node.js) | appuser | Via supervisord `user=` directive |
+| API (Node.js) | node | Via supervisord `user=` directive |
 | Cron daemon | root | Required for cron functionality |
-| Cron jobs | appuser | Specified in crontab |
-| Python sync | appuser | Run by cron as appuser |
+| Cron jobs | node | Specified in crontab |
+| Python sync | node | Run by cron as node user |
 
 ### File Permissions
 
-- `/app` owned by appuser
-- `/data` owned by appuser
+- `/app` owned by node (UID 1000)
+- `/data` owned by node (UID 1000)
 - Cron file permissions: 0644
 
 ### Log Rotation

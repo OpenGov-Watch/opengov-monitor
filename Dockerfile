@@ -79,10 +79,8 @@ RUN chmod 0644 /etc/cron.d/opengov-sync \
     && crontab /etc/cron.d/opengov-sync \
     && chmod +x /app/src/deploy/run-migrations-then-api.sh
 
-# Create non-root user for running services
-# Using UID/GID 1000 which is commonly available (may already exist in base image)
-RUN (getent group 1000 || groupadd -g 1000 appuser) && \
-    (id -u 1000 || useradd -u 1000 -g 1000 -m -s /bin/bash appuser)
+# Note: node:20-slim base image already provides 'node' user with UID/GID 1000
+# We use this existing user for running services as non-root
 
 # Create data directory with proper permissions
 RUN mkdir -p /data && chown 1000:1000 /data
@@ -103,7 +101,7 @@ ENV SESSIONS_DATABASE_PATH=/data/sessions.db
 # 1. nginx requires root to bind to port 80
 # 2. cron requires root to run
 # 3. supervisord needs root to manage processes
-# Instead, we run individual processes as appuser via supervisord configuration
+# Instead, we run individual processes as 'node' user via supervisord configuration
 # This provides defense-in-depth while maintaining functionality
 
 # Expose port
