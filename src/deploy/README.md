@@ -17,6 +17,24 @@ Deployment guide for the OpenGov Monitor application.
 | Platform | GCP Compute Engine |
 | Instance | `web-server` (us-central1-a) |
 
+## Database Safety (SQLite WAL)
+
+The database uses SQLite in WAL (Write-Ahead Log) mode. This requires special handling.
+
+**NEVER do this:**
+- `cp`, `scp`, `rsync` on a live database — **causes corruption**
+- Copy `.db` file without the `.db-wal` and `.db-shm` files
+- Docker volume copy while container is running
+
+**Safe backup methods:**
+1. **API endpoint:** `GET /api/backup/download` (checkpoints automatically)
+2. **sqlite3 backup:** `sqlite3 /data/polkadot.db ".backup /path/to/backup.db"`
+3. **Stop-then-copy:** Stop container, copy files, restart
+
+**Why?** WAL mode keeps recent writes in a separate `-wal` file. A regular `cp` captures the main file and WAL at different points in time, creating an inconsistent state that corrupts B-tree indexes.
+
+**If corruption occurs:** Check `/data/polkadot_backup_*.db` for automated backups. Recovery is usually possible if data pages are intact.
+
 ## Architecture
 
 ```
