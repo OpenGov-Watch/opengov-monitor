@@ -15,9 +15,6 @@ import {
   inferSchema,
   validateSchema,
   validateDisplayName,
-  schemasMatch,
-  sanitizeColumnName,
-  MAX_COLUMNS,
 } from "../lib/schema-inference.js";
 import type { CustomTableSchema, CustomTableColumnDef } from "../db/types.js";
 
@@ -37,7 +34,7 @@ function validateRowData(
 ): string | null {
   // Build a set of valid column names
   const validColumns = new Set(schema.columns.map((c) => c.name));
-  const columnMap = new Map<string, CustomTableColumnDef>(
+  const _columnMap = new Map<string, CustomTableColumnDef>(
     schema.columns.map((c) => [c.name, c])
   );
 

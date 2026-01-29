@@ -1,6 +1,7 @@
 - run /docs
 - update the unit tests
 - make sure you considered updates to the DOCKERFILE and any potential migrations
+- run `pnpm lint` to check for lint errors
 - run the tests. only fix issues related to the features you built. if you encounter other issues, STOP and tell the user what's going on
 - do a `git diff` and check the files to commit
 - update `.gitignore` if neccessary

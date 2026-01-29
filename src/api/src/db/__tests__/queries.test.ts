@@ -2,7 +2,7 @@
  * Tests for database query functions
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import Database from "better-sqlite3";
 import {
   createTestDatabase,
@@ -155,7 +155,7 @@ describe("Database Queries", () => {
 
       it("prevents deletion of NULL subcategory row", () => {
         // Creating with non-null subcategory auto-creates NULL subcategory row
-        const created = queries.createCategory("Development", "SDK");
+        const _created = queries.createCategory("Development", "SDK");
         const categories = queries.getCategories();
         const nullSubcatRow = categories.find(c => c.category === "Development" && c.subcategory === null);
 
@@ -626,7 +626,7 @@ describe("Database Queries", () => {
           null
         );
 
-        const dashboardBefore = queries.getDashboardById(dashboardId);
+        const _dashboardBefore = queries.getDashboardById(dashboardId);
 
         // Small operation to ensure time passes
         queries.deleteDashboardComponent(created.id);

@@ -1,13 +1,5 @@
 import { getDatabase, getWritableDatabase } from "./index";
 import type {
-  Referendum,
-  TreasurySpend,
-  ChildBounty,
-  Fellowship,
-  FellowshipSalaryCycle,
-  FellowshipSalaryClaimant,
-  OutstandingClaim,
-  ExpiredClaim,
   Category,
   Bounty,
   Subtreasury,
@@ -23,7 +15,7 @@ import type {
   CustomTableMetadata,
   CustomTableSchema,
 } from "./types";
-import { TABLE_NAMES, VIEW_NAMES } from "./types";
+import { TABLE_NAMES } from "./types";
 
 // Removed query functions for pages migrated to QueryConfig mode:
 // - getReferenda() - Use POST /api/query/execute
@@ -1203,7 +1195,6 @@ import {
   generateTableName,
   generateCreateTableSQL,
   coerceValue,
-  schemasMatch,
 } from "../lib/schema-inference.js";
 
 /**

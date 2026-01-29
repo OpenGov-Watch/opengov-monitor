@@ -3,7 +3,7 @@
  */
 
 import { beforeAll, afterAll, afterEach, vi } from "vitest";
-import { closeTestDatabase, resetTestDatabase, createTestDatabase } from "./test-db";
+import { closeTestDatabase, createTestDatabase } from "./test-db";
 import Database from "better-sqlite3";
 
 // Store the test database instance

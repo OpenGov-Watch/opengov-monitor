@@ -5,5 +5,5 @@
 - enter plan mode. if you have any questions about the issue, ask the user thoroughly.
 - check against CLAUDE.md planning rules.
 - after finishing the feature, /docs and update unit tests as needed.
-- pull the latest from main, then run build and all tests
+- pull the latest from main, then run lint, build and all tests
 - create a GitHub PR

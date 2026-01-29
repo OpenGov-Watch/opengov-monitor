@@ -6,6 +6,7 @@
     "dev:parallel": "concurrently -k -n api,frontend -c blue,green \"pnpm api:dev\" \"pnpm frontend:dev\"",
     "build": "pnpm -r run build",
     "test": "pnpm -r --parallel test:run",
+    "lint": "pnpm -r run lint",
     "api:dev": "pnpm --filter api run dev",
     "frontend:dev": "pnpm --filter opengov-monitor-frontend run dev",
     "migrate": "cd src/backend && .venv/bin/python migrations/migration_runner.py --db ../../data/local/polkadot.db",

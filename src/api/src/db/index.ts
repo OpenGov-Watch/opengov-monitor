@@ -75,7 +75,7 @@ export function getWritableDatabase(): Database.Database {
       ) {
         return function (this: Database.Database, ...args: any[]) {
           lastWriteTimestamp = Date.now();
-          return (value as Function).apply(target, args);
+          return (value as (...args: unknown[]) => unknown).apply(target, args);
         };
       }
       return value;

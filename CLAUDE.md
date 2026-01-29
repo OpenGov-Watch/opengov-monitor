@@ -36,10 +36,11 @@ Agent-specific instructions for working on this codebase. For project overview, 
 
 ## Before Committing
 Always run these commands and ensure they pass before committing:
+- Lint: `pnpm lint`
 - Build: `pnpm run build`
 - Test: `pnpm test`
 
-If either fails, fix the issues before committing.
+If any fail, fix the issues before committing.
 
 ## Before Deploying
 If your changes affect Docker, supervisord, or startup scripts:
