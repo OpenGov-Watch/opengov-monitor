@@ -110,12 +110,34 @@ export function buildSelectClause(config: QueryConfig, availableColumns: string[
 
 /**
  * Build GROUP BY clause.
+ *
+ * When groupBy references an expression column alias, we substitute the actual
+ * expression instead of quoting the alias (which SQLite would interpret as a
+ * non-existent column name).
  */
-export function buildGroupByClause(groupBy?: string[], sourceTable?: string): string {
+export function buildGroupByClause(groupBy?: string[], config?: QueryConfig): string {
   if (!groupBy || groupBy.length === 0) {
     return "";
   }
-  return `GROUP BY ${groupBy.map((col) => sanitizeColumnName(col, sourceTable)).join(", ")}`;
+
+  // Build lookup for expression columns by alias
+  const exprLookup = new Map<string, { expression: string; alias: string }>();
+  for (const expr of config?.expressionColumns || []) {
+    exprLookup.set(expr.alias, expr);
+  }
+
+  return `GROUP BY ${groupBy
+    .map((col) => {
+      // Check if this is an expression column alias
+      const exprDef = exprLookup.get(col);
+      if (exprDef) {
+        // Use the actual expression (wrapped in parentheses for safety)
+        return `(${exprDef.expression})`;
+      }
+      // Regular column: use existing sanitization
+      return sanitizeColumnName(col, config?.sourceTable);
+    })
+    .join(", ")}`;
 }
 
 /**
@@ -221,7 +243,7 @@ export function buildQuery(config: QueryConfig): { sql: string; params: (string 
   const joinClause = buildJoinClause(config.joins);
   const hasJoins = !!(config.joins && config.joins.length > 0);
   const { clause: whereClause, params } = buildWhereClause(config.filters || [], config.sourceTable, hasJoins);
-  const groupByClause = buildGroupByClause(config.groupBy, config.sourceTable);
+  const groupByClause = buildGroupByClause(config.groupBy, config);
   const orderByClause = buildOrderByClause(config.orderBy, config);
   const limit = Math.min(config.limit || MAX_ROWS, MAX_ROWS);
 
@@ -253,7 +275,7 @@ export function buildCountQuery(config: QueryConfig): { sql: string; params: (st
   const joinClause = buildJoinClause(config.joins);
   const hasJoins = !!(config.joins && config.joins.length > 0);
   const { clause: whereClause, params } = buildWhereClause(config.filters || [], config.sourceTable, hasJoins);
-  const groupByClause = buildGroupByClause(config.groupBy, config.sourceTable);
+  const groupByClause = buildGroupByClause(config.groupBy, config);
 
   // When GROUP BY is present, count distinct groups instead of raw rows
   if (groupByClause) {

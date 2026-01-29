@@ -873,6 +873,66 @@ describe("Query Builder Security Tests", () => {
       );
       expect(response.body.totalCount).toBeLessThanOrEqual(sumOfCounts);
     });
+
+    it("uses expression in GROUP BY when referencing expression column alias", async () => {
+      // When GROUP BY references an expression column alias, the SQL should use
+      // the actual expression, not the quoted alias (which SQLite would treat as
+      // a non-existent column name)
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "DOT_latest", aggregateFunction: "SUM" }],
+          expressionColumns: [{ expression: "UPPER(status)", alias: "status_upper" }],
+          groupBy: ["status_upper"],
+          filters: [],
+          limit: 10,
+        });
+
+      if (response.status !== 200) {
+        console.error("Response error:", response.body);
+      }
+      expect(response.status).toBe(200);
+      expect(response.body.sql).toContain("GROUP BY (UPPER(status))");
+      expect(response.body.sql).not.toContain('GROUP BY "status_upper"');
+    });
+
+    it("handles mixed regular columns and expression aliases in GROUP BY", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [
+            { column: "track" },
+            { column: "DOT_latest", aggregateFunction: "SUM" }
+          ],
+          expressionColumns: [{ expression: "UPPER(status)", alias: "status_upper" }],
+          groupBy: ["track", "status_upper"],
+          filters: [],
+          limit: 10,
+        });
+
+      expect(response.status).toBe(200);
+      // Regular column should be sanitized normally, expression alias should use expression
+      expect(response.body.sql).toMatch(/GROUP BY "track",?\s*\(UPPER\(status\)\)/);
+    });
+
+    it("returns data successfully when grouping by expression column alias", async () => {
+      const response = await request(app)
+        .post("/api/query/execute")
+        .send({
+          sourceTable: "Referenda",
+          columns: [{ column: "DOT_latest", aggregateFunction: "SUM" }],
+          expressionColumns: [{ expression: "UPPER(status)", alias: "status_upper" }],
+          groupBy: ["status_upper"],
+          filters: [],
+          limit: 10,
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.error).toBeUndefined();
+      expect(Array.isArray(response.body.data)).toBe(true);
+    });
   });
 
   // ===========================================================================
