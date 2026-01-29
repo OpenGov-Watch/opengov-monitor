@@ -439,6 +439,28 @@ describe("API Client", () => {
         })
       );
     });
+
+    it("move sends PUT with move flag, target_dashboard_id, and CSRF header", async () => {
+      mockFetch.mockImplementationOnce(() => mockResponse({ success: true }));
+
+      await api.dashboardComponents.move(56, 10);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/dashboards/components",
+        expect.objectContaining({
+          method: "PUT",
+          body: JSON.stringify({
+            id: 56,
+            move: true,
+            target_dashboard_id: 10,
+          }),
+          headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+          },
+        })
+      );
+    });
   });
 
   describe("query namespace", () => {

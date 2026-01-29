@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { DashboardGrid, ComponentEditor, MoveComponentModal } from "@/components/dashboard";
 import { useDashboards } from "@/hooks/use-dashboards";
+import { api } from "@/api/client";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import Eye from "lucide-react/dist/esm/icons/eye";
 import Check from "lucide-react/dist/esm/icons/check";
@@ -228,20 +229,7 @@ export default function DashboardEditPage() {
   async function handleComponentMoved(targetDashboardId: number) {
     if (!movingComponent) return;
 
-    const response = await fetch("/api/dashboards/components", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: movingComponent.id,
-        move: true,
-        target_dashboard_id: targetDashboardId,
-      }),
-    });
-
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.error || "Failed to move component");
-    }
+    await api.dashboardComponents.move(movingComponent.id, targetDashboardId);
 
     // Refresh the current dashboard to show the component was removed
     await fetchData();

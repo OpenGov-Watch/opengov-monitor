@@ -305,6 +305,11 @@ export const api = {
         method: "PUT",
         body: JSON.stringify({ id, grid_config: gridConfig, grid_only: true }),
       }),
+    move: (id: number, targetDashboardId: number) =>
+      fetchJSON("/dashboards/components", {
+        method: "PUT",
+        body: JSON.stringify({ id, move: true, target_dashboard_id: targetDashboardId }),
+      }),
     delete: (id: number) =>
       fetchJSON(`/dashboards/components?id=${id}`, { method: "DELETE" }),
   },
