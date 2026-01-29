@@ -461,6 +461,91 @@ describe("API Client", () => {
         })
       );
     });
+
+    it("create sends POST with CSRF header", async () => {
+      mockFetch.mockImplementationOnce(() => mockResponse({ id: 1 }));
+
+      const payload = {
+        dashboard_id: 1,
+        name: "Test Component",
+        type: "chart",
+        query_config: {},
+        grid_config: { x: 0, y: 0, w: 4, h: 2 },
+      };
+
+      await api.dashboardComponents.create(payload);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/dashboards/components",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify(payload),
+          headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+          },
+        })
+      );
+    });
+
+    it("update sends PUT with CSRF header", async () => {
+      mockFetch.mockImplementationOnce(() => mockResponse({ success: true }));
+
+      const payload = {
+        id: 1,
+        name: "Updated Component",
+        query_config: {},
+        grid_config: { x: 0, y: 0, w: 6, h: 3 },
+      };
+
+      await api.dashboardComponents.update(payload);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/dashboards/components",
+        expect.objectContaining({
+          method: "PUT",
+          body: JSON.stringify(payload),
+          headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+          },
+        })
+      );
+    });
+
+    it("delete sends DELETE with CSRF header", async () => {
+      mockFetch.mockImplementationOnce(() => mockResponse({ success: true }));
+
+      await api.dashboardComponents.delete(42);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/dashboards/components?id=42",
+        expect.objectContaining({
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+          },
+        })
+      );
+    });
+
+    it("updateGrid sends PUT with CSRF header", async () => {
+      mockFetch.mockImplementationOnce(() => mockResponse({ success: true }));
+
+      await api.dashboardComponents.updateGrid(5, { x: 2, y: 3, w: 4, h: 2 });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/dashboards/components",
+        expect.objectContaining({
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+          },
+        })
+      );
+    });
   });
 
   describe("query namespace", () => {

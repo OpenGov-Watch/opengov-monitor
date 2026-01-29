@@ -1,4 +1,13 @@
 import "@testing-library/jest-dom";
+import { afterEach, vi } from "vitest";
+import { cleanup } from "@testing-library/react";
+
+// Cleanup after each test to prevent memory leaks
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+  vi.clearAllTimers();
+});
 
 // Mock window.matchMedia
 Object.defineProperty(window, "matchMedia", {

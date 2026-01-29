@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { DashboardGrid } from "@/components/dashboard";
 import Pencil from "lucide-react/dist/esm/icons/pencil";
 import { useAuth } from "@/contexts/auth-context";
+import { api } from "@/api/client";
 import type { Dashboard, DashboardComponent } from "@/lib/db/types";
 
 export default function DashboardViewPage() {
@@ -19,21 +20,13 @@ export default function DashboardViewPage() {
   useEffect(() => {
     async function fetchDashboard() {
       try {
-        const [dashboardRes, componentsRes] = await Promise.all([
-          fetch(`/api/dashboards?id=${dashboardId}`),
-          fetch(`/api/dashboards/components?dashboard_id=${dashboardId}`),
+        const [dashboardData, componentsData] = await Promise.all([
+          api.dashboards.getById(dashboardId),
+          api.dashboardComponents.getByDashboardId(dashboardId),
         ]);
 
-        if (!dashboardRes.ok) {
-          setError("Dashboard not found");
-          return;
-        }
-
-        const dashboardData = await dashboardRes.json();
-        const componentsData = await componentsRes.json();
-
-        setDashboard(dashboardData);
-        setComponents(componentsData);
+        setDashboard(dashboardData as Dashboard);
+        setComponents(componentsData as DashboardComponent[]);
       } catch (err) {
         setError("Failed to load dashboard");
         console.error(err);

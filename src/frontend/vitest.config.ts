@@ -9,6 +9,13 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/__tests__/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
+    // Memory management for large test suites (vitest 4.x config)
+    fileParallelism: false, // Run test files sequentially to reduce memory pressure
+    testTimeout: 30000,
+    // Pass memory limit to worker processes
+    forks: {
+      execArgv: ["--max-old-space-size=8192"],
+    },
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html", "lcov"],

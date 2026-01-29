@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/auth-context";
 import { useDashboards } from "@/hooks/use-dashboards";
+import { api } from "@/api/client";
 import {
   Table,
   TableBody,
@@ -52,17 +53,8 @@ export default function DashboardsPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    const payload = {
-      name: formData.name,
-      description: formData.description || null,
-    };
-
     try {
-      await fetch("/api/dashboards", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      await api.dashboards.create(formData.name, formData.description || null);
 
       setDialogOpen(false);
       mutate();
@@ -75,7 +67,7 @@ export default function DashboardsPage() {
     if (!confirm("Are you sure you want to delete this dashboard and all its components?")) return;
 
     try {
-      await fetch(`/api/dashboards?id=${id}`, { method: "DELETE" });
+      await api.dashboards.delete(id);
       mutate();
     } catch (error) {
       console.error("Failed to delete dashboard:", error);

@@ -39,24 +39,16 @@ export default function DashboardEditPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [dashboardRes, componentsRes] = await Promise.all([
-        fetch(`/api/dashboards?id=${dashboardId}`),
-        fetch(`/api/dashboards/components?dashboard_id=${dashboardId}`),
+      const [dashboardData, componentsData] = await Promise.all([
+        api.dashboards.getById(dashboardId),
+        api.dashboardComponents.getByDashboardId(dashboardId),
       ]);
 
-      if (!dashboardRes.ok) {
-        setError("Dashboard not found");
-        return;
-      }
-
-      const dashboardData = await dashboardRes.json();
-      const componentsData = await componentsRes.json();
-
-      setDashboard(dashboardData);
-      setName(dashboardData.name);
-      setDescription(dashboardData.description || "");
+      setDashboard(dashboardData as Dashboard);
+      setName((dashboardData as Dashboard).name);
+      setDescription((dashboardData as Dashboard).description || "");
       setMetadataDirty(false);
-      setComponents(componentsData);
+      setComponents(componentsData as DashboardComponent[]);
     } catch (err) {
       setError("Failed to load dashboard");
       console.error(err);
@@ -81,15 +73,7 @@ export default function DashboardEditPage() {
 
   async function handleLayoutChange(componentId: number, gridConfig: GridConfig) {
     try {
-      await fetch("/api/dashboards/components", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: componentId,
-          grid_only: true,
-          grid_config: gridConfig,
-        }),
-      });
+      await api.dashboardComponents.updateGrid(componentId, gridConfig);
     } catch (err) {
       console.error("Failed to update layout:", err);
     }
@@ -100,15 +84,7 @@ export default function DashboardEditPage() {
 
     setSavingMetadata(true);
     try {
-      await fetch("/api/dashboards", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: dashboardId,
-          name,
-          description: description || null,
-        }),
-      });
+      await api.dashboards.update(dashboardId, name, description || null);
       setMetadataDirty(false);
       // Refresh the sidebar dashboard list
       mutateDashboards();
@@ -143,9 +119,7 @@ export default function DashboardEditPage() {
     if (!confirm("Are you sure you want to delete this component?")) return;
 
     try {
-      await fetch(`/api/dashboards/components?id=${componentId}`, {
-        method: "DELETE",
-      });
+      await api.dashboardComponents.delete(componentId);
       fetchData();
     } catch (err) {
       console.error("Failed to delete component:", err);
@@ -204,12 +178,7 @@ export default function DashboardEditPage() {
         chart_config: chartConfig,
       };
 
-      const response = await fetch("/api/dashboards/components", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const newComponent = await response.json();
+      const newComponent = await api.dashboardComponents.create(payload) as { id: number };
 
       await fetchData();
 
@@ -254,11 +223,7 @@ export default function DashboardEditPage() {
 
       if (component.id) {
         // Update existing
-        await fetch("/api/dashboards/components", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+        await api.dashboardComponents.update(payload);
       } else {
         // Create new - find a good position
         const maxY = Math.max(0, ...components.map((c) => {
@@ -272,12 +237,7 @@ export default function DashboardEditPage() {
           y: maxY,
         };
 
-        const response = await fetch("/api/dashboards/components", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        const newComponent = await response.json();
+        const newComponent = await api.dashboardComponents.create(payload) as { id: number };
 
         await fetchData();
 

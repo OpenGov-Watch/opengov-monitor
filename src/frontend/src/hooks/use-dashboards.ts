@@ -5,6 +5,7 @@ import { getApiBase } from "@/api/client";
 const fetcher = async (url: string): Promise<Dashboard[]> => {
   const response = await fetch(url, {
     credentials: "include",
+    headers: { "X-Requested-With": "XMLHttpRequest" },
   });
   if (!response.ok) {
     throw new Error("Failed to fetch dashboards");

@@ -35,7 +35,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Check auth status on mount
   useEffect(() => {
-    fetch(`${getApiBase()}/auth/me`, { credentials: "include" })
+    fetch(`${getApiBase()}/auth/me`, {
+      credentials: "include",
+      headers: { "X-Requested-With": "XMLHttpRequest" },
+    })
       .then((res) => res.json())
       .then((data) => {
         if (data.authenticated && data.user) {
@@ -61,7 +64,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const res = await fetch(`${getApiBase()}/auth/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
         credentials: "include",
         body: JSON.stringify({ username, password, rememberMe }),
       });
@@ -84,6 +90,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await fetch(`${getApiBase()}/auth/logout`, {
         method: "POST",
         credentials: "include",
+        headers: { "X-Requested-With": "XMLHttpRequest" },
       });
     } finally {
       setUser(null);
