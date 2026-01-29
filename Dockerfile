@@ -7,10 +7,12 @@ RUN npm install -g pnpm
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY src/frontend/package.json ./src/frontend/
+COPY src/shared/package.json ./src/shared/
 
 RUN pnpm install --frozen-lockfile
 
 COPY src/frontend/ ./src/frontend/
+COPY src/shared/ ./src/shared/
 RUN pnpm --filter opengov-monitor-frontend build
 
 # Stage 2: Build API (use debian-based image for glibc compatibility with runtime)
@@ -23,10 +25,12 @@ RUN npm install -g pnpm
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY src/api/package.json ./src/api/
+COPY src/shared/package.json ./src/shared/
 
 RUN pnpm install --frozen-lockfile
 
 COPY src/api/ ./src/api/
+COPY src/shared/ ./src/shared/
 RUN pnpm --filter api build
 
 # Stage 3: Runtime (use node:20-slim to match build stage Node version)
