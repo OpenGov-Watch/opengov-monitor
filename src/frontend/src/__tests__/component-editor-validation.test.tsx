@@ -316,10 +316,10 @@ describe("ComponentEditor Query Config Validation", () => {
 
       render(<ComponentEditor component={component} {...defaultProps} />);
 
-      // Give time for any potential warnings to appear
-      await new Promise((r) => setTimeout(r, 100));
-
-      expect(screen.queryByText(/Invalid query configuration/i)).not.toBeInTheDocument();
+      // Wait for any potential warnings to appear
+      await waitFor(() => {
+        expect(screen.queryByText(/Invalid query configuration/i)).not.toBeInTheDocument();
+      });
     });
 
     it("does not show warning when groupBy and orderBy are empty", async () => {
@@ -331,9 +331,9 @@ describe("ComponentEditor Query Config Validation", () => {
 
       render(<ComponentEditor component={component} {...defaultProps} />);
 
-      await new Promise((r) => setTimeout(r, 100));
-
-      expect(screen.queryByText(/Invalid query configuration/i)).not.toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.queryByText(/Invalid query configuration/i)).not.toBeInTheDocument();
+      });
     });
 
     it("does not show warning for text components (no query validation)", async () => {
@@ -351,9 +351,9 @@ describe("ComponentEditor Query Config Validation", () => {
 
       render(<ComponentEditor component={component} {...defaultProps} />);
 
-      await new Promise((r) => setTimeout(r, 100));
-
-      expect(screen.queryByText(/Invalid query configuration/i)).not.toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.queryByText(/Invalid query configuration/i)).not.toBeInTheDocument();
+      });
     });
   });
 

@@ -12,6 +12,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { DashboardComponent } from "../components/dashboard/dashboard-component";
 import type { DashboardComponent as DashboardComponentType } from "@/lib/db/types";
 
@@ -244,6 +245,7 @@ describe("DashboardComponent", () => {
     });
 
     it("persists collapse state to localStorage when toggled", async () => {
+      const user = userEvent.setup();
       const tableComponent: DashboardComponentType = {
         id: 7,
         dashboard_id: 1,
@@ -263,7 +265,7 @@ describe("DashboardComponent", () => {
 
       // Find and click the collapse toggle button
       const toggleButton = screen.getByTitle("Expand toolbar");
-      toggleButton.click();
+      await user.click(toggleButton);
 
       // Should have persisted to localStorage
       await waitFor(() => {

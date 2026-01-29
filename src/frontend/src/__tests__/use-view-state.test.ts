@@ -455,6 +455,7 @@ describe("useViewState", () => {
         result.current.setSorting([{ id: "name", desc: true }]);
       });
 
+      // Wait for debounce
       await act(async () => {
         await new Promise(resolve => setTimeout(resolve, 600));
       });
@@ -475,6 +476,7 @@ describe("useViewState", () => {
         result.current.setSorting([{ id: "name", desc: true }]);
       });
 
+      // Wait for debounce
       await act(async () => {
         await new Promise(resolve => setTimeout(resolve, 600));
       });
