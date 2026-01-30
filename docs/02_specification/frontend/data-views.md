@@ -1,4 +1,4 @@
-# Page Specifications
+# Data Views Specification
 
 Column definitions, filters, and display rules for each data view page.
 

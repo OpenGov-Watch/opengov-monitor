@@ -1,4 +1,4 @@
-# Filter Types Specification
+# Filters Specification
 
 Column type system and operator mappings for filtering.
 

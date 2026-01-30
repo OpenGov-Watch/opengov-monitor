@@ -35,12 +35,14 @@ Must support these component types:
 - Must support WHERE filters with AND/OR logic
 - Must support GROUP BY for aggregations
 - Must support ORDER BY with ASC/DESC
-- Must limit dashboard queries to 1000 rows
+- Must limit dashboard queries to prevent performance issues
 
 ### Query Validation
 - Must validate queries against table allowlist
 - Must sanitize all query inputs for security
 - Must prevent SQL injection
+
+**See Also:** [UI Constants](../../02_specification/frontend/ui-constants.md) for row limits
 
 ## Visual Query Builder Requirements
 
@@ -50,26 +52,26 @@ Must support these component types:
 
 ### JOIN Support
 - Must support LEFT, INNER, and RIGHT joins
-- Must auto-detect foreign key relationships by naming patterns:
-  - `{table}_id` columns → `{Table}.id`
-  - `{table}Id` camelCase → `{Table}.id`
-  - `{table}Index` → `{Table}.id`
-  - Child Bounties special case: uses `identifier` not `id`
+- Must auto-detect foreign key relationships by naming patterns
 - Must auto-populate ON clause when FK detected
 - Must support optional table aliases for shorter references
 - Must allow manual ON clause specification when auto-detection fails
+
+**See Also:** [QueryBuilder Specification](../../02_specification/frontend/query-builder.md) for FK detection patterns
 
 ### Column Selection
 - Must show available columns grouped by table
 - Must include columns from all joined tables
 - Must support column aliases for custom display names
-- Must support expression columns for computed values (SUM, COUNT, AVG, MIN, MAX)
+- Must support expression columns for computed values (aggregate functions)
 
 ### Filter Builder
 - Must support nested AND/OR filter groups
-- Must support operators: =, !=, >, <, >=, <=, LIKE, IS NULL, IS NOT NULL
+- Must support operators appropriate for column types
 - Must allow adding/removing conditions dynamically
 - Must support unlimited nesting depth for complex logic
+
+**See Also:** [Filters Specification](../../02_specification/frontend/filters.md) for operators by column type
 
 ### Live Preview
 - Must execute query and show results before saving
@@ -122,7 +124,7 @@ Must provide three page types:
 ## Performance Requirements
 
 - Must execute queries server-side
-- Must enforce 1000-row limit on dashboard queries
+- Must enforce row limits on dashboard queries
 - Must fetch component data in parallel where possible
 - Must cache formatted column definitions
 

@@ -55,16 +55,14 @@ Must follow logical workflow order:
 7. **Preview**
    - Must execute query and display results
    - Must show generated SQL
-   - Must limit to 1000 rows for dashboards
+   - Must limit rows for dashboards (see UI Constants)
 
 ## JOIN Requirements
 
 ### Foreign Key Auto-Detection
-Must automatically detect foreign key relationships by these naming patterns:
-- `{table}_id` columns → joins to `{Table}.id`
-- `{table}Id` camelCase → joins to `{Table}.id`
-- `{table}Index` → joins to `{Table}.id`
-- Special case: Child Bounties uses `identifier` not `id`
+Must automatically detect foreign key relationships by naming patterns and auto-populate ON clauses.
+
+**See Also:** [QueryBuilder Specification](../../02_specification/frontend/query-builder.md) for FK detection patterns
 
 ### JOIN Configuration
 Must specify for each join:
@@ -83,7 +81,7 @@ Must specify for each join:
 - Must support fully qualified names (table.column) or simple names
 - Must allow click-to-edit aliases (shows alias + grayed column reference)
 - Must show columns grouped by source table and joined tables
-- Must support aggregate functions (COUNT, SUM, AVG, MIN, MAX)
+- Must support aggregate functions
 
 ### Expression Columns (First-Class)
 - Must accept SQL expressions (calculations, aggregates)
@@ -98,18 +96,18 @@ Must specify for each join:
 - Must preserve filter structure when saving to database
 
 ### Operators
-Must support:
-- Equality: =, !=
-- Comparison: >, <, >=, <=
-- Pattern: LIKE
-- Null checks: IS NULL, IS NOT NULL
+Must support operators appropriate for column types.
+
+**See Also:** [Filters Specification](../../02_specification/frontend/filters.md) for operators by column type
 
 ## Aggregate Function Requirements
 
-When using aggregates (COUNT, SUM, AVG, MIN, MAX):
+When using aggregates:
 - Must require GROUP BY specification
 - Must group by non-aggregated columns
 - Must allow ordering by aggregate results
+
+**See Also:** [QueryBuilder Specification](../../02_specification/frontend/query-builder.md) for supported functions
 
 ## Security Requirements
 
@@ -121,7 +119,7 @@ When using aggregates (COUNT, SUM, AVG, MIN, MAX):
 - Must execute current query via API
 - Must display results in simple table format
 - Must show generated SQL for debugging
-- Must enforce 1000-row limit
+- Must enforce row limit
 - Must display errors clearly
 - Must help validate queries before saving
 

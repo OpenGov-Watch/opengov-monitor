@@ -1,25 +1,49 @@
 # Documentation
 
-- General rule: Be terse
-  - Our docs are directed at an expert audience. Don't explain basic concepts. Don't explain things that can be looked up in the code. Rather, show how it works and how it connects.
-  - Do not describe "recent changes", just describe the current state.
-  - Avoid text duplication between docs files, README, and CLAUDE.md. They play together. Keep each file terse and only provide an overview over this level of detail. Further details should be in files in subfolders or linked documentation. If a file has more than 100 lines, consider splitting it up.
-    - This means: Whatever you want to write, it likely doesn't belong into the root README...
-- Roles:
-  - each file type has a specific role. Make sure that you respect the roles:
-  - `docs/01_requirements/` functional, non-functional requirements, and use cases
-  - `docs/02_specification/` specifies API, data model, migration
-  - `docs/03_design/` architecture, adrs, sequences
-    - explains architecture and design decisions
-    - Don't show code, link to code.
-  - `docs/howtos/` explain how to use features
-  - `CLAUDE.md` and `README.md` files
-    - CLAUDE.md must give agent just enough context to navigate the folder
-    - README.md explains
-      - what the folder does and how it is structured
-      - where to find documentation
-      - relevant shell commands
-    - README is directed at everyone, CLAUDE.md is directed at agents
-- If you discover any broken links, find the right file and fix them.
+## General Rules
 
-See [README.md](README.md) for overall documentation structure.
+- **Be terse**: Expert audience. Don't explain basics or what's in code. Show connections.
+- **No "recent changes"**: Describe current state only.
+- **No duplication**: Files play together. Keep each terse. >100 lines → split it.
+- **Fix broken links** when discovered.
+
+## Folder Roles
+
+| Folder | Purpose | Example Content |
+|--------|---------|-----------------|
+| `01_requirements/` | What users need | User capabilities, validation messages, access rules |
+| `02_specification/` | What the system does technically | Column lists, API endpoints, operators, pixel values |
+| `03_design/` | How it's built | Architecture, ADRs, sequences. Link to code, don't show it. |
+| `howtos/` | How to use features | Step-by-step guides with examples |
+
+## Requirements vs Specifications
+
+**Requirements** answer "what do users need?":
+- "View referendum details with spending values"
+- "Filter by status and track"
+- "Edit categories (authenticated)"
+
+**Specifications** answer "what exactly does the system do?":
+- Column lists with types and editability
+- API endpoints with methods and paths
+- Breakpoints, page sizes, dimensions
+- Operators by column type
+
+**Rule**: If it has specific values (768px, 100 rows, `/api/categories`), it's specification.
+
+## Cross-References
+
+Always link between related files:
+```markdown
+## See Also
+- [Data Views Specification](../02_specification/frontend/data-views.md) - Column details
+```
+
+## CLAUDE.md vs README.md
+
+| File | Audience | Content |
+|------|----------|---------|
+| CLAUDE.md | Agents | Navigation context, rules, gotchas |
+| README.md | Everyone | Structure, docs links, shell commands |
+
+See [README.md](README.md) for documentation structure.

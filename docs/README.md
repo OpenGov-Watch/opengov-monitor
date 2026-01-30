@@ -36,10 +36,12 @@ Defines **what** the system must do, not **how** it's implemented.
 - [security/](02_specification/security/README.md) - Security specification (authentication, API, transport, container)
 
 **Frontend:**
-- [frontend/page-specifications.md](02_specification/frontend/page-specifications.md) - Columns, filters, sorts per page
+- [frontend/data-views.md](02_specification/frontend/data-views.md) - Columns, filters, sorts per page
 - [frontend/form-specifications.md](02_specification/frontend/form-specifications.md) - Form fields, validation rules
-- [frontend/filter-types.md](02_specification/frontend/filter-types.md) - Column types, operators
+- [frontend/filters.md](02_specification/frontend/filters.md) - Column types, operators
 - [frontend/ui-constants.md](02_specification/frontend/ui-constants.md) - Breakpoints, limits, dimensions
+- [frontend/navigation.md](02_specification/frontend/navigation.md) - Sidebar sections, routes, dimensions
+- [frontend/dashboard.md](02_specification/frontend/dashboard.md) - Dashboard components, grid config
 
 **API:**
 - [api/endpoints.md](02_specification/api/endpoints.md) - REST API endpoints

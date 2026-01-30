@@ -48,7 +48,7 @@ Advanced filter builder with nested AND/OR logic for complex queries.
 ### Data Structure
 Must support hierarchical structure with filter groups (AND/OR operators), individual conditions (column, operator, value), and nested groups at arbitrary depth.
 
-**Storage Format**: FilterGroup is canonical format. Legacy FilterCondition[] arrays automatically converted for backward compatibility.
+**See Also:** [Filters Specification](../../02_specification/frontend/filters.md) for data structures and storage format
 
 ### UI Requirements
 - Must allow AND/OR toggle at group level, list conditions and sub-groups
@@ -62,7 +62,7 @@ Must detect categorical columns and provide multiselect dropdowns:
 
 **Column Identification**: Detected by column type detection for status, track, type, category columns
 
-**Available Operators**: Only `IN`, `NOT IN`, `IS NULL`, `IS NOT NULL` (no equals/comparison/LIKE needed)
+**Available Operators**: Only set membership and null checks (no equals/comparison/LIKE needed)
 
 **UI Behavior**: Must show multiselect dropdown for IN/NOT IN, "No value needed" message for NULL operators, fetch facet data with counts, provide search, use Apply/Cancel pattern
 
@@ -104,7 +104,7 @@ Must use memoization to prevent re-render cascades, optimize condition row updat
 
 ## See Also
 
-- [Filter Types Specification](../../02_specification/frontend/filter-types.md) - Column types, operators, data structures
+- [Filters Specification](../../02_specification/frontend/filters.md) - Column types, operators, data structures
 - [Filtering How-To Guide](../../howtos/filters.md)
 - [DataTable Requirements](./data-table.md)
 - [QueryBuilder Requirements](./query-builder.md)

@@ -170,6 +170,6 @@ Pages with editing support use consistent fields: category/subcategory, notes, h
 
 ## See Also
 
-- [Page Specifications](../../02_specification/frontend/page-specifications.md) - Column lists, filter columns, sort orders, badge colors
+- [Data Views Specification](../../02_specification/frontend/data-views.md) - Column lists, filter columns, sort orders, badge colors
 - [DataTable Requirements](../frontend/data-table.md)
 - [Filtering Systems](../frontend/filters.md)
