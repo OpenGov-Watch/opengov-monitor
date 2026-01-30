@@ -23,13 +23,9 @@ Requirements for login, session management, and auth state.
 
 ## Session Management
 
-### Duration
-- Default: 24 hours
-- Remember me: 30 days
+Sessions support "remember me" for extended duration.
 
-### Storage
-- SQLite session store (`sessions.db`)
-- Cookie: HTTP-only, secure in production, SameSite=Lax
+**See Also:** [Security Specification](../../02_specification/security/authentication.md) for session configuration details
 
 ---
 
@@ -57,12 +53,9 @@ Returns: `{ isAuthenticated, user, isLoading, login(), logout() }`
 
 ## Security
 
-| Mechanism | Implementation |
-|-----------|----------------|
-| Password hashing | bcrypt (12 rounds) |
-| Session regeneration | On login |
-| CSRF protection | X-Requested-With header |
-| Password comparison | Constant-time |
+Authentication uses secure password hashing, session regeneration on login, CSRF protection, and constant-time password comparison.
+
+**See Also:** [Security Specification](../../02_specification/security/authentication.md) for implementation details
 
 ## See Also
 

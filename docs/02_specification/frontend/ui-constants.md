@@ -23,6 +23,7 @@ Breakpoints, limits, and dimension values used across the frontend.
 |---------|-------|
 | DataTable default | 10,000 |
 | Dashboard components | 1,000 |
+| Query preview | 1,000 |
 
 ## Layout Dimensions
 

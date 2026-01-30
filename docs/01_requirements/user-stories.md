@@ -54,12 +54,14 @@
 **So that** I can navigate thousands of rows without performance issues
 
 **Acceptance Criteria:**
-- Configurable page size (10, 20, 30, 50, 100 rows)
+- Configurable page size from available options
 - First/Previous/Next/Last navigation buttons
 - Current page indicator (e.g., "Page 3 of 47")
 - Row count display (e.g., "1,234 rows")
 - State persisted in view
 - Last button hidden on mobile to save space
+
+**See Also:** [UI Constants](../02_specification/frontend/ui-constants.md) for page size options
 
 ---
 
@@ -130,7 +132,7 @@
 - Pre-validation rejects entire import if any category references don't exist
 - Error messages show first 10 violations with row numbers
 - All-or-nothing transaction semantics (no partial imports)
-- Importable entities: Categories, Referenda, Bounties, Child Bounties, Treasury Netflows, Cross-Chain Flows, Local Flows
+- Importable entities: Categories, Referenda, Bounties, Child Bounties, Treasury Netflows
 - Empty category fields (`""`, `""`) clear category assignment (sets NULL)
 - Child bounty identifiers normalized (hyphen → underscore)
 - Visual feedback during import (loading state, success/error messages)
@@ -184,12 +186,14 @@
 **So that** I can access governance data on small screens without horizontal scrolling
 
 **Acceptance Criteria:**
-- Auto-detect mobile viewport (<768px)
+- Auto-detect mobile viewport
 - Card view shows first 3 columns prominently
 - Expandable "Show details" section for remaining columns
 - Toggle between table/card view manually
 - View mode preference persisted in localStorage per table
 - All features (filter, sort) work in card mode
+
+**See Also:** [UI Constants](../02_specification/frontend/ui-constants.md) for breakpoint values
 
 ---
 
