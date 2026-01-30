@@ -15,10 +15,10 @@
   "dependencies": {
     "@opengov-monitor/shared": "workspace:*",
     "bcrypt": "^6.0.0",
-    "better-sqlite3": "^11.7.0",
+    "better-sqlite3": "^12.6.2",
     "cors": "^2.8.6",
     "detect-port": "^2.1.0",
-    "express": "^4.21.2",
+    "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
     "express-session": "^1.19.0"
   },
