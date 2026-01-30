@@ -1,38 +1,10 @@
 version: 2
 updates:
-  # Root pnpm workspace
+  # Root pnpm workspace (handles all npm workspaces: /, /src/frontend, /src/api)
+  # Note: pnpm monorepo has single lockfile at root, so workspace-specific
+  # entries would create PRs that fail --frozen-lockfile checks
   - package-ecosystem: "npm"
     directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-    groups:
-      minor-and-patch:
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
-    open-pull-requests-limit: 5
-
-  # Frontend
-  - package-ecosystem: "npm"
-    directory: "/src/frontend"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-    groups:
-      minor-and-patch:
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
-    open-pull-requests-limit: 5
-
-  # API
-  - package-ecosystem: "npm"
-    directory: "/src/api"
     schedule:
       interval: "weekly"
       day: "monday"
