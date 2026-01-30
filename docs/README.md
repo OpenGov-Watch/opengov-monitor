@@ -26,6 +26,9 @@ Defines **what** the system must do, not **how** it's implemented.
 **Backend:**
 - [backend/migrations.md](02_specification/backend/migrations.md) - Database migration requirements
 
+**Security:**
+- [security/](02_specification/security/README.md) - Security specification (authentication, API, transport, container)
+
 ### `03_design/` - Implementation Details
 
 Quick overview of key implementation patterns. Links to code, doesn't show code.
@@ -35,6 +38,7 @@ Quick overview of key implementation patterns. Links to code, doesn't show code.
 - [gotchas.md](03_design/gotchas.md) - Project-specific quirks and workarounds
 - [error-logging.md](03_design/error-logging.md) - Error logging system
 - [database-backups.md](03_design/database-backups.md) - Backup procedures
+- [testing.md](03_design/testing.md) - Testing patterns and CI integration
 
 **Backend:**
 - [backend/architecture.md](03_design/backend/architecture.md) - Backend data pipeline architecture
@@ -49,6 +53,7 @@ Quick overview of key implementation patterns. Links to code, doesn't show code.
 - [api/import-system.md](03_design/api/import-system.md) - Import validation architecture
 
 **Frontend:**
+- [frontend/](03_design/frontend/README.md) - Frontend component API reference
 - [frontend/architecture.md](03_design/frontend/architecture.md) - Frontend React architecture
 - [frontend/table-systems.md](03_design/frontend/table-systems.md) - DataTable architecture reference
 - [frontend/column-formatting.md](03_design/frontend/column-formatting.md) - Column formatting and configuration
@@ -64,10 +69,37 @@ Quick overview of key implementation patterns. Links to code, doesn't show code.
 
 Step-by-step guides for using features. Code examples included.
 
+**Categories & Data:**
 - [categories.md](howtos/categories.md) - Managing spending categories
+- [category-inheritance.md](howtos/category-inheritance.md) - Category inheritance patterns
 - [importing-data.md](howtos/importing-data.md) - Bulk importing data via CSV
-- [dashboard.md](howtos/dashboard.md) - Creating custom dashboards
-- [data-table.md](howtos/data-table.md) - Creating table pages with DataTable
-- [filters.md](howtos/filters.md) - Using faceted filters, global search, advanced filters
-- [query-builder.md](howtos/query-builder.md) - Building queries visually
+- [custom-tables.md](howtos/custom-tables.md) - Creating custom tables
+- [adding-scraped-tables.md](howtos/adding-scraped-tables.md) - Adding scraped data tables
+- [adding-sync-tables.md](howtos/adding-sync-tables.md) - Adding synchronized tables
+- [renaming-columns-tables.md](howtos/renaming-columns-tables.md) - Renaming columns and tables
+
+**Dashboard:**
+- [dashboard.md](howtos/dashboard.md) - Dashboard overview
+  - [dashboard-basics.md](howtos/dashboard-basics.md) - Getting started
+  - [dashboard-advanced.md](howtos/dashboard-advanced.md) - Advanced features
+
+**DataTable:**
+- [data-table.md](howtos/data-table.md) - DataTable overview
+  - [data-table-basics.md](howtos/data-table-basics.md) - Getting started
+  - [data-table-advanced.md](howtos/data-table-advanced.md) - Advanced features
+- [table-views.md](howtos/table-views.md) - Table view management
+
+**Filters:**
+- [filters.md](howtos/filters.md) - Filtering overview
+  - [filters-basics.md](howtos/filters-basics.md) - Getting started
+  - [filters-advanced.md](howtos/filters-advanced.md) - Advanced filtering
+
+**Query Builder:**
+- [query-builder.md](howtos/query-builder.md) - Query builder overview
+  - [query-builder-basics.md](howtos/query-builder-basics.md) - Getting started
+  - [query-builder-advanced.md](howtos/query-builder-advanced.md) - Advanced queries
+
+**Data Quality:**
 - [sanity-checks.md](howtos/sanity-checks.md) - Writing data validation sanity checks
+- [investigate-data-errors.md](howtos/investigate-data-errors.md) - Investigating data errors
+- [regression-testing-xcm-parsing.md](howtos/regression-testing-xcm-parsing.md) - XCM parsing regression tests

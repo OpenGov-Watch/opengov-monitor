@@ -102,4 +102,4 @@ The API tracks the timestamp of the last database write operation in-memory (res
 
 ## References
 
-- [Data models](../docs/02_specification/data-models.md) - Table schemas
+- [Data models](../../docs/02_specification/data-models.md) - Table schemas

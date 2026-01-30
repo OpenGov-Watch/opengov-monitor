@@ -71,7 +71,7 @@ Database tables and views are managed exclusively by migrations:
 
 ## References
 
-- [Data models](../docs/02_specification/data-models.md) - Table schemas, views
-- [Error logging](../docs/03_design/error-logging.md) - Data validation error tracking
-- [Business rules](../docs/01_requirements/business-rules.md) - Value extraction, XCM parsing
-- [Gotchas](../docs/03_design/gotchas.md) - External API quirks (timestamp units, etc.)
+- [Data models](../../docs/02_specification/data-models.md) - Table schemas, views
+- [Error logging](../../docs/03_design/error-logging.md) - Data validation error tracking
+- [Business rules](../../docs/01_requirements/business-rules.md) - Value extraction, XCM parsing
+- [Gotchas](../../docs/03_design/gotchas.md) - External API quirks (timestamp units, etc.)

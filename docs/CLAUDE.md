@@ -22,4 +22,4 @@
     - README is directed at everyone, CLAUDE.md is directed at agents
 - If you discover any broken links, find the right file and fix them.
 
-See @docs/README.md for overall documentation structure.
+See [README.md](README.md) for overall documentation structure.

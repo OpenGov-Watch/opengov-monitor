@@ -64,6 +64,6 @@ Foreign key relationships are detected by column naming patterns:
 
 ## References
 
-- [Data models](../docs/02_specification/data-models.md) - Table schemas, views
-- [Table systems](../docs/03_design/frontend/table-systems.md) - DataTable architecture reference
-- [Gotchas](../docs/03_design/gotchas.md) - Project-specific quirks
+- [Data models](../../docs/02_specification/data-models.md) - Table schemas, views
+- [Table systems](../../docs/03_design/frontend/table-systems.md) - DataTable architecture reference
+- [Gotchas](../../docs/03_design/gotchas.md) - Project-specific quirks
