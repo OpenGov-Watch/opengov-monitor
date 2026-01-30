@@ -1,4 +1,4 @@
-# DataTable System Specification
+# DataTable System Requirements
 
 Requirements for full-page data exploration and analysis tables.
 
@@ -32,11 +32,6 @@ Must provide unified table interface for viewing, filtering, and analyzing datab
 - Must gracefully fall back to client-side if server fails
 - Must support Apply/Cancel confirmation pattern
 
-### Global Search
-- Must search across all visible columns simultaneously
-- Must use case-insensitive substring matching
-- Must filter in real-time as user types
-
 ### Advanced Filtering
 - Must support custom filter functions for complex logic
 - Must handle "uncategorized" values and special cases
@@ -51,15 +46,13 @@ Must provide unified table interface for viewing, filtering, and analyzing datab
 ## Pagination Requirements
 
 - Must fetch only current page from server (server-side pagination)
-- Must support page sizes: 10, 20, 30, 50, 100
-- Must default to 100 rows per page
 - Must provide navigation: First, Previous, Next, Last
 - Must display total count from separate COUNT query
 
 ## View State Requirements
 
 ### Persistence
-- Must save view state (sorting, filters, column visibility, search, pagination) to localStorage per table
+- Must save view state (sorting, filters, column visibility, pagination) to localStorage per table
 - Must support multiple named views per table
 - Must allow setting default view
 - Must support URL sharing via base64-encoded query parameter
@@ -87,19 +80,16 @@ Must provide unified table interface for viewing, filtering, and analyzing datab
 ## Responsive Requirements
 
 ### Breakpoint Behavior
-- Must use 768px (md) as mobile/desktop breakpoint
 - Must remember view mode choice (table vs card) per table in localStorage
 
-### Mobile View (< 768px)
+### Mobile View
 - Must switch to card layout showing data vertically
 - Must show first 3 columns always visible
 - Must provide expandable "Show details" for remaining columns
-- Must use full-width search input
 - Must paginate by columns in expanded view
 
-### Desktop View (≥ 768px)
+### Desktop View
 - Must use traditional table layout
-- Must constrain search input width
 - Must paginate by rows
 
 ## Export Requirements
@@ -115,7 +105,6 @@ Must provide unified table interface for viewing, filtering, and analyzing datab
 - Must execute all filtering, sorting, and pagination server-side
 - Must transfer only current page data (not entire dataset)
 - Must cache auto-generated columns
-- Must limit default queries to 10,000 rows maximum
 
 ## Compact Mode Requirements
 
@@ -125,6 +114,7 @@ Must provide unified table interface for viewing, filtering, and analyzing datab
 
 ## See Also
 
+- [UI Constants](../../02_specification/frontend/ui-constants.md) - Page sizes, breakpoints, row limits
 - [DataTable How-To Guide](../../howtos/data-table.md)
 - [DataTable API Reference](../../03_design/frontend/data-table-api.md)
 - [Dashboard System](./dashboard.md)

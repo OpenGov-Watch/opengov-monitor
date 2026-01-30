@@ -23,6 +23,7 @@ Must support these component types:
 - **Bar Chart**: Stacked and grouped variants for comparing categories
 - **Line Chart**: For showing trends over time with multiple series
 - **Text**: For Markdown content and annotations
+- **Metric**: Single value display with optional prefix/suffix (manual value or query-based)
 
 ## Data Source Requirements
 

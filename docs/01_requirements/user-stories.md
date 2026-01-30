@@ -15,7 +15,7 @@
 ### US-1: Data Exploration
 
 **As a** governance analyst
-**I want to** explore large datasets with sorting, filtering, and search
+**I want to** explore large datasets with sorting and filtering
 **So that** I can discover patterns in treasury spending and referendum outcomes
 
 **Acceptance Criteria:**
@@ -168,7 +168,7 @@
 **So that** I can quickly access my common analysis scenarios and collaborate with colleagues
 
 **Acceptance Criteria:**
-- Save current state (filters, sorting, visibility, search) as named view
+- Save current state (filters, sorting, visibility) as named view
 - Load saved views from dropdown (desktop) or tabs (mobile)
 - Share view via URL (base64-encoded state in query param)
 - Set default view per table (persisted in localStorage)
@@ -189,7 +189,7 @@
 - Expandable "Show details" section for remaining columns
 - Toggle between table/card view manually
 - View mode preference persisted in localStorage per table
-- All features (search, filter, sort) work in card mode
+- All features (filter, sort) work in card mode
 
 ---
 
@@ -223,10 +223,6 @@
 - Handle any query result shape (dynamic column count/types)
 - QueryBuilder provides visual SQL construction
 
-**Current Support:**
-- Main DataTable: ❌ Static schemas only (pre-defined columns)
-- Dashboard Table: ✅ Full query support with auto-columns
-
 ---
 
 ### US-8: Column Management
@@ -241,10 +237,6 @@
 - State persisted in view (localStorage + URL)
 - Column order preserved when hiding/showing
 - Display column IDs with underscores/dots converted to spaces
-
-**Current Support:**
-- Main DataTable: ✅ Full support via DataTableColumnVisibility
-- Dashboard Table: ❌ All columns always visible
 
 ---
 
@@ -267,15 +259,6 @@
 - Live preview of query results
 - Save query configuration to dashboard components
 
-**Current Support:**
-- ✅ Column selection with click-to-edit aliases
-- ✅ Expression columns as first-class citizens (reorderable, usable in filters/group by/order by)
-- ✅ Filters with all comparison operators
-- ✅ Aggregations (COUNT, SUM, AVG, MIN, MAX)
-- ✅ GROUP BY and ORDER BY (includes expression column aliases)
-- ✅ Row limit controls
-- ✅ JOIN support with auto-detection
-
 ---
 
 ### US-13: JOIN Support in Visual Query Builder
@@ -288,21 +271,13 @@
 - Add JOIN section in query builder UI
 - Select join type: LEFT, INNER, RIGHT
 - Choose table to join from allowlist
-- ~~Specify join condition (left column = right column)~~ ← REMOVED
-- **Join conditions auto-populate based on FK relationships** ← NEW
+- **Join conditions auto-populate based on FK relationships**
 - Add multiple JOINs (e.g., claims → referenda → categories)
 - Access columns from joined tables in column picker
 - Filter on joined table columns
 - Order by joined table columns
 - Live preview shows joined results
 - JOIN configuration saved with dashboard component
-
-**UX Improvements (2026-01):**
-- ✅ Auto-detect FK relationships and populate ON clause
-- ✅ Reordered UI: Joins appear before column selection
-- ✅ Simplified JOIN UI: removed manual ON condition selector
-- ✅ Removed row limit control (uses sensible defaults)
-- ✅ Column picker groups columns by table with fully-qualified names
 
 **Example Use Case:**
 Query outstanding claims with referendum creation dates:
@@ -311,15 +286,3 @@ Query outstanding claims with referendum creation dates:
 - Filter: `Referenda.proposal_time <= '2025-12-31'`
 - Filter: `outstanding_claims.expireAt > '2025-12-31'`
 - Columns: claim details + `Referenda.proposal_time`
-
-**Backend Status:** ✅ Already implemented
-- `QueryConfig.joins` array support
-- `buildJoinClause()` generates SQL
-- Used in Referenda and Child Bounties pages
-
-**Frontend Status:** ✅ Fully implemented
-- UI controls for adding JOINs
-- Auto-populate join conditions
-- Select join type, table, and optional alias
-- Column picker includes joined table columns
-- Filter and order by joined table columns

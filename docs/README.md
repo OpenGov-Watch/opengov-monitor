@@ -18,6 +18,12 @@ Defines **what** the system must do, not **how** it's implemented.
 - [frontend/query-builder.md](01_requirements/frontend/query-builder.md) - Query builder requirements
 - [frontend/filters.md](01_requirements/frontend/filters.md) - Filtering system requirements
 
+**Features:**
+- [features/data-views.md](01_requirements/features/data-views.md) - Public data exploration pages
+- [features/manage-section.md](01_requirements/features/manage-section.md) - Authenticated admin pages
+- [features/authentication.md](01_requirements/features/authentication.md) - Login, session, auth state
+- [features/navigation.md](01_requirements/features/navigation.md) - Sidebar, layout, responsive navigation
+
 ### `02_specification/` - Technical Specifications
 
 **Data:**
@@ -28,6 +34,15 @@ Defines **what** the system must do, not **how** it's implemented.
 
 **Security:**
 - [security/](02_specification/security/README.md) - Security specification (authentication, API, transport, container)
+
+**Frontend:**
+- [frontend/page-specifications.md](02_specification/frontend/page-specifications.md) - Columns, filters, sorts per page
+- [frontend/form-specifications.md](02_specification/frontend/form-specifications.md) - Form fields, validation rules
+- [frontend/filter-types.md](02_specification/frontend/filter-types.md) - Column types, operators
+- [frontend/ui-constants.md](02_specification/frontend/ui-constants.md) - Breakpoints, limits, dimensions
+
+**API:**
+- [api/endpoints.md](02_specification/api/endpoints.md) - REST API endpoints
 
 ### `03_design/` - Implementation Details
 
