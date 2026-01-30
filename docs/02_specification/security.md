@@ -25,16 +25,9 @@ This document describes the security architecture, controls, and configuration f
 - **Session Cookies**: httpOnly, secure (in production), sameSite configurable
 - **Session Regeneration**: Sessions are regenerated on login to prevent fixation
 
-### User Roles
+### User Management
 
-Users are managed via the `pnpm users` CLI command. Admin privileges are controlled via environment variable:
-
-```bash
-# Set admin users (comma-separated usernames)
-ADMIN_USERNAMES=alice,bob
-```
-
-If `ADMIN_USERNAMES` is not set, all authenticated users have full access (backwards compatibility). A warning is logged at startup when this occurs.
+Users are managed via the `pnpm users` CLI command. All authenticated users have equal access to protected endpoints.
 
 ### Username Validation
 
@@ -50,15 +43,15 @@ Authentication uses constant-time comparison to prevent user enumeration via tim
 
 ### Protected Endpoints
 
-| Endpoint | Auth Required | Admin Required |
-|----------|---------------|----------------|
-| `GET /api/backup/download` | Yes | Yes |
-| `GET /api/backup/info` | Yes | No |
-| `POST /api/categories/*` | Yes | No |
-| `POST /api/bounties/*` | Yes | No |
-| `POST /api/subtreasury/*` | Yes | No |
-| `POST /api/dashboards/*` | Yes | No |
-| `GET /api/query/*` | No | No |
+| Endpoint | Auth Required |
+|----------|---------------|
+| `GET /api/backup/download` | Yes |
+| `GET /api/backup/info` | Yes |
+| `POST /api/categories/*` | Yes |
+| `POST /api/bounties/*` | Yes |
+| `POST /api/subtreasury/*` | Yes |
+| `POST /api/dashboards/*` | Yes |
+| `GET /api/query/*` | No |
 
 ### Rate Limiting
 
@@ -163,7 +156,6 @@ The auto-generated secret persists across container restarts (as long as the dat
 ### Backup Security
 
 - Database backups require authentication
-- Admin privileges required for download (when `ADMIN_USERNAMES` is set)
 - Backups are checkpointed before download to ensure consistency
 
 ### Sensitive Data
@@ -269,7 +261,6 @@ Sync logs (`/data/opengov-sync.log`) are automatically truncated when exceeding 
 |----------|---------|-------------|
 | `SESSION_SECRET` | (auto-generated) | Override for session encryption (auto-persists to `.session-secret`) |
 | `CORS_ALLOWED_ORIGINS` | (allow all) | Comma-separated allowed origins |
-| `ADMIN_USERNAMES` | (all users) | Comma-separated admin usernames |
 | `NODE_ENV` | development | Set to `production` for secure defaults |
 | `CROSS_ORIGIN_AUTH` | false | Enable cross-origin cookies + CSRF protection |
 
@@ -344,12 +335,10 @@ Before deploying to production:
 - [ ] Verify `SESSION_SECRET` auto-generated in data dir (or set custom via env var)
 - [ ] Set `NODE_ENV=production`
 - [ ] Configure `CORS_ALLOWED_ORIGINS` if cross-origin access needed
-- [ ] Configure `ADMIN_USERNAMES` if role-based access needed
 - [ ] Enable HTTPS in nginx configuration
 - [ ] Uncomment HSTS header after HTTPS is working
 - [ ] Verify security headers with browser DevTools
 - [ ] Test that unauthenticated requests are rejected
-- [ ] Test that admin endpoints require admin privileges
 
 ---
 

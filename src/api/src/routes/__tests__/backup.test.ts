@@ -47,15 +47,6 @@ vi.mock("../../middleware/auth.js", () => ({
       res.status(401).json({ error: "Authentication required" });
     }
   },
-  requireAdmin: (req: any, res: any, next: any) => {
-    // For tests, requireAdmin behaves like requireAuth since no ADMIN_USERNAMES is set
-    // In production with no admins configured, all authenticated users can access
-    if (req.session?.userId) {
-      next();
-    } else {
-      res.status(401).json({ error: "Authentication required" });
-    }
-  },
 }));
 
 function createApp(): express.Express {

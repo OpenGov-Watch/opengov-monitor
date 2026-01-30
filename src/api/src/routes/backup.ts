@@ -1,13 +1,12 @@
 import { Router } from "express";
 import { getDatabase, getLastWriteTimestamp, DB_PATH } from "../db/index.js";
-import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { requireAuth } from "../middleware/auth.js";
 import { existsSync, statSync, createReadStream } from "fs";
 
 export const backupRouter: Router = Router();
 
-// GET /api/backup/download - Download checkpointed database (admin only)
-// Requires ADMIN_USERNAMES env var to be set with comma-separated admin usernames
-backupRouter.get("/download", requireAdmin, (req, res) => {
+// GET /api/backup/download - Download checkpointed database (requires authentication)
+backupRouter.get("/download", requireAuth, (req, res) => {
   try {
     // Use DB_PATH from db/index.ts (supports both local and production paths)
     if (!existsSync(DB_PATH)) {
