@@ -60,5 +60,5 @@ jobs:
       - name: Test API
         run: pnpm --filter api run test:run
 
-      - name: Test Frontend with Coverage
-        run: pnpm --filter opengov-monitor-frontend run test:coverage
+      - name: Test Frontend
+        run: pnpm --filter opengov-monitor-frontend run test:run
