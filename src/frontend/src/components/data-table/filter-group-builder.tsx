@@ -276,7 +276,10 @@ export const FilterGroupBuilder = React.memo(function FilterGroupBuilder({
 
     fetch("/api/query/facets", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
       credentials: "include",
       body: JSON.stringify(facetConfig),
       signal: controller.signal,
