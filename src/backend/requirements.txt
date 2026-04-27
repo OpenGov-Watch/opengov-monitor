@@ -8,4 +8,4 @@ pyyaml
 pytest
 pytest-mock
 pytest-cov
-cryptography>=42.0.0
+cryptography>=47.0.0
